@@ -1,0 +1,22 @@
+---
+title: "ai-minerals"
+subtitle: "Open-data mineral prospectivity mapping with simple ML"
+---
+
+A portfolio demonstration of mineral-prospectivity analysis using only public geoscientific data and straightforward machine learning. Target audience: companies applying AI to mineral exploration. The writeup is the primary artifact; the code exists to support it.
+
+## Status
+
+Day 1 of 7. Research and design documents are complete; the Tanacross notebook is a stub. Data pulls, feature engineering, modeling, validation, and writeup land on Days 2–7.
+
+## Reading order
+
+1. [Design proposal](design/mvp-proposal.md) — what is being built, why, and how.
+2. [Research briefs](research/) — independent writeups on KoBold, ExploreTech, the competitive landscape, the ML state-of-the-art, and the open-data stack.
+3. [Tanacross notebook](notebooks/tanacross.qmd) — the actual demo (WIP).
+
+## Explicitly not in scope
+
+- 3D geophysical inversions, POMDP drill planning, OCR of legacy logs in the main demo.
+- Production deployment, hosted service, real exploration recommendations.
+- See [CLAUDE.md](CLAUDE.md) for project rules.

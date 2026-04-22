@@ -1,0 +1,24 @@
+---
+title: "Tanacross: porphyry Cu-Mo-Au-Ag prospectivity from open data"
+subtitle: "v1 demo — eastern Alaska"
+execute:
+  eval: false
+---
+
+::: {.callout-warning}
+Stub. Day 1 of 7 — scaffolding only. Pipeline, model, maps, and prose arrive on Days 2–7.
+:::
+
+## Outline (to be filled in)
+
+1. Why critical minerals, why porphyry Cu, why Alaska
+2. Tanacross in context: the Taurus Cu-Mo-Au-Ag porphyry system
+3. Data inventory: MRDS, ARDF, AGDB4, SGMC, USGS geophysics, Sentinel-2
+4. The label problem: pseudo-negatives vs PU learning
+5. Features and their geological justification
+6. Baseline model: logistic regression + spatial CV
+7. Main model: Random Forest + SHAP
+8. External validation: Kenorland 2023–24 drill assays as a temporal holdout
+9. Outputs: prospectivity raster, top-N target polygons, interactive map
+10. Limits: what this does and doesn't prove
+11. Next steps
