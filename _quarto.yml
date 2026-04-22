@@ -1,0 +1,42 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.qmd
+    - notebooks/*.qmd
+
+website:
+  title: "ai-minerals"
+  description: "Open-data mineral prospectivity mapping with simple ML"
+  repo-url: https://github.com/skyking/ai-minerals
+  repo-actions: [edit, source]
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: notebooks/tanacross.qmd
+        text: Tanacross (v1)
+      - text: Research
+        menu:
+          - href: research/kobold-analysis.md
+            text: KoBold
+          - href: research/explore-tech-analysis.md
+            text: ExploreTech
+          - href: research/competitive-landscape.md
+            text: Competitive landscape
+          - href: research/state-of-the-art.md
+            text: State of the art
+          - href: research/open-datasets.md
+            text: Open datasets
+      - href: design/mvp-proposal.md
+        text: Design
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: false
+    code-tools: true
+
+execute:
+  freeze: auto
