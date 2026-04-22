@@ -198,12 +198,12 @@ plt.tight_layout()
 #| label: s2
 import numpy as np
 
-# The fetcher writes either s2_mean_*.tif (current) or s2_median_*.tif (legacy);
-# pick whichever exists.
+# Prefer the median composite (more robust to residual cloud); fall back to
+# mean if only that exists.
 s2_path = next(
     (p for p in [
-        DATA_RAW / "sentinel2" / "s2_mean_tanacross.tif",
         DATA_RAW / "sentinel2" / "s2_median_tanacross.tif",
+        DATA_RAW / "sentinel2" / "s2_mean_tanacross.tif",
     ] if p.exists()),
     None,
 )
@@ -257,7 +257,7 @@ plt.tight_layout()
 | AGDB4 samples | 4,689 | `Geol_DeDuped.txt` clipped to AOI, to Parquet |
 | Geology (SIM 3340) | 940 polygons | `AKStategeol_poly` detailed layer |
 | DEM (GLO-30) | 4259 × 3930 px (30 m) | 438–1706 m elevation |
-| Sentinel-2 L2A | 6 bands × 2130 × 1966 px (60 m) | 6 cleanest scenes (cloud < 0.3%), Jul–Aug 2024 |
+| Sentinel-2 L2A (median) | 6 bands × 2130 × 1966 px (60 m) | all 20 low-cloud scenes (<10%), Jul–Aug 2024, median-over-time |
 | Magnetic | 276 × 254 px | USGS US+Canada composite, AOI-clipped |
 | Gravity | 69 × 63 px | USGS US+Canada composite, AOI-clipped |
 
