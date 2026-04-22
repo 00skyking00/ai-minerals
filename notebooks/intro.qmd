@@ -1,0 +1,493 @@
+---
+title: "Intro — what's in the Tanacross data and why"
+subtitle: "A hands-on tour of the eight Day-2 datasets"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  warning: false
+---
+
+This notebook is a learning tour of what we pulled in Day 2. The goal is to
+touch each dataset, see what's actually in it, and build intuition for *why
+this particular combination* is how you go looking for porphyry-Cu systems
+with ML.
+
+Open it in VS Code / Jupyter and run cells one at a time. Each section ends
+with an "interpretation" note explaining what the output should be telling
+you about the exploration problem — not just the data.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rioxarray
+
+from ai_minerals.aoi import TANACROSS, WORKING_CRS
+from ai_minerals.data._common import DATA_RAW
+
+print(f"AOI: {TANACROSS.name}")
+print(f"  bounding box: W={TANACROSS.min_lon}, S={TANACROSS.min_lat}, "
+      f"E={TANACROSS.max_lon}, N={TANACROSS.max_lat}  (WGS84)")
+print(f"Working projection: {WORKING_CRS}  (NAD83 / Alaska Albers)")
+```
+
+## 1. The exploration question
+
+We have a 1° × 2° patch of eastern Alaska — the Tanacross 1:250,000
+quadrangle — and we want to build a model that says "**this pixel is more
+likely to host a porphyry copper deposit than that pixel**." That's mineral
+prospectivity mapping.
+
+A porphyry copper system is a specific *kind* of deposit. The short version:
+a buried granitic intrusion cools and releases hot, metal-rich fluids; those
+fluids alter the surrounding rock and deposit copper-molybdenum-gold sulfide
+minerals in a roughly bullseye pattern around the intrusion. Porphyries leave
+several signatures we can try to detect from a distance:
+
+1. **Geochemical halos** — anomalously high Cu, Mo, Au, As, Sb, Bi in rocks
+   and stream sediments drained from the alteration zone.
+2. **Hydrothermal alteration** — clay minerals, iron oxides, and sericite
+   that appear in satellite imagery at specific wavelengths.
+3. **Geophysical anomalies** — the granitic intrusion is often magnetic and
+   slightly less dense than the country rock.
+4. **Structural controls** — porphyries sit on regional-scale faults that
+   provided fluid pathways.
+
+The eight datasets we pulled cover each of these signatures plus the
+labels (where porphyries are already known). Below, each in turn.
+
+## 2. Known deposits — the labels (MRDS + ARDF)
+
+```{python}
+#| label: labels
+# Load MRDS (global) and ARDF (Alaska-specific) occurrences.
+mrds_path = DATA_RAW / "mrds" / "mrds_tanacross.geojson"
+mrds = gpd.read_file(mrds_path)
+
+ardf_path = DATA_RAW / "ardf" / "ardf_tc.gpkg"
+ardf = gpd.read_file(ardf_path)
+
+print(f"MRDS: {len(mrds)} occurrences in bbox")
+print(f"ARDF: {len(ardf)} occurrences in Tanacross quadrangle (TC)")
+```
+
+MRDS and ARDF both describe the same universe of sites (they cross-reference
+each other) but from different angles. MRDS is the global USGS occurrence
+database; ARDF is Alaska-specific with better-curated deposit-model labels.
+For this region ARDF is the cleaner of the two.
+
+```{python}
+#| label: labels-deposit-models
+print("ARDF deposit-model distribution (top 10):")
+print(ardf["dep_model"].fillna("(none)").value_counts().head(10).to_string())
+```
+
+Notice the geologic vocabulary: "**Porphyry Cu-Mo (Cox and Singer model
+21a)**", "**Tintina Belt-style gold-arsenopyrite-quartz vein**", "**Gold-quartz
+in veins and brecciated zones**". These are *deposit-model codes* —
+compressed geological theories about how each kind of deposit forms. Cox &
+Singer (1986) published the canonical list; the model numbers (21a = porphyry
+Cu, 22c = low-sulfidation epithermal gold, 39a = placer gold, etc.) are
+standard vocabulary across the industry.
+
+The Tanacross quadrangle hosts three kinds of systems simultaneously:
+
+- Cretaceous-age **porphyry Cu-Mo** (Taurus Cu-Mo-Au-Ag is the big one).
+- Younger **orogenic gold** veins (Tintina Belt-style).
+- Quaternary **placer gold** downstream of both of the above.
+
+For v1 we're targeting *porphyry Cu-Mo only*. We'll use the orogenic gold
+and placer records as part of the "not porphyry" landscape, and we'll check
+later whether the model distinguishes the two.
+
+```{python}
+#| label: labels-positives
+# Pull out the explicit porphyry Cu-Mo records for the positive class.
+ardf_porphyry = ardf[ardf["dep_model"].fillna("").str.contains("porphyry", case=False)]
+print(f"Explicit porphyry records in ARDF: {len(ardf_porphyry)}")
+
+print("\nNamed porphyry sites:")
+print(ardf_porphyry[["site", "comm_main", "dep_model"]].to_string(index=False))
+```
+
+These ~18 sites are our training positives. Notice how small that is. Class
+imbalance is a defining feature of mineral prospectivity mapping — out of
+the millions of pixels in the AOI, only a few dozen are confirmed deposits.
+Day 3 addresses this directly (pseudo-negative sampling + PU learning
+comparison).
+
+## 3. Geochemistry (AGDB4)
+
+```{python}
+#| label: agdb4
+agdb_path = DATA_RAW / "agdb4" / "agdb4_samples_tanacross.parquet"
+agdb = pd.read_parquet(agdb_path)
+print(f"AGDB4 samples in AOI: {len(agdb):,}")
+
+print("\nSample source types (how the sample was collected):")
+print(agdb["SAMPLE_SOURCE"].fillna("(none)").value_counts().head(6).to_string())
+
+print("\nSample primary class (what was tested):")
+print(agdb["PRIMARY_CLASS"].fillna("(none)").value_counts().head(5).to_string())
+```
+
+Almost 4,700 samples in our AOI — a surprisingly dense geochemical record
+for a 200 × 110 km patch of Alaska. About ⅓ are stream-sediment samples
+(sediment collected where creeks drain the landscape — each sample
+*integrates* rock fingerprinted from the entire upstream catchment).
+That's huge for exploration: one creek can tell you about square kilometers
+of otherwise inaccessible terrain.
+
+Each sample has been analyzed by one or more methods for dozens of elements.
+We pulled the *location* table (`Geol_DeDuped.txt`); the best-value element
+data lives in parallel `BV_*.txt` tables that we'll join on Day 3.
+
+Let's see where the samples are and what agencies collected them.
+
+```{python}
+#| label: agdb4-map
+# Plot sample locations colored by agency.
+fig, ax = plt.subplots(figsize=(10, 5))
+agdb_gdf = gpd.GeoDataFrame(
+    agdb, geometry=gpd.points_from_xy(agdb.LONGITUDE, agdb.LATITUDE), crs="EPSG:4326"
+).to_crs(WORKING_CRS)
+
+top_agencies = agdb["AGENCY"].value_counts().head(4).index.tolist()
+for agency in top_agencies:
+    sub = agdb_gdf[agdb_gdf["AGENCY"] == agency]
+    ax.scatter(sub.geometry.x, sub.geometry.y, s=2, alpha=0.5, label=f"{agency} ({len(sub)})")
+
+ax.set_title(f"AGDB4 sample locations in Tanacross — {len(agdb):,} samples")
+ax.set_aspect("equal")
+ax.legend(markerscale=4)
+plt.tight_layout()
+```
+
+Multi-decade, multi-agency legacy data is exactly what KoBold calls "**dark
+data**" when it's scanned reports, and "ingested data" when it's already
+standardized like AGDB4 is. This dataset is unusually clean for mineral
+exploration — the USGS has already done the painful integration of samples
+analyzed by 120 different lab methods into one "best-value" schema with
+provenance kept.
+
+```{python}
+#| label: agdb4-load-bv
+# Read best-value copper from the BV_C_Gd table. AGDB4's column naming:
+#   Cu_ppm        numeric best-value in ppm (negatives = censored, e.g. -50 => "<50")
+#   Cu_AM         analytical method code (ES_SQ, ICPMS, etc.)
+#   Cu_ppm_ALL    all values concatenated as text
+import io, zipfile
+
+def load_bv_table(table_name: str) -> pd.DataFrame:
+    zip_path = DATA_RAW / "agdb4" / "AGDB4_text.zip"
+    with zipfile.ZipFile(zip_path) as zf:
+        with zf.open(f"AGDB4_text/{table_name}") as f:
+            raw = f.read()
+    return pd.read_csv(io.BytesIO(raw), sep=",", low_memory=False, encoding="latin-1")
+
+# Cu is in BV_C_Gd (elements C through Gd); Mo is in BV_Ge_Os.
+bv_c_gd = load_bv_table("BV_C_Gd.txt")
+bv_ge_os = load_bv_table("BV_Ge_Os.txt")
+
+print(f"BV_C_Gd: {len(bv_c_gd):,} rows")
+print(f"  Cu-related cols: {[c for c in bv_c_gd.columns if c.startswith('Cu')]}")
+print(f"BV_Ge_Os: {len(bv_ge_os):,} rows")
+print(f"  Mo-related cols: {[c for c in bv_ge_os.columns if c.startswith('Mo')]}")
+```
+
+```{python}
+#| label: agdb4-cu-map
+# Restrict to stream-sediment samples in our AOI, join best-value Cu and Mo.
+# Negative Cu values are below-detection sentinels; treat as NaN for now.
+aoi_samples = agdb[agdb["PRIMARY_CLASS"] == "sediment"].copy()
+joined = aoi_samples.merge(bv_c_gd[["DDPD_ID", "Cu_ppm"]], on="DDPD_ID", how="left")
+joined = joined.merge(bv_ge_os[["DDPD_ID", "Mo_ppm"]], on="DDPD_ID", how="left")
+joined.loc[joined["Cu_ppm"] < 0, "Cu_ppm"] = np.nan
+joined.loc[joined["Mo_ppm"] < 0, "Mo_ppm"] = np.nan
+joined = joined.dropna(subset=["Cu_ppm"])
+print(f"Sediment samples with Cu assay in AOI: {len(joined):,}")
+print(f"Cu range: {joined['Cu_ppm'].min():.1f} to {joined['Cu_ppm'].max():.0f} ppm")
+print(f"Cu median: {joined['Cu_ppm'].median():.1f} ppm")
+
+joined_gdf = gpd.GeoDataFrame(
+    joined, geometry=gpd.points_from_xy(joined.LONGITUDE, joined.LATITUDE), crs="EPSG:4326"
+).to_crs(WORKING_CRS)
+
+fig, ax = plt.subplots(figsize=(10, 5))
+# log-scale color, clipped to the middle 95%.
+from matplotlib.colors import LogNorm
+cu = joined_gdf["Cu_ppm"].clip(lower=1)
+vmin, vmax = np.quantile(cu, [0.05, 0.95])
+sc = ax.scatter(joined_gdf.geometry.x, joined_gdf.geometry.y,
+                c=cu, cmap="inferno", s=6, alpha=0.8,
+                norm=LogNorm(vmin=vmin, vmax=vmax))
+
+# Overlay porphyry labels.
+por = ardf_porphyry.to_crs(WORKING_CRS)
+ax.scatter(por.geometry.x, por.geometry.y, s=80, marker="*",
+           facecolor="cyan", edgecolor="black", linewidth=0.7, label="porphyry (ARDF)")
+
+ax.set_title("Stream-sediment Cu (ppm, log scale) + known porphyry sites")
+ax.legend(loc="lower left")
+ax.set_aspect("equal")
+plt.colorbar(sc, ax=ax, label="Cu ppm (log)")
+plt.tight_layout()
+```
+
+If the ML model is any good, you should be able to see a weak version of its
+job by eye here: brighter (higher-Cu) dots should cluster *around* the cyan
+stars. That spatial coincidence is what a classifier will learn — and
+what's reassuring about it is that the signal is already visible without
+any modeling, it's just noisy and diluted by a lot of "normal" landscape.
+
+## 4. Remote sensing (Sentinel-2)
+
+```{python}
+#| label: s2-load
+s2 = rioxarray.open_rasterio(
+    DATA_RAW / "sentinel2" / "s2_median_tanacross.tif", masked=True
+)
+print(f"Sentinel-2 composite: shape={s2.shape}, CRS={s2.rio.crs}")
+print("Bands (in order):  B02=blue  B03=green  B04=red  B08=NIR  B11=SWIR1  B12=SWIR2")
+```
+
+The Sentinel-2 MSI satellite flies 8 times over this area each summer and
+captures reflectance in 13 wavelengths. We pulled the six bands most useful
+for mineral mapping, took the per-pixel **median over 20 low-cloud scenes
+from July–August 2024**, and reprojected to 60 m resolution Alaska Albers.
+
+Why those six bands? Different surface materials absorb and reflect light
+differently at different wavelengths. Porphyry alteration produces three
+spectral fingerprints we can exploit:
+
+- **Iron oxides** (gossan; weathered sulfides): strong absorption in the
+  blue (B02), strong reflection in the red (B04). *Iron-oxide index* = B04/B02.
+- **Ferrous iron**: reflects more in shortwave infrared (B11) than near
+  infrared (B08). *Ferrous index* = B11/B08.
+- **Clay + hydroxyl minerals** (kaolinite, illite — common in phyllic
+  alteration halos): absorb in B12 more than B11. *Clay index* = B11/B12.
+
+```{python}
+#| label: s2-rgb
+# Natural-color preview to orient ourselves.
+rgb = s2.sel(band=[3, 2, 1])  # B04 red, B03 green, B02 blue
+# Stretch to the 2-98 percentile for visibility.
+p2, p98 = np.nanpercentile(rgb.values, [2, 98])
+vis = (rgb.clip(p2, p98) - p2) / (p98 - p2)
+
+fig, ax = plt.subplots(figsize=(10, 5))
+vis.plot.imshow(ax=ax, rgb="band")
+ax.set_title("Sentinel-2 natural color — Tanacross, summer 2024")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+You should see greens and dark reds across most of the image — healthy
+boreal forest and tundra. Cooler grey/white patches are exposed bedrock,
+landslides, or roads. Bright white near the top is snow on high peaks. This
+is the *landscape the classifier will look at* — plus the spectral indices
+below.
+
+```{python}
+#| label: s2-iron-oxide
+# Compute the iron-oxide index: B04 / B02.
+iron_oxide = s2.sel(band=3) / s2.sel(band=1)
+
+fig, ax = plt.subplots(figsize=(10, 5))
+# Clip to 2-98 percentile for a clean stretch.
+p2, p98 = np.nanpercentile(iron_oxide.values, [2, 98])
+iron_oxide.plot(ax=ax, cmap="YlOrRd", vmin=p2, vmax=p98, add_colorbar=True,
+                cbar_kwargs={"label": "B04/B02 (iron-oxide index)"})
+
+# Overlay porphyry sites.
+por = ardf_porphyry.to_crs(s2.rio.crs)
+ax.scatter(por.geometry.x, por.geometry.y, s=80, marker="*",
+           facecolor="cyan", edgecolor="black", linewidth=0.7, label="porphyry (ARDF)")
+
+ax.set_title("Iron-oxide index — brighter means more iron-oxide weathering")
+ax.legend(loc="lower left")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+Again: bright pixels near cyan stars are what the model wants to learn. In
+practice vegetation masks much of the bedrock signal in Alaska — Day 3's
+NDVI mask will help strip those out.
+
+## 5. Topography (Copernicus GLO-30 DEM)
+
+```{python}
+#| label: dem
+dem = rioxarray.open_rasterio(DATA_RAW / "dem" / "dem_tanacross.tif").squeeze()
+print(f"DEM shape: {dem.shape}, elevation range {int(dem.min())} – {int(dem.max())} m")
+
+fig, ax = plt.subplots(figsize=(10, 5))
+dem.plot(ax=ax, cmap="terrain", add_colorbar=True,
+         cbar_kwargs={"label": "elevation (m)"})
+ax.set_title("Copernicus GLO-30 DEM — Tanacross")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+Elevation isn't itself a deposit predictor, but topographic *derivatives*
+are. Slope and ruggedness help because porphyry outcrops tend to sit on
+uplift blocks that erode faster than surrounding terrane — exposed bedrock,
+steeper slopes, less vegetation. Day 3 will compute slope + TRI (terrain
+ruggedness index) as features.
+
+## 6. Geophysics (magnetic + gravity anomalies)
+
+```{python}
+#| label: geophys
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+for ax, label in zip(axes, ["magnetic", "gravity"]):
+    p = DATA_RAW / "geophysics" / f"{label}_tanacross.tif"
+    da = rioxarray.open_rasterio(p, masked=True).squeeze()
+    vmin, vmax = np.nanpercentile(da.values, [2, 98])
+    da.plot(ax=ax, cmap="RdBu_r", vmin=vmin, vmax=vmax,
+            cbar_kwargs={"label": f"{label} anomaly"})
+
+    # Overlay porphyry sites.
+    por_proj = ardf_porphyry.to_crs(da.rio.crs)
+    ax.scatter(por_proj.geometry.x, por_proj.geometry.y, s=80, marker="*",
+               facecolor="yellow", edgecolor="black", linewidth=0.5,
+               label="porphyry")
+
+    ax.set_title(f"{label.title()} anomaly with porphyry sites")
+    ax.legend(loc="lower left", fontsize=8)
+    ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+Geophysics lets you "see through" vegetation and thin cover to the rock
+below. Two layers:
+
+- **Residual magnetic anomaly** — measures magnetite content. Porphyry
+  intrusions often contain magnetite (they're magnetite-series granitoids),
+  so they show up as local magnetic highs. A lot of other things do too
+  (mafic dikes, ultramafic bodies), so it's never deterministic, just a
+  feature.
+- **Bouguer gravity** — measures subsurface density. Felsic intrusions are
+  *less* dense than surrounding country rock, so they show up as gravity
+  *lows*. Again, lots of other things do too.
+
+The magnetic layer we have is USGS national-composite at ~450 m native
+pixel, our gravity is ~1.8 km native pixel. Both are coarser than ideal but
+reasonable for a regional prospectivity model. A real exploration campaign
+would fly high-resolution aeromag over target areas (Fleet Space-style) for
+prospect-scale work.
+
+## 7. Geology (USGS SIM 3340)
+
+```{python}
+#| label: geology
+geo = gpd.read_file(DATA_RAW / "geology_ak" / "geology_tanacross.gpkg")
+print(f"Geology: {len(geo)} polygons in AOI")
+print(f"Layer CRS: {geo.crs}")
+
+print("\nTop STATE_SYMBOL codes:")
+print(geo["STATE_SYMBOL"].value_counts().head(6).to_string())
+
+print("\nTop age ranges:")
+print(geo["AGE_RANGE"].value_counts().head(6).to_string())
+```
+
+```{python}
+#| label: geology-map
+fig, ax = plt.subplots(figsize=(11, 5))
+# Color by one of the SIM 3340 classification columns.
+geo.plot(column="CLASS", ax=ax, cmap="tab20", legend=False, alpha=0.7, edgecolor="none")
+
+# Overlay porphyry sites.
+por_proj = ardf_porphyry.to_crs(geo.crs)
+ax.scatter(por_proj.geometry.x, por_proj.geometry.y, s=80, marker="*",
+           facecolor="red", edgecolor="black", linewidth=0.7, label="porphyry (ARDF)")
+
+ax.set_title(f"SIM 3340 geologic units (N={len(geo)}) + porphyry sites")
+ax.legend(loc="lower left")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+Notice how the porphyry stars sit preferentially on particular polygons —
+late Cretaceous intrusive rocks. That's geology-as-feature in action: the
+rock unit a pixel is on is a strong predictor because porphyry *only* forms
+in specific geological settings. The `CLASS` and `STATE_SYMBOL` columns are
+numeric codes that join to the `nsaunits` / `nsakey` tables in the GDB for
+human-readable unit names — Day 3 resolves those and builds a one-hot
+encoding of the top lithologic units as features.
+
+## 8. Putting it together — the multi-layer view
+
+```{python}
+#| label: composite-view
+# One plot showing DEM background + geology outline + geochem overlay + porphyry stars.
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Layer 1: DEM hillshade-ish background.
+dem.plot(ax=ax, cmap="Greys_r", alpha=0.8, add_colorbar=False)
+
+# Layer 2: sediment Cu sample points, warm color scale.
+from matplotlib.colors import LogNorm
+cu = joined_gdf["Cu_ppm"].clip(lower=1)
+vmin, vmax = np.quantile(cu, [0.1, 0.95])
+sc = ax.scatter(joined_gdf.geometry.x, joined_gdf.geometry.y,
+                c=cu, cmap="YlOrRd", s=8, alpha=0.9,
+                norm=LogNorm(vmin=vmin, vmax=vmax))
+plt.colorbar(sc, ax=ax, label="sediment Cu (ppm, log)")
+
+# Layer 3: porphyry sites.
+ax.scatter(por_proj.geometry.x, por_proj.geometry.y, s=120, marker="*",
+           facecolor="lime", edgecolor="black", linewidth=0.8,
+           label=f"ARDF porphyry (N={len(ardf_porphyry)})")
+
+ax.set_title("Tanacross composite — DEM + stream-sediment Cu + porphyry labels")
+ax.legend(loc="lower left")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+This is what the Day-3 ML pipeline is going to consume, sampled per pixel.
+Every pixel will have:
+
+- ~30 geochemical aggregates (Cu, Mo, Au, Ag, As, Sb, Pb, Zn, Bi, Te, each
+  as mean + max + sample-count within a 5-km neighborhood)
+- 3 Sentinel-2 alteration indices (iron-oxide, ferrous, clay)
+- 3 geophysics values (magnetic anomaly, Bouguer gravity, gravity HGM)
+- 1 lithology class (one-hot of top-N most common units)
+- 1 fault-proximity distance
+- 3 topographic derivatives (elevation, slope, TRI)
+
+That's about 40 features per pixel. The classifier learns which combinations
+correlate with the porphyry label — then we ask it to score every pixel in
+the AOI and produce the prospectivity map.
+
+## Key takeaways before we start Day 3
+
+1. **The label problem is stark.** ~18 known porphyries out of millions of
+   pixels. Random undersampling vs PU learning is a real choice.
+2. **Multi-modal is the whole point.** No single layer predicts deposits
+   well; the signal lives in *how geochemistry, geophysics, and remote
+   sensing correlate*. This is why this problem is AI-shaped and not
+   classical-statistics-shaped.
+3. **The data are messy but honest.** Legacy samples from four decades,
+   multiple agencies, multiple analytical methods. AGDB4's "best value"
+   schema gets us most of the way; USGS has already done the painful
+   harmonization.
+4. **The quadrangle has structure.** Porphyry sites cluster geographically
+   and on specific geologic units. A model that respects spatial
+   autocorrelation (which is why we use spatial CV on Day 3) will report
+   honest performance.
+
+Next up: Day 3 builds the analysis grid, computes the features above, and
+trains a first logistic-regression + Random Forest pair with spatial
+cross-validation.
