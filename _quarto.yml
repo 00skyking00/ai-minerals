@@ -3,6 +3,7 @@ project:
   output-dir: _site
   render:
     - index.qmd
+    - notebooks/intro.qmd
     - notebooks/*.qmd
 
 website:
@@ -14,8 +15,8 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: notebooks/tanacross.qmd
-        text: Tanacross (v1)
+      - href: notebooks/intro.qmd
+        text: Data tour
       - text: Research
         menu:
           - href: research/kobold-analysis.md

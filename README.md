@@ -6,7 +6,7 @@ A bare-bones demonstration of AI-powered mineral prospectivity mapping using ope
 
 A Jupyter / Quarto notebook that takes publicly available geoscientific data for a specific region and commodity, trains a simple machine-learning model, and produces a prospectivity map with honest validation and interpretation. The writeup — not the code — is the primary artifact.
 
-Target region (v1): **Tanacross quadrangle, eastern Alaska**. Target commodity: **porphyry copper (Cu-Mo-Au-Ag)**.
+Target region (v1): **Eastern Alaska porphyry belt** — three contiguous 1:250,000 quadrangles (Tanacross + Mt Hayes + Nabesna) spanning the Wrangellia–Yukon-Tanana tectonic boundary. Target commodity: **porphyry copper (Cu-Mo-Au-Ag)**.
 
 Planned sequel (v2): **Mother Lode Belt, California**. Target commodity: **orogenic gold**.
 

@@ -109,14 +109,14 @@ def clip_units_to_aoi(aoi: AOI, *, layer: str | None = None) -> "geopandas.GeoDa
 
 
 if __name__ == "__main__":
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
     fetch()
     layers = list_layers()
     print(f"GDB layers ({len(layers)}):")
     for n in layers:
         print(f"  {n}")
-    gdf = clip_units_to_aoi(TANACROSS)
-    out_path = dataset_dir(NAME) / f"geology_{TANACROSS.name.lower()}.gpkg"
+    gdf = clip_units_to_aoi(EASTERN_ALASKA)
+    out_path = dataset_dir(NAME) / f"geology_{EASTERN_ALASKA.name.lower()}.gpkg"
     gdf.to_file(out_path, driver="GPKG")
     print(f"Wrote {out_path}")

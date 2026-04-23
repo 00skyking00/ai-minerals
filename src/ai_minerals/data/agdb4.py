@@ -131,14 +131,14 @@ def load_bbox(aoi: AOI) -> "pandas.DataFrame":  # type: ignore[name-defined]  # 
 
 
 if __name__ == "__main__":
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
     zip_path = fetch()
     print(f"Archive: {zip_path}")
     entries = list_entries()
     print(f"Archive has {len(entries)} entries.")
-    df = load_bbox(TANACROSS)
-    out_parquet = dataset_dir(NAME) / f"agdb4_samples_{TANACROSS.name.lower()}.parquet"
+    df = load_bbox(EASTERN_ALASKA)
+    out_parquet = dataset_dir(NAME) / f"agdb4_samples_{EASTERN_ALASKA.name.lower()}.parquet"
     df.to_parquet(out_parquet, index=False)
     print(f"Wrote clipped sample locations: {out_parquet}")
     print(f"Columns: {list(df.columns)[:25]}")

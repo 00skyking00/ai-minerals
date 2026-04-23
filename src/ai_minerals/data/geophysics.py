@@ -118,7 +118,7 @@ def clip_to_aoi(tif_path: Path, aoi: AOI, out_path: Path) -> Path:
 
 
 if __name__ == "__main__":
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
     results = fetch()
     print("\nClipping to AOI...")
@@ -128,5 +128,5 @@ if __name__ == "__main__":
             print(f"  {label}: no .tif found in {extract_dir}")
             continue
         src = tifs[0]
-        out = dataset_dir(NAME) / f"{label}_{TANACROSS.name.lower()}.tif"
-        clip_to_aoi(src, TANACROSS, out)
+        out = dataset_dir(NAME) / f"{label}_{EASTERN_ALASKA.name.lower()}.tif"
+        clip_to_aoi(src, EASTERN_ALASKA, out)

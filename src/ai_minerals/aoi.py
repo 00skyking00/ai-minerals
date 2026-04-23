@@ -42,9 +42,28 @@ TANACROSS = AOI(
     max_lon=-141.0,
     max_lat=64.0,
 )
-"""USGS 1:250,000-scale Tanacross quadrangle, east-central Alaska.
+"""USGS 1:250,000-scale Tanacross quadrangle (TC), east-central Alaska.
 
-The standard 1° × 2° Alaska quadrangle convention. Verified against the official
-USGS Alaska quadrangle shapefile in the notebook during Day 2 setup — refine if
-the shapefile disagrees.
+Standard 1° × 2° Alaska quadrangle. Kept for backward-compat and as a smaller
+test AOI; the v1 modeling AOI is EASTERN_ALASKA (below).
+"""
+
+
+EASTERN_ALASKA = AOI(
+    name="EastAK",
+    min_lon=-147.0,
+    min_lat=62.0,
+    max_lon=-141.0,
+    max_lat=64.0,
+)
+"""Three-quadrangle AOI covering the eastern-Alaska porphyry belt.
+
+  - Tanacross (TC):    63-64°N, 143-141°W   — Yukon-Tanana upland
+  - Mt Hayes (MH):     63-64°N, 147-144°W   — Wrangellia / Delta Range
+  - Nabesna (NB):      62-63°N, 144-141°W   — Wrangellia / eastern Alaska Range
+
+Spans the Wrangellia–Yukon-Tanana tectonic boundary, the regional porphyry-belt
+framing KoBold's Skolai project sits within. ~62 porphyry Cu-Mo positives across
+~67,000 km² vs 15 in Tanacross alone. Chosen as v1 AOI for lower model variance
+and a stronger interior-Alaska-belt narrative.
 """

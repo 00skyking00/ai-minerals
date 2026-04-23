@@ -42,8 +42,8 @@ def fetch(aoi: AOI) -> Path:
 
 
 if __name__ == "__main__":
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
-    path = fetch(TANACROSS)
+    path = fetch(EASTERN_ALASKA)
     size = path.stat().st_size
     print(f"Wrote {path} ({size:,} bytes)")

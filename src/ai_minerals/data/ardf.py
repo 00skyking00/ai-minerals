@@ -9,6 +9,7 @@ from __future__ import annotations
 import zipfile
 from pathlib import Path
 
+import pandas as pd
 import requests
 
 from ai_minerals.data._common import dataset_dir, write_source_md
@@ -104,11 +105,25 @@ def load_quadrangle(
     return within
 
 
+def load_quadrangles(
+    quads: list[str],
+    *,
+    aoi: "AOI | None" = None,  # type: ignore[name-defined]  # noqa: F821
+) -> "geopandas.GeoDataFrame":  # type: ignore[name-defined]  # noqa: F821
+    """Return ARDF records for any of the given quadrangle codes, optionally AOI-clipped."""
+    import geopandas as gpd
+
+    frames = [load_quadrangle(q, aoi=aoi) for q in quads]
+    combined = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=frames[0].crs)
+    print(f"ARDF: total {len(combined):,} records across quadrangles {quads}.")
+    return combined
+
+
 if __name__ == "__main__":
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
     fetch()
-    sub = load_quadrangle("TC", aoi=TANACROSS)
-    out_path = dataset_dir(NAME) / "ardf_tc.gpkg"
+    sub = load_quadrangles(["TC", "MH", "NB"], aoi=EASTERN_ALASKA)
+    out_path = dataset_dir(NAME) / f"ardf_{EASTERN_ALASKA.name.lower()}.gpkg"
     sub.to_file(out_path, driver="GPKG")
     print(f"Wrote {out_path}")

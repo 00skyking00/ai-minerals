@@ -7,13 +7,15 @@ A portfolio demonstration of mineral-prospectivity analysis using only public ge
 
 ## Status
 
-Day 1 of 7. Research and design documents are complete; the Tanacross notebook is a stub. Data pulls, feature engineering, modeling, validation, and writeup land on Days 2–7.
+Day 2 of 7. Research + design + data acquisition complete. Modeling
+(feature engineering, baseline, Random Forest, SHAP, validation, writeup)
+lands on Days 3–7.
 
 ## Reading order
 
 1. [Design proposal](design/mvp-proposal.md) — what is being built, why, and how.
 2. [Research briefs](research/) — independent writeups on KoBold, ExploreTech, the competitive landscape, the ML state-of-the-art, and the open-data stack.
-3. [Tanacross notebook](notebooks/tanacross.qmd) — the actual demo (WIP).
+3. [Data tour](notebooks/intro.qmd) — hands-on walkthrough of the eight Day-2 datasets.
 
 ## Explicitly not in scope
 

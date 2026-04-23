@@ -14,27 +14,31 @@ from __future__ import annotations
 import argparse
 import time
 
-from ai_minerals.aoi import TANACROSS
+from ai_minerals.aoi import EASTERN_ALASKA
 from ai_minerals.data import agdb4, ardf, dem, geology, geophysics, kenorland, mrds, sentinel2
+
+AOI = EASTERN_ALASKA
 
 
 def _run_mrds():
-    return mrds.fetch(TANACROSS)
+    return mrds.fetch(AOI)
 
 
 def _run_ardf():
+    # Pull records for all three adjacent quadrangles (TC + MH + NB),
+    # then geographically clip to the AOI polygon.
     ardf.fetch()
-    return ardf.load_quadrangle("TC", aoi=TANACROSS)
+    return ardf.load_quadrangles(["TC", "MH", "NB"], aoi=AOI)
 
 
 def _run_agdb4():
     agdb4.fetch()
-    return agdb4.load_bbox(TANACROSS)
+    return agdb4.load_bbox(AOI)
 
 
 def _run_geology():
     geology.fetch()
-    return geology.clip_units_to_aoi(TANACROSS)
+    return geology.clip_units_to_aoi(AOI)
 
 
 def _run_kenorland():
@@ -42,7 +46,7 @@ def _run_kenorland():
 
 
 def _run_dem():
-    return dem.fetch(TANACROSS)
+    return dem.fetch(AOI)
 
 
 def _run_geophysics():
@@ -50,7 +54,7 @@ def _run_geophysics():
 
 
 def _run_s2():
-    return sentinel2.fetch(TANACROSS)
+    return sentinel2.fetch(AOI)
 
 
 # Ordered from smallest / fastest to largest / slowest.

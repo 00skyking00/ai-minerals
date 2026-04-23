@@ -207,10 +207,10 @@ def _cli() -> int:
     parser.add_argument("--no-progress", action="store_true", help="suppress dask ProgressBar")
     args = parser.parse_args()
 
-    from ai_minerals.aoi import TANACROSS
+    from ai_minerals.aoi import EASTERN_ALASKA
 
     path = fetch(
-        TANACROSS,
+        EASTERN_ALASKA,
         mode=args.mode,
         resolution=args.resolution,
         scene_limit=args.scene_limit,
