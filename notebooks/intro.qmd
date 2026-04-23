@@ -257,17 +257,33 @@ any modeling, it's just noisy and diluted by a lot of "normal" landscape.
 
 ```{python}
 #| label: s2-load
-s2 = rioxarray.open_rasterio(
-    DATA_RAW / "sentinel2" / f"s2_median_{AOI_KEY}.tif", masked=True
+# Prefer the per-MGRS-tile mosaic (EastAK v1 approach); fall back to the
+# legacy single-reduction composites if only those exist.
+s2_path = next(
+    (p for p in [
+        DATA_RAW / "sentinel2" / f"s2_mosaic_{AOI_KEY}.tif",
+        DATA_RAW / "sentinel2" / f"s2_median_{AOI_KEY}.tif",
+        DATA_RAW / "sentinel2" / f"s2_mean_{AOI_KEY}.tif",
+    ] if p.exists()),
+    None,
 )
-print(f"Sentinel-2 composite: shape={s2.shape}, CRS={s2.rio.crs}")
+if s2_path is None:
+    raise FileNotFoundError(f"No s2_{{median,mean}}_{AOI_KEY}.tif composite found")
+s2 = rioxarray.open_rasterio(s2_path, masked=True)
+print(f"Loaded {s2_path.name}: shape={s2.shape}, CRS={s2.rio.crs}")
 print("Bands (in order):  B02=blue  B03=green  B04=red  B08=NIR  B11=SWIR1  B12=SWIR2")
 ```
 
 The Sentinel-2 MSI satellite flies 8 times over this area each summer and
 captures reflectance in 13 wavelengths. We pulled the six bands most useful
-for mineral mapping, took the per-pixel **median over 20 low-cloud scenes
-from July–August 2024**, and reprojected to 60 m resolution Alaska Albers.
+for mineral mapping. For EastAK the composite is a **per-MGRS-tile mosaic**:
+we chose the single lowest-cloud scene over each Sentinel-2 tile footprint
+(July–August 2024, 17 usable tiles spanning the AOI) and stitched them
+into one 120 m Alaska Albers raster. This avoids a known `stackstac + dask`
+deadlock that reproducibly hangs temporal reductions at large scale — see
+`feedback_stackstac_deadlock` in memory. Four tiles at the AOI edges had
+degenerate single-pixel intersections and were dropped; 60% of the AOI
+has valid S2 coverage.
 
 Why those six bands? Different surface materials absorb and reflect light
 differently at different wavelengths. Porphyry alteration produces three
