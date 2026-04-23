@@ -45,11 +45,12 @@ print(f"Working projection: {WORKING_CRS}  (NAD83 / Alaska Albers)")
 
 ## 1. The exploration question
 
-We have a 2° × 6° patch of eastern Alaska — three contiguous 1:250,000
-quadrangles (Tanacross, Mt Hayes, Nabesna) spanning the Wrangellia–
-Yukon-Tanana tectonic boundary — and we want to build a model that says
-"**this pixel is more likely to host a porphyry copper deposit than that
-pixel**." That's mineral prospectivity mapping.
+We have a **2° latitude × 6° longitude** patch of eastern Alaska — roughly
+**222 × 300 km** on the ground — covering three contiguous 1:250,000
+quadrangles (Tanacross, Mt Hayes, Nabesna) that span the
+Wrangellia–Yukon-Tanana tectonic boundary. We want to build a model that
+says "**this pixel is more likely to host a porphyry copper deposit than
+that pixel**." That's mineral prospectivity mapping.
 
 A porphyry copper system is a specific *kind* of deposit. The short version:
 a buried granitic intrusion cools and releases hot, metal-rich fluids; those
@@ -81,7 +82,7 @@ ardf_path = DATA_RAW / "ardf" / f"ardf_{AOI_KEY}.gpkg"
 ardf = gpd.read_file(ardf_path)
 
 print(f"MRDS: {len(mrds)} occurrences in bbox")
-print(f"ARDF: {len(ardf)} occurrences in Tanacross quadrangle (TC)")
+print(f"ARDF: {len(ardf)} occurrences across TC + MH + NB quadrangles (AOI-clipped)")
 ```
 
 MRDS and ARDF both describe the same universe of sites (they cross-reference
@@ -103,9 +104,12 @@ Singer (1986) published the canonical list; the model numbers (21a = porphyry
 Cu, 22c = low-sulfidation epithermal gold, 39a = placer gold, etc.) are
 standard vocabulary across the industry.
 
-The Tanacross quadrangle hosts three kinds of systems simultaneously:
+Eastern Alaska hosts three kinds of systems simultaneously, all well
+represented in our three-quadrangle AOI:
 
-- Cretaceous-age **porphyry Cu-Mo** (Taurus Cu-Mo-Au-Ag is the big one).
+- Cretaceous-age **porphyry Cu-Mo** (Taurus Cu-Mo-Au-Ag in Tanacross is
+  the best-studied; Mt Hayes and Nabesna have their own cluster on the
+  Wrangellia side of the terrane boundary).
 - Younger **orogenic gold** veins (Tintina Belt-style).
 - Quaternary **placer gold** downstream of both of the above.
 
@@ -123,11 +127,14 @@ print("\nNamed porphyry sites:")
 print(ardf_porphyry[["site", "comm_main", "dep_model"]].to_string(index=False))
 ```
 
-These ~18 sites are our training positives. Notice how small that is. Class
-imbalance is a defining feature of mineral prospectivity mapping — out of
-the millions of pixels in the AOI, only a few dozen are confirmed deposits.
-Day 3 addresses this directly (pseudo-negative sampling + PU learning
-comparison).
+These are our training positives — **62 known porphyry Cu-Mo records**
+across the three quadrangles (roughly 18 in TC, 25 in MH, 19 in NB).
+That's 4× the count we'd have with Tanacross alone, which is the main
+reason we expanded the AOI. Still small in absolute terms — class
+imbalance is a defining feature of mineral prospectivity mapping: out of
+the millions of pixels in the AOI, only a few dozen are confirmed
+deposits. Day 3 addresses this directly (pseudo-negative sampling + PU
+learning comparison).
 
 ## 3. Geochemistry (AGDB4)
 
@@ -144,12 +151,12 @@ print("\nSample primary class (what was tested):")
 print(agdb["PRIMARY_CLASS"].fillna("(none)").value_counts().head(5).to_string())
 ```
 
-Almost 4,700 samples in our AOI — a surprisingly dense geochemical record
-for a 200 × 110 km patch of Alaska. About ⅓ are stream-sediment samples
-(sediment collected where creeks drain the landscape — each sample
-*integrates* rock fingerprinted from the entire upstream catchment).
-That's huge for exploration: one creek can tell you about square kilometers
-of otherwise inaccessible terrain.
+~24,600 samples in our AOI — a surprisingly dense geochemical record
+for a ~222 × 300 km patch of Alaska (about one sample per ~3 km²). A bit
+over ⅓ are stream-sediment samples (sediment collected where creeks
+drain the landscape — each sample *integrates* rock fingerprinted from
+the entire upstream catchment). That's huge for exploration: one creek
+can tell you about square kilometers of otherwise inaccessible terrain.
 
 Each sample has been analyzed by one or more methods for dozens of elements.
 We pulled the *location* table (`Geol_DeDuped.txt`); the best-value element
@@ -170,7 +177,7 @@ for agency in top_agencies:
     sub = agdb_gdf[agdb_gdf["AGENCY"] == agency]
     ax.scatter(sub.geometry.x, sub.geometry.y, s=2, alpha=0.5, label=f"{agency} ({len(sub)})")
 
-ax.set_title(f"AGDB4 sample locations in Tanacross — {len(agdb):,} samples")
+ax.set_title(f"AGDB4 sample locations in {AOI.name} AOI — {len(agdb):,} samples")
 ax.set_aspect("equal")
 ax.legend(markerscale=4)
 plt.tight_layout()
@@ -306,7 +313,7 @@ vis = (rgb.clip(p2, p98) - p2) / (p98 - p2)
 
 fig, ax = plt.subplots(figsize=(10, 5))
 vis.plot.imshow(ax=ax, rgb="band")
-ax.set_title("Sentinel-2 natural color — Tanacross, summer 2024")
+ax.set_title(f"Sentinel-2 natural color — {AOI.name} AOI, summer 2024")
 ax.set_aspect("equal")
 plt.tight_layout()
 ```
@@ -353,7 +360,7 @@ print(f"DEM shape: {dem.shape}, elevation range {int(dem.min())} – {int(dem.ma
 fig, ax = plt.subplots(figsize=(10, 5))
 dem.plot(ax=ax, cmap="terrain", add_colorbar=True,
          cbar_kwargs={"label": "elevation (m)"})
-ax.set_title("Copernicus GLO-30 DEM — Tanacross")
+ax.set_title(f"Copernicus GLO-30 DEM — {AOI.name}")
 ax.set_aspect("equal")
 plt.tight_layout()
 ```
@@ -470,7 +477,7 @@ ax.scatter(por_proj.geometry.x, por_proj.geometry.y, s=120, marker="*",
            facecolor="lime", edgecolor="black", linewidth=0.8,
            label=f"ARDF porphyry (N={len(ardf_porphyry)})")
 
-ax.set_title("Tanacross composite — DEM + stream-sediment Cu + porphyry labels")
+ax.set_title(f"{AOI.name} composite — DEM + stream-sediment Cu + porphyry labels")
 ax.legend(loc="lower left")
 ax.set_aspect("equal")
 plt.tight_layout()
@@ -493,8 +500,9 @@ the AOI and produce the prospectivity map.
 
 ## Key takeaways before we start Day 3
 
-1. **The label problem is stark.** ~18 known porphyries out of millions of
-   pixels. Random undersampling vs PU learning is a real choice.
+1. **The label problem is stark.** 62 known porphyries across ~67,000 km²
+   (millions of pixels). Still rare in absolute terms —
+   random-undersampling vs PU learning is a real choice.
 2. **Multi-modal is the whole point.** No single layer predicts deposits
    well; the signal lives in *how geochemistry, geophysics, and remote
    sensing correlate*. This is why this problem is AI-shaped and not
@@ -503,8 +511,9 @@ the AOI and produce the prospectivity map.
    multiple agencies, multiple analytical methods. AGDB4's "best value"
    schema gets us most of the way; USGS has already done the painful
    harmonization.
-4. **The quadrangle has structure.** Porphyry sites cluster geographically
-   and on specific geologic units. A model that respects spatial
+4. **The AOI has structure.** Porphyry sites cluster geographically —
+   along specific geologic units and sub-regions of the
+   Wrangellia–Yukon-Tanana boundary. A model that respects spatial
    autocorrelation (which is why we use spatial CV on Day 3) will report
    honest performance.
 
