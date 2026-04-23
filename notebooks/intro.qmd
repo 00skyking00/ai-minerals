@@ -119,22 +119,65 @@ later whether the model distinguishes the two.
 
 ```{python}
 #| label: labels-positives
-# Pull out the explicit porphyry Cu-Mo records for the positive class.
-ardf_porphyry = ardf[ardf["dep_model"].fillna("").str.contains("porphyry", case=False)]
-print(f"Explicit porphyry records in ARDF: {len(ardf_porphyry)}")
+# Positive-class definition: use Cox & Singer deposit-model codes, not the
+# free-text `dep_model` string. The code field is structured and drops the
+# noisiest records (speculative "porphyry?" with no code, or "Cu skarn").
+#
+# Two definitions, side by side:
+#   - PORPHYRY FAMILY  (primary)  — all intrusion-hosted porphyry types
+#       17  : Porphyry Cu (plutonic, low-F)
+#       20c : Porphyry Cu, skarn-related
+#       21a : Porphyry Cu-Mo  (canonical)
+#       21b : Porphyry Mo, low-F
+#   - STRICT 21a (sensitivity check) — only the canonical Porphyry Cu-Mo.
+#
+# A sensitivity comparison runs after Day-5 validation: report whether
+# AUC moves meaningfully between family (N~56) and strict (N~32) positives.
 
-print("\nNamed porphyry sites:")
-print(ardf_porphyry[["site", "comm_main", "dep_model"]].to_string(index=False))
+import re
+
+PORPHYRY_FAMILY_CODES = ("17", "20c", "21a", "21b")
+PORPHYRY_STRICT_CODES = ("21a",)
+
+def _matches_codes(series: pd.Series, codes: tuple[str, ...]) -> pd.Series:
+    pat = r"\b(?:" + "|".join(re.escape(c) for c in codes) + r")\b"
+    return series.fillna("").str.contains(pat, case=False, regex=True)
+
+family_mask = _matches_codes(ardf["model_code"], PORPHYRY_FAMILY_CODES)
+strict_mask = _matches_codes(ardf["model_code"], PORPHYRY_STRICT_CODES)
+
+ardf_porphyry = ardf[family_mask].copy()          # primary
+ardf_porphyry_strict = ardf[strict_mask].copy()   # sensitivity check
+
+print(f"Porphyry family   (17/20c/21a/21b):  {len(ardf_porphyry)} records")
+print(f"Porphyry strict   (21a only):        {len(ardf_porphyry_strict)} records")
+
+print("\nmodel_code distribution in the family set:")
+print(ardf_porphyry["model_code"].fillna("(none)").value_counts().to_string())
 ```
 
-These are our training positives — **62 known porphyry Cu-Mo records**
-across the three quadrangles (roughly 18 in TC, 25 in MH, 19 in NB).
-That's 4× the count we'd have with Tanacross alone, which is the main
-reason we expanded the AOI. Still small in absolute terms — class
-imbalance is a defining feature of mineral prospectivity mapping: out of
-the millions of pixels in the AOI, only a few dozen are confirmed
-deposits. Day 3 addresses this directly (pseudo-negative sampling + PU
-learning comparison).
+These **~56 porphyry-family records** are our primary training positives,
+up from 15 in Tanacross alone — the main reason we expanded the AOI. The
+codes cover the canonical porphyry Cu-Mo (21a) plus three genetically
+related sub-types:
+
+- **Model 17** — plutonic, low-fluorine porphyry Cu. Same deposit
+  mechanism, slightly different geologic setting.
+- **Model 20c** — porphyry Cu where the skarn carapace is the dominant
+  manifestation. Same intrusion, same fluids, skarn ore instead of
+  disseminated porphyry.
+- **Model 21b** — porphyry Mo, low-F. Mo-dominant variant of 21a.
+
+Records coded as pure Cu skarn (18a) or polymetallic veins (22c) without
+an accompanying porphyry interpretation are excluded; so are the 5
+records with no model code (mostly speculative "porphyry?" attributions).
+
+Still small in absolute terms — class imbalance is a defining feature of
+mineral prospectivity mapping: out of millions of pixels in the AOI,
+only a few dozen are confirmed deposits. Day 3 addresses this directly
+(pseudo-negative sampling + PU-learning comparison). After Day 5 we'll
+retrain on the strict 21a-only set and report whether model performance
+moves meaningfully between the two positive definitions.
 
 ## 3. Geochemistry (AGDB4)
 
