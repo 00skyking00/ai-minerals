@@ -66,10 +66,17 @@ Typical feature dimensionality: ~30–45 columns per pixel.
 
 ### Labeling
 
+**Positive class — porphyry family (primary).** Filter ARDF by Cox & Singer deposit-model codes, not the free-text `dep_model` field. The structured code field excludes the ~5 speculative "porphyry?" records with no code and the pure Cu skarn (model 18a) records.
+
+- **Family set** (~56 records): codes `17`, `20c`, `21a`, `21b` — covering canonical porphyry Cu-Mo (21a), plutonic porphyry Cu (17), skarn-related porphyry Cu (20c), and porphyry Mo low-F (21b). All intrusion-hosted Cu/Mo variants of the same genetic system.
+- **Strict set** (~32 records, for sensitivity check at the end of Day 5): code `21a` only, the canonical Porphyry Cu-Mo model.
+
+The family set is our primary training positive class. The sensitivity check (below) quantifies whether broadening the definition was worth the heterogeneity cost.
+
 Two parallel labeling schemes, compared side by side:
 
 **Scheme A: supervised with pseudo-negatives.**
-- Positives: MRDS + ARDF porphyry-Cu occurrences.
+- Positives: ARDF porphyry-family records (as above).
 - Negatives: random sample of pixels ≥5 km from any MRDS/ARDF Cu occurrence, stratified by lithology class to avoid trivial separation.
 - Train:test ratio of positives:pseudo-negatives balanced via `imbalanced-learn` (SMOTE or random undersampling, both reported).
 
@@ -97,6 +104,8 @@ No neural network. The feature space is tabular at ~10³–10⁴ pixels of train
 3. **External blind test via Kenorland drill collars.** Kenorland's 2023–24 Tanacross drill holes (including 23ETD062 returning 174.22m at 0.14% Cu, 0.02% Mo, 0.05 g/t Au) are not in MRDS and were not used in training. Compute the model's predicted probability at each hole collar; report the distribution vs. a null distribution from random non-MRDS pixels. A well-behaved model should rank the Kenorland holes visibly higher than random.
 
 4. **Honest reporting of failure modes.** If the model performs poorly under spatial CV (a real risk with small-N porphyry occurrences), report that without editorializing. A failed-but-well-validated demo is more credible than a gamed-but-apparently-successful one.
+
+5. **Sensitivity check — strict 21a-only positives.** At the end of Day 5, retrain the Random Forest on the strict Porphyry Cu-Mo (model 21a) positive set — ~32 records vs ~56 in the family set. Compare under the same spatial-CV regime and the same feature stack. Report: (a) AUC-ROC and PR-AUC for both, (b) whether the top-5 SHAP features move, (c) whether the top-N target polygons move. If AUC changes by <0.02 and target polygons are substantially stable, the broader family definition was a free lunch — adopt it. If it swings meaningfully, the family set is learning heterogeneous sub-types and we should either stick with 21a strict or split into two per-subtype models. Report the verdict honestly in the writeup.
 
 ### Interpretation
 
