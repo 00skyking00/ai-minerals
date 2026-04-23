@@ -326,14 +326,36 @@ print("Bands (in order):  B02=blue  B03=green  B04=red  B08=NIR  B11=SWIR1  B12=
 
 The Sentinel-2 MSI satellite flies 8 times over this area each summer and
 captures reflectance in 13 wavelengths. We pulled the six bands most useful
-for mineral mapping. For EastAK the composite is a **per-MGRS-tile mosaic**:
-we chose the single lowest-cloud scene over each Sentinel-2 tile footprint
-(July–August 2024, 17 usable tiles spanning the AOI) and stitched them
-into one 120 m Alaska Albers raster. This avoids a known `stackstac + dask`
-deadlock that reproducibly hangs temporal reductions at large scale — see
-`feedback_stackstac_deadlock` in memory. Four tiles at the AOI edges had
-degenerate single-pixel intersections and were dropped; 60% of the AOI
-has valid S2 coverage.
+for mineral mapping. For EastAK the composite is a **per-MGRS-tile mosaic
+with multi-scene mean**: for each Sentinel-2 tile footprint we picked the
+top-3 lowest-cloud scenes in July–August 2024 (cloud<30%), reprojected
+each to 120 m Alaska Albers, and took the per-pixel NaN-skipping mean
+before stitching the 19 tiles together.
+
+Why not a single-scene composite or a stackstac median? Three fixable and
+one unfixable issue bit us:
+
+1. **`stackstac + dask` hangs on large AOIs** — reproducibly at 40%
+   completion regardless of scheduler. Solution: bypass stackstac for
+   mosaicking, read scenes directly via rioxarray per MGRS tile.
+2. **Planetary Computer SAS tokens expire ~60 min after signing**, so
+   long runs hit HTTP 403 on later tiles. Solution: switched to AWS
+   Earth Search, which serves the same Sentinel-2 L2A COGs with
+   permanent URLs (no signing needed).
+3. **Some individual low-cloud scenes are partial acquisitions** that
+   only cover part of their MGRS tile. Picking the lowest-cloud scene
+   alone left gaps. Solution: mean the top-3 scenes — any pixel only
+   needs one scene to have data.
+4. **Unfixable**: Rainbow Ridge (MH quadrangle) is a 15 × 15 km patch
+   where every available S2 scene in our window has NaN pixels. Real
+   data gap, confirmed across both PC and AWS backends with widened
+   cloud/date filters. 10 of our 56 porphyry positives fall in this
+   gap; Day-3 modeling inherits NaN S2 features for those training
+   points and will document the limitation honestly.
+
+Four tiles at the AOI SE/NE corners had degenerate single-pixel AOI
+intersections at 120 m and were dropped (no porphyry positives in
+them).
 
 Why those six bands? Different surface materials absorb and reflect light
 differently at different wavelengths. Porphyry alteration produces three
