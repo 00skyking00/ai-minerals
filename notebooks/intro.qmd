@@ -372,13 +372,14 @@ spectral fingerprints we can exploit:
 #| label: s2-rgb
 # Natural-color preview to orient ourselves.
 rgb = s2.sel(band=[3, 2, 1])  # B04 red, B03 green, B02 blue
-# Stretch to the 2-98 percentile for visibility.
-p2, p98 = np.nanpercentile(rgb.values, [2, 98])
-vis = (rgb.clip(p2, p98) - p2) / (p98 - p2)
+# Downsample for speed (~16M values → ~640k) before percentile + plot.
+rgb_preview = rgb[:, ::5, ::5]
+p2, p98 = np.nanpercentile(rgb_preview.values, [2, 98])
+vis = (rgb_preview.clip(p2, p98) - p2) / (p98 - p2)
 
 fig, ax = plt.subplots(figsize=(10, 5))
 vis.plot.imshow(ax=ax, rgb="band")
-ax.set_title(f"Sentinel-2 natural color — {AOI.name} AOI, summer 2024")
+ax.set_title(f"Sentinel-2 natural color — {AOI.name} AOI (preview, 600 m)")
 ax.set_aspect("equal")
 plt.tight_layout()
 ```
@@ -391,11 +392,13 @@ below.
 
 ```{python}
 #| label: s2-iron-oxide
-# Compute the iron-oxide index: B04 / B02.
-iron_oxide = s2.sel(band=3) / s2.sel(band=1)
+# Compute the iron-oxide index: B04 / B02 (on downsampled arrays for speed).
+# Day-3 feature engineering will compute this at full 120 m from the raw bands.
+red = s2.sel(band=3)[::5, ::5]
+blue = s2.sel(band=1)[::5, ::5]
+iron_oxide = red / blue
 
 fig, ax = plt.subplots(figsize=(10, 5))
-# Clip to 2-98 percentile for a clean stretch.
 p2, p98 = np.nanpercentile(iron_oxide.values, [2, 98])
 iron_oxide.plot(ax=ax, cmap="YlOrRd", vmin=p2, vmax=p98, add_colorbar=True,
                 cbar_kwargs={"label": "B04/B02 (iron-oxide index)"})
@@ -422,10 +425,16 @@ NDVI mask will help strip those out.
 dem = rioxarray.open_rasterio(DATA_RAW / "dem" / f"dem_{AOI_KEY}.tif").squeeze()
 print(f"DEM shape: {dem.shape}, elevation range {int(dem.min())} – {int(dem.max())} m")
 
+# Downsample for display. At native 30 m, the EastAK DEM is ~98 M pixels —
+# matplotlib renders every pixel, which hangs on reasonable hardware. A
+# ~1000-wide preview is plenty for a visual sanity check. (The full-res
+# data is still used by downstream Day-3 code.)
+dem_preview = dem[::10, ::10]
+
 fig, ax = plt.subplots(figsize=(10, 5))
-dem.plot(ax=ax, cmap="terrain", add_colorbar=True,
-         cbar_kwargs={"label": "elevation (m)"})
-ax.set_title(f"Copernicus GLO-30 DEM — {AOI.name}")
+dem_preview.plot(ax=ax, cmap="terrain", add_colorbar=True,
+                 cbar_kwargs={"label": "elevation (m)"})
+ax.set_title(f"Copernicus GLO-30 DEM — {AOI.name} (preview, 300 m)")
 ax.set_aspect("equal")
 plt.tight_layout()
 ```
@@ -525,8 +534,8 @@ encoding of the top lithologic units as features.
 # One plot showing DEM background + geology outline + geochem overlay + porphyry stars.
 fig, ax = plt.subplots(figsize=(12, 6))
 
-# Layer 1: DEM hillshade-ish background.
-dem.plot(ax=ax, cmap="Greys_r", alpha=0.8, add_colorbar=False)
+# Layer 1: DEM hillshade-ish background (downsampled for plot speed).
+dem_preview.plot(ax=ax, cmap="Greys_r", alpha=0.8, add_colorbar=False)
 
 # Layer 2: sediment Cu sample points, warm color scale.
 from matplotlib.colors import LogNorm
