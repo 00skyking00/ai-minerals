@@ -150,6 +150,23 @@ The writeup drives the artifact. Sections in the v1 notebook:
 10. **Limits** — explicit boxes: "how this differs from KoBold's actual system," "how this differs from ExploreTech's decision-theoretic stack."
 11. **Next steps** — SimPEG 2.5D magnetic inversion; ASTER SWIR alteration; PU-learning extension; foundation-model fine-tune (Clay/Prithvi/GFM4MPM); POMDP drill-planner sketch.
 
+## Known improvements to revisit
+
+Items surfaced during implementation that are *not* blocking v1 completion
+but are worth queuing for v1.1 or the writeup's "next steps" section.
+
+- **`<el>_has_data` indicator columns for geochemistry.** Rare-pathfinder
+  elements have high NaN rates (Te ~56%, Au ~47%, Ag ~31%) because a
+  cell's 5 km neighborhood may have no sample tested for that element.
+  Day-3's baseline median-imputes these, which loses information: the
+  *fact* of missingness likely correlates with exploration history and
+  terrain accessibility, so a binary `<el>_has_data` companion column
+  would give the model an honest signal. Cheap to add (~20 lines in
+  `geochem.aggregate_in_radius`); deferred so Day 4 can first compare
+  the imputation-free tree models (Random Forest, HistGradientBoosting)
+  that handle NaN natively and may sidestep the issue without the
+  extra columns.
+
 ## Out of scope (don't drift)
 
 - 3D physics-consistent geophysical inversions (SimPEG-based). Acknowledged as the natural next step.
