@@ -1,8 +1,8 @@
-# MVP proposal — ai-minerals v1 (Tanacross)
+# MVP proposal — ai-minerals v1 (Eastern Alaska porphyry belt)
 
 ## Goal
 
-Produce a public, runnable demonstration — a single Quarto notebook plus supporting Python module — that takes open geoscientific data for the Tanacross quadrangle of eastern Alaska, trains a simple supervised classifier, and outputs a porphyry-copper prospectivity map with honest validation and interpretation. The writeup is the primary artifact.
+Produce a public, runnable demonstration — a single Quarto notebook plus supporting Python module — that takes open geoscientific data for a three-quadrangle slice of eastern Alaska, trains a simple supervised classifier, and outputs a porphyry-copper prospectivity map with honest validation and interpretation. The writeup is the primary artifact.
 
 Audience: senior ML + geoscience hiring managers at KoBold Metals, ExploreTech, Earth AI, and similar.
 
@@ -10,14 +10,16 @@ Success criterion: a reader can clone the repo, execute the notebook in a fresh 
 
 ## Region and commodity
 
-**Tanacross quadrangle, eastern Alaska. Porphyry Cu-Mo-Au-Ag system** (Taurus + related prospects).
+**Eastern Alaska porphyry belt — Tanacross (TC) + Mt Hayes (MH) + Nabesna (NB) 1:250,000 quadrangles. Porphyry Cu-Mo-Au-Ag systems** (Taurus + related prospects in TC, and ~40 additional occurrences across MH + NB).
 
-Rationale (summarized from the approved plan):
-- Personal familiarity advantage (narrative authenticity).
-- KoBold is explicitly active in adjacent Alaska geology (Skolai, Wrangellia Ni-Cu-Co-PGM).
-- Porphyry Cu-Mo is a textbook MPM target with abundant literature.
+The AOI spans the Wrangellia–Yukon-Tanana tectonic boundary: Mt Hayes and Nabesna sit on the Wrangellia accreted-terrane block (where KoBold's Skolai project also sits), while Tanacross sits on the Yukon-Tanana continental-arc upland. Both host Cretaceous porphyry Cu-Mo, but the structural controls differ — an ML signal we can probe via SHAP.
+
+Rationale:
+- 62 ARDF porphyry positives vs. 15 in Tanacross alone — enough for stable spatial-CV variance and defensible error bars.
+- Narrative breadth: "eastern Alaska porphyry belt" reads as a real geological region, not a single map sheet.
+- KoBold is active in the Wrangellia portion of this exact AOI (Skolai).
 - Clean, curated public data (AGDB4, ARDF, USGS OFR 2022-1046 Taurus SEM analyses).
-- A natural external validation set exists: Kenorland Minerals' 2023–2024 Tanacross drill-hole assays postdate MRDS label cutoffs, creating a genuine temporal holdout.
+- A natural external validation set: Kenorland Minerals' 2023–2024 Tanacross drill-hole assays postdate MRDS label cutoffs, creating a genuine temporal holdout within TC.
 
 **Deliberately deferred:** a Mother Lode, California orogenic-gold sequel (v2) reusing this scaffolding. Explicitly out of scope for v1.
 
@@ -38,17 +40,17 @@ The feature set below is designed to proxy these signatures from open data.
 
 All fetches are scripted and reproducible. Each dataset lives in `data/raw/<dataset>/` with a `SOURCE.md` documenting URL, retrieval date, license.
 
-1. **USGS MRDS + ARDF** — filtered to Tanacross quadrangle and commodity = Cu, Mo, Au, Ag with deposit-type containing "porphyry" (MRDS) or equivalent ARDF deposit-model IDs.
-2. **USGS AGDB4** — best-value geochemistry, rock + stream-sediment + soil, clipped to Tanacross.
-3. **USGS geophysical grids** — residual aeromagnetic + K/U/Th radiometric + Bouguer gravity rasters over Tanacross. CMMI tri-national grids as a fallback if coverage is cleaner there.
-4. **Sentinel-2 L2A** — summer (snow-free, low-cloud) median composite from Microsoft Planetary Computer via `pystac-client` + `stackstac`.
-5. **USGS SGMC** — state geologic map compilation for the AK slice; polygons + contact linework for lithology-class and fault-proximity features.
+1. **USGS MRDS + ARDF** — filtered to the AOI polygon + commodity = Cu, Mo, Au, Ag with deposit-type containing "porphyry" (MRDS) or equivalent ARDF deposit-model IDs. ARDF records from all three quadrangles (TC, MH, NB) combined then geometrically clipped.
+2. **USGS AGDB4** — best-value geochemistry, rock + stream-sediment + soil, clipped to the AOI.
+3. **USGS geophysical grids** — residual aeromagnetic + K/U/Th radiometric + Bouguer gravity rasters over the AOI. CMMI tri-national grids as a fallback if coverage is cleaner there.
+4. **Sentinel-2 L2A** — summer (snow-free, low-cloud) composite from Microsoft Planetary Computer via `pystac-client` + `stackstac`. Mean of the 20 lowest-cloud scenes at 60 m.
+5. **USGS SIM 3340 (Alaska geology)** — polygon lithology + fault/contact linework, clipped to AOI.
 6. **Copernicus GLO-30** DEM — from Planetary Computer.
-7. **Kenorland drill collars 2023–24** — digitized from Kenorland press releases; held out from training, used as external validation only.
+7. **Kenorland drill collars 2023–24** — digitized from Kenorland press releases (TC only); held out from training, used as external validation.
 
 ### Feature engineering
 
-Define a regular analysis grid (500m or 1km pixels, CRS chosen based on Tanacross extent — probably EPSG:3338 Alaska Albers). Sample per pixel:
+Define a regular analysis grid (500m or 1km pixels, CRS chosen based on AOI extent — probably EPSG:3338 Alaska Albers). Sample per pixel:
 
 - **Geochemistry features.** For each pathfinder element {Cu, Mo, Au, Ag, As, Sb, Pb, Zn, Bi, Te}, aggregate (mean, max, sample count) over AGDB4 samples within a 5 km buffer. Where relevant, apply CLR (centered log-ratio) transform using `pyrolite` to elements treated as a closed system.
 - **Remote-sensing features.** Sentinel-2 median-composite band ratios:
@@ -57,7 +59,7 @@ Define a regular analysis grid (500m or 1km pixels, CRS chosen based on Tanacros
   - Clay / hydroxyl index: B11/B12 (SWIR1 / SWIR2)
   - NDVI (B8-B4)/(B8+B4) — for masking heavily vegetated pixels
 - **Geophysics features.** Residual aeromagnetic intensity, K, Th, U, K/Th ratio, Bouguer gravity — sampled at pixel center.
-- **Geology features.** Lithology class (one-hot of top-N most-common units in the Tanacross extent), distance-to-nearest-fault derived from SGMC contact lines.
+- **Geology features.** Lithology class (one-hot of top-N most-common units in the AOI extent), distance-to-nearest-fault derived from SGMC contact lines.
 - **Topographic features.** Elevation, slope, TRI from Copernicus GLO-30.
 
 Typical feature dimensionality: ~30–45 columns per pixel.
@@ -88,7 +90,7 @@ No neural network. The feature space is tabular at ~10³–10⁴ pixels of train
 
 ### Validation
 
-1. **Spatial (block) cross-validation.** Partition the Tanacross extent into coarse geographic blocks (probably ~10–20 km grid cells) and perform k-fold CV where each fold holds out a whole block rather than random points. Use `spacv` or roll a simple block-CV splitter. Report **AUC-ROC + PR-AUC per fold** and the fold-averaged success-rate curve.
+1. **Spatial (block) cross-validation.** Partition the AOI extent into coarse geographic blocks (probably ~10–20 km grid cells) and perform k-fold CV where each fold holds out a whole block rather than random points. Use `spacv` or roll a simple block-CV splitter. Report **AUC-ROC + PR-AUC per fold** and the fold-averaged success-rate curve.
 
 2. **Success-rate curve.** Plot cumulative fraction of known deposits captured vs cumulative fraction of pixels flagged prospective at decreasing probability thresholds. The standard honest metric in MPM literature under heavy class imbalance.
 
@@ -104,7 +106,7 @@ No neural network. The feature space is tabular at ~10³–10⁴ pixels of train
 
 ### Outputs
 
-- Tanacross-wide prospectivity GeoTIFF at the analysis-grid resolution.
+- AOI-wide prospectivity GeoTIFF at the analysis-grid resolution.
 - Top-N polygons (probably N=10) of highest-probability regions, with probability bounds.
 - Interactive folium map embedded in the Quarto-rendered HTML.
 - Static PNG hero images for the README and writeup.
@@ -125,10 +127,10 @@ No Prefect/Dagster/MLflow/DVC. Single repo, thin `src/ai_minerals` module, one n
 
 ## Narrative structure
 
-The writeup drives the artifact. Sections in the Tanacross notebook:
+The writeup drives the artifact. Sections in the v1 notebook:
 
 1. **Why critical minerals, why porphyry Cu, why Alaska** — one-page framing, connects to the target companies' theses.
-2. **Tanacross in context** — the Taurus Cu-Mo-Au-Ag porphyry system, published work by USGS and Kenorland, why it's a well-constrained place to demo MPM.
+2. **Eastern Alaska porphyry belt in context** — Wrangellia vs. Yukon-Tanana tectonic framing, the Taurus Cu-Mo-Au-Ag system in TC, published work by USGS and Kenorland, why this belt is a well-constrained place to demo MPM.
 3. **Data inventory** — what's being pulled, where, why, limits and noise of each source.
 4. **The label problem** — known deposits ≠ labeled non-deposits. Pseudo-negatives vs. PU framing.
 5. **Features + geological justification** — each feature gets a one-sentence "why this matters" tied to porphyry-Cu mineral-systems theory.
@@ -156,7 +158,7 @@ Per approved plan: 3–4 h/day, 7 days, ≈ 21–28 h total.
 | Day | Focus | Deliverable |
 |---|---|---|
 | 1 | Research + scaffold | Research briefs ×5, design doc, git repo, Quarto stub, CLAUDE.md, pyproject.toml |
-| 2 | Data acquisition | Scripts pulling MRDS/ARDF/AGDB4/SGMC/geophysics/S2 for Tanacross, saved to `data/raw/` |
+| 2 | Data acquisition | Scripts pulling MRDS/ARDF/AGDB4/SIM3340/geophysics/S2 for Eastern Alaska AOI, saved to `data/raw/` |
 | 3 | Feature engineering + baseline | Logistic-regression notebook running end-to-end with spatial CV |
 | 4 | Main model + SHAP | Random Forest, SHAP summary + dependence plots, top-features prose |
 | 5 | External validation | Kenorland-hole blind test + success-rate curve; map polish |
@@ -169,7 +171,7 @@ Mother Lode v2 sequel and Bear Cub subproject are separate engagements starting 
 
 - That the author can build a production exploration system.
 - That the author can beat a real exploration company's internal ML.
-- That Tanacross has an economically viable Cu deposit where the model flags high probability.
+- That eastern Alaska has an economically viable Cu deposit where the model flags high probability.
 - That the modeling choices here are optimal, rather than deliberately simple.
 
 These limits are the point. The demo proves the author understands the problem space, respects its methodological pitfalls, can execute a data-to-map pipeline using open tools on open data, and can write about it honestly. Nothing more — but also nothing less.
