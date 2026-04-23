@@ -24,7 +24,7 @@ def _run_mrds():
 
 def _run_ardf():
     ardf.fetch()
-    return ardf.load_quadrangle("TC")
+    return ardf.load_quadrangle("TC", aoi=TANACROSS)
 
 
 def _run_agdb4():

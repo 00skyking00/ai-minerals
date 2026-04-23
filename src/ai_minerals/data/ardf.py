@@ -53,37 +53,62 @@ def fetch(*, force: bool = False) -> Path:
     return zip_path
 
 
-def load_quadrangle(quad: str = "TC") -> "geopandas.GeoDataFrame":  # type: ignore[name-defined]  # noqa: F821
-    """Return the ARDF records for a given 1:250k quadrangle code."""
+def load_quadrangle(
+    quad: str = "TC",
+    *,
+    aoi: "AOI | None" = None,  # type: ignore[name-defined]  # noqa: F821
+) -> "geopandas.GeoDataFrame":  # type: ignore[name-defined]  # noqa: F821
+    """Return the ARDF records for a given 1:250k quadrangle code.
+
+    If `aoi` is given, also filter records to those whose point geometry lies
+    within the AOI polygon. ARDF's `quad_250` field is an editorial label, not
+    a strict geographic test: ~half of TC-labeled records actually have
+    coordinates in adjacent quadrangles (Big Delta, Mt Hayes, etc.). Combining
+    both filters gives clean positives with valid feature coverage.
+    """
     import geopandas as gpd
 
     extract_dir = dataset_dir(NAME) / "ardf"
     shp_paths = list(extract_dir.rglob("*.shp"))
     if not shp_paths:
         raise FileNotFoundError(f"No .shp in {extract_dir}")
-    # If there are multiple shapefiles, pick the one whose name contains 'ardf'.
     primary = next(
         (p for p in shp_paths if "ardf" in p.stem.lower()), shp_paths[0]
     )
     print(f"Loading {primary}")
     gdf = gpd.read_file(primary)
-    print(f"ARDF columns: {list(gdf.columns)}")
-    # Quadrangle column in ARDF shapefile is 'quad_250' (the 1:250k quadrangle).
+
     quad_col = "quad_250"
     if quad_col not in gdf.columns:
         raise RuntimeError(f"Expected '{quad_col}' in ARDF schema: {list(gdf.columns)}")
-    # Values may be either two-letter codes (e.g. 'TC') or full names ('Tanacross').
+
+    # Filter by quadrangle label (two-letter code or full name).
     normalized = gdf[quad_col].astype(str).str.strip().str.upper()
     target_code = quad.upper()
     target_name = {"TC": "TANACROSS", "NM": "NOME"}.get(target_code, target_code)
-    sub = gdf[normalized.isin({target_code, target_name})].copy()
-    print(f"ARDF: {len(sub):,} records in quadrangle {quad!r} (of {len(gdf):,} total).")
-    return sub
+    by_label = gdf[normalized.isin({target_code, target_name})].copy()
+    print(f"ARDF: {len(by_label):,} records labeled {quad!r} (of {len(gdf):,} total).")
+
+    if aoi is None:
+        return by_label
+
+    aoi_series = gpd.GeoSeries([aoi.polygon], crs=aoi.crs)
+    if by_label.crs != aoi_series.crs:
+        aoi_series = aoi_series.to_crs(by_label.crs)
+    within = by_label[by_label.within(aoi_series.iloc[0])].copy()
+    dropped = len(by_label) - len(within)
+    print(
+        f"ARDF: after AOI filter, {len(within):,} records within {aoi.name} "
+        f"(dropped {dropped} labeled {quad!r} but with coords outside the bbox)."
+    )
+    return within
 
 
 if __name__ == "__main__":
+    from ai_minerals.aoi import TANACROSS
+
     fetch()
-    sub = load_quadrangle("TC")
+    sub = load_quadrangle("TC", aoi=TANACROSS)
     out_path = dataset_dir(NAME) / "ardf_tc.gpkg"
     sub.to_file(out_path, driver="GPKG")
     print(f"Wrote {out_path}")
