@@ -39,7 +39,7 @@ def build_feature_frame(grid: Grid | None = None, resolution_m: int = 500) -> pd
       magnetic, gravity
       lithology_class
       distance_to_fault_m
-      <el>_mean_5km, <el>_max_5km, <el>_count_5km  for each pathfinder
+      <el>_mean_5km, <el>_max_5km, <el>_count_5km, <el>_has_data_5km  for each pathfinder
       is_porphyry (family), is_porphyry_strict (21a only)
       any_mineral_occurrence  (MRDS or ARDF with any Cu commodity, for neg exclusion)
     """

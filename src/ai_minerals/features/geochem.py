@@ -76,17 +76,13 @@ def aggregate_in_radius(
     radius_m: float = 5000.0,
     elements: tuple[str, ...] = tuple(PATHFINDER_ELEMENTS),
 ) -> dict[str, np.ndarray]:
-    """For each grid cell, compute (mean, max, count) of each element within `radius_m`.
+    """For each grid cell, compute (mean, max, count, has_data) of each element within `radius_m`.
 
-    Parameters
-    ----------
-    grid : Grid
-    samples_gdf : GeoDataFrame with geometry (Points in grid.crs) and element columns.
-
-    Returns
-    -------
-    dict of feature-name → 2-D arrays of shape grid.shape. Feature names are
-    `<el>_mean_Nkm`, `<el>_max_Nkm`, `<el>_count_Nkm`.
+    The `<el>_has_data` indicator is a uint8 1/0 flag marking cells whose
+    5 km neighborhood contained at least one detectable assay for the
+    element. Exposed separately so SHAP / feature-importance can attribute
+    weight to the *presence* of sampling history rather than letting it
+    hide inside a NaN sentinel at training time.
     """
     samples_gdf = samples_gdf.to_crs(grid.crs)
     sample_xy = np.column_stack([
@@ -129,8 +125,9 @@ def aggregate_in_radius(
         nonzero = cnt_arr > 0
         mean_arr[nonzero] = (sum_arr[nonzero] / cnt_arr[nonzero]).astype(np.float32)
 
-        out[f"{el.lower()}_mean_{km}km"] = mean_arr.reshape(grid.shape)
-        out[f"{el.lower()}_max_{km}km"]  = max_arr.reshape(grid.shape)
-        out[f"{el.lower()}_count_{km}km"] = cnt_arr.reshape(grid.shape).astype(np.float32)
+        out[f"{el.lower()}_mean_{km}km"]     = mean_arr.reshape(grid.shape)
+        out[f"{el.lower()}_max_{km}km"]      = max_arr.reshape(grid.shape)
+        out[f"{el.lower()}_count_{km}km"]    = cnt_arr.reshape(grid.shape).astype(np.float32)
+        out[f"{el.lower()}_has_data_{km}km"] = (cnt_arr > 0).reshape(grid.shape).astype(np.uint8)
 
     return out
