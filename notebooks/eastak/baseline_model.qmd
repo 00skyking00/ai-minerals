@@ -1,5 +1,6 @@
 ---
-title: "Day 3 — feature pipeline + logistic-regression baseline with spatial CV"
+title: "Baseline model — logistic regression with spatial block CV"
+subtitle: "Eastern Alaska porphyry Cu-Mo-Au-Ag"
 format:
   html:
     toc: true
@@ -8,11 +9,12 @@ execute:
   warning: false
 ---
 
-Building the first end-to-end prospectivity model. Scope intentionally
-minimal: load the features we already have on disk, define a
-pseudo-negative class, fit logistic regression, evaluate under spatial
-block cross-validation, and produce a prospectivity raster + success-rate
-curve. Day 4 adds the Random Forest + SHAP.
+The first end-to-end prospectivity model. Scope intentionally minimal:
+load the cached feature frame, define a pseudo-negative class, fit
+logistic regression, evaluate under spatial block cross-validation, and
+produce a prospectivity raster + success-rate curve. The Random Forest +
+SHAP notebook ([`random_forest_and_shap.qmd`](random_forest_and_shap.qmd))
+picks up from here.
 
 ```{python}
 #| label: setup

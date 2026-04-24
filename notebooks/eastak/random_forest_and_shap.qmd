@@ -1,5 +1,6 @@
 ---
-title: "Day 4 — Random Forest, SHAP, and the count-feature confound"
+title: "Random Forest + SHAP interpretation"
+subtitle: "Eastern Alaska porphyry Cu-Mo-Au-Ag"
 format:
   html:
     toc: true
@@ -8,10 +9,10 @@ execute:
   warning: false
 ---
 
-The Day-3 baseline raised five diagnostic questions (see
-`design/mvp-proposal.md` → "Day-4/5 open questions from Day-3
-diagnostics"). Day 4 answers four of them with Random Forest + SHAP.
-The fifth (Kenorland blind test) is Day 5.
+The baseline-model notebook raised five diagnostic questions (see
+`design/mvp-proposal.md`). This notebook answers four of them with
+Random Forest + SHAP. The fifth (external blind test) is in
+[`validation.qmd`](validation.qmd).
 
 ```{python}
 #| label: setup

@@ -24,7 +24,13 @@ The v1 message: a standard pseudo-supervised MPM pipeline at 500 m regional reso
 notebooks/
   eastak/                              # v1: Eastern Alaska porphyry Cu-Mo-Au-Ag
     eastak_porphyry_prospectivity.qmd  # ← the integrated report. Start here.
-    day3_model.qmd / day4_rf_shap.qmd / day5_validation.qmd   # build log
+    data_exploration.qmd               # data tour
+    baseline_model.qmd                 # LR + spatial block CV
+    random_forest_and_shap.qmd         # RF + SHAP interpretation
+    validation.qmd                     # external blind test + sensitivities
+  bcgt/                                # v2: BC Golden Triangle multi-deposit
+    bcgt_porphyry_prospectivity.qmd    # integrated report
+    data_exploration.qmd               # data tour
 src/ai_minerals/    # ~700 lines; typed Python. aoi, grid, features, model, model_rf, model_pu
 design/             # scoping doc and v1.1 findings trace
 data/

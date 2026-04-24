@@ -1,5 +1,6 @@
 ---
-title: "Day 5 — External validation, PU baseline, and the exploration-bias reveal"
+title: "External validation, PU baseline, exploration-bias sensitivity pass"
+subtitle: "Eastern Alaska porphyry Cu-Mo-Au-Ag"
 format:
   html:
     toc: true
@@ -8,8 +9,9 @@ execute:
   warning: false
 ---
 
-Day 4 left us with an RF that ranks known porphyry cells very high and
-appears well-behaved under SHAP. Day 5 stress-tests that picture.
+The RF + SHAP notebook left us with a model that ranks known porphyry
+cells very high and appears well-behaved under SHAP. This notebook
+stress-tests that picture.
 
 Four checks:
 

@@ -3,8 +3,8 @@ project:
   output-dir: _site
   render:
     - index.qmd
-    - notebooks/eastak/intro.qmd
-    - notebooks/*.qmd
+    - notebooks/eastak/*.qmd
+    - notebooks/bcgt/*.qmd
 
 website:
   title: "ai-minerals"
@@ -15,18 +15,24 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: notebooks/eastak/eastak_porphyry_prospectivity.qmd
-        text: Report
-      - href: notebooks/eastak/intro.qmd
-        text: Data tour
-      - text: Build log
+      - text: "Eastern Alaska (v1)"
         menu:
-          - href: notebooks/eastak/day3_model.qmd
-            text: Day 3 — baseline
-          - href: notebooks/eastak/day4_rf_shap.qmd
-            text: Day 4 — RF + SHAP
-          - href: notebooks/eastak/day5_validation.qmd
-            text: Day 5 — validation
+          - href: notebooks/eastak/eastak_porphyry_prospectivity.qmd
+            text: Integrated report
+          - href: notebooks/eastak/data_exploration.qmd
+            text: Data exploration
+          - href: notebooks/eastak/baseline_model.qmd
+            text: Baseline model
+          - href: notebooks/eastak/random_forest_and_shap.qmd
+            text: Random Forest + SHAP
+          - href: notebooks/eastak/validation.qmd
+            text: Validation + sensitivities
+      - text: "BC Golden Triangle (v2)"
+        menu:
+          - href: notebooks/bcgt/bcgt_porphyry_prospectivity.qmd
+            text: Integrated report
+          - href: notebooks/bcgt/data_exploration.qmd
+            text: Data exploration
       - text: Research
         menu:
           - href: research/kobold-analysis.md
