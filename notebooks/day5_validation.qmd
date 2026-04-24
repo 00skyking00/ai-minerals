@@ -1,0 +1,397 @@
+---
+title: "Day 5 — External validation, PU baseline, and the exploration-bias reveal"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  warning: false
+---
+
+Day 4 left us with an RF that ranks known porphyry cells very high and
+appears well-behaved under SHAP. Day 5 stress-tests that picture.
+
+Four checks:
+
+1. **Kenorland 23ETD062 blind test** — score the model at a porphyry-Cu
+   intersection Kenorland drilled in 2023, which postdates our label
+   cutoff and isn't in ARDF. It's the only drill datum in this repo the
+   model genuinely hasn't seen.
+2. **Strict (21a-only) vs family label** — does narrowing the positive
+   class to Cox-&-Singer model 21a alone change what the model learns?
+3. **Success-rate curve** — the standard MPM benchmark: cumulative
+   positives captured vs cumulative area flagged.
+4. **PU-learning baseline** — does refusing the pseudo-negative
+   assumption change the prospectivity ranking?
+5. **Rainbow Ridge exclusion blind test** — hold out the 10 positives
+   with all-NaN S2 features, retrain, and ask if they're still rankable.
+
+The Kenorland result reframes everything that follows. Read it first.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import pandas as pd
+import pyproj
+from scipy.spatial import cKDTree
+
+from ai_minerals.aoi import WGS84, WORKING_CRS
+from ai_minerals.data._common import DATA_DERIVED, DATA_RAW
+from ai_minerals.model import (
+    NON_FEATURE_COLUMNS, add_lithology_onehot, build_training_set,
+    success_rate_curve,
+)
+from ai_minerals.model_rf import (
+    count_feature_columns, feature_importance, make_rf,
+)
+from ai_minerals.model_pu import fit_pu_bagging
+
+df = pd.read_parquet(DATA_DERIVED / "features_eastak_500m.parquet")
+top_classes = df["lithology_class"].value_counts().head(10).index.tolist()
+fam_mask = df["is_porphyry"].to_numpy() == 1
+strict_mask = df["is_porphyry_strict"].to_numpy() == 1
+print(f"Feature frame: {df.shape}  family pos={int(fam_mask.sum())}  "
+      f"strict pos={int(strict_mask.sum())}")
+```
+
+## Baseline: the no-count RF, trained once for the rest of the day
+
+Day-4 showed `*_count_5km` features are an exploration-density confound.
+Everything below uses the no-count model.
+
+```{python}
+#| label: fit-rf
+X_fam, y_fam = build_training_set(df, top_classes, n_per_positive=30, random_state=42)
+X_fam_nc = X_fam.drop(columns=count_feature_columns(list(X_fam.columns)))
+feat_cols = list(X_fam_nc.columns)
+
+rf = make_rf()
+rf.fit(X_fam_nc.fillna(-9999).to_numpy(), y_fam)
+
+df_oh = add_lithology_onehot(df, top_classes)
+X_all = df_oh[feat_cols].fillna(-9999).to_numpy()
+p_fam = rf.predict_proba(X_all)[:, 1]
+
+print(f"  X shape {X_fam_nc.shape}  features={len(feat_cols)}")
+print(f"  positives P quartiles: q25={np.quantile(p_fam[fam_mask],.25):.3f}  "
+      f"median={np.median(p_fam[fam_mask]):.3f}  q75={np.quantile(p_fam[fam_mask],.75):.3f}")
+```
+
+## 1. Kenorland 23ETD062 blind test
+
+**Setup.** Kenorland Minerals holds the Tanacross earn-in (Antofagasta
+walked in March 2024). Their public drill log `23ETD062` at East Taurus
+intersected 174.22 m at 0.14 % Cu + 0.02 % Mo + 0.05 g/t Au — a low-grade
+but real porphyry intersection. Coordinates ≈ (-142.25°, 63.45°); these
+are approximate (visually digitized from press-release figures, not from
+an NI 43-101 survey). The hole is not in ARDF and postdates every label
+in our training set. It's the one cell we can genuinely score blind.
+
+```{python}
+#| label: kenorland-score
+kob = pd.read_csv(DATA_RAW / "kenorland/kenorland_tanacross_collars.csv")
+xf = pyproj.Transformer.from_crs(WGS84, WORKING_CRS, always_xy=True)
+kx, ky = xf.transform(kob["lon"].to_numpy(), kob["lat"].to_numpy())
+
+tree = cKDTree(df[["x", "y"]].to_numpy())
+dists, idx = tree.query(np.c_[kx, ky], k=1)
+for h, i, d in zip(kob["hole_id"], idx, dists):
+    p = p_fam[i]
+    pct = (p_fam < p).mean() * 100
+    print(f"{h}: P={p:.3f}  rank percentile {pct:.1f}%  "
+          f"nearest-cell dist={d:.0f} m")
+print(f"\npositives median P: {np.median(p_fam[fam_mask]):.3f}")
+print(f"all-cells  median P: {np.median(p_fam):.3f}")
+```
+
+**Result.** `P=0.012`, 62nd percentile — below the top 38 % of all cells.
+The model completely fails to flag the only hole we've asked it to score
+blind. This is a small sample (one hole), but the gap is enormous — two
+orders of magnitude below the typical positive.
+
+**Why.** The Day-4 SHAP analysis told us the RF keys on
+`*_max_5km` and `*_mean_5km` pathfinder-element aggregates from the
+AGDB4 geochemistry layer. Look at the feature values at the Kenorland
+cell vs a typical positive:
+
+```{python}
+#| label: kenorland-features
+cell = df.iloc[int(idx[0])]
+pos = df[fam_mask]
+
+print(f"{'feature':<22} {'Kenorland':>12} {'pos median':>12} {'all median':>12}")
+for col in ["ag_max_5km","ag_count_5km","te_max_5km",
+            "mo_max_5km","cu_max_5km","cu_mean_5km","au_max_5km",
+            "magnetic","distance_to_fault_m"]:
+    v = cell[col]
+    pv = pos[col].median()
+    av = df[col].median()
+    print(f"{col:<22} {v:>12.3f} {pv:>12.3f} {av:>12.3f}")
+
+# Distance to nearest ARDF porphyry positive
+pos_xy = df.loc[pos.index, ["x", "y"]].to_numpy()
+d_nearest = float(np.min(np.hypot(pos_xy[:,0] - kx[0], pos_xy[:,1] - ky[0])))
+print(f"\nnearest ARDF porphyry positive: {d_nearest/1000:.1f} km away")
+```
+
+The Kenorland cell sits on background geochemistry: Cu max 700 ppm
+versus a positive median of 11,650 ppm (17× weaker), 3 Ag samples vs
+36, a nearly-zero magnetic residual vs 186 at typical positives. To the
+RF this is an unremarkable cell.
+
+**What this means.** This is the exploration-bias confound in its
+second form. In Day 4 we saw that `*_count_5km` acted as a proxy for
+exploration history. Dropping those columns should have fixed it — but
+the `*_max_5km` and `*_mean_5km` features carry the same bias
+differently: if nobody ever sampled near a cell, its geochem aggregates
+are NaN or tiny, and the model classifies it as non-prospective. The
+Kenorland location is an outcrop that had very little legacy AGDB4
+coverage (low count, low values) but DOES host porphyry mineralization
+confirmed by drilling — and the model refuses to see it.
+
+The Day-3/4 high AUC was driven by a selection effect: ARDF positives
+are the cells where legacy exploration already *found* something, which
+correlates with where legacy exploration *looked hard*. The model
+learned to find cells that look explored — not cells that look
+mineralized.
+
+**What this does NOT mean.** One blind hole with approximate coordinates
+is not a benchmark. The true test would be dozens of post-2020 porphyry
+drill intersections across Alaska. But we don't need a benchmark to
+conclude the pseudo-label pipeline is exploration-biased — the feature
+diagnostic is conclusive on its own.
+
+**Remediation path (out of v1 scope; noted for writeup):**
+
+- Feature-engineer exploration effort directly (`*_count_5km`) and
+  *control* for it rather than dropping it — use it as a covariate we
+  marginalize out, not as a predictor.
+- Use mineral-system-level features with lower exploration dependence
+  (regional geophysics, lithology, structural proxies) and downweight
+  geochemistry aggregates whose density correlates with known occurrences.
+- Train with PU learning end-to-end (vs just comparing at ranking time).
+
+## 2. Strict (21a-only) vs family label
+
+Our `is_porphyry` column accepts Cox-&-Singer model codes 17, 20c, 21a,
+21b — the full porphyry family (Cu-Mo, Cu-Au, Cu-Au-Mo). `is_porphyry_strict`
+keeps only 21a (classic Cu ± Mo porphyry). Retraining on the 32 strict
+positives:
+
+```{python}
+#| label: strict-sensitivity
+df_strict = df.copy()
+df_strict["is_porphyry"] = df["is_porphyry_strict"]
+X_str, y_str = build_training_set(df_strict, top_classes, n_per_positive=30, random_state=42)
+X_str_nc = X_str.drop(columns=count_feature_columns(list(X_str.columns)))
+str_cols = list(X_str_nc.columns)
+
+rf_str = make_rf()
+rf_str.fit(X_str_nc.fillna(-9999).to_numpy(), y_str)
+p_str = rf_str.predict_proba(df_oh[str_cols].fillna(-9999).to_numpy())[:, 1]
+
+rows = []
+for top_pct in [0.01, 0.05, 0.10]:
+    t_str = np.quantile(p_str, 1 - top_pct)
+    t_fam = np.quantile(p_fam, 1 - top_pct)
+    rows.append({
+        "top %": top_pct * 100,
+        "strict→strict": (p_str[strict_mask] >= t_str).mean(),
+        "strict→family": (p_str[fam_mask] >= t_str).mean(),
+        "family→family": (p_fam[fam_mask] >= t_fam).mean(),
+    })
+pd.DataFrame(rows).round(3)
+```
+
+```{python}
+#| label: strict-importance
+fi_fam = feature_importance(rf,     feat_cols).head(10).assign(model="family")
+fi_str = feature_importance(rf_str, str_cols ).head(10).assign(model="strict")
+pd.concat([fi_fam, fi_str], ignore_index=True).pivot_table(
+    index="feature", columns="model", values="importance"
+).fillna(0).sort_values("family", ascending=False).head(12).round(3)
+```
+
+**Result.** Both models learn the same pathfinder-element halo: Ag, Te,
+Mo, Cu, Pb, Sb *_max_5km dominate for both. Top-1 % cells under the
+strict-only model still capture 61 % of family positives and 91 % of
+strict positives; top-5 % captures everything. The label-choice decision
+barely moves the model — reassuring for v1.
+
+**What this doesn't prove.** Both models are trained on the same
+exploration-biased features, so sharing the same bias ≠ sharing the same
+mineral signal. The Kenorland result applies to both.
+
+## 3. Success-rate curve
+
+The MPM-standard metric: cumulative % of known positives captured vs
+cumulative % of area flagged. Plotted on two scales.
+
+```{python}
+#| label: success-rate
+import matplotlib.pyplot as plt
+
+frac_area, frac_dep = success_rate_curve(p_fam, df["is_porphyry"].to_numpy())
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+for ax, xmax in zip(axes, [1.0, 0.10]):
+    ax.plot(frac_area * 100, frac_dep * 100, lw=2, label="RF (family, no-count)")
+    ax.plot([0, xmax * 100], [0, xmax * 100], ls="--", c="grey",
+            label="random (y=x)")
+    ax.set_xlim(0, xmax * 100); ax.set_ylim(0, 100)
+    ax.set_xlabel("% area flagged (highest-P first)")
+    ax.set_ylabel("% positives captured")
+    ax.set_title(f"Success-rate curve (0–{int(xmax*100)} % area)")
+    ax.grid(alpha=0.3); ax.legend(loc="lower right")
+plt.tight_layout()
+plt.show()
+
+print("| top-% area | positives captured |")
+print("|-----------:|-------------------:|")
+for pct in [0.005, 0.01, 0.02, 0.05, 0.10, 0.20]:
+    i = max(0, min(int(pct * len(frac_area)) - 1, len(frac_area) - 1))
+    print(f"|     {pct*100:4.1f} % |            {frac_dep[i]*100:4.1f} % |")
+```
+
+**Result.** Steep early lift: top 2 % of area captures 80 % of
+ARDF-labeled positives, top 5 % captures all of them. Randomly flagging
+2 % of area would catch 2 %. Against the training-label distribution
+the RF is strong.
+
+**Against actual prospectivity** — see §1. The curve tells us the model
+ranks the labels we have; it says nothing about labels we don't have.
+
+## 4. PU-learning baseline
+
+Pseudo-negative sampling assumes cells far from any known occurrence
+are non-deposits. PU learning (Mordelet & Vert-style bagging) refuses
+that assumption — each bag trains on positives + a random equal-sized
+draw of unlabeled cells treated as "not known positive," and we average
+over bags where a cell was out-of-bag. See [`model_pu.py`](../src/ai_minerals/model_pu.py).
+
+```{python}
+#| label: pu-bag
+df_nc = df.drop(columns=count_feature_columns(list(df.columns)))
+p_pu, pu_feats = fit_pu_bagging(df_nc, top_classes, n_bags=30, random_state=42)
+
+rows = []
+for top_pct in [0.01, 0.05, 0.10]:
+    t_pu = np.nanquantile(p_pu, 1 - top_pct)
+    t_ps = np.quantile(p_fam, 1 - top_pct)
+    rows.append({
+        "top %": top_pct * 100,
+        "pseudo-neg RF": (p_fam[fam_mask] >= t_ps).mean(),
+        "PU bagging":    (p_pu[fam_mask] >= t_pu).mean(),
+    })
+pd.DataFrame(rows).round(3)
+```
+
+```{python}
+#| label: pu-overlap
+top_n = 1000
+top_ps = np.argsort(-p_fam)[:top_n]
+top_pu = np.argsort(-np.nan_to_num(p_pu, nan=-1))[:top_n]
+overlap = len(set(top_ps) & set(top_pu)) / top_n
+print(f"top-{top_n} cell overlap (pseudo-neg vs PU): {overlap*100:.1f}%")
+```
+
+**Result.** PU bagging captures slightly less at top-1 % (59 % vs 64 %)
+but comparable at top-10 %. The top-1000 cell sets overlap ~61 % — the
+PU ranking disagrees with the pseudo-negative ranking on ~400 cells.
+
+The overlap is not tight. If you had a budget to drill the top 1 % of
+cells, which ranking would you trust? Neither picks up the Kenorland
+cell. Both models remain dominated by the same legacy-geochem features.
+PU learning removes the "far-from-occurrences = non-deposit" assumption
+but doesn't remove the exploration bias in the feature layers.
+
+## 5. Rainbow Ridge exclusion blind test
+
+The 10 Rainbow Ridge positives in §3 of Day 3 had all-NaN S2 features
+(clouded). Retrain without them and ask: does the model rank them
+highly anyway?
+
+```{python}
+#| label: rr-blind
+s2_cols = ["s2_iron_oxide", "s2_ferrous", "s2_clay", "s2_ndvi"]
+pos_df = df[fam_mask].copy()
+rr_sub = pos_df[s2_cols].isna().all(axis=1)
+rr_idx = pos_df[rr_sub].index.to_numpy()
+other_idx = pos_df[~rr_sub].index.to_numpy()
+print(f"Rainbow Ridge positives (all-NaN S2): {len(rr_idx)}")
+print(f"Other positives: {len(other_idx)}")
+
+df_norr = df.copy()
+df_norr.loc[rr_idx, "is_porphyry"] = 0
+X_norr, y_norr = build_training_set(df_norr, top_classes, n_per_positive=30, random_state=42)
+X_norr_nc = X_norr.drop(columns=count_feature_columns(list(X_norr.columns)))
+norr_cols = list(X_norr_nc.columns)
+
+rf_norr = make_rf()
+rf_norr.fit(X_norr_nc.fillna(-9999).to_numpy(), y_norr)
+p_norr = rf_norr.predict_proba(df_oh[norr_cols].fillna(-9999).to_numpy())[:, 1]
+
+rows = []
+for top_pct in [0.01, 0.05, 0.10]:
+    t = np.quantile(p_norr, 1 - top_pct)
+    rows.append({
+        "top %": top_pct * 100,
+        "RR (blind)":  (p_norr[rr_idx] >= t).mean(),
+        "other pos.":  (p_norr[other_idx] >= t).mean(),
+    })
+pd.DataFrame(rows).round(3)
+```
+
+**Result.** A model that has never seen the Rainbow Ridge positives
+still finds 80 % of them in the top-5 % and 100 % in the top-10 %. It
+misses them at top-1 %. Other positives (same model, in-training) score
+72 % / 100 % / 100 %.
+
+**Implication.** Within our label set, the geochem signal generalizes:
+a held-out subset of positives scores nearly as well as trained-on
+positives at top-5 % and above. This is a weak-positive generalization
+result, and it *doesn't contradict* §1: generalizing from ARDF positives
+to more ARDF positives is still generalizing within the
+exploration-biased feature space.
+
+## Summary
+
+| Check | Finding | Status |
+|---|---|---|
+| Kenorland 23ETD062 blind | P=0.012 vs positives median 0.86; diagnostic shows background geochem | **Model has an exploration-history bias** |
+| Strict-21a sensitivity | Same pathfinder suite; 91 % top-1 % capture; label-choice robust | ✓ robust |
+| Success-rate curve | Top-2 % area captures 80 % of positives | Strong against training labels |
+| PU-bagging baseline | Top-1 % capture 59 % vs 64 %; 61 % rank overlap | PU doesn't fix the bias |
+| Rainbow Ridge blind | Held-out positives still captured at top-5 %+ | Weak-positive generalization ✓ |
+
+The Kenorland check is the honest result of this project. Without
+external validation on data that postdates the training labels, a model
+that scores 0.92 ROC-AUC on spatial CV would look convincing. The blind
+test reveals that the lift is against our own exploration-biased label
+set — the model ranks cells that look like they've been explored, not
+cells that are mineralized.
+
+**What v1 demonstrates, honestly:**
+
+- A full, reproducible MPM pipeline from public data through Random
+  Forest + SHAP + external validation
+- Spatial block CV done correctly
+- SHAP attributions that match textbook porphyry geochemistry (Ag, Te,
+  Mo, Cu pathfinders)
+- A blind-test protocol that reveals the central methodological trap in
+  pseudo-supervised MPM — the same trap the MPM literature has been
+  naming for fifteen years and is actively working on (PU learning,
+  weighted-PU, exploration-effort covariates)
+
+**What v1 does NOT demonstrate:**
+
+- That our model would find actual mineralization in unexplored terrain.
+  The Kenorland check shows it wouldn't.
+- That pseudo-negative sampling works, even with spatial CV and no count
+  features. The exploration bias survives into the `*_max_5km` and
+  `*_mean_5km` layers.
+
+This is the clearest single result to lead the writeup with.
