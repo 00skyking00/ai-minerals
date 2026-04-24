@@ -17,7 +17,7 @@ execute:
 
 1. Built a full mineral-prospectivity pipeline over three USGS 1:250,000 quadrangles of eastern Alaska (~62,000 km², the Yukon-Tanana–Wrangellia porphyry belt) using only public data: USGS MRDS, ARDF, AGDB4 geochemistry, SGMC geology, national geophysics grids, Sentinel-2, and Copernicus GLO-30 DEM.
 2. Trained Random Forest on 56 porphyry-family positives + 30× stratified pseudo-negatives; spatial-block CV (20 km blocks) puts mean ROC-AUC at 0.88 ± 0.21, PR-AUC 0.81 ± 0.25. SHAP confirms the model keys on the textbook pathfinder-element halo (Ag, Te, Mo, Cu, Sb, Au, Pb `*_max_5km` aggregates).
-3. **The model passes training-label validation and fails external blind test.** Kenorland Minerals drilled a confirmed porphyry intersection (hole `23ETD062`, East Taurus, 2023: 174 m @ 0.14 % Cu + 0.02 % Mo + 0.05 g/t Au) after our label cutoff. The model scores that cell at P=0.012 — the 62nd percentile, ~20× below the positives median.
+3. **The model passes training-label validation and fails external blind test.** Kenorland Minerals drilled a confirmed porphyry intersection (hole `23ETD062`, East Taurus, 2023: 174 m @ 0.14 % Cu + 0.02 % Mo + 0.05 g/t Au) after our label cutoff. The model scores that cell at P=0.017 — the 64th percentile, roughly 50× below the positives median.
 4. A feature-level diagnostic traces this to **exploration bias in three channels**: `*_count_5km` (obvious, fixable), NaN-vs-value in `*_max/mean_5km` (hidden in a sentinel, minor), and magnitude-within-explored (large-N samples mechanically produce larger max values; dominant). None of the v1.1 remediations tried — dropping counts, `*_has_data` indicators, training without geochem — rescue the blind test.
 5. The honest v1 message: **a standard pseudo-supervised MPM model at 500 m regional resolution can't distinguish a low-grade distal porphyry hit from background**, regardless of feature set. The direction that would (prospect-scale alteration mineralogy, physics-consistent geophysical inversions, decision-theoretic drill planning under explicit posterior uncertainty) is the direction KoBold and ExploreTech actually build toward. This demo establishes the baseline and the trap; [§8](#next-steps) sketches v1.2.
 
@@ -102,7 +102,8 @@ Every data source used here is open and public-domain. No API keys, no gated dow
 | Geochemistry | [USGS AGDB4](https://www.sciencebase.gov/catalog/item/622a4ec7d34e4bb2bc5cad93) best-value | point | `<el>_{mean,max,count,has_data}_5km` for 10 pathfinders |
 | Bedrock geology | USGS SGMC (Alaska compilation) | polygon | `lithology_class` one-hot |
 | Faults | USGS SGMC line layer | line | `distance_to_fault_m` |
-| Aeromagnetic | USGS national composite | ~250 m | `magnetic` |
+| Aeromagnetic (residual total field) | NRCan Alaska-Yukon compilation | 100 m | `magnetic` |
+| Aeromagnetic (1st vertical derivative) | NRCan Alaska-Yukon compilation | 100 m | `magnetic_1vd` |
 | Gravity (Bouguer) | USGS national composite | ~250 m | `gravity` |
 | Topography | Copernicus GLO-30 DEM | 30 m | `elevation`, `slope`, `tri` |
 | Optical / alteration | [Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2) 2023 summer mosaic | 10 m | `s2_{iron_oxide,ferrous,clay,ndvi}` |
@@ -375,7 +376,7 @@ print(f"  all-cells  P: median={np.median(p_fam):.3f}  "
       f"q95={np.quantile(p_fam, .95):.3f}")
 ```
 
-**Result: P = 0.012, 62nd percentile.** The model completely fails to flag the one cell we can score blind. Positives median is 0.86 — two orders of magnitude higher. This is a single data point, but the gap is too large to explain as noise.
+**Result: P = 0.017, 64th percentile.** The model completely fails to flag the one cell we can score blind. Positives median is 0.85 — roughly 50× higher. This is a single data point, but the gap is too large to explain as noise.
 
 Diagnose it by comparing feature values at the Kenorland cell to a typical positive:
 
@@ -471,7 +472,7 @@ print(f"  positives under PU:  median={np.nanmedian(p_pu[fam_mask]):.3f}  "
 
 PU bagging agrees with pseudo-negative RF on ~60 % of the top-1000 cells. Training-label capture is slightly worse in the top 1 % (59 % vs 64 %) but comparable higher up — no free lunch here.
 
-**The interesting result is Kenorland.** PU moves it from the 62nd percentile to the 70th — a ~8-point lift. That's the pseudo-negative construction's contribution to missing the cell, isolated. By *not* excluding cells near known occurrences and *not* stratifying to match the positives' lithology, PU's "negatives" are diffuse random terrain rather than specifically "under-sampled cells in explored lithologies." The resulting model is less prone to the "this looks under-explored, therefore unprospective" collapse — but only by 8 percentile points.
+**The interesting result is Kenorland.** PU moves it from the 64th percentile to around the 70th — a ~6-point lift. That's the pseudo-negative construction's contribution to missing the cell, isolated. By *not* excluding cells near known occurrences and *not* stratifying to match the positives' lithology, PU's "negatives" are diffuse random terrain rather than specifically "under-sampled cells in explored lithologies." The resulting model is less prone to the "this looks under-explored, therefore unprospective" collapse — but only marginally.
 
 Kenorland is still below the PU positives distribution (median 0.92, q25 0.82 under PU). PU mitigates the pseudo-negative-construction channel of the bias; the underlying feature-layer exploration bias (channels 2 and 3) survives.
 
@@ -504,7 +505,7 @@ print(f"Kenorland P (has_data-aware): {p_hd[i]:.3f} "
       f"(no-count baseline was {p_fam[i]:.3f})")
 ```
 
-`<el>_has_data` doesn't land in the top-15 importances. Kenorland P barely moves (0.012 → 0.015). The NaN-vs-value channel exists but is minor — the magnitude-within-explored channel dominates.
+`<el>_has_data` doesn't land in the top-15 importances. Kenorland P barely moves. The NaN-vs-value channel exists but is minor — the magnitude-within-explored channel dominates.
 
 ### 7.4 Exploration-robust baseline: no geochem {#no-geochem}
 
@@ -617,7 +618,7 @@ Top 2 % of area captures 80 % of ARDF positives; top 5 % captures all of them. T
 | 20 km spatial block CV | LR 0.918 / RF 0.88 ROC-AUC, sd ≈ 0.2 | ✓ passes |
 | SHAP on no-count RF | Top features are Ag/Te/Mo/Cu pathfinder halo | ✓ geologically coherent |
 | Training-label capture | Top 2 % area → 80 % of positives | ✓ strong |
-| Kenorland 23ETD062 blind | P=0.012 vs positives median 0.86 | **fails** |
+| Kenorland 23ETD062 blind | P=0.017 vs positives median 0.85 | **fails** |
 | Geolocation robustness (≤5 km) | Whole disk stays below 80th percentile | ✓ stable at hole-scale |
 | Geolocation robustness (15 km) | Max P hits 95th percentile in one cell | uncertain at project-scale |
 | Property-centroid sweep | All 5 (incl. drilled-negative) rank low | model internally consistent |
