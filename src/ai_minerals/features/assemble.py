@@ -59,9 +59,17 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
     aoi_mask = gpd.GeoSeries(
         [region.aoi.polygon], crs=region.aoi.crs
     ).to_crs(grid.crs).iloc[0]
-    arc_gdf = gpd.read_file(region.raw_paths["geology_arcs"], layer="AKStategeol_arc", mask=aoi_mask)
-    fault_mask = arc_gdf["LINE_TYPE"].fillna("").str.contains("fault", case=False)
-    faults = arc_gdf[fault_mask]
+    fault_layer = region.fault_layer if hasattr(region, "fault_layer") else None
+    if fault_layer:
+        # Alaska SGMC GDB — faults are in the `AKStategeol_arc` layer with a
+        # LINE_TYPE discriminator, so we read + filter.
+        arc_gdf = gpd.read_file(region.raw_paths["geology_arcs"], layer=fault_layer, mask=aoi_mask)
+        fault_mask = arc_gdf["LINE_TYPE"].fillna("").str.contains("fault", case=False)
+        faults = arc_gdf[fault_mask]
+    else:
+        # BC and other regions: faults come from the fetch layer as a dedicated
+        # file with every row already a fault line.
+        faults = gpd.read_file(region.raw_paths["geology_arcs"])
     print(f"  fault lines in AOI: {len(faults):,}")
     dist_fault = distance_to_fault(grid, faults)
 
