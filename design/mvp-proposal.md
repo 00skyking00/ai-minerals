@@ -167,6 +167,66 @@ but are worth queuing for v1.1 or the writeup's "next steps" section.
   that handle NaN natively and may sidestep the issue without the
   extra columns.
 
+## Day-4/5 open questions from Day-3 diagnostics
+
+Concrete things to check once the Random Forest + SHAP + blind test are in
+place, from running the Day-3 baseline against the full AOI:
+
+- **Exploration-bias confound in the `*_count_5km` features.**
+  Cells near known porphyries have **5.2× the AGDB4 sample density** of
+  cells in the pseudo-negative pool (Cu-count mean: 120 vs 23). The LR
+  baseline put its top weight on `ag_count_5km` (+4.05) and
+  `te_count_5km` (+2.43), followed by `cu_mean_5km` (+1.89). Dropping the
+  count features drops top-1% capture from 25% → 11% but leaves top-10%
+  capture nearly unchanged (89% → 77%). **Day-4 action:** retrain RF
+  both with and without count features, compare spatial-CV AUC and SHAP;
+  if the count features dominate RF too, either drop them, switch
+  explicitly to a PU-learning framing (which doesn't have an artificial
+  negative-sampling pool), or add an explicit "sample density" control
+  feature.
+
+- **Counter-intuitive negative coefficients on Zn, As, Sb, Bi, s2_iron_oxide.**
+  All of these should be *positively* associated with porphyry-Cu systems
+  (alteration halos, gossan). The LR is giving them negative coefs,
+  suggesting either (a) they co-vary with the count features that are
+  eating the positive signal, (b) the pseudo-negatives happen to have
+  higher Zn/As than positives due to geochem sampling geography, or (c)
+  linear logistic regression is mis-specified for non-monotonic
+  relationships. **Day-4 action:** check SHAP + dependence plots on RF.
+  If RF gives these features *positive* importance at low values and
+  *negative* at high values (U-shape), LR just can't fit it. If RF also
+  says "less Zn → more porphyry," investigate whether the pseudo-neg
+  pool is geochemically unusual.
+
+- **S2 alteration indices contribute almost nothing.**
+  Novel-prediction cells have *the same* iron-oxide and clay index means
+  as a random AOI sample (ratio 1.00 and 0.97). Either the model isn't
+  using S2, S2 is noisy, or median imputation for the 10 Rainbow Ridge
+  NaN positives flattens the signal at the training-set level. **Day-4
+  action:** RF feature importance on S2 indices; if they're near zero,
+  reconsider whether S2 is worth the complexity for v1 (vs. dropping and
+  keeping only the stronger signals).
+
+- **Capture-rate sensitivity to 10 NaN-S2 positives.**
+  The Rainbow Ridge cluster has NaN S2 features. They're being
+  median-imputed, which means the model gives them the same S2
+  contribution as an "average" pixel — likely biasing their predictions
+  toward the population mean probability. **Day-5 action:** retrain on
+  46 positives only (drop the NaN-S2 ones), compare AUC, PR-AUC, and
+  the shape of the success-rate curve. If the 46-positive model's
+  metrics are substantially different, document the NaN-imputation as
+  an honest limitation.
+
+- **Positive lithology is diffuse — no single-class confound.**
+  The 56 positives span 31 different lithology classes (top class has
+  only 5 positives). That means the "yellow blob on one rock type"
+  concern from the prospectivity-raster review is *probably* unfounded
+  — no single lithology dominates positives enough for the model to
+  learn "class X = porphyry." **Day-4 action:** verify via SHAP that
+  `litho_*` one-hot columns have small SHAP values relative to the
+  geochem and geophysics columns. If confirmed, the model is learning
+  feature-space mineralogy, not rock-type shortcuts.
+
 ## Out of scope (don't drift)
 
 - 3D physics-consistent geophysical inversions (SimPEG-based). Acknowledged as the natural next step.
