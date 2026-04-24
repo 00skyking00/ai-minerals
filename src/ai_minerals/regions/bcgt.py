@@ -7,11 +7,13 @@ from ai_minerals.data._common import DATA_RAW
 from ai_minerals.regions import Region
 
 
-# Placeholder AOI — to be refined from BC MINFILE property polygons in phase B1.
+# Golden Triangle AOI: covers Brucejack, Snip, Eskay Creek, KSM/Kerr-Sulphurets-
+# Mitchell, Galore Creek, Schaft Creek, Red Chris, Red Mountain. North edge
+# extended to 58.0°N to include Red Chris (57.66°N) with buffer.
 _BCGT_AOI = AOI(
     name="BCGT",
     min_lon=-131.5, min_lat=56.0,
-    max_lon=-129.5, max_lat=57.5,
+    max_lon=-129.5, max_lat=58.0,
 )
 
 
