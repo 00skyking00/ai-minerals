@@ -15,8 +15,18 @@ website:
     left:
       - href: index.qmd
         text: Home
+      - href: notebooks/eastak_porphyry_prospectivity.qmd
+        text: Report
       - href: notebooks/intro.qmd
         text: Data tour
+      - text: Build log
+        menu:
+          - href: notebooks/day3_model.qmd
+            text: Day 3 — baseline
+          - href: notebooks/day4_rf_shap.qmd
+            text: Day 4 — RF + SHAP
+          - href: notebooks/day5_validation.qmd
+            text: Day 5 — validation
       - text: Research
         menu:
           - href: research/kobold-analysis.md
