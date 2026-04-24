@@ -32,10 +32,12 @@ BCGT = Region(
     # L03 = porphyry Cu ± Mo ± Au, L04 = porphyry Cu-Au-Mo
     # H04 = epithermal Au-Ag (high-sulfidation), H05 = (low-sulfidation)
     # K01 = Cu skarn, K02 = Au skarn
+    # G06 = Besshi/sedex VMS, G07 = Kuroko/bimodal volcanic VMS (Eskay Creek)
     deposit_classes={
         "porphyry":   ("bc:l03", "bc:l04"),
         "epithermal": ("bc:h04", "bc:h05"),
         "skarn":      ("bc:k01", "bc:k02"),
+        "vms":        ("bc:g06", "bc:g07"),
     },
 
     occurrence_commodity_filter=("cu", "copper", "au", "gold", "ag", "silver"),

@@ -35,7 +35,7 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
       is_<depositclass>      one per entry in region.deposit_classes
       any_mineral_occurrence (MRDS + ARDF with any commodity matching region filter)
     """
-    grid = build_grid(region.aoi, resolution_m=resolution_m)
+    grid = build_grid(region.aoi, resolution_m=resolution_m, working_crs=region.working_crs)
 
     # --- Raster features ---
     print("[assemble] DEM + derivatives")
