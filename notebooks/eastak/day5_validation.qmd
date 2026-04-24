@@ -155,7 +155,7 @@ counts only closes the most obvious one:
    sampled cell, those columns hold real numbers. Presence-vs-absence
    alone cleanly separates explored from unexplored — independent of
    the actual values. Our RF pipeline fills NaN with `-9999` as a
-   sentinel ([`model_rf.py:79`](../src/ai_minerals/model_rf.py#L79)), so
+   sentinel ([`model_rf.py:79`](../../src/ai_minerals/model_rf.py#L79)), so
    a single split on `cu_max_5km > -1000` carves "explored" from
    "unexplored" in the first few tree levels, and learns "explored →
    higher positive rate" because all 56 positives sit in heavily-
@@ -305,7 +305,7 @@ Pseudo-negative sampling assumes cells far from any known occurrence
 are non-deposits. PU learning (Mordelet & Vert-style bagging) refuses
 that assumption — each bag trains on positives + a random equal-sized
 draw of unlabeled cells treated as "not known positive," and we average
-over bags where a cell was out-of-bag. See [`model_pu.py`](../src/ai_minerals/model_pu.py).
+over bags where a cell was out-of-bag. See [`model_pu.py`](../../src/ai_minerals/model_pu.py).
 
 ```{python}
 #| label: pu-bag

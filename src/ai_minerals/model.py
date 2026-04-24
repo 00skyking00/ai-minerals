@@ -14,29 +14,45 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-# Columns that are NOT features (identity, labels, helpers)
-NON_FEATURE_COLUMNS = {
+# Identity + helper columns present in every region's feature frame.
+IDENTITY_COLUMNS = frozenset({
     "row", "col", "x", "y",
-    "is_porphyry", "is_porphyry_strict", "any_mineral_occurrence",
+    "any_mineral_occurrence",
     "lithology_class",  # handled specially as one-hot
-}
+})
 
 
-def feature_columns(df: pd.DataFrame) -> list[str]:
-    return [c for c in df.columns if c not in NON_FEATURE_COLUMNS]
+def non_feature_columns(label_cols: tuple[str, ...] = ("is_porphyry", "is_porphyry_strict")) -> frozenset[str]:
+    """Return the set of columns to exclude from the feature matrix.
+
+    Identity/helper columns + whatever label columns the region defines.
+    Defaults to v1's porphyry labels so existing callers keep working.
+    """
+    return IDENTITY_COLUMNS | set(label_cols)
+
+
+# Back-compat: the v1 NON_FEATURE_COLUMNS set. Notebook cells and tests
+# that import this name continue to work; new code should call
+# `non_feature_columns(label_cols)` instead.
+NON_FEATURE_COLUMNS = non_feature_columns()
+
+
+def feature_columns(df: pd.DataFrame, label_cols: tuple[str, ...] = ("is_porphyry", "is_porphyry_strict")) -> list[str]:
+    non_feat = non_feature_columns(label_cols)
+    return [c for c in df.columns if c not in non_feat]
 
 
 def _exclusion_mask(
-    df: pd.DataFrame, *, exclusion_radius_m: float
+    df: pd.DataFrame, *, exclusion_radius_m: float, label_col: str = "is_porphyry"
 ) -> np.ndarray:
     """Return a boolean mask of cells to EXCLUDE from pseudo-negatives.
 
-    Cells within `exclusion_radius_m` of any known mineral occurrence or porphyry
+    Cells within `exclusion_radius_m` of any known mineral occurrence or deposit
     positive are excluded to avoid contaminating the negative class with nearby
     unknown deposits.
     """
     occ = df.loc[df["any_mineral_occurrence"] == 1, ["x", "y"]].to_numpy()
-    por = df.loc[df["is_porphyry"] == 1, ["x", "y"]].to_numpy()
+    por = df.loc[df[label_col] == 1, ["x", "y"]].to_numpy()
     exclude_pts = np.vstack([occ, por]) if len(por) else occ
     tree = cKDTree(exclude_pts)
     xy = df[["x", "y"]].to_numpy()
@@ -51,6 +67,7 @@ def sample_pseudo_negatives(
     exclusion_radius_m: float = 5000.0,
     stratify_by: str = "lithology_class",
     random_state: int = 42,
+    label_col: str = "is_porphyry",
 ) -> pd.DataFrame:
     """Return a sub-frame of pseudo-negative cells, stratified by lithology.
 
@@ -59,10 +76,10 @@ def sample_pseudo_negatives(
     excluding cells within `exclusion_radius_m` of any known occurrence.
     """
     rng = np.random.default_rng(random_state)
-    positives = df[df["is_porphyry"] == 1]
+    positives = df[df[label_col] == 1]
     n_target = int(n_per_positive * len(positives))
 
-    exclude = _exclusion_mask(df, exclusion_radius_m=exclusion_radius_m)
+    exclude = _exclusion_mask(df, exclusion_radius_m=exclusion_radius_m, label_col=label_col)
     candidates = df[~exclude].copy()
     print(f"  [pseudo-neg] {exclude.sum():,} cells excluded (< {exclusion_radius_m/1000:g} km "
           f"from any occurrence); {len(candidates):,} candidates remain")
@@ -99,20 +116,29 @@ def build_training_set(
     n_per_positive: int = 30,
     exclusion_radius_m: float = 5000.0,
     random_state: int = 42,
+    label_col: str = "is_porphyry",
+    label_cols: tuple[str, ...] = ("is_porphyry", "is_porphyry_strict"),
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    """Assemble (X, y) for model training: positives + pseudo-negatives with one-hot lith."""
-    pos = df[df["is_porphyry"] == 1].copy()
+    """Assemble (X, y) for model training: positives + pseudo-negatives with one-hot lith.
+
+    `label_col` selects which binary label column is the training target
+    (one of `label_cols`). `label_cols` is the full set of label columns
+    that should be excluded from the feature matrix.
+    """
+    pos = df[df[label_col] == 1].copy()
     neg = sample_pseudo_negatives(
         df,
         n_per_positive=n_per_positive,
         exclusion_radius_m=exclusion_radius_m,
         random_state=random_state,
+        label_col=label_col,
     )
     combined = pd.concat([pos, neg], ignore_index=True)
     combined = add_lithology_onehot(combined, top_classes)
-    y = combined["is_porphyry"].to_numpy(dtype=np.int64)
+    y = combined[label_col].to_numpy(dtype=np.int64)
+    non_feat = non_feature_columns(label_cols)
     X = combined.drop(
-        columns=[c for c in combined.columns if c in NON_FEATURE_COLUMNS]
+        columns=[c for c in combined.columns if c in non_feat]
         + ["lithology_class"]
     )
     # NaN will be imputed inside the model pipeline.

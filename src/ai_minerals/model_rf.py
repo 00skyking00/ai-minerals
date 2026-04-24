@@ -95,5 +95,11 @@ def spatial_block_scores_tree(
 
 
 def count_feature_columns(feature_names: list[str]) -> list[str]:
-    """Columns that count nearby samples (proxies for exploration density)."""
-    return [c for c in feature_names if c.endswith("_count_5km")]
+    """Columns that proxy for exploration density.
+
+    Both `<el>_count_5km` (integer sample-count) and `<el>_has_data_5km`
+    (binary presence-of-any-sample flag) encode "how much has this area
+    been explored", so both are dropped together when the analyst wants a
+    less-exploration-biased feature set.
+    """
+    return [c for c in feature_names if c.endswith(("_count_5km", "_has_data_5km"))]
