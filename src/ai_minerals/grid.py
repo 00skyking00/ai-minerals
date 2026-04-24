@@ -63,14 +63,16 @@ class Grid:
         return gpd.GeoDataFrame(df, geometry=geom, crs=self.crs)
 
 
-def build_grid(aoi: AOI, resolution_m: int = 500) -> Grid:
-    """Build a grid over the AOI, aligned to round multiples of `resolution_m`.
+def build_grid(aoi: AOI, resolution_m: int = 500, working_crs: str = WORKING_CRS) -> Grid:
+    """Build a grid over the AOI, aligned to round multiples of `resolution_m`
+    in the given `working_crs` (defaults to Alaska Albers EPSG:3338 for v1
+    back-compat; pass the region's CRS when building for BCGT / MotherLode).
 
     Grid cells are positioned so their centers fall on `resolution_m * n + r/2`
     coordinates — this makes merging with other `resolution_m`-aligned rasters
     straightforward and predictable across re-runs.
     """
-    aoi_series = gpd.GeoSeries([aoi.polygon], crs=aoi.crs).to_crs(WORKING_CRS)
+    aoi_series = gpd.GeoSeries([aoi.polygon], crs=aoi.crs).to_crs(working_crs)
     minx, miny, maxx, maxy = aoi_series.total_bounds
     r = resolution_m
     x0 = int(np.floor(minx / r)) * r + r / 2
@@ -79,4 +81,4 @@ def build_grid(aoi: AOI, resolution_m: int = 500) -> Grid:
     y1 = int(np.ceil(maxy / r)) * r - r / 2
     xs = np.arange(x0, x1 + r / 2, r)
     ys = np.arange(y0, y1 + r / 2, r)
-    return Grid(xs=xs, ys=ys, resolution_m=r, crs=WORKING_CRS)
+    return Grid(xs=xs, ys=ys, resolution_m=r, crs=working_crs)
