@@ -142,19 +142,42 @@ versus a positive median of 11,650 ppm (17× weaker), 3 Ag samples vs
 36, a nearly-zero magnetic residual vs 186 at typical positives. To the
 RF this is an unremarkable cell.
 
-**What this means.** This is the exploration-bias confound in its
-second form. In Day 4 we saw that `*_count_5km` acted as a proxy for
-exploration history. Dropping those columns should have fixed it — but
-the `*_max_5km` and `*_mean_5km` features carry the same bias
-differently: if nobody ever sampled near a cell, its geochem aggregates
-are NaN or tiny, and the model classifies it as non-prospective. The
-Kenorland location is an outcrop that had very little legacy AGDB4
-coverage (low count, low values) but DOES host porphyry mineralization
-confirmed by drilling — and the model refuses to see it.
+**What this means.** Day 4 located the exploration bias in the
+`*_count_5km` columns and dropped them. The Kenorland result shows the
+fix was incomplete because exploration history leaks into the
+geochemistry layer through **three different channels**, and dropping
+counts only closes the most obvious one:
 
-The Day-3/4 high AUC was driven by a selection effect: ARDF positives
-are the cells where legacy exploration already *found* something, which
-correlates with where legacy exploration *looked hard*. The model
+1. **Count-level bias (fixed in Day 4).** Explored cells have high
+   `*_count_5km`, unexplored have 0. Drop the column.
+2. **NaN-vs-value bias (survives).** For any cell with zero samples
+   within 5 km, *every* `*_mean_5km` and `*_max_5km` is NaN. For any
+   sampled cell, those columns hold real numbers. Presence-vs-absence
+   alone cleanly separates explored from unexplored — independent of
+   the actual values. Our RF pipeline fills NaN with `-9999` as a
+   sentinel ([`model_rf.py:79`](../src/ai_minerals/model_rf.py#L79)), so
+   a single split on `cu_max_5km > -1000` carves "explored" from
+   "unexplored" in the first few tree levels, and learns "explored →
+   higher positive rate" because all 56 positives sit in heavily-
+   explored cells. HistGradientBoosting doesn't escape this —
+   its learned NaN-direction at each split *is* the exploration-history
+   signal.
+3. **Magnitude-within-explored bias (survives).** Among already-sampled
+   cells, the max of 100 samples is almost always larger than the max
+   of 5 samples, just because more draws → higher tail. So
+   `*_max_5km` is mechanically correlated with sampling density even
+   when we restrict to non-NaN rows.
+
+The Kenorland cell has a real AGDB4 neighborhood (21 Cu samples, not
+zero) but shallow density: max 700 ppm, mean 58 ppm. Positives sit at
+the opposite end: 98 samples, max 11,650 ppm, mean 817 ppm. The
+separation is partly signal (high-grade mineralization exists at
+positives) and partly artifact (with 5× the sample count, you find 17×
+the max by chance alone, before any difference in underlying rocks).
+
+The Day-3/4 high AUC was driven by this selection effect: ARDF
+positives are cells where legacy exploration already *found* something,
+which correlates with where legacy exploration *looked hard*. The model
 learned to find cells that look explored — not cells that look
 mineralized.
 
@@ -164,15 +187,27 @@ drill intersections across Alaska. But we don't need a benchmark to
 conclude the pseudo-label pipeline is exploration-biased — the feature
 diagnostic is conclusive on its own.
 
-**Remediation path (out of v1 scope; noted for writeup):**
+**Remediation path (out of v1 scope; flagged for writeup + v1.1):**
 
-- Feature-engineer exploration effort directly (`*_count_5km`) and
-  *control* for it rather than dropping it — use it as a covariate we
-  marginalize out, not as a predictor.
-- Use mineral-system-level features with lower exploration dependence
-  (regional geophysics, lithology, structural proxies) and downweight
-  geochemistry aggregates whose density correlates with known occurrences.
-- Train with PU learning end-to-end (vs just comparing at ranking time).
+- **Expose the NaN pattern as explicit features.** Add `<el>_has_data`
+  indicator columns so SHAP can attribute weight to "was this cell
+  sampled?" directly instead of hiding it inside the sentinel. This is
+  the smallest honest change; already on the v1.1 improvement list.
+- **Background-impute instead of sentinel-fill.** Replace NaN with an
+  element-specific background value (median over unmineralized
+  lithology, or global median) so NaN becomes indistinguishable from
+  "sampled but nominal" at the feature-matrix level.
+- **Control for exploration effort rather than dropping it.** Keep
+  `*_count_5km` as a covariate in a framework that marginalizes it out
+  (e.g. partial-dependence against counts, or a two-stage model that
+  subtracts the count-explained variance).
+- **Downweight geochemistry relative to uniformly-measured layers.**
+  Geophysics (magnetics, gravity), lithology, DEM, and fault-distance
+  are sampled on regular grids — no exploration bias baked in. A model
+  trained on those alone would generalize better to unexplored terrain,
+  at the cost of losing the strongest single predictor class.
+- **Train with PU learning end-to-end**, not just as a post-hoc ranking
+  comparison.
 
 ## 2. Strict (21a-only) vs family label
 
