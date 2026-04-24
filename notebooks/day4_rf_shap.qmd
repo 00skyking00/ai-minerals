@@ -210,9 +210,10 @@ that drag their predictions down?
 ```{python}
 #| label: rainbow-check
 import geopandas as gpd
+from ai_minerals.data._common import DATA_RAW
 from ai_minerals.features.labels import assign_cells, porphyry_positives
 
-ardf = gpd.read_file("data/raw/ardf/ardf_eastak.gpkg")
+ardf = gpd.read_file(DATA_RAW / "ardf/ardf_eastak.gpkg")
 grid = build_grid(EASTERN_ALASKA, resolution_m=500)
 fam_cells = assign_cells(porphyry_positives(ardf, strict=False), grid)
 
