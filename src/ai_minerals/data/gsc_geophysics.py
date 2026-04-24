@@ -71,26 +71,41 @@ def _write_nan_grid(out_path: Path, aoi: AOI, working_crs: str, *, field_name: s
     return out_path
 
 
-def _find_ers(manual_dir: Path, name_substring: str) -> Path | None:
+def _find_ers(manual_dir: Path, patterns: tuple[str, ...]) -> Path | None:
     """Look for an extracted-or-extractable ERS file under `manual_dir`
-    whose filename contains `name_substring` (case-insensitive)."""
+    whose filename contains ANY of the given patterns (case-insensitive).
+
+    Different NRCan products name their files differently:
+      - national 200m magnetic:  "Canada - 200m - Residual Magnetic Field..."
+      - regional 100m rtf:       "Alaska_Yukon_100m_MAG_rtf_v4.ERS"
+      - regional 100m 1st-deriv: "Alaska_Yukon_100m_MAG_vd1_v4.ERS"
+      - national 2km gravity:    "Canada 2 km - GRAV - Isostatic Residual..."
+    so callers pass the discriminating substrings per layer.
+    """
     manual_dir = manual_dir.resolve()
+    pats = tuple(p.lower() for p in patterns)
+
+    def _match(name: str) -> bool:
+        lo = name.lower()
+        return any(p in lo for p in pats)
+
     # Already extracted?
     for ers in manual_dir.rglob("*.ERS"):
-        if name_substring.lower() in ers.name.lower():
+        if _match(ers.name):
             return ers
     # Try extracting any ZIP that matches
     for zp in manual_dir.glob("*.zip"):
-        if name_substring.lower() not in zp.name.lower():
+        if not _match(zp.name):
             continue
         dest = zp.parent / (zp.stem.replace(" ", "_") + "_ers")
         dest.mkdir(exist_ok=True)
         with zipfile.ZipFile(zp) as zf:
             for n in zf.namelist():
-                if n.lower().endswith(("ers", ".ers.gi", ".ers.xml")) or not n.endswith("/"):
+                if not n.endswith("/"):
                     zf.extract(n, dest)
         for ers in dest.rglob("*.ERS"):
-            return ers
+            if _match(ers.name):
+                return ers
     return None
 
 
@@ -149,46 +164,71 @@ def fetch(aoi: AOI, working_crs: str = "EPSG:3005", *, force: bool = False) -> t
     manual_dir.mkdir(parents=True, exist_ok=True)
 
     mag_path = out_dir / f"magnetic_{aoi.name.lower()}.tif"
+    mag_1vd_path = out_dir / f"magnetic_1vd_{aoi.name.lower()}.tif"
     grav_path = out_dir / f"gravity_{aoi.name.lower()}.tif"
 
-    # Magnetic: prefer NRCan 200 m
-    mag_ers = _find_ers(manual_dir, "magnetic")
+    # Magnetic RTF: prefer NRCan manual. Discriminators cover both the
+    # national 200 m ("Residual Magnetic Field") and regional 100 m AK-Yukon
+    # RTF ("mag_rtf").
+    mag_ers = _find_ers(manual_dir, ("residual_magnetic", "mag_rtf"))
     mag_source = "placeholder"
     if mag_ers is not None:
-        print(f"[magnetic] using NRCan 200 m: {mag_ers.name}")
+        print(f"[magnetic-RTF] using NRCan: {mag_ers.name}")
         _reproject_ers(mag_ers, aoi, working_crs, mag_path)
-        mag_source = "NRCan_200m"
+        mag_source = "NRCan"
     else:
         # Fall back to EMAG2
         try:
             from ai_minerals.data.emag2_geophysics import fetch as emag2_fetch
-            print("[magnetic] no NRCan ERS found; falling back to EMAG2 v3")
-            em_mag, _ = emag2_fetch(aoi, working_crs=working_crs, force=force)
-            # emag2_fetch writes directly at mag_path already
+            print("[magnetic-RTF] no NRCan ERS found; falling back to EMAG2 v3")
+            emag2_fetch(aoi, working_crs=working_crs, force=force)
             mag_source = "EMAG2_v3"
         except Exception as e:
-            print(f"[magnetic] EMAG2 fallback failed: {e}; using NaN placeholder")
+            print(f"[magnetic-RTF] EMAG2 fallback failed: {e}; using NaN placeholder")
             _write_nan_grid(mag_path, aoi, working_crs, field_name="residual_magnetic_nT")
 
+    # Magnetic 1VD (1st vertical derivative): regional AK-Yukon only; no
+    # fallback — pipeline treats this as an optional feature.
+    mag_1vd_ers = _find_ers(manual_dir, ("mag_vd1", "vertical_derivative", "1vd"))
+    mag_1vd_source = "absent"
+    if mag_1vd_ers is not None:
+        print(f"[magnetic-1VD] using NRCan: {mag_1vd_ers.name}")
+        try:
+            _reproject_ers(mag_1vd_ers, aoi, working_crs, mag_1vd_path)
+            mag_1vd_source = "NRCan"
+        except Exception as e:
+            print(f"[magnetic-1VD]   reproject failed ({type(e).__name__}); skipping")
+            mag_1vd_source = "absent"
+            if mag_1vd_path.exists():
+                mag_1vd_path.unlink()
+
     # Gravity: only NRCan 2 km available; no free global Bouguer replacement.
-    grav_ers = _find_ers(manual_dir, "grav")
+    # Note the NRCan grid is Canada-only — ERS-reproject will fail NoDataInBounds
+    # for Alaska/USA AOIs; catch and fall back to NaN placeholder.
+    grav_ers = _find_ers(manual_dir, ("grav",))
     grav_source = "placeholder"
     if grav_ers is not None:
         print(f"[gravity] using NRCan 2 km: {grav_ers.name}")
-        _reproject_ers(grav_ers, aoi, working_crs, grav_path)
-        grav_source = "NRCan_2km_IsostaticResidual"
+        try:
+            _reproject_ers(grav_ers, aoi, working_crs, grav_path)
+            grav_source = "NRCan_2km_IsostaticResidual"
+        except Exception as e:
+            # Typical: NoDataInBounds when AOI is outside Canada.
+            print(f"[gravity]   AOI outside data coverage ({type(e).__name__}); NaN placeholder")
+            _write_nan_grid(grav_path, aoi, working_crs, field_name="bouguer_gravity_mGal")
     else:
         print("[gravity] no NRCan ERS found; writing NaN placeholder (v2.1 TODO)")
         _write_nan_grid(grav_path, aoi, working_crs, field_name="bouguer_gravity_mGal")
 
     write_source_md(
         NAME,
-        title=f"GSC / NRCan geophysics — mag={mag_source}, grav={grav_source}",
+        title=f"GSC / NRCan geophysics — mag-RTF={mag_source}, mag-1VD={mag_1vd_source}, grav={grav_source}",
         url="https://geophysical-data.canada.ca/portal",
         license="Open Government Licence - Canada (when NRCan data is present).",
         notes=(
-            f"mag source: {mag_source}\n"
-            f"grav source: {grav_source}\n\n"
+            f"magnetic-RTF source:       {mag_source}\n"
+            f"magnetic-1VD source:       {mag_1vd_source}\n"
+            f"gravity source:            {grav_source}\n\n"
             "NRCan's portal delivers 'Geosoft Grid' as a proprietary compressed\n"
             "HGD variant that GDAL cannot read. Re-download in ER Mapper ERS\n"
             "format (the other option) to get a GDAL-readable file. See the\n"
