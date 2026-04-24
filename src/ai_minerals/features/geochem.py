@@ -103,7 +103,12 @@ def aggregate_in_radius(
     out: dict[str, np.ndarray] = {}
 
     for el in elements:
-        values = samples_gdf[el.lower()].to_numpy(dtype=np.float32)
+        # Canonical column name is `<El>_ppm`; tolerate the legacy lowercase
+        # naming (`ag`, `cu`) emitted by the pre-adapter v1 pipeline.
+        if f"{el}_ppm" in samples_gdf.columns:
+            values = samples_gdf[f"{el}_ppm"].to_numpy(dtype=np.float32)
+        else:
+            values = samples_gdf[el.lower()].to_numpy(dtype=np.float32)
         # Accumulate per-cell sum, max, count (skipping NaN samples).
         sum_arr = np.zeros(grid.n_cells, dtype=np.float64)
         max_arr = np.full(grid.n_cells, np.nan, dtype=np.float32)

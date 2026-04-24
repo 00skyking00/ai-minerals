@@ -6,7 +6,7 @@ A portfolio artifact, not a production tool — demonstrating competent engageme
 
 ## Start here
 
-**→ [`notebooks/eastak_porphyry_prospectivity.qmd`](notebooks/eastak_porphyry_prospectivity.qmd)** is the primary artifact. It reads as a technical report: problem → region → data → model → SHAP → external blind test → sensitivity battery → honest limits → next steps. Render to HTML with `quarto render notebooks/eastak_porphyry_prospectivity.qmd`, or open the paired `.ipynb` in Jupyter.
+**→ [`notebooks/eastak/eastak_porphyry_prospectivity.qmd`](notebooks/eastak/eastak_porphyry_prospectivity.qmd)** is the primary artifact. It reads as a technical report: problem → region → data → model → SHAP → external blind test → sensitivity battery → honest limits → next steps. Render to HTML with `quarto render notebooks/eastak/eastak_porphyry_prospectivity.qmd`, or open the paired `.ipynb` in Jupyter.
 
 The writeup is the deliverable. The code is there to make the writeup reproducible.
 
@@ -22,8 +22,9 @@ The v1 message: a standard pseudo-supervised MPM pipeline at 500 m regional reso
 
 ```
 notebooks/
-  eastak_porphyry_prospectivity.qmd   # ← the integrated report. Start here.
-  day3_model.qmd / day4_rf_shap.qmd / day5_validation.qmd   # build log / audit trail
+  eastak/                              # v1: Eastern Alaska porphyry Cu-Mo-Au-Ag
+    eastak_porphyry_prospectivity.qmd  # ← the integrated report. Start here.
+    day3_model.qmd / day4_rf_shap.qmd / day5_validation.qmd   # build log
 src/ai_minerals/    # ~700 lines; typed Python. aoi, grid, features, model, model_rf, model_pu
 design/             # scoping doc and v1.1 findings trace
 data/
@@ -41,7 +42,7 @@ cd ai-minerals
 uv sync                               # Python 3.11+, locked deps
 uv run python -m ai_minerals.data.fetch.all     # ~5 GB, ~1 hr
 uv run python -m ai_minerals.features.assemble  # rebuilds the parquet
-quarto render notebooks/eastak_porphyry_prospectivity.qmd
+quarto render notebooks/eastak/eastak_porphyry_prospectivity.qmd
 ```
 
 The integrated notebook has no hidden state between cells; restart-and-run-all works from a fresh environment.

@@ -1,4 +1,14 @@
-"""Label assignment — which grid cells are known deposits."""
+"""Label assignment — which grid cells are known deposits.
+
+Canonical occurrence GeoDataFrames (from `data/adapters/occurrences/*`)
+carry a `deposit_codes: tuple[str, ...]` column with jurisdiction-prefixed
+codes (e.g. `"usgs:21a"`, `"bc:L03"`). `deposit_positives` filters to
+rows matching any of a target code tuple.
+
+v1 `porphyry_positives(ardf, strict=...)` is preserved as a thin wrapper
+for back-compat with notebook cells that were written against the raw
+ARDF schema (with the free-text `model_code` field).
+"""
 
 from __future__ import annotations
 
@@ -10,9 +20,27 @@ import pandas as pd
 
 from ai_minerals.grid import Grid
 
+
+# v1 constants preserved for the back-compat wrapper below.
 PORPHYRY_FAMILY_CODES = ("17", "20c", "21a", "21b")
 PORPHYRY_STRICT_CODES = ("21a",)
 
+
+def deposit_positives(
+    occurrences: gpd.GeoDataFrame, codes: tuple[str, ...]
+) -> gpd.GeoDataFrame:
+    """Filter canonical occurrences to those whose deposit_codes intersects `codes`.
+
+    `codes` should be jurisdiction-prefixed (e.g. `("usgs:21a",)`). Matches
+    are exact (no substring/regex), so the adapter is the only place that
+    parses free-text model-code fields.
+    """
+    want = frozenset(codes)
+    mask = occurrences["deposit_codes"].apply(lambda cs: bool(want.intersection(cs)))
+    return occurrences[mask].copy()
+
+
+# --- Back-compat wrapper (raw ARDF schema, for any caller that hasn't migrated) ---
 
 def _code_mask(series: pd.Series, codes: tuple[str, ...]) -> pd.Series:
     pat = r"\b(?:" + "|".join(re.escape(c) for c in codes) + r")\b"
@@ -20,8 +48,15 @@ def _code_mask(series: pd.Series, codes: tuple[str, ...]) -> pd.Series:
 
 
 def porphyry_positives(ardf: gpd.GeoDataFrame, strict: bool = False) -> gpd.GeoDataFrame:
-    """Return the ARDF rows matching our porphyry family or strict filter."""
+    """Filter raw ARDF GeoDataFrame to porphyry family (or strict 21a) rows.
+
+    Accepts both the raw ARDF schema (has `model_code` column) and the
+    canonical schema (has `deposit_codes` column).
+    """
     codes = PORPHYRY_STRICT_CODES if strict else PORPHYRY_FAMILY_CODES
+    if "deposit_codes" in ardf.columns:
+        prefixed = tuple(f"usgs:{c}" for c in codes)
+        return deposit_positives(ardf, prefixed)
     return ardf[_code_mask(ardf["model_code"], codes)].copy()
 
 

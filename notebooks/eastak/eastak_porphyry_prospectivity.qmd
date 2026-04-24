@@ -108,7 +108,7 @@ Every data source used here is open and public-domain. No API keys, no gated dow
 | Optical / alteration | [Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2) 2023 summer mosaic | 10 m | `s2_{iron_oxide,ferrous,clay,ndvi}` |
 | Validation | Kenorland Minerals 2023–2025 drill disclosures | point | blind-test set (§7) |
 
-Everything is reprojected to **EPSG:3338 (NAD83 Alaska Albers, equal-area)** and aggregated to a 500 m regular grid. The glue layer is in [`features/assemble.py`](../src/ai_minerals/features/assemble.py); most of the model-training code lives in [`model.py`](../src/ai_minerals/model.py) and [`model_rf.py`](../src/ai_minerals/model_rf.py).
+Everything is reprojected to **EPSG:3338 (NAD83 Alaska Albers, equal-area)** and aggregated to a 500 m regular grid. The glue layer is in [`features/assemble.py`](../../src/ai_minerals/features/assemble.py); most of the model-training code lives in [`model.py`](../../src/ai_minerals/model.py) and [`model_rf.py`](../../src/ai_minerals/model_rf.py).
 
 ```{python}
 #| label: load-features
@@ -439,7 +439,7 @@ Strict-label model captures 91 % of strict positives in the top 1 %, and 61 % of
 
 ### 7.2 PU-learning baseline {#pu-learning-comparison}
 
-Pseudo-negative sampling assumes cells far from any known occurrence are non-deposits. PU learning (Mordelet & Vert-style bagging, implemented in [`model_pu.py`](../src/ai_minerals/model_pu.py)) refuses that assumption:
+Pseudo-negative sampling assumes cells far from any known occurrence are non-deposits. PU learning (Mordelet & Vert-style bagging, implemented in [`model_pu.py`](../../src/ai_minerals/model_pu.py)) refuses that assumption:
 
 ```{python}
 #| label: pu-bagging
@@ -684,14 +684,14 @@ uv run jupyter nbconvert --to notebook --execute --inplace \
 
 ## Code + design tour
 
-- [`src/ai_minerals/aoi.py`](../src/ai_minerals/aoi.py) — AOI and CRS constants.
-- [`src/ai_minerals/grid.py`](../src/ai_minerals/grid.py) — 500 m EPSG:3338 grid.
-- [`src/ai_minerals/features/`](../src/ai_minerals/features/) — labels, rasters, geology, geochem, assemble.
-- [`src/ai_minerals/model.py`](../src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
-- [`src/ai_minerals/model_rf.py`](../src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
-- [`src/ai_minerals/model_pu.py`](../src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
-- [`design/mvp-proposal.md`](../design/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
-- [`notebooks/day{3,4,5}_*.qmd`](../notebooks/) — day-by-day build log; audit trail for how the results above came together.
+- [`src/ai_minerals/aoi.py`](../../src/ai_minerals/aoi.py) — AOI and CRS constants.
+- [`src/ai_minerals/grid.py`](../../src/ai_minerals/grid.py) — 500 m EPSG:3338 grid.
+- [`src/ai_minerals/features/`](../../src/ai_minerals/features/) — labels, rasters, geology, geochem, assemble.
+- [`src/ai_minerals/model.py`](../../src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
+- [`src/ai_minerals/model_rf.py`](../../src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
+- [`src/ai_minerals/model_pu.py`](../../src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
+- [`design/mvp-proposal.md`](../../design/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
+- [`notebooks/day{3,4,5}_*.qmd`](../../notebooks/) — day-by-day build log; audit trail for how the results above came together.
 
 ## References (primary sources)
 

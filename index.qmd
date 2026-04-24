@@ -7,7 +7,7 @@ A portfolio artifact demonstrating competent engagement with the problem space t
 
 ## Start here
 
-**→ [The integrated report](notebooks/eastak_porphyry_prospectivity.qmd)** — a single technical writeup that walks the full pipeline from public data to prospectivity map to external validation. The writeup is the deliverable; everything else exists to support it.
+**→ [The integrated report](notebooks/eastak/eastak_porphyry_prospectivity.qmd)** — a single technical writeup that walks the full pipeline from public data to prospectivity map to external validation. The writeup is the deliverable; everything else exists to support it.
 
 ## Headline finding
 
@@ -20,8 +20,8 @@ The honest posture: a pseudo-supervised MPM pipeline at 500 m regional resolutio
 ## Secondary material
 
 - [Design proposal](design/mvp-proposal.md) — scoping document, v1 build plan, v1.1 findings trace.
-- [Data tour](notebooks/intro.qmd) — hands-on walkthrough of the nine data layers feeding the model.
-- Day-by-day build log — [Day 3 baseline](notebooks/day3_model.qmd), [Day 4 RF+SHAP](notebooks/day4_rf_shap.qmd), [Day 5 validation](notebooks/day5_validation.qmd). Kept as audit trail; the integrated report is the primary artifact.
+- [Data tour](notebooks/eastak/intro.qmd) — hands-on walkthrough of the nine data layers feeding the model.
+- Day-by-day build log — [Day 3 baseline](notebooks/eastak/day3_model.qmd), [Day 4 RF+SHAP](notebooks/eastak/day4_rf_shap.qmd), [Day 5 validation](notebooks/eastak/day5_validation.qmd). Kept as audit trail; the integrated report is the primary artifact.
 - [Research briefs](research/) — independent writeups on the three target companies, the competitive landscape, MPM state of the art, and the open-data stack.
 
 ## Reproduce

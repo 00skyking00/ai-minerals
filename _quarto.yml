@@ -3,7 +3,7 @@ project:
   output-dir: _site
   render:
     - index.qmd
-    - notebooks/intro.qmd
+    - notebooks/eastak/intro.qmd
     - notebooks/*.qmd
 
 website:
@@ -15,17 +15,17 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: notebooks/eastak_porphyry_prospectivity.qmd
+      - href: notebooks/eastak/eastak_porphyry_prospectivity.qmd
         text: Report
-      - href: notebooks/intro.qmd
+      - href: notebooks/eastak/intro.qmd
         text: Data tour
       - text: Build log
         menu:
-          - href: notebooks/day3_model.qmd
+          - href: notebooks/eastak/day3_model.qmd
             text: Day 3 — baseline
-          - href: notebooks/day4_rf_shap.qmd
+          - href: notebooks/eastak/day4_rf_shap.qmd
             text: Day 4 — RF + SHAP
-          - href: notebooks/day5_validation.qmd
+          - href: notebooks/eastak/day5_validation.qmd
             text: Day 5 — validation
       - text: Research
         menu:
