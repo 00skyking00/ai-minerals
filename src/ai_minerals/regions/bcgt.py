@@ -28,10 +28,14 @@ BCGT = Region(
     geophysics_source="gsc",
     drillhole_source="bcgs_geofile",
 
+    # BC deposit-profile codes are lowercased to match adapter convention.
+    # L03 = porphyry Cu ± Mo ± Au, L04 = porphyry Cu-Au-Mo
+    # H04 = epithermal Au-Ag (high-sulfidation), H05 = (low-sulfidation)
+    # K01 = Cu skarn, K02 = Au skarn
     deposit_classes={
-        "porphyry_family": ("bc:L03", "bc:L04"),
-        "epithermal":      ("bc:H04", "bc:H05"),
-        "skarn":           ("bc:K01", "bc:K02"),
+        "porphyry":   ("bc:l03", "bc:l04"),
+        "epithermal": ("bc:h04", "bc:h05"),
+        "skarn":      ("bc:k01", "bc:k02"),
     },
 
     occurrence_commodity_filter=("cu", "copper", "au", "gold", "ag", "silver"),
@@ -40,6 +44,14 @@ BCGT = Region(
     pathfinder_elements=("Ag", "As", "Au", "Bi", "Cu", "Mo", "Pb", "Sb", "Te", "Zn", "Hg", "Tl", "Ba"),
 
     raw_paths={
-        # populated in phase B as BC fetch modules land
+        "occurrences":   DATA_RAW / "bcgs_minfile/minfile_bcgt.gpkg",
+        "geochem":       DATA_RAW / "bcgs_rgs/rgs_bcgt.parquet",
+        "geology":       DATA_RAW / "bcgs_geology/bedrock_bcgt.gpkg",
+        "geology_arcs":  DATA_RAW / "bcgs_geology/faults_bcgt.gpkg",
+        "dem":           DATA_RAW / "dem/dem_bcgt.tif",
+        "sentinel2":     DATA_RAW / "sentinel2/s2_mean_bcgt.tif",
+        "magnetic":      DATA_RAW / "gsc_geophysics/magnetic_bcgt.tif",
+        "gravity":       DATA_RAW / "gsc_geophysics/gravity_bcgt.tif",
+        "drillholes":    DATA_RAW / "bcgs_drillholes/bcgs_drillholes_bcgt.gpkg",
     },
 )

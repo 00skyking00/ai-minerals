@@ -28,6 +28,8 @@ EASTAK = Region(
 
     pathfinder_elements=("Ag", "As", "Au", "Bi", "Cu", "Mo", "Pb", "Sb", "Te", "Zn"),
 
+    fault_layer="AKStategeol_arc",
+
     raw_paths={
         "occurrences":    DATA_RAW / "ardf/ardf_eastak.gpkg",
         "occurrences_mrds": DATA_RAW / "mrds/mrds_eastak.geojson",

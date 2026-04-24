@@ -44,6 +44,11 @@ class Region:
     # Raw-file paths by dataset key. Assemble.py indexes by these keys.
     raw_paths: dict[str, Path] = field(default_factory=dict)
 
+    # Optional: if the region's fault data lives in a multi-layer GDB with a
+    # LINE_TYPE-style discriminator (Alaska SGMC), set this to the layer name.
+    # If None, `raw_paths["geology_arcs"]` is read as a flat fault-only file.
+    fault_layer: str | None = None
+
 
 from ai_minerals.regions.eastak import EASTAK  # noqa: E402
 

@@ -81,6 +81,7 @@ def fetch(
     aoi: AOI,
     *,
     mode: str = "mean",
+    working_crs: str = WORKING_CRS,
     resolution: int = 60,
     scene_limit: int | None = None,
     datetime: str = DEFAULT_DATETIME,
@@ -142,7 +143,7 @@ def fetch(
     stack = stackstac.stack(
         kept,
         assets=BANDS,
-        epsg=int(WORKING_CRS.split(":")[1]),
+        epsg=int(working_crs.split(":")[1]),
         bounds_latlon=aoi.bbox,
         resolution=resolution,
         chunksize=chunksize,
@@ -159,7 +160,7 @@ def fetch(
     print(f"  Composite shape (band, y, x): {composite.shape}")
 
     out_path = dataset_dir(NAME) / f"s2_{mode}_{aoi.name.lower()}.tif"
-    composite.rio.write_crs(WORKING_CRS, inplace=True)
+    composite.rio.write_crs(working_crs, inplace=True)
 
     pb_ctx = ProgressBar() if progress else nullcontext()
     print(f"  Writing {out_path} with scheduler={scheduler!r}...")
@@ -182,7 +183,7 @@ def fetch(
         notes=(
             f"AOI={aoi.name}, mode={mode}, scenes={len(kept)}, "
             f"datetime={datetime}, max_cloud={max_cloud}%, resolution={resolution} m, "
-            f"bands={BANDS}, reprojected to {WORKING_CRS}."
+            f"bands={BANDS}, reprojected to {working_crs}."
         ),
     )
     return out_path
@@ -205,13 +206,19 @@ def _cli() -> int:
         ),
     )
     parser.add_argument("--no-progress", action="store_true", help="suppress dask ProgressBar")
+    parser.add_argument("--region", default="eastak", choices=["eastak", "bcgt", "motherlode"])
     args = parser.parse_args()
 
-    from ai_minerals.aoi import EASTERN_ALASKA
+    from ai_minerals.regions.eastak import EASTAK
+    from ai_minerals.regions.bcgt import BCGT
+    from ai_minerals.regions.motherlode import MOTHERLODE
+    regions_by_slug = {r.slug: r for r in (EASTAK, BCGT, MOTHERLODE)}
+    region = regions_by_slug[args.region]
 
     path = fetch(
-        EASTERN_ALASKA,
+        region.aoi,
         mode=args.mode,
+        working_crs=region.working_crs,
         resolution=args.resolution,
         scene_limit=args.scene_limit,
         datetime=args.datetime,
