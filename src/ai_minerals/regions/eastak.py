@@ -16,7 +16,7 @@ EASTAK = Region(
     occurrences_source="ardf",
     geochem_source="agdb4",
     geology_source="usgs_sgmc",
-    geophysics_source="usgs",
+    geophysics_source="gsc",
     drillhole_source="kenorland",
 
     deposit_classes={
@@ -39,7 +39,10 @@ EASTAK = Region(
         "geology_arcs":   DATA_RAW / "geology_ak/sim3340/sim3340_gdb/AKgeol_web_gdb/geologic_data/AKStategeol.gdb",
         "dem":            DATA_RAW / "dem/dem_eastak.tif",
         "sentinel2":      DATA_RAW / "sentinel2/s2_mosaic_eastak.tif",
-        "magnetic":       DATA_RAW / "geophysics/magnetic_eastak.tif",
+        "magnetic":       DATA_RAW / "gsc_geophysics/magnetic_eastak.tif",
+        "magnetic_1vd":   DATA_RAW / "gsc_geophysics/magnetic_1vd_eastak.tif",
+        # Gravity: keep the existing USGS composite (NRCan grid is Canada-only
+        # and doesn't cover Alaska).
         "gravity":        DATA_RAW / "geophysics/gravity_eastak.tif",
         "drillholes":     DATA_RAW / "kenorland/kenorland_tanacross_collars.csv",
     },

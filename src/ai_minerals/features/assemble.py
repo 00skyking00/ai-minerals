@@ -49,6 +49,11 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
     geophys_adapter = get_adapter("geophysics", region.geophysics_source)
     mag = geophys_adapter(sample_raster(region.raw_paths["magnetic"], grid))
     grav = geophys_adapter(sample_raster(region.raw_paths["gravity"], grid))
+    # Optional: 1st vertical derivative of the magnetic field (edge-sharpening
+    # product). Present for regions where NRCan ships both RTF + 1VD.
+    mag_1vd = None
+    if "magnetic_1vd" in region.raw_paths and region.raw_paths["magnetic_1vd"].exists():
+        mag_1vd = geophys_adapter(sample_raster(region.raw_paths["magnetic_1vd"], grid))
 
     # --- Geology (canonical schema: lith_class, lith_group) ---
     print("[assemble] geology polygons + faults")
@@ -131,6 +136,7 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
         "tri": tri.ravel(),
         "magnetic": mag.ravel(),
         "gravity": grav.ravel(),
+        **({"magnetic_1vd": mag_1vd.ravel()} if mag_1vd is not None else {}),
         "lithology_class": lith.ravel().astype(np.int32),
         "distance_to_fault_m": dist_fault.ravel(),
         "any_mineral_occurrence": any_occ.ravel(),
