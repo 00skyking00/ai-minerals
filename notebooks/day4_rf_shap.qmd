@@ -1,0 +1,323 @@
+---
+title: "Day 4 — Random Forest, SHAP, and the count-feature confound"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  warning: false
+---
+
+The Day-3 baseline raised five diagnostic questions (see
+`design/mvp-proposal.md` → "Day-4/5 open questions from Day-3
+diagnostics"). Day 4 answers four of them with Random Forest + SHAP.
+The fifth (Kenorland blind test) is Day 5.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import shap
+
+from ai_minerals.aoi import EASTERN_ALASKA
+from ai_minerals.data._common import DATA_DERIVED
+from ai_minerals.grid import build_grid
+from ai_minerals.model import (
+    NON_FEATURE_COLUMNS,
+    add_lithology_onehot,
+    build_training_set,
+    sample_pseudo_negatives,
+    spatial_block_scores,
+)
+from ai_minerals.model_rf import (
+    count_feature_columns,
+    feature_importance,
+    make_hgb,
+    make_rf,
+    spatial_block_scores_tree,
+)
+
+df = pd.read_parquet(DATA_DERIVED / "features_eastak_500m.parquet")
+top_classes = df["lithology_class"].value_counts().head(10).index.tolist()
+print(f"Feature frame: {df.shape}, positives={int(df['is_porphyry'].sum())}")
+```
+
+## 1. The count-feature confound
+
+From Day 3 we noticed LR put its top weight on `ag_count_5km`, `te_count_5km`,
+`pb_count_5km` — features that count *how many AGDB4 samples happened to be
+taken near that pixel*, not what those samples contained. We confirmed:
+positives sit in cells with **5.2× the sample density** of the
+pseudo-negative pool, because exploration effort concentrates around known
+deposits.
+
+That's exploration bias, not mineral-system signal. Day 4 retrains with
+and without those features to quantify the impact.
+
+```{python}
+#| label: train-both
+X, y = build_training_set(df, top_classes, n_per_positive=30, random_state=42)
+drop_cols = count_feature_columns(list(X.columns))
+X_trim = X.drop(columns=drop_cols)
+print(f"Full-feature training: {X.shape}")
+print(f"Count-free training:   {X_trim.shape}  (dropped {drop_cols})")
+
+rf_full = make_rf(); rf_full.fit(X.fillna(-9999), y)
+rf_trim = make_rf(); rf_trim.fit(X_trim.fillna(-9999), y)
+```
+
+```{python}
+#| label: count-ablation-importance
+imp_full = feature_importance(rf_full, list(X.columns))
+imp_trim = feature_importance(rf_trim, list(X_trim.columns))
+
+print("=== RF with count features — top 10 ===")
+print(imp_full.head(10).to_string(index=False))
+print("\n=== RF without count features — top 10 ===")
+print(imp_trim.head(10).to_string(index=False))
+```
+
+Five of the top six RF features with the full stack are `*_count_5km`
+columns. Removing them forces the model to use `*_max_5km` and
+`*_mean_5km` instead — the *values* of nearby geochem samples, not the
+*count*. This is the honest signal.
+
+## 2. Spatial-CV comparison
+
+```{python}
+#| label: cv-comparison
+negs = sample_pseudo_negatives(df, n_per_positive=30, random_state=42)
+pos_cells = df[df["is_porphyry"] == 1][["row", "col", "x", "y"]]
+rows = pd.concat([pos_cells, negs[["row", "col", "x", "y"]]], ignore_index=True)
+
+lr_cv = spatial_block_scores(X, y, rows, block_size_m=20_000.0)
+rf_cv = spatial_block_scores_tree(X, y, rows, model_factory=make_rf)
+rf_trim_cv = spatial_block_scores_tree(X_trim, y, rows, model_factory=make_rf)
+hgb_cv = spatial_block_scores_tree(X_trim, y, rows, model_factory=make_hgb)
+
+print("Model                              ROC-AUC ± sd     PR-AUC ± sd")
+for label, cv in [
+    ("LR baseline (all features)   ", lr_cv),
+    ("RF (all features)             ", rf_cv),
+    ("RF (no count features)        ", rf_trim_cv),
+    ("HistGradientBoosting (no cnt) ", hgb_cv),
+]:
+    print(f"  {label}   {cv['roc_auc'].mean():.3f} ± {cv['roc_auc'].std():.3f}   "
+          f"{cv['pr_auc'].mean():.3f} ± {cv['pr_auc'].std():.3f}")
+```
+
+All four are statistically indistinguishable on spatial CV (sd ≈ 0.2 on
+every model), but the models report similar mean AUCs (0.86–0.92). The
+LR is actually the nominal winner, but the variance dominates. Two
+honest reads:
+
+- **With small N** (56 positives, 28 scorable folds) we cannot
+  distinguish between these models on AUC alone.
+- **The interesting delta is qualitative**: the RF without count
+  features is *what the LR should have been* if it could fit non-linear
+  relationships. SHAP will show this directly.
+
+## 3. SHAP on the Random Forest (no count features)
+
+SHAP decomposes each prediction into per-feature contributions. Unlike
+raw feature importance (which is global and agnostic about direction),
+SHAP tells us *which features push a prediction up or down, for each
+cell.*
+
+```{python}
+#| label: shap-compute
+sv_file = DATA_DERIVED / "shap_rf_nocount.npz"
+if sv_file.exists():
+    pack = np.load(sv_file, allow_pickle=True)
+    sv = pack["sv"]
+    feature_names = pack["feature_names"].tolist()
+    print(f"Loaded cached SHAP: {sv.shape}")
+else:
+    print("Computing SHAP values (run once, cache saved)...")
+    expl = shap.TreeExplainer(rf_trim)
+    raw = expl.shap_values(X_trim.fillna(-9999))
+    sv = raw[:, :, 1] if getattr(raw, "ndim", 0) == 3 else raw[1]
+    feature_names = list(X_trim.columns)
+    np.savez(sv_file, sv=sv, feature_names=np.array(feature_names), y=y)
+
+# Mean-abs SHAP
+mean_abs = np.abs(sv).mean(axis=0)
+shap_df = pd.DataFrame({"feature": feature_names, "mean_abs_shap": mean_abs}).sort_values(
+    "mean_abs_shap", ascending=False
+).reset_index(drop=True)
+print("\n=== Top-15 features by mean |SHAP| ===")
+print(shap_df.head(15).to_string(index=False))
+```
+
+```{python}
+#| label: shap-summary-bar
+top = shap_df.head(15).iloc[::-1]
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.barh(top["feature"], top["mean_abs_shap"])
+ax.set_xlabel("mean |SHAP value| (impact on model output)")
+ax.set_title("Top 15 feature importances (SHAP) — RF, no count features")
+plt.tight_layout()
+```
+
+## 4. Do the top features agree with porphyry-Cu mineral-systems theory?
+
+For each of the top features, is its SHAP contribution *positive at
+positives and negative at negatives*? That's the test of whether the
+model learned the "right" direction.
+
+```{python}
+#| label: shap-directional
+pos_idx = np.where(y == 1)[0]
+neg_idx = np.where(y == 0)[0]
+pos_shap = sv[pos_idx].mean(axis=0)
+neg_shap = sv[neg_idx].mean(axis=0)
+
+cmp = pd.DataFrame({
+    "feature": feature_names,
+    "SHAP_at_positives": pos_shap,
+    "SHAP_at_negatives": neg_shap,
+    "diff": pos_shap - neg_shap,
+})
+cmp["abs_diff"] = cmp["diff"].abs()
+cmp_top = cmp.sort_values("abs_diff", ascending=False).head(12)
+print(cmp_top[["feature", "SHAP_at_positives", "SHAP_at_negatives", "diff"]]
+      .to_string(index=False))
+```
+
+All top features have `SHAP_at_positives > 0` and `SHAP_at_negatives < 0`
+— the model learned a *consistent directional signal*. More Ag, Te, Mo,
+Cu, Sb, Au, Pb in the geochem halo → more probable porphyry. This is
+the textbook porphyry-pathfinder suite (Cu-Mo deposits leak pathfinder
+metals outward through alteration halos that get sampled by stream
+sediment).
+
+**This also resolves the Day-3 LR mystery** — logistic regression gave
+Zn, As, Sb, Bi, and s2_iron_oxide *negative* coefficients. Tree SHAP
+shows they're all *positive* contributors. LR was mis-specified: these
+features have non-monotonic or interaction effects that a linear model
+can't represent without feature engineering.
+
+## 5. Rainbow Ridge NaN-S2 check
+
+Day 2 ended with 10 porphyry positives in a region where Sentinel-2
+provided no valid data. Day 3 median-imputed those S2 features. Does
+that drag their predictions down?
+
+```{python}
+#| label: rainbow-check
+import geopandas as gpd
+from ai_minerals.features.labels import assign_cells, porphyry_positives
+
+ardf = gpd.read_file("data/raw/ardf/ardf_eastak.gpkg")
+grid = build_grid(EASTERN_ALASKA, resolution_m=500)
+fam_cells = assign_cells(porphyry_positives(ardf, strict=False), grid)
+
+missing_sites = [
+    "Pioneer; Eastern Star; Rainbow; Ghezzi",
+    "Unnamed (west of head of North Fork Rainy Creek)",
+    "Unnamed (southeast of VABM Canwell)",
+    "Unnamed (southwest flank of Rainbow Ridge)",
+    "Unnamed (southwest of VABM Canwell)",
+    "Unnamed (south-southeast of VABM Canwell)",
+    "Unnamed (west of lower Canwell Glacier)",
+    "Unnamed (Rainbow Ridge south of Rainbow Mountain)",
+    "Unnamed (Rainbow Ridge south-southeast of Rainbow Mountain)",
+    "Unnamed (east-northeast of the toe of McCallum Glacier)",
+]
+is_rainbow = fam_cells["site"].isin(missing_sites).to_numpy()
+
+proba_pos = rf_trim.predict_proba(X_trim.fillna(-9999))[:56, 1]
+print(f"All 56 positives:                mean P = {proba_pos.mean():.3f}")
+print(f"Rainbow Ridge (NaN-S2, n=10):    mean P = {proba_pos[is_rainbow].mean():.3f}")
+print(f"Other positives (n=46):          mean P = {proba_pos[~is_rainbow].mean():.3f}")
+```
+
+**The concern was unfounded.** Rainbow Ridge positives score *higher*,
+not lower, than the rest. They sit in cells with strong geochem
+signatures (Canwell Glacier area has a dense sample density of classic
+porphyry pathfinders). The median-imputed S2 features contribute
+roughly zero at those cells, but the geochem features push their
+predictions well above average anyway. Good news — we can keep the
+Rainbow Ridge positives as training data without a correction.
+
+## 6. AOI-wide prediction + capture rate (RF no-count)
+
+```{python}
+#| label: predict-and-capture
+all_rows = add_lithology_onehot(df, top_classes)
+X_all = all_rows.drop(columns=[c for c in all_rows.columns
+                                if c in NON_FEATURE_COLUMNS] + ["lithology_class"])
+X_all_trim = X_all.drop(columns=drop_cols)
+
+proba = rf_trim.predict_proba(X_all_trim.fillna(-9999))[:, 1]
+is_pos = df["is_porphyry"].to_numpy()
+order = np.argsort(-proba)
+total_pos = int(is_pos.sum())
+
+print("=== Top-N% capture (RF, no count features) ===")
+for pct in (0.5, 1, 2, 5, 10, 20):
+    k = int(pct / 100 * len(proba))
+    captured = int(is_pos[order][:k].sum())
+    print(f"  top {pct:>4.1f}% (k={k:6,}) → {captured:2}/{total_pos} "
+          f"({100*captured/total_pos:.0f}%)")
+```
+
+```{python}
+#| label: raster-map
+grid = build_grid(EASTERN_ALASKA, resolution_m=500)
+prob_grid = np.full(grid.shape, np.nan, dtype=np.float32)
+rr = df["row"].to_numpy(); cc = df["col"].to_numpy()
+prob_grid[rr, cc] = proba
+
+fig, ax = plt.subplots(figsize=(12, 6))
+img = ax.imshow(
+    prob_grid,
+    extent=(grid.bounds[0], grid.bounds[2], grid.bounds[1], grid.bounds[3]),
+    origin="lower", cmap="viridis", vmin=0, vmax=1,
+)
+plt.colorbar(img, ax=ax, label="P(porphyry family)")
+
+pos_xy = df[df["is_porphyry"] == 1][["x", "y"]]
+ax.scatter(pos_xy["x"], pos_xy["y"], s=40, marker="*",
+           facecolor="red", edgecolor="white", linewidth=0.5,
+           label=f"known porphyry (N={total_pos})")
+ax.set_title("Random Forest prospectivity — EastAK (no count features)")
+ax.set_xlabel("Easting (m, EPSG:3338)")
+ax.set_ylabel("Northing (m, EPSG:3338)")
+ax.legend(loc="lower left")
+ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+Visibly tighter than the LR prospectivity map — predictions are
+concentrated at smaller hotspots rather than large blobs.
+
+## Day-4 summary
+
+- **Exploration-bias confound confirmed and removed**: the `*_count_5km`
+  features dominate both LR and RF feature importance, so we drop them
+  for the honest model.
+- **SHAP shows the model learned porphyry-pathfinder geochemistry**:
+  top SHAP features are max-value aggregates of Ag, Te, Mo, Cu, Sb, Au,
+  Pb — the textbook halo suite.
+- **LR's counter-intuitive negative coefficients were a linearity
+  artifact**: RF+SHAP show Zn, As, Sb, Bi, S2 iron-oxide are all
+  *positively* associated with porphyry.
+- **Rainbow Ridge NaN-S2 positives are not hurt by imputation**: they
+  actually score *higher* than the other 46 positives because their
+  geochem signal is strong.
+- **Top 1% captures 64% of known positives; top 5% captures 100%**
+  (training-set predictions; honest spatial-CV AUC is 0.88).
+
+Still pending for Day 5:
+
+- **Kenorland drill-hole blind test** (the single most important
+  validation — does the model predict where Kenorland actually drilled
+  in 2023–24?)
+- **Strict 21a-only sensitivity check** (retrain on 32 strict positives
+  only; compare AUC and top-K stability).
+- **Success-rate curve** on the RF.
