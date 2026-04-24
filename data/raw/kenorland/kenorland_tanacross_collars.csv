@@ -1,0 +1,6 @@
+hole_id,target,lon,lat,cu_pct,mo_pct,au_gpt,interval_m,drill_year,outcome,source_url
+23ETD062,East Taurus,-142.25,63.45,0.14,0.02,0.05,174.22,2023,positive,https://www.kenorlandminerals.com/news/2024/kenorland-minerals-announces-termination-of-tanacross-project-earn-in-agreement-with-antofagasta-plc-and-highlights-exploration-upside-at-south-taurus/
+East_Taurus_centroid,East Taurus (project centroid),-142.75,63.40,,,,,2019-2023,positive,https://dggs.alaska.gov/minerals/northeast-tanacross.html
+West_Taurus_centroid,West Taurus (project centroid),-142.85,63.35,,,,,2019-2023,positive,https://dggs.alaska.gov/minerals/northeast-tanacross.html
+South_Taurus_centroid,South Taurus (project centroid),-142.80,63.20,,,,,2025,negative_no_economic_mineralisation,https://www.kenorlandminerals.com/news/kenorland-minerals-provides-2025-exploration-update/
+Bluff_centroid,Bluff (project centroid),-142.95,63.45,,,,,2019,positive,https://dggs.alaska.gov/minerals/northeast-tanacross.html

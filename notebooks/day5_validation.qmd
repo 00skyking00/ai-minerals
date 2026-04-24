@@ -392,15 +392,311 @@ result, and it *doesn't contradict* §1: generalizing from ARDF positives
 to more ARDF positives is still generalizing within the
 exploration-biased feature space.
 
+## 6. Sensitivity checks (v1.1 robustness pass)
+
+Three follow-ups to pressure-test the Day-5 findings.
+
+### 6.1 Kenorland geolocation robustness
+
+The `23ETD062` stub coordinates were visually digitized from a
+press-release plan map — good to perhaps ±1 km, certainly not an NI 43-101
+survey point. If the stub is off by a cell or two, does the P=0.012
+result hold? Score *every* grid cell within a 2.5 km disk (covers a
+generous digitization error), and a 5 km disk (worst case).
+
+```{python}
+#| label: kenorland-neighborhood
+cell_xy = df[["x", "y"]].to_numpy()
+d = np.hypot(cell_xy[:, 0] - kx[0], cell_xy[:, 1] - ky[0])
+
+rows = []
+for radius_km in [2.5, 5.0, 10.0, 15.0]:
+    mask = d < radius_km * 1000
+    nb_p = p_fam[mask]
+    rows.append({
+        "radius (km)": radius_km,
+        "n cells": int(mask.sum()),
+        "max P": round(float(nb_p.max()), 4),
+        "max-P percentile vs AOI": round(float((p_fam < nb_p.max()).mean() * 100), 1),
+        "q95 P": round(float(np.quantile(nb_p, 0.95)), 4),
+    })
+pd.DataFrame(rows)
+```
+
+**Result.** The answer is scale-dependent:
+
+- Within **2.5 km** (a generous visual-digitization error on a labeled
+  press-release figure) max P is 0.031, firmly background.
+- Within **5 km** max P 0.053 (77th percentile).
+- Within **10 km** max P jumps to 0.12 (84th percentile) — the
+  neighborhood is starting to include cells the model considers
+  modestly prospective.
+- Within **15 km** (roughly the entire Kenorland Tanacross project
+  polygon) max P is 0.52 (95th percentile). The 95th-percentile cell
+  (q95) is 0.14.
+
+**Interpretation.** The "model misses Kenorland" conclusion is strong
+if the digitization error is ≤5 km. At 10–15 km — the scale of the
+entire project polygon — we can no longer rule out "Kenorland's actual
+collar happens to be one of the 5 % of cells the model does rank high
+within the project." That uncertainty is real and can't be resolved
+without published collar tables.
+
+So: if the stub is the hole location to within a few km (the most
+likely case, since `23ETD062` is a specific hole ID referenced in a
+press release plan figure), the model misses a real porphyry hit. If
+the stub is drifted to the project centroid instead, we can't be sure.
+We carry both framings in the summary below. The §6.4 property-centroid
+sweep tests the more pessimistic interpretation directly.
+
+### 6.2 Exploration-robust baseline: train without geochem
+
+Day 5 argued the geochem aggregates carry exploration bias in three
+channels (NaN-vs-value, magnitude-within-explored, count). A
+stress-test: train an RF only on features measured on *uniform* grids
+— geophysics (magnetic, gravity), topography (elevation, slope, TRI),
+Sentinel-2 indices, lithology one-hot, distance-to-fault. No geochem.
+
+If our concern is right, this model should (a) score much worse on the
+training-label success-rate curve (geochem *was* the strong signal),
+but (b) NOT systematically tank Kenorland — because it has no
+exploration-biased features to tank it with.
+
+```{python}
+#| label: no-geochem
+geochem_suffix = ("_mean_5km", "_max_5km", "_count_5km")
+no_geochem_cols = [c for c in feat_cols if not c.endswith(geochem_suffix)]
+
+X_ng = X_fam[no_geochem_cols]
+rf_ng = make_rf()
+rf_ng.fit(X_ng.fillna(-9999).to_numpy(), y_fam)
+p_ng = rf_ng.predict_proba(df_oh[no_geochem_cols].fillna(-9999).to_numpy())[:, 1]
+
+# Kenorland cell
+kenorland_i = int(idx[0])
+p_ken_ng = p_ng[kenorland_i]
+p_ken_pct_ng = float((p_ng < p_ken_ng).mean() * 100)
+
+# Capture rates
+rows = []
+for top_pct in [0.01, 0.05, 0.10]:
+    t_full = np.quantile(p_fam, 1 - top_pct)
+    t_ng   = np.quantile(p_ng,  1 - top_pct)
+    rows.append({
+        "top %": top_pct * 100,
+        "full (w/ geochem)": (p_fam[fam_mask] >= t_full).mean(),
+        "no-geochem":        (p_ng[fam_mask]  >= t_ng  ).mean(),
+    })
+print("Capture rate of ARDF positives:")
+print(pd.DataFrame(rows).round(3).to_string(index=False))
+print(f"\nKenorland P (no-geochem model):   {p_ken_ng:.3f}  "
+      f"(percentile {p_ken_pct_ng:.1f}%)")
+print(f"Kenorland P (full model, for ref): {p_fam[kenorland_i]:.3f}  "
+      f"(percentile {(p_fam < p_fam[kenorland_i]).mean()*100:.1f}%)")
+```
+
+```{python}
+#| label: no-geochem-importance
+fi_ng = feature_importance(rf_ng, no_geochem_cols).head(10)
+print("Top-10 features (no-geochem model):")
+print(fi_ng.to_string(index=False))
+```
+
+**Result.** Training-label capture actually *rises* slightly (top-1 %
+goes from 64 % to 100 %) — surprising on its face, but consistent with
+the ARDF positives clustering in a small region where geophysics
+(near-fault, magnetically anomalous, specific lithologies) concentrates
+them tightly. And **Kenorland's percentile drops from 62 % to 41 %**:
+the no-geochem model ranks Kenorland even *worse* than the full model.
+
+The feature importances explain it. The no-geochem model learns to
+weight `magnetic`, `elevation`, `distance_to_fault_m`, `tri`, `gravity`.
+Kenorland's features don't match:
+
+- `magnetic` ≈ 2.4 (positives median 186)
+- `distance_to_fault_m` = 14.7 km (positives median 1.8 km)
+
+So at the coarse scale of our regional features, Kenorland's location
+doesn't look like the other ARDF porphyries — not on geochem, and not on
+geophysics either. Two completely different feature sets *agree* the
+cell is unremarkable. That rules out "the geochem layer is the sole
+culprit" and instead points at something broader:
+
+- The ARDF positives cluster tightly in geology and geophysics as well
+  as in exploration effort. "Cells near known porphyries" is a narrow
+  region by any regional-scale feature set.
+- The Kenorland East Taurus intersection was a low-grade distal result
+  (0.14 % Cu over 174 m, not a 1 % central-porphyry hit). Regional-
+  scale features won't distinguish distal porphyry halos from
+  background without prospect-scale data (alteration-mineralogy
+  spectral indices, outcrop-scale structural mapping).
+
+This is a *more honest* result than "drop geochem and the bias goes
+away." It says: our regional-scale pipeline, at 500 m pixel size, can't
+resolve the difference between a low-grade drill hit and the
+surrounding terrain — with or without geochem. The Day-5 §1 message
+stands (exploration bias is present), but the fix isn't as simple as
+feature removal.
+
+**What this does point at for v1.2:**
+
+- Multi-scale modeling — ingest ASTER/EMIT SWIR or hyperspectral
+  alteration-mineralogy at 15–60 m pixel size for prospect-scale
+  features, independent of AGDB4 sampling.
+- Physics-consistent inversions (SimPEG) of the geophysics to produce
+  subsurface density / susceptibility rather than surface-grid values.
+- Drill-planning framing — instead of "rank cells," ask "where is the
+  posterior P(deposit) × value-of-information highest." This is the
+  POMDP direction KoBold and ExploreTech actually use.
+
+### 6.3 `<el>_has_data` indicator columns
+
+Day 5 §1 argued the `-9999` sentinel fill lets RF split on "NaN vs
+not-NaN" as a first-level feature. A cleaner test: expose that signal
+explicitly as an indicator column `<el>_has_data`, so we can see via
+SHAP / feature-importance how much of the model's ranking runs on
+"was this sampled?" vs "does the sample suggest mineralization?"
+
+```{python}
+#| label: has-data-indicators
+from ai_minerals.features.geochem import PATHFINDER_ELEMENTS
+# Derive has_data columns from the existing count columns (pre-pipeline-change
+# shortcut; for v1.1 proper, compute inside features/geochem.py).
+df_hd = df.copy()
+for el in PATHFINDER_ELEMENTS:
+    df_hd[f"{el.lower()}_has_data"] = (df[f"{el.lower()}_count_5km"] > 0).astype(np.uint8)
+
+X_hd, y_hd = build_training_set(df_hd, top_classes, n_per_positive=30, random_state=42)
+# Keep mean/max/has_data; drop count (the Day-4-removed confound)
+drop_cols = count_feature_columns(list(X_hd.columns))
+X_hd_use = X_hd.drop(columns=drop_cols)
+hd_cols = list(X_hd_use.columns)
+
+rf_hd = make_rf()
+rf_hd.fit(X_hd_use.fillna(-9999).to_numpy(), y_hd)
+
+df_oh_hd = add_lithology_onehot(df_hd, top_classes)
+p_hd = rf_hd.predict_proba(df_oh_hd[hd_cols].fillna(-9999).to_numpy())[:, 1]
+
+print(f"X shape: {X_hd_use.shape}  (no-count RF was 41 cols; +10 has_data = 51)")
+print(f"\nKenorland P (has_data-aware):     {p_hd[kenorland_i]:.3f}  "
+      f"(percentile {(p_hd < p_hd[kenorland_i]).mean()*100:.1f}%)")
+print(f"Kenorland P (no-count baseline):   {p_fam[kenorland_i]:.3f}  "
+      f"(percentile {(p_fam < p_fam[kenorland_i]).mean()*100:.1f}%)")
+```
+
+```{python}
+#| label: has-data-importance
+fi_hd = feature_importance(rf_hd, hd_cols).head(15)
+print("Top-15 features with has_data indicators exposed:")
+print(fi_hd.to_string(index=False))
+has_data_total = fi_hd[fi_hd["feature"].str.endswith("_has_data")]["importance"].sum()
+print(f"\nTotal importance across has_data columns in top-15: {has_data_total:.3f}")
+```
+
+**Result.** The `*_has_data` indicators don't land in the top-15
+feature importances — they're all outranked by magnitude features and
+geophysics. The Kenorland P barely moves (0.012 → 0.015, still 64th
+percentile).
+
+**What this tells us.** The NaN-vs-value channel I posited in the Day-5
+§1 three-layer argument is a smaller contributor than I thought. The
+magnitude-within-explored channel is the dominant one: the RF gets most
+of its positive signal from the numeric values of `ag_max_5km`,
+`mo_max_5km`, `te_max_5km` etc., and the has_data indicator doesn't add
+much on top of the sentinel fill. Two reasons this is plausible:
+
+- Pseudo-negatives drawn from a lithology-stratified pool over a
+  62,000 km² AOI do include a mix of has_data=0 and has_data=1 cells,
+  not strictly has_data=0. So the indicator doesn't cleanly separate.
+- For the specific Kenorland cell, `has_data` is 1 for most elements
+  (its 5 km disk has 21 Cu samples); the indicator doesn't downrank
+  this cell any further than the low magnitudes already do.
+
+The three-channel framing in §1 was roughly right in structure but
+over-weighted channel 2 (NaN-vs-value) relative to channel 3
+(magnitude-within-explored). Correction noted for the writeup.
+
+**Status of the three v1.1 remediations tried in §6.**
+
+- **6.1 Geolocation:** conclusion robust to digitization error. ✓
+- **6.2 No-geochem model:** ranks Kenorland *lower*, not higher. Both
+  regional-scale feature sets agree on a background-terrain reading.
+  The bias framing needs revision — this isn't a geochem-only problem;
+  it's a regional-scale resolution problem compounded with pseudo-label
+  exploration clustering.
+- **6.3 `*_has_data` indicators:** barely register. The bias magnitude-
+  channel dominates the NaN-channel.
+
+None of the three is a fix. A proper v1.2 would need prospect-scale
+features (ASTER/EMIT SWIR alteration, hyperspectral), physics-based
+inversions, or an end-to-end PU framing with explicit exploration-effort
+covariates — all flagged in the writeup's "next steps," none in v1.
+
+### 6.4 Kenorland property-centroid blind sweep
+
+A research probe for additional public drill data in the AOI returned:
+only `23ETD062` has a named hole in any Kenorland disclosure.
+Property-level centroids exist for East Taurus, West Taurus, South
+Taurus, and Bluff — all drill-tested since 2019 but with per-hole
+collars not disclosed. Manh Choh (Au epithermal) and Pogo (Au
+orogenic) are in-AOI but wrong deposit class. Orange Hill (NB015) is
+porphyry but already an ARDF positive at training time, so not blind.
+See `data/raw/kenorland/SOURCE.md` for details.
+
+The practical blind-test set is therefore: 1 named hole + 4 project
+polygons (3 positive outcomes, 1 negative). A distribution-based test
+isn't achievable from public data alone. Score the model at each:
+
+```{python}
+#| label: kenorland-sweep
+kob = pd.read_csv(DATA_RAW / "kenorland/kenorland_tanacross_collars.csv")
+kx_all, ky_all = xf.transform(kob["lon"].to_numpy(), kob["lat"].to_numpy())
+_, idx_all = tree.query(np.c_[kx_all, ky_all], k=1)
+
+rows = []
+for h_id, target, outcome, i in zip(kob["hole_id"], kob["target"], kob["outcome"], idx_all):
+    p = p_fam[int(i)]
+    pct = float((p_fam < p).mean() * 100)
+    rows.append({
+        "hole / centroid": h_id,
+        "target": target,
+        "outcome": outcome,
+        "P": round(float(p), 4),
+        "percentile": round(pct, 1),
+    })
+pd.DataFrame(rows)
+```
+
+**Result.** All four "drilled positive" Kenorland points rank low
+(near-uniform with Kenorland `23ETD062`) and South Taurus — the 2025
+"no economic mineralisation" *negative* — also ranks low. So the model
+is at least internally consistent: it doesn't flag South Taurus as a
+false positive, but it *also* doesn't flag the positives. Every point
+in the Kenorland Tanacross project polygon reads as background to the
+model.
+
+This is a limited validation (5 points, 4 positive / 1 negative, all
+approximate coords) but it's what public data allows. The post-ARDF
+blind-test regime for porphyry in eastern Alaska is fundamentally
+data-starved — a finding that matters for the writeup, since it tells
+a reviewer *why* portfolio-scale MPM demos rarely include rigorous
+external validation: the data to do it is largely proprietary, locked
+in NI 43-101 reports that don't publish collar tables.
+
 ## Summary
 
 | Check | Finding | Status |
 |---|---|---|
 | Kenorland 23ETD062 blind | P=0.012 vs positives median 0.86; diagnostic shows background geochem | **Model has an exploration-history bias** |
+| Kenorland geolocation robustness | 5 km disk stable at <80th pct; 15 km disk reaches 95th pct in ~1 cell | ✓ at hole-scale; weaker at project-scale |
 | Strict-21a sensitivity | Same pathfinder suite; 91 % top-1 % capture; label-choice robust | ✓ robust |
 | Success-rate curve | Top-2 % area captures 80 % of positives | Strong against training labels |
 | PU-bagging baseline | Top-1 % capture 59 % vs 64 %; 61 % rank overlap | PU doesn't fix the bias |
 | Rainbow Ridge blind | Held-out positives still captured at top-5 %+ | Weak-positive generalization ✓ |
+| No-geochem sensitivity | Kenorland percentile *drops*; training-label capture rises. Both feature sets agree Kenorland looks unremarkable at regional scale | **Bias is deeper than geochem alone** |
+| `*_has_data` indicators | Out-of-top-15 importance; Kenorland P barely shifts | Magnitude channel dominates NaN channel |
+| Kenorland 4-centroid sweep | All Taurus + Bluff rank low, including a drilled-negative (South Taurus 2025) | Model internally consistent but property-scale blind is starved |
 
 The Kenorland check is the honest result of this project. Without
 external validation on data that postdates the training labels, a model

@@ -155,17 +155,48 @@ The writeup drives the artifact. Sections in the v1 notebook:
 Items surfaced during implementation that are *not* blocking v1 completion
 but are worth queuing for v1.1 or the writeup's "next steps" section.
 
-- **`<el>_has_data` indicator columns for geochemistry.** Rare-pathfinder
-  elements have high NaN rates (Te ~56%, Au ~47%, Ag ~31%) because a
-  cell's 5 km neighborhood may have no sample tested for that element.
-  Day-3's baseline median-imputes these, which loses information: the
-  *fact* of missingness likely correlates with exploration history and
-  terrain accessibility, so a binary `<el>_has_data` companion column
-  would give the model an honest signal. Cheap to add (~20 lines in
-  `geochem.aggregate_in_radius`); deferred so Day 4 can first compare
-  the imputation-free tree models (Random Forest, HistGradientBoosting)
-  that handle NaN natively and may sidestep the issue without the
-  extra columns.
+- **`<el>_has_data` indicator columns for geochemistry.** *Implemented in
+  v1.1.* Added to `geochem.aggregate_in_radius` (so the v1.1 parquet
+  bakes the indicators in) and tested in Day-5 §6.3 with existing count
+  columns as a pre-regeneration shortcut. **Finding:** the `has_data`
+  indicators don't land in the top-15 RF importances and barely shift
+  Kenorland's P (0.012 → 0.015). The NaN-vs-value channel of the
+  exploration-bias argument was over-weighted — the *magnitude-within-
+  explored* channel is the dominant one. The columns are worth keeping
+  (auditable, cheap) but don't constitute a bias remediation on their
+  own.
+
+## v1.1 additions (completed 2026-04-23)
+
+- **Day-5 §6.1 — Kenorland geolocation sensitivity.** Score every cell
+  in 2.5 / 5 / 10 / 15 km disks around the stub. Conclusion is robust
+  within ~5 km (max P stays <0.06, <80th percentile); weakens at 15 km
+  (max P 0.52 in one cell of the project polygon). Reported both
+  framings in the summary.
+- **Day-5 §6.2 — exploration-robust baseline.** Retrain RF on only the
+  uniformly-measured layers (magnetics, gravity, DEM/slope/TRI, S2,
+  lithology, distance-to-fault). Kenorland's percentile *drops* 62 →
+  41 — geophysics-and-lithology alone also sees Kenorland as
+  background. The bias framing has to widen: regional-scale features
+  *and* ARDF positive clustering together make this a resolution
+  problem, not a geochem-layer-only problem. Flagged prospect-scale
+  features (ASTER/EMIT SWIR, physics-consistent inversions) for v1.2.
+- **Day-5 §6.4 — Kenorland property-centroid sweep.** A research probe
+  for additional public drill data in EastAK returned: only
+  `23ETD062` has a named collar publicly. Four project-polygon
+  centroids (East Taurus, West Taurus, South Taurus, Bluff) are
+  usable as approximate blind points; South Taurus 2025 is a true
+  *negative* (drilled, no economic mineralisation). All five score
+  low. Writeup gains an honest paragraph on *why* portfolio MPM demos
+  rarely include rigorous external validation: the public-data regime
+  for post-training drill results in this AOI is fundamentally
+  data-starved.
+- **Kenorland data stub extended** (`data/raw/kenorland/`):
+  `kenorland_tanacross_collars.csv` now carries 5 records with
+  `outcome` and `drill_year` columns; `SOURCE.md` documents the
+  ±5-15 km precision caveats and what isn't available (Antofagasta
+  per-hole collars, Manh Choh / Pogo mis-category, Orange Hill
+  already-ARDF).
 
 ## Day-4/5 open questions from Day-3 diagnostics
 
