@@ -1,24 +1,38 @@
 ---
 title: "ai-minerals"
-subtitle: "Open-data mineral prospectivity mapping with simple ML"
+subtitle: "Mineral prospectivity mapping for porphyry Cu-Mo-Au-Ag, eastern Alaska"
 ---
 
-A portfolio demonstration of mineral-prospectivity analysis using only public geoscientific data and straightforward machine learning. Target audience: companies applying AI to mineral exploration. The writeup is the primary artifact; the code exists to support it.
+A portfolio artifact demonstrating competent engagement with the problem space that [KoBold Metals](https://koboldmetals.com/), [ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/) work in. Public open data, Random Forest + SHAP, spatial block CV, external blind test — and an honest decomposition of where the standard approach fails.
 
-## Status
+## Start here
 
-Day 2 of 7. Research + design + data acquisition complete. Modeling
-(feature engineering, baseline, Random Forest, SHAP, validation, writeup)
-lands on Days 3–7.
+**→ [The integrated report](notebooks/eastak_porphyry_prospectivity.qmd)** — a single technical writeup that walks the full pipeline from public data to prospectivity map to external validation. The writeup is the deliverable; everything else exists to support it.
 
-## Reading order
+## Headline finding
 
-1. [Design proposal](design/mvp-proposal.md) — what is being built, why, and how.
-2. [Research briefs](research/) — independent writeups on KoBold, ExploreTech, the competitive landscape, the ML state-of-the-art, and the open-data stack.
-3. [Data tour](notebooks/intro.qmd) — hands-on walkthrough of the eight Day-2 datasets.
+Under standard metrics the Random Forest looks good: ROC-AUC 0.88 ± 0.2 on 20-km spatial-block CV, top-2 % of area captures 80 % of known positives, SHAP attributes correctly to the textbook porphyry pathfinder suite.
 
-## Explicitly not in scope
+The external blind test — Kenorland `23ETD062`, a 2023 porphyry drill intersection that postdates every training label — scores **P=0.012, 62nd percentile**. The feature diagnostic traces this to **exploration bias in three channels** (count / NaN-vs-value / magnitude-within-explored), with the third being dominant. A v1.1 sensitivity battery tests four remediations (drop counts, `has_data` indicators, no-geochem baseline, PU bagging); none rescues the blind test, though PU moves Kenorland 8 percentile points higher.
 
-- 3D geophysical inversions, POMDP drill planning, OCR of legacy logs in the main demo.
-- Production deployment, hosted service, real exploration recommendations.
-- See [CLAUDE.md](CLAUDE.md) for project rules.
+The honest posture: a pseudo-supervised MPM pipeline at 500 m regional resolution can't distinguish a distal low-grade porphyry hit from background regardless of feature engineering. The v1.2 direction (prospect-scale alteration mineralogy via ASTER/EMIT SWIR, physics-consistent geophysical inversions via SimPEG, POMDP-style sequential drill planning) is the direction KoBold and ExploreTech actually build toward.
+
+## Secondary material
+
+- [Design proposal](design/mvp-proposal.md) — scoping document, v1 build plan, v1.1 findings trace.
+- [Data tour](notebooks/intro.qmd) — hands-on walkthrough of the nine data layers feeding the model.
+- Day-by-day build log — [Day 3 baseline](notebooks/day3_model.qmd), [Day 4 RF+SHAP](notebooks/day4_rf_shap.qmd), [Day 5 validation](notebooks/day5_validation.qmd). Kept as audit trail; the integrated report is the primary artifact.
+- [Research briefs](research/) — independent writeups on the three target companies, the competitive landscape, MPM state of the art, and the open-data stack.
+
+## Reproduce
+
+```bash
+git clone <this-repo>
+cd ai-minerals
+uv sync
+uv run python -m ai_minerals.data.fetch.all      # ~5 GB, ~1 hr
+uv run python -m ai_minerals.features.assemble   # rebuilds the parquet
+QUARTO_PYTHON=.venv/bin/python quarto render     # renders this site
+```
+
+See [CLAUDE.md](CLAUDE.md) for project rules. License: MIT.
