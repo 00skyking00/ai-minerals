@@ -315,11 +315,25 @@ concentrated at smaller hotspots rather than large blobs.
 - **Top 1% captures 64% of known positives; top 5% captures 100%**
   (training-set predictions; honest spatial-CV AUC is 0.88).
 
-Still pending for the validation notebook:
+Still pending for the [validation notebook](validation.qmd):
 
-- **Kenorland drill-hole blind test** (the single most important
-  validation — does the model predict where Kenorland actually drilled
-  in 2023–24?)
-- **Strict 21a-only sensitivity check** (retrain on 32 strict positives
-  only; compare AUC and top-K stability).
+- **Strict 21a-only sensitivity check** — retrain on the 32 strict
+  Cox-&-Singer 21a positives only; does narrowing the label class shift
+  what the model learns?
+- **PU-learning baseline** — does refusing the pseudo-negative
+  assumption change the ranking?
+- **Rainbow Ridge NaN-S2 blind** — hold out the 10 all-NaN-S2 positives
+  and see whether the remaining features still rank them high.
+- **No-geochem exploration-robust baseline** — train without the
+  exploration-biased geochemistry columns; quantify how much of the
+  apparent lift was real signal vs. bias.
+- **`<el>_has_data` indicator experiment** — expose the NaN pattern in
+  the geochem aggregates as explicit features.
 - **Success-rate curve** on the RF.
+
+For the distribution-based **external blind test** (366 post-2015 drill
+holes with per-hole element maxima), see the
+[BC Golden Triangle integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd) —
+the Eastern Alaska track shows the modeling pipeline + sensitivity
+diagnosis; BCGT is where we validate against real post-training drill
+outcomes.

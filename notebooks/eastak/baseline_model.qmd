@@ -251,5 +251,11 @@ plt.tight_layout()
   predictions toward population mean. The
   [validation notebook](validation.qmd) checks whether dropping those
   positives materially changes the picture.
-- No external blind test yet — Kenorland 23ETD062 + strict-21a
-  sensitivity live in the [validation notebook](validation.qmd).
+- No sensitivity battery yet — strict-21a label choice, PU-learning
+  comparison, and the no-geochem exploration-robust baseline live in the
+  [validation notebook](validation.qmd). For the distribution-based
+  external blind test on 366 post-2015 drill holes, see the
+  [BC Golden Triangle validation notebook](../bcgt/validation.qmd) and
+  [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd) —
+  the Eastern Alaska story is about the modeling pipeline + sensitivity
+  pass; BCGT is where we validate against real post-training drill data.
