@@ -46,7 +46,7 @@ features_path = DATA_DERIVED / "features_eastak_500m.parquet"
 
 The pipeline in `src/ai_minerals/features/assemble.py` produces one row per
 500 m grid cell in the EastAK AOI, with ~34 features derived from the
-Day-2 rasters and samples. If the cached parquet is older than the source
+raster and sample layers. If the cached parquet is older than the source
 data we regenerate.
 
 ```{python}
@@ -75,7 +75,7 @@ Two defensible definitions of "not a deposit":
    statement: we don't want to train against a pixel that's a neighbor of
    an unconfirmed deposit.
 2. **PU learning** — treats unlabeled cells as genuinely unlabeled, not
-   negative. Day-4 adds the PU comparison as a sensitivity check.
+   negative. The [validation notebook](validation.qmd) adds the PU comparison as a sensitivity check.
 
 Stratifying by lithology is load-bearing: porphyry positives cluster in
 late-Cretaceous intrusive rocks. If we sampled random negatives without
@@ -192,8 +192,8 @@ for pct in (1, 5, 10, 20):
 
 ## 6. Prospectivity raster
 
-Reshape the predictions into the grid and save as a GeoTIFF for Day-4+
-downstream use.
+Reshape the predictions into the grid and save as a GeoTIFF for downstream
+use in the RF+SHAP and validation notebooks.
 
 ```{python}
 #| label: raster-map
@@ -227,7 +227,7 @@ ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-## Day-3 summary + what this doesn't prove yet
+## Summary + what this doesn't prove yet
 
 - Full feature frame on disk at `data/derived/features_eastak_500m.parquet`
   (270,723 cells × 48 cols).
@@ -240,14 +240,16 @@ plt.tight_layout()
 
 **What this doesn't prove yet:**
 
-- The AUC numbers are inflated by folds with only 1 test positive. Day-4
-  tightens this with larger blocks + a per-fold breakdown.
+- The AUC numbers are inflated by folds with only 1 test positive. The
+  [RF+SHAP notebook](random_forest_and_shap.qmd) tightens this with a
+  per-fold breakdown.
 - Logistic regression is the floor, not the ceiling. The Random Forest
-  (Day-4) and SHAP interpretation will show whether the model is
-  actually learning geology vs. confounds.
+  + SHAP interpretation shows whether the model is actually learning
+  geology vs. confounds.
 - 10 Rainbow Ridge positives have NaN Sentinel-2 features — the model
   is currently handling them via median imputation, which biases their
-  predictions toward population mean. Day-5 checks whether dropping
-  those positives materially changes validation.
-- No Kenorland-hole blind test yet (Day-5).
-- No strict-21a-only sensitivity check yet (Day-5).
+  predictions toward population mean. The
+  [validation notebook](validation.qmd) checks whether dropping those
+  positives materially changes the picture.
+- No external blind test yet — Kenorland 23ETD062 + strict-21a
+  sensitivity live in the [validation notebook](validation.qmd).

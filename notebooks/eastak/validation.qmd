@@ -61,7 +61,7 @@ print(f"Feature frame: {df.shape}  family pos={int(fam_mask.sum())}  "
 
 ## Baseline: the no-count RF, trained once for the rest of the day
 
-Day-4 showed `*_count_5km` features are an exploration-density confound.
+The RF+SHAP notebook showed `*_count_5km` features are an exploration-density confound.
 Everything below uses the no-count model.
 
 ```{python}
@@ -114,7 +114,7 @@ The model completely fails to flag the only hole we've asked it to score
 blind. This is a small sample (one hole), but the gap is enormous — two
 orders of magnitude below the typical positive.
 
-**Why.** The Day-4 SHAP analysis told us the RF keys on
+**Why.** The RF+SHAP analysis told us the RF keys on
 `*_max_5km` and `*_mean_5km` pathfinder-element aggregates from the
 AGDB4 geochemistry layer. Look at the feature values at the Kenorland
 cell vs a typical positive:
@@ -144,13 +144,13 @@ versus a positive median of 11,650 ppm (17× weaker), 3 Ag samples vs
 36, a nearly-zero magnetic residual vs 186 at typical positives. To the
 RF this is an unremarkable cell.
 
-**What this means.** Day 4 located the exploration bias in the
-`*_count_5km` columns and dropped them. The Kenorland result shows the
-fix was incomplete because exploration history leaks into the
+**What this means.** The RF+SHAP analysis located the exploration bias
+in the `*_count_5km` columns and dropped them. The Kenorland result
+shows the fix was incomplete because exploration history leaks into the
 geochemistry layer through **three different channels**, and dropping
 counts only closes the most obvious one:
 
-1. **Count-level bias (fixed in Day 4).** Explored cells have high
+1. **Count-level bias (fixed in RF+SHAP).** Explored cells have high
    `*_count_5km`, unexplored have 0. Drop the column.
 2. **NaN-vs-value bias (survives).** For any cell with zero samples
    within 5 km, *every* `*_mean_5km` and `*_max_5km` is NaN. For any
@@ -177,7 +177,7 @@ separation is partly signal (high-grade mineralization exists at
 positives) and partly artifact (with 5× the sample count, you find 17×
 the max by chance alone, before any difference in underlying rocks).
 
-The Day-3/4 high AUC was driven by this selection effect: ARDF
+The high spatial-CV AUC was driven by this selection effect: ARDF
 positives are cells where legacy exploration already *found* something,
 which correlates with where legacy exploration *looked hard*. The model
 learned to find cells that look explored — not cells that look
@@ -347,7 +347,7 @@ but doesn't remove the exploration bias in the feature layers.
 
 ## 5. Rainbow Ridge exclusion blind test
 
-The 10 Rainbow Ridge positives in §3 of Day 3 had all-NaN S2 features
+The 10 Rainbow Ridge positives have all-NaN S2 features
 (clouded). Retrain without them and ask: does the model rank them
 highly anyway?
 
@@ -396,7 +396,7 @@ exploration-biased feature space.
 
 ## 6. Sensitivity checks (v1.1 robustness pass)
 
-Three follow-ups to pressure-test the Day-5 findings.
+Three follow-ups to pressure-test the findings above.
 
 ### 6.1 Kenorland geolocation robustness
 
@@ -453,7 +453,7 @@ sweep tests the more pessimistic interpretation directly.
 
 ### 6.2 Exploration-robust baseline: train without geochem
 
-Day 5 argued the geochem aggregates carry exploration bias in three
+§1 argued the geochem aggregates carry exploration bias in three
 channels (NaN-vs-value, magnitude-within-explored, count). A
 stress-test: train an RF only on features measured on *uniform* grids
 — geophysics (magnetic, gravity), topography (elevation, slope, TRI),
@@ -536,7 +536,7 @@ culprit" and instead points at something broader:
 This is a *more honest* result than "drop geochem and the bias goes
 away." It says: our regional-scale pipeline, at 500 m pixel size, can't
 resolve the difference between a low-grade drill hit and the
-surrounding terrain — with or without geochem. The Day-5 §1 message
+surrounding terrain — with or without geochem. The §1 message
 stands (exploration bias is present), but the fix isn't as simple as
 feature removal.
 
@@ -553,7 +553,7 @@ feature removal.
 
 ### 6.3 `<el>_has_data` indicator columns
 
-Day 5 §1 argued the `-9999` sentinel fill lets RF split on "NaN vs
+§1 argued the `-9999` sentinel fill lets RF split on "NaN vs
 not-NaN" as a first-level feature. A cleaner test: expose that signal
 explicitly as an indicator column `<el>_has_data`, so we can see via
 SHAP / feature-importance how much of the model's ranking runs on
@@ -569,7 +569,7 @@ for el in PATHFINDER_ELEMENTS:
     df_hd[f"{el.lower()}_has_data"] = (df[f"{el.lower()}_count_5km"] > 0).astype(np.uint8)
 
 X_hd, y_hd = build_training_set(df_hd, top_classes, n_per_positive=30, random_state=42)
-# Keep mean/max/has_data; drop count (the Day-4-removed confound)
+# Keep mean/max/has_data; drop count (the RF+SHAP-diagnosed confound)
 drop_cols = count_feature_columns(list(X_hd.columns))
 X_hd_use = X_hd.drop(columns=drop_cols)
 hd_cols = list(X_hd_use.columns)
@@ -601,7 +601,7 @@ feature importances — they're all outranked by magnitude features and
 geophysics. The Kenorland P barely moves (0.012 → 0.015, still 64th
 percentile).
 
-**What this tells us.** The NaN-vs-value channel I posited in the Day-5
+**What this tells us.** The NaN-vs-value channel posited in the
 §1 three-layer argument is a smaller contributor than I thought. The
 magnitude-within-explored channel is the dominant one: the RF gets most
 of its positive signal from the numeric values of `ag_max_5km`,

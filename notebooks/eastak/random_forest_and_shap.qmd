@@ -49,15 +49,15 @@ print(f"Feature frame: {df.shape}, positives={int(df['is_porphyry'].sum())}")
 
 ## 1. The count-feature confound
 
-From Day 3 we noticed LR put its top weight on `ag_count_5km`, `te_count_5km`,
+The baseline LR put its top weight on `ag_count_5km`, `te_count_5km`,
 `pb_count_5km` — features that count *how many AGDB4 samples happened to be
 taken near that pixel*, not what those samples contained. We confirmed:
 positives sit in cells with **5.2× the sample density** of the
 pseudo-negative pool, because exploration effort concentrates around known
 deposits.
 
-That's exploration bias, not mineral-system signal. Day 4 retrains with
-and without those features to quantify the impact.
+That's exploration bias, not mineral-system signal. This notebook
+retrains with and without those features to quantify the impact.
 
 ```{python}
 #| label: train-both
@@ -196,7 +196,7 @@ the textbook porphyry-pathfinder suite (Cu-Mo deposits leak pathfinder
 metals outward through alteration halos that get sampled by stream
 sediment).
 
-**This also resolves the Day-3 LR mystery** — logistic regression gave
+**This also resolves the baseline-LR mystery** — logistic regression gave
 Zn, As, Sb, Bi, and s2_iron_oxide *negative* coefficients. Tree SHAP
 shows they're all *positive* contributors. LR was mis-specified: these
 features have non-monotonic or interaction effects that a linear model
@@ -204,9 +204,9 @@ can't represent without feature engineering.
 
 ## 5. Rainbow Ridge NaN-S2 check
 
-Day 2 ended with 10 porphyry positives in a region where Sentinel-2
-provided no valid data. Day 3 median-imputed those S2 features. Does
-that drag their predictions down?
+Data acquisition left 10 porphyry positives in a region where Sentinel-2
+provided no valid data (the Rainbow Ridge cluster). The baseline LR
+median-imputed those S2 features. Does that drag their predictions down?
 
 ```{python}
 #| label: rainbow-check
@@ -298,7 +298,7 @@ plt.tight_layout()
 Visibly tighter than the LR prospectivity map — predictions are
 concentrated at smaller hotspots rather than large blobs.
 
-## Day-4 summary
+## Summary
 
 - **Exploration-bias confound confirmed and removed**: the `*_count_5km`
   features dominate both LR and RF feature importance, so we drop them
@@ -315,7 +315,7 @@ concentrated at smaller hotspots rather than large blobs.
 - **Top 1% captures 64% of known positives; top 5% captures 100%**
   (training-set predictions; honest spatial-CV AUC is 0.88).
 
-Still pending for Day 5:
+Still pending for the validation notebook:
 
 - **Kenorland drill-hole blind test** (the single most important
   validation — does the model predict where Kenorland actually drilled
