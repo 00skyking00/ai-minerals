@@ -248,5 +248,204 @@ tell us whether the model's top-ranked previously-unknown cells are
 where real new discoveries would come from. That's the multi-year
 experiment no portfolio demo can run.
 
+## 8. Drill-as-feature sensitivity — does feeding drill data back into the model help?
+
+Natural follow-up: if the 366 post-2015 drill collars carry actual
+ground-truth assays, what if we feed half of them back to the model as
+*input features* (per-cell aggregates of nearby intersected holes), and
+hold the other half out as the blind test? Two competing hypotheses:
+
+1. **Naïve hopeful:** drill-derived features add real assayed-grade
+   signal that geochem aggregates can't match (only ~366 drilled cells,
+   but they have core-grade Cu/Au/Mo/Ag values, not stream-sediment
+   proxies). Blind-positive capture rises.
+2. **Bias-aware skeptic:** drill cells are densely concentrated in the
+   same already-explored terrain that the MINFILE positives cluster in.
+   Adding them as features rides the *same exploration-bias axis* the
+   pseudo-supervised pipeline already has, so the new features mostly
+   replicate signal the geochem features already provide — and blind-
+   negative cells continue to score as high as blind-positives because
+   they're in the same terrain.
+
+The experiment: random 50/50 split of the 366 holes by `hole_id`. The
+training-side holes feed into six per-cell features
+(`n_drill_5km`, `n_intersected_5km`, `max_cu_drill_5km`,
+`max_mo_drill_5km`, `max_au_drill_5km`, `max_ag_drill_5km`). Train
+two RFs on identical MINFILE positives + pseudo-negatives — one with
+those features, one without. Score the held-out half of drill collars
+on each model.
+
+```{python}
+#| label: drill-split-experiment
+from scipy.stats import ks_2samp, mannwhitneyu
+
+rng = np.random.default_rng(seed=42)
+mask_train_half = rng.random(len(dh)) < 0.5
+dh_train = dh[mask_train_half].reset_index(drop=True)
+dh_held  = dh[~mask_train_half].reset_index(drop=True)
+
+# Build training-half drill-derived features over all AOI cells
+train_xy = np.c_[dh_train.geometry.x, dh_train.geometry.y]
+tree_train = cKDTree(train_xy)
+cell_xy = df[["x", "y"]].to_numpy()
+neighbor_lists = tree_train.query_ball_point(cell_xy, r=5000.0)
+
+for c in ["max_cu_pct", "max_mo_pct", "max_au_gpt", "max_ag_gpt"]:
+    dh_train[c] = pd.to_numeric(dh_train[c], errors="coerce").fillna(0)
+intersected_arr = dh_train["intersected"].astype(int).to_numpy()
+cu_arr = dh_train["max_cu_pct"].to_numpy()
+mo_arr = dh_train["max_mo_pct"].to_numpy()
+au_arr = dh_train["max_au_gpt"].to_numpy()
+ag_arr = dh_train["max_ag_gpt"].astype(float).fillna(0).to_numpy()
+
+n_drill = np.zeros(len(df), dtype=np.int32)
+n_int   = np.zeros(len(df), dtype=np.int32)
+max_cu  = np.zeros(len(df), dtype=np.float32)
+max_mo  = np.zeros(len(df), dtype=np.float32)
+max_au  = np.zeros(len(df), dtype=np.float32)
+max_ag  = np.zeros(len(df), dtype=np.float32)
+for i, idxs in enumerate(neighbor_lists):
+    if not idxs: continue
+    n_drill[i] = len(idxs)
+    n_int[i]   = int(intersected_arr[idxs].sum())
+    max_cu[i] = float(cu_arr[idxs].max())
+    max_mo[i] = float(mo_arr[idxs].max())
+    max_au[i] = float(au_arr[idxs].max())
+    max_ag[i] = float(ag_arr[idxs].max())
+
+df_aug = df.copy()
+df_aug["n_drill_5km"]       = n_drill
+df_aug["n_intersected_5km"] = n_int
+df_aug["max_cu_drill_5km"]  = max_cu
+df_aug["max_mo_drill_5km"]  = max_mo
+df_aug["max_au_drill_5km"]  = max_au
+df_aug["max_ag_drill_5km"]  = max_ag
+
+print(f"Cells with ≥1 nearby training-half drill: {(n_drill > 0).sum():,}/{len(df):,}")
+print(f"Cells with ≥1 intersected nearby:         {(n_int   > 0).sum():,}/{len(df):,}")
+```
+
+```{python}
+#| label: drill-split-train
+from ai_minerals.model_rf import feature_importance
+from ai_minerals.model import non_feature_columns
+
+label_cols_full = label_cols + ("is_any_deposit",)
+
+def train_and_score(label_df):
+    X, y = build_training_set(
+        label_df, top_classes, n_per_positive=30, random_state=42,
+        label_col="is_any_deposit", label_cols=label_cols_full,
+    )
+    X = X.drop(columns=count_feature_columns(list(X.columns)))
+    rf_ = make_rf(); rf_.fit(X.fillna(-9999).to_numpy(), y)
+    all_rows = add_lithology_onehot(label_df, top_classes)
+    nf = non_feature_columns(label_cols_full)
+    X_all = all_rows.drop(columns=[c for c in all_rows.columns if c in nf] + ["lithology_class"])
+    X_all = X_all.drop(columns=count_feature_columns(list(X_all.columns)))
+    p_ = rf_.predict_proba(X_all.fillna(-9999).to_numpy())[:, 1]
+    return rf_, p_, list(X.columns)
+
+rf_base, p_base, feat_base = train_and_score(df)
+rf_aug,  p_aug,  feat_aug  = train_and_score(df_aug)
+print(f"baseline   features: {len(feat_base)}")
+print(f"augmented  features: {len(feat_aug)}  (+6 drill-derived)")
+
+NEW_FEATURES = ["n_drill_5km","n_intersected_5km","max_cu_drill_5km",
+                "max_mo_drill_5km","max_au_drill_5km","max_ag_drill_5km"]
+fi_aug = feature_importance(rf_aug, feat_aug).head(15)
+print("\nTop-15 features in augmented model:")
+print(fi_aug.to_string(index=False))
+print(f"\nDrill-derived features in top-15: {fi_aug['feature'].isin(NEW_FEATURES).sum()}/{len(NEW_FEATURES)}")
+```
+
+```{python}
+#| label: drill-split-score
+tree_cells = cKDTree(df[["x","y"]].to_numpy())
+held_xy = np.c_[dh_held.geometry.x, dh_held.geometry.y]
+_, hole_idx = tree_cells.query(held_xy, k=1)
+intersected_held = dh_held["intersected"].astype(bool).to_numpy()
+
+# Stratify
+pos_at_hole = df.iloc[hole_idx][list(label_cols)].to_numpy()
+known_at_hole = df.iloc[hole_idx]["any_mineral_occurrence"].to_numpy()
+in_training  = pos_at_hole.any(axis=1)
+unknown      = (~in_training) & (known_at_hole == 0)
+
+print(f"held-out drill collars: {len(dh_held)}")
+print(f"  in_training (sanity)  : {int(in_training.sum())}")
+print(f"  TRULY BLIND            : {int(unknown.sum())}  ({int((unknown & intersected_held).sum())} pos + {int((unknown & ~intersected_held).sum())} neg)")
+print()
+
+print(f"{'metric':<32} {'baseline':>14} {'augmented':>14}")
+for label, pa in [("baseline", p_base), ("augmented", p_aug)]:
+    pass
+bp_base = p_base[hole_idx][unknown & intersected_held]
+bn_base = p_base[hole_idx][unknown & ~intersected_held]
+bp_aug  = p_aug [hole_idx][unknown & intersected_held]
+bn_aug  = p_aug [hole_idx][unknown & ~intersected_held]
+
+def line(label, vb, va):
+    print(f"{label:<32} {vb:>14} {va:>14}")
+line("blind-pos median P",       f"{np.median(bp_base):.3f}",          f"{np.median(bp_aug):.3f}")
+line("blind-neg median P",       f"{np.median(bn_base):.3f}",          f"{np.median(bn_aug):.3f}")
+line("MW-U (pos > neg) p",       f"{mannwhitneyu(bp_base, bn_base, alternative='greater').pvalue:.2e}",
+                                  f"{mannwhitneyu(bp_aug,  bn_aug,  alternative='greater').pvalue:.2e}")
+ks_b = ks_2samp(bp_base, bn_base); ks_a = ks_2samp(bp_aug, bn_aug)
+line("K-S D / p",                f"{ks_b.statistic:.3f} / {ks_b.pvalue:.2e}",
+                                  f"{ks_a.statistic:.3f} / {ks_a.pvalue:.2e}")
+
+t90_b = np.percentile(p_base, 90); t90_a = np.percentile(p_aug, 90)
+t95_b = np.percentile(p_base, 95); t95_a = np.percentile(p_aug, 95)
+line("top-10% pos / neg flagged", f"{100*(bp_base>=t90_b).mean():.0f}% / {100*(bn_base>=t90_b).mean():.0f}%",
+                                   f"{100*(bp_aug >=t90_a).mean():.0f}% / {100*(bn_aug >=t90_a).mean():.0f}%")
+line("top-5%  pos / neg flagged", f"{100*(bp_base>=t95_b).mean():.0f}% / {100*(bn_base>=t95_b).mean():.0f}%",
+                                   f"{100*(bp_aug >=t95_a).mean():.0f}% / {100*(bn_aug >=t95_a).mean():.0f}%")
+```
+
+**Result.** Drill-derived features barely move anything:
+
+- **0 of 6 drill features land in the top-15 importance.** The
+  classical pathfinder geochem (Bi/Pb/Ag/As `*_max_5km` and `*_mean_5km`)
+  still dominates. The new features rank below 15 because the model
+  already gets the same regional signal — at higher coverage — from
+  AGDB4 stream-sediment + soil samples (~2,000 in AOI) versus only ~180
+  training-half drill cells.
+- **Blind-positive median P** rises slightly (0.882 → 0.914), so the
+  augmented model gives positives a small bump.
+- **Blind-negative median P** doesn't budge (0.975 → 0.976) — drilled-
+  nothing cells sit in the same explored terrain regardless of whether
+  the model has access to drill features.
+- **Top-5 % threshold lift** is unchanged: 0.76× either way (negatives
+  win at strict cutoffs in both models).
+- **K-S statistic** is unchanged at 0.319.
+
+This is the bias-aware-skeptic prediction in clean form. Drill-derived
+per-cell features ride the same exploration-density axis the geochem
+aggregates already do; the model can't tell apart "this cell has
+intersected drill data nearby" from "this cell has lots of stream-
+sediment samples nearby" because both proxies for "this terrain has
+been worked."
+
+**What WOULD potentially help** (out of scope here, but worth naming):
+
+- **Per-hole assays as positives, not features.** If the 154 blind-
+  positive drill collars are in cells the training labels don't know
+  about, treating their assays as additional training labels rather
+  than features is a different experiment — and it would inflate the
+  training-positive count, which would help training-label metrics but
+  wouldn't address the blind-negative-as-high-as-blind-positive problem.
+- **Drill data as a *negative*-class refinement.** The 137 drilled-
+  nothing cells are the cleanest non-deposit labels we have — much
+  better than pseudo-negatives. Replacing the pseudo-negative pool with
+  drilled-nothing cells (in the training half) would test whether the
+  *negative-class definition* is what's driving the bias. Plausibly
+  more useful than drill-as-feature.
+- **Causal exploration-effort covariates.** Frame "has been drilled" as
+  a treatment variable and the training-label as outcome; estimate a
+  propensity score for each cell; reweight or stratify accordingly.
+  This is the principled way to control for exploration bias in MPM
+  papers from 2024-2025 (see v2.1 next-steps in the integrated report).
+
 **What's next (v2.1 ideas).** See the [integrated report's "Next
 steps"](bcgt_porphyry_prospectivity.qmd#next-steps-v12-ideas-un-built) section.
