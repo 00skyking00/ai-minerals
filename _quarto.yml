@@ -33,6 +33,12 @@ website:
             text: Integrated report
           - href: notebooks/bcgt/data_exploration.qmd
             text: Data exploration
+          - href: notebooks/bcgt/baseline_model.qmd
+            text: Baseline model
+          - href: notebooks/bcgt/random_forest_and_shap.qmd
+            text: Random Forest + SHAP
+          - href: notebooks/bcgt/validation.qmd
+            text: Validation + blind test
       - text: Research
         menu:
           - href: research/kobold-analysis.md

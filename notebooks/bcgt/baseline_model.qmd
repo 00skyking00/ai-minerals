@@ -1,0 +1,209 @@
+---
+title: "Baseline model — logistic regression with spatial block CV"
+subtitle: "BC Golden Triangle (4-class union: porphyry + epithermal + skarn + VMS)"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  warning: false
+---
+
+First end-to-end prospectivity model for the Golden Triangle AOI. Same
+shape as the EastAK baseline: load the cached feature frame, define a
+pseudo-negative class, fit logistic regression with 20 km spatial block
+CV, produce a prospectivity raster + success-rate curve. The
+[RF+SHAP notebook](random_forest_and_shap.qmd) picks up from here.
+
+Difference from EastAK: 4 deposit-class labels (porphyry + epithermal +
+skarn + VMS) pooled into a single `is_any_deposit` binary target. 376
+unique positive cells vs EastAK's 56 — bigger training set, lower
+fold-to-fold CV variance expected.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from ai_minerals.data._common import DATA_DERIVED
+from ai_minerals.features.assemble import build_feature_frame
+from ai_minerals.grid import build_grid
+from ai_minerals.model import (
+    non_feature_columns, add_lithology_onehot, build_training_set,
+    make_baseline_pipeline, sample_pseudo_negatives,
+    spatial_block_scores, success_rate_curve,
+)
+from ai_minerals.regions.bcgt import BCGT
+
+AOI = BCGT.aoi
+features_path = DATA_DERIVED / "features_bcgt_500m.parquet"
+```
+
+## 1. Load the feature frame
+
+```{python}
+#| label: load-features
+if features_path.exists():
+    df = pd.read_parquet(features_path)
+    print(f"Loaded {features_path.name}: {len(df):,} cells × {len(df.columns)} cols")
+else:
+    df = build_feature_frame(BCGT, resolution_m=500)
+    df.to_parquet(features_path, index=False)
+
+label_cols = tuple(f"is_{k}" for k in BCGT.deposit_classes)
+df["is_any_deposit"] = (df[list(label_cols)].sum(axis=1) > 0).astype(np.uint8)
+print(f"\nPer-class positive counts:")
+for c in label_cols:
+    print(f"  {c:<16s} {int(df[c].sum())}")
+print(f"  is_any_deposit (union): {int(df['is_any_deposit'].sum())}")
+print(f"  any_mineral_occurrence: {int(df['any_mineral_occurrence'].sum()):,}")
+```
+
+## 2. Pseudo-negatives — same strategy, different labels
+
+The BCGT pseudo-negative pool is drawn from cells ≥5 km from any
+MINFILE occurrence (any commodity) AND not themselves labeled as any
+deposit class. Stratified by lithology to match the union positive
+distribution.
+
+```{python}
+#| label: sample-negatives
+top_classes = df["lithology_class"].value_counts().head(10).index.tolist()
+print(f"Top-10 BC lithology classes in AOI: {top_classes}")
+
+negs = sample_pseudo_negatives(
+    df, n_per_positive=30, exclusion_radius_m=5000.0, random_state=42,
+    label_col="is_any_deposit",
+)
+n_target = 30 * int(df["is_any_deposit"].sum())
+print(f"\nDrew {len(negs):,} pseudo-negatives (target: {n_target})")
+```
+
+## 3. Training set + spatial block CV
+
+20 km blocks, same as EastAK. With 376 positives we'd expect
+substantially more scorable folds than EastAK's 23/28.
+
+```{python}
+#| label: training-set
+X, y = build_training_set(
+    df, top_classes, n_per_positive=30, exclusion_radius_m=5000.0, random_state=42,
+    label_col="is_any_deposit",
+    label_cols=label_cols + ("is_any_deposit",),
+)
+print(f"Training set: {X.shape}  positives={int(y.sum())}  negatives={int((y==0).sum())}")
+
+nan_top = X.isna().mean().sort_values(ascending=False).head(6)
+print(f"\nHighest NaN-rate features (median-imputed inside the LR pipeline):")
+print(nan_top.round(2).to_string())
+```
+
+```{python}
+#| label: spatial-cv
+pos_rows = df[df["is_any_deposit"] == 1][["row","col","x","y"]]
+rows = pd.concat([pos_rows, negs[["row","col","x","y"]]], ignore_index=True)
+
+cv = spatial_block_scores(X, y, rows, block_size_m=20_000.0)
+valid = cv.dropna(subset=["roc_auc"])
+print(f"Scorable folds: {len(valid)} of {len(cv)} (folds with no test positive skipped)")
+print(f"  mean ROC-AUC: {valid['roc_auc'].mean():.3f} ± {valid['roc_auc'].std():.3f}")
+print(f"  mean PR-AUC:  {valid['pr_auc'].mean():.3f} ± {valid['pr_auc'].std():.3f}")
+```
+
+```{python}
+#| label: cv-distribution
+fig, ax = plt.subplots(figsize=(9, 4))
+ax.hist(valid["roc_auc"], bins=12, edgecolor="black", alpha=0.7, label="ROC-AUC")
+ax.hist(valid["pr_auc"], bins=12, edgecolor="black", alpha=0.5, label="PR-AUC")
+ax.set_xlabel("score"); ax.set_ylabel("fold count")
+ax.set_title(f"Per-fold spatial-CV scores — BCGT LR baseline ({len(valid)} folds)")
+ax.legend(); plt.tight_layout()
+```
+
+## 4. Train on all data, predict the full grid
+
+```{python}
+#| label: train-full
+pipe = make_baseline_pipeline()
+pipe.fit(X, y)
+
+all_rows = add_lithology_onehot(df, top_classes)
+non_feat = non_feature_columns(label_cols + ("is_any_deposit",))
+X_all = all_rows.drop(columns=[c for c in all_rows.columns if c in non_feat] + ["lithology_class"])
+proba = pipe.predict_proba(X_all)[:, 1]
+print(f"Scored {len(proba):,} cells. P: min={proba.min():.3f} max={proba.max():.3f} mean={proba.mean():.3f}")
+```
+
+## 5. Success-rate curve
+
+```{python}
+#| label: success-rate
+y_true = df["is_any_deposit"].to_numpy()
+frac_area, frac_dep = success_rate_curve(proba, y_true)
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.plot(frac_area, frac_dep, label="LR baseline (any-deposit)")
+ax.plot([0, 1], [0, 1], "--", color="gray", label="random")
+ax.set_xlabel("cumulative fraction of area flagged")
+ax.set_ylabel("cumulative fraction of known positives captured")
+ax.set_title("Success-rate curve — BCGT LR (4-class union)")
+ax.legend(loc="lower right"); ax.grid(alpha=0.3)
+plt.tight_layout()
+
+print("Capture at LR top-K cutoffs:")
+for pct in (0.5, 1, 2, 5, 10, 20):
+    i = int(pct / 100 * len(frac_area))
+    print(f"  top {pct:>4.1f}% of area → captures {100*frac_dep[i]:4.0f}% of positives")
+```
+
+## 6. Prospectivity raster
+
+```{python}
+#| label: raster-map
+grid = build_grid(AOI, resolution_m=500, working_crs=BCGT.working_crs)
+prob = np.full(grid.shape, np.nan, dtype=np.float32)
+prob[df["row"].to_numpy(), df["col"].to_numpy()] = proba
+
+fig, ax = plt.subplots(figsize=(11, 8))
+im = ax.imshow(
+    prob,
+    extent=(grid.bounds[0], grid.bounds[2], grid.bounds[1], grid.bounds[3]),
+    origin="lower", cmap="viridis", vmin=0, vmax=1,
+)
+plt.colorbar(im, ax=ax, label="P(any deposit class)")
+colors = {"is_porphyry":"red","is_epithermal":"yellow","is_skarn":"cyan","is_vms":"magenta"}
+for c, col in colors.items():
+    p = df[df[c]==1]
+    ax.scatter(p["x"], p["y"], s=20, marker="*", c=col, edgecolor="black", linewidth=0.3,
+               label=f"{c} ({int(df[c].sum())})")
+ax.set_title(f"Baseline LR prospectivity — {AOI.name} AOI (500 m, EPSG:3005)")
+ax.set_xlabel("Easting (m)"); ax.set_ylabel("Northing (m)")
+ax.legend(loc="lower left", fontsize=8); ax.set_aspect("equal")
+plt.tight_layout()
+```
+
+## Summary + what this doesn't prove yet
+
+- Full feature frame on disk at `data/derived/features_bcgt_500m.parquet`
+  (~108k cells × 72 columns). 376 labeled positives across 4 deposit classes.
+- Pseudo-negative sampling, spatial block CV, and baseline logistic
+  regression wired up end-to-end for BCGT.
+- Mean ROC-AUC around 0.8 with fewer small-N-fold artifacts than EastAK
+  thanks to the larger positive count.
+- Prospectivity raster covers the AOI with the four deposit classes
+  visible at the high-probability end.
+
+**What this doesn't prove yet:**
+
+- Logistic regression is the floor, not the ceiling. The
+  [RF+SHAP notebook](random_forest_and_shap.qmd) checks whether the model
+  is learning geology vs. exploration-density confounds.
+- No external blind test yet — the 366 post-2015 BC drill holes live in
+  the [validation notebook](validation.qmd).
+- No per-deposit-class analysis. Pooling porphyry/epithermal/skarn/VMS
+  into `is_any_deposit` is an efficiency choice; the one-vs-rest
+  per-class variant is a sensitivity check (out of scope here).
