@@ -36,6 +36,8 @@ dependencies = [
   "ipykernel>=6.29",
   "pyarrow>=24.0.0",
   "openpyxl>=3.1.5",
+  "pypdfium2>=5.7.1",
+  "anthropic>=0.97.0",
 ]
 
 [project.optional-dependencies]
