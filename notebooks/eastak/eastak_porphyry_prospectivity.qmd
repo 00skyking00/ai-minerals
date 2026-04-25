@@ -19,7 +19,7 @@ execute:
 2. Trained Random Forest on 56 porphyry-family positives + 30× stratified pseudo-negatives; spatial-block CV (20 km blocks) puts mean ROC-AUC at 0.88 ± 0.21, PR-AUC 0.81 ± 0.25. SHAP confirms the model keys on the textbook pathfinder-element halo (Ag, Te, Mo, Cu, Sb, Au, Pb `*_max_5km` aggregates).
 3. **Sensitivity pass reveals three channels of exploration bias** — `*_count_5km` (obvious, fixable), NaN-vs-value in `*_max/mean_5km` (hidden in a `-9999` sentinel; turns out to be minor in practice), and magnitude-within-explored (large-N samples mechanically produce larger max values; dominant). Dropping geochem entirely *raises* training-label capture — the uniformly-measured layers (geophysics, geology, distance-to-fault) cluster known positives tightly on their own.
 4. The honest v1 message: **pseudo-supervised MPM metrics against training labels are systematically optimistic.** ARDF positives cluster tightly in every feature set, biased or not, because known deposits are concentrated in a few belts of well-characterized terrain. Whether the model generalizes to *unknown* mineralization is a separate question.
-5. **External validation is out of scope for Eastern Alaska.** The public-data regime for post-training porphyry drill results in this AOI is essentially N=1 — too thin for portfolio-grade validation. The distribution-based blind test against 366 post-2015 drill collars is in the **[BC Golden Triangle v2 track](../bcgt/bcgt_porphyry_prospectivity.qmd)**; Eastern Alaska establishes the methodology and the bias diagnosis that BCGT then quantifies in distribution.
+5. **External validation is in the v2 BCGT track, not here.** Eastern Alaska's role in the portfolio is the methodology + sensitivity diagnosis. The distribution-based external blind test against 366 post-2015 drill collars lives in the **[BC Golden Triangle integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd)** — that's where the pipeline is pressure-tested against real post-training drill outcomes.
 
 What's in this repo, at a glance:
 
@@ -351,28 +351,21 @@ plt.tight_layout()
 
 Top 5 % of area captures 100 % of the known positives; top 1 % captures 64 %. Against the training labels the lift is substantial. [§7](#external-validation) asks what happens when we point the model at data it hasn't seen.
 
-## External validation — why it lives in the v2 BCGT track
+## External validation lives in the v2 BCGT track
 
 The hardest test for an MPM model is: *score a mineralized site that
 didn't exist in your training labels, and see whether the model ranks
 it high.* Most portfolio-scale demos skip this because public post-
 training drill data is sparse.
 
-For Eastern Alaska the public-data regime is **essentially N=1**.
-Post-training porphyry drill disclosures in this AOI are limited to
-a single named collar with approximate coordinates (visually digitized
-from a press-release plan map, ~±5 km uncertainty). One hole is not a
-portfolio-grade validation signal — it's an anecdote, not a
-distribution.
-
-**We ran the distribution-based blind test on BC Golden Triangle
-instead.** The BCGS GeoFile 2025-11 Assessment Report Drillhole Database
-publishes 366 post-2015 drill collars in our v2 AOI with per-hole
-element maxima — 154 intersected (meeting a threshold on Cu / Mo / Au /
-Ag) and 137 drilled-negative. 241 of those 366 are in cells the training
-labels have zero info about. The distribution-based test lives in
-[`notebooks/bcgt/validation.qmd`](../bcgt/validation.qmd); the summary
-and interpretation are in the
+**For this portfolio the distribution-based blind test runs on the BC
+Golden Triangle region**, where BCGS GeoFile 2025-11 publishes 366
+post-2015 drill collars with per-hole element maxima — 154 intersected
+(meeting a threshold on Cu / Mo / Au / Ag) and 137 drilled-negative,
+241 of those in cells the training labels have zero info about. The
+distribution-based test is in
+[`notebooks/bcgt/validation.qmd`](../bcgt/validation.qmd); summary and
+interpretation in the
 [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd).
 
 Eastern Alaska's contribution to the overall story is **the pipeline +

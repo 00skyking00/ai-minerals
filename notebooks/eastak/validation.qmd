@@ -428,9 +428,8 @@ population to run that test.
 ## What Eastern Alaska does NOT demonstrate
 
 - That the model would find unrecognized mineralization in unexplored
-  terrain. The public-data regime for post-training porphyry drill data
-  in this AOI is essentially N=1 — too thin for portfolio-grade
-  validation.
+  terrain. External validation for the portfolio runs in the BCGT
+  track, not here.
 - That the 4-class label set we'd use for a multi-deposit-class model
   works cleanly. EastAK is single-commodity; the multi-class validation
   is [BCGT](../bcgt/bcgt_porphyry_prospectivity.qmd).
