@@ -10,10 +10,10 @@ execute:
 ---
 
 The BCGT counterpart of the EastAK [`validation.qmd`](../eastak/validation.qmd).
-EastAK's validation was pinned on a single hole (Kenorland 23ETD062) —
-N=1 telling a pointed story. BCGT has 366 post-2015 drill collars in
-the AOI from BCGS GeoFile 2025-11, with per-hole element maxima. That
-lets us build distributions of model P at drilled positives vs drilled
+BCGT is where the portfolio runs its distribution-based external
+blind test. BCGS GeoFile 2025-11 (Feb 2025) publishes 366 post-2015
+drill collars in our AOI with per-hole element maxima. That lets us
+build distributions of model P at drilled positives vs drilled
 negatives, in cells that were vs weren't already in our training
 labels.
 
@@ -234,8 +234,12 @@ label-assignment step.
   roughly the same rate as blind positives — the drilled-nothing cells
   cluster in already-explored terrain near training positives, so they
   look as "prospective" to the model as cells that actually host ore.
-- This is a distribution-scale confirmation of v1's Kenorland single-
-  point story. Same bias, different scale.
+- The exploration-bias framing identified in the EastAK sensitivity
+  pass (three channels by which training-label signal correlates with
+  exploration history) plays out at distribution scale here: blind
+  negatives — drilled cells with no economic result — score just as
+  high as blind positives because both populations sit in already-
+  explored terrain.
 
 **What this does NOT prove.** That the model would find *unknown*
 mineralization in unexplored terrain. The blind-test distributions tell

@@ -124,10 +124,10 @@ for name, series, unit, threshold in [
     print(f"  {name}: {len(hits)} holes ≥ {threshold} {unit};  median {hits.median():.0f} {unit};  max {hits.max():.0f} {unit}")
 ```
 
-**Interpretation.** The v1 blind test had **N=1** (Kenorland 23ETD062).
-The v2 blind test has **N=366** — 229 positive intersections + 137
-drilled-negatives. That lets us build distributions rather than point
-estimates. Au bonanza hits like the 8,030 g/t max are plausible for
+**Interpretation.** 366 post-2015 drill collars in AOI, 229 intersected
++ 137 drilled-negatives. This is the v2 blind-test set — a distribution
+of known outcomes we can score the model against. Au bonanza hits like
+the 8,030 g/t max are plausible for
 Brucejack's bonanza-grade veins and their lookalikes.
 
 ```{python}
@@ -318,11 +318,11 @@ exploration-bias pattern we found at v1 scale.
 
 ## What this means for the v2 model
 
-Parallel to v1 but with one material upgrade: **a distribution-based
-external blind test is now possible.** 366 post-2015 drill holes, 229
-intersected, 137 non-intersected — the model can be evaluated against
-an empirical distribution of positive and negative outcomes, not a
-single anecdote. That's the story of the integrated report.
+BCGT is the region where the portfolio runs its distribution-based
+external blind test. 366 post-2015 drill holes, 229 intersected, 137
+non-intersected — the model can be evaluated against an empirical
+distribution of positive and negative outcomes. That's the story of the
+integrated report.
 
 The blind-test-within-the-blind-test: how many of those 366 drill holes
 are in cells the training set knows nothing about? **154 intersected
