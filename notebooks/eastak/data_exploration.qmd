@@ -1,6 +1,6 @@
 ---
-title: "Intro — what's in the Eastern Alaska data and why"
-subtitle: "A hands-on tour of the eight Day-2 datasets"
+title: "Eastern Alaska — data exploration"
+subtitle: "A tour of the v1 datasets, region, and exploration problem"
 format:
   html:
     toc: true
@@ -9,14 +9,90 @@ execute:
   warning: false
 ---
 
-This notebook is a learning tour of what we pulled in Day 2. The goal is to
-touch each dataset, see what's actually in it, and build intuition for *why
-this particular combination* is how you go looking for porphyry-Cu systems
-with ML.
+## About this project
 
-Open it in VS Code / Jupyter and run cells one at a time. Each section ends
-with an "interpretation" note explaining what the output should be telling
-you about the exploration problem — not just the data.
+`ai-minerals` is a portfolio demonstration of **mineral prospectivity mapping
+(MPM)** — the use of machine learning on public geoscientific data to rank
+locations by their likelihood of hosting a mineral deposit. The target
+audience is AI-exploration companies like [KoBold Metals](https://koboldmetals.com/),
+[ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/),
+who are building production-grade versions of exactly this kind of pipeline.
+
+The repo covers two regions with the same infrastructure:
+
+- **v1: Eastern Alaska**, porphyry Cu-Mo-Au-Ag belt (this notebook's region).
+- **v2: BC Golden Triangle**, multi-deposit-class model (porphyry + epithermal +
+  skarn + VMS) with a distribution-based blind test on 366 post-2015 drill
+  holes. See [`notebooks/bcgt/`](../bcgt/).
+
+All code, data sources, and model outputs are public. The writeup — not the
+code — is the primary artifact; this notebook is the entry point for the
+Eastern Alaska track.
+
+## About this notebook
+
+This notebook is the **hands-on tour** of the Eastern Alaska datasets.
+Everything else in the `notebooks/eastak/` series depends on the data
+acquired here; the pipeline is:
+
+1. **This notebook** — walk through each raw data source, verify it covers
+   the AOI, build intuition for what the signals look like.
+2. **[`baseline_model.qmd`](baseline_model.qmd)** — feature pipeline + logistic
+   regression with spatial block cross-validation.
+3. **[`random_forest_and_shap.qmd`](random_forest_and_shap.qmd)** — Random
+   Forest + SHAP interpretation; diagnoses the exploration-density confound.
+4. **[`validation.qmd`](validation.qmd)** — sensitivity pass (strict labels,
+   PU baseline, no-geochem ablation, `*_has_data` indicator test).
+5. **[`eastak_porphyry_prospectivity.qmd`](eastak_porphyry_prospectivity.qmd)** —
+   integrated report rolling all four together.
+
+Each section ends with an "interpretation" note explaining what the output
+is telling you about the exploration problem — not just the data.
+
+## About the region
+
+**Eastern Alaska** here means three contiguous USGS 1:250,000-scale
+quadrangles covering ~62,000 km² of east-central Alaska:
+
+- **Tanacross (TC)** — 63–64 °N, 143–141 °W — Yukon-Tanana upland
+- **Mt. Hayes (MH)** — 63–64 °N, 147–144 °W — Wrangellia / Delta Range
+- **Nabesna (NB)** — 62–63 °N, 144–141 °W — Wrangellia / eastern Alaska Range
+
+This AOI straddles the **Wrangellia–Yukon-Tanana tectonic boundary** — the
+regional framework within which KoBold's Skolai Ni-Cu-Co-PGM project
+sits. It's an established porphyry belt with 56 porphyry-family
+occurrences in the USGS Alaska Resource Data File (ARDF) and several
+active greenfield exploration programs.
+
+## The target deposit class
+
+**Porphyry Cu-Mo-Au-Ag** deposits form from shallow-level felsic-to-
+intermediate intrusions associated with convergent-margin magmatism. The
+ore forms in a stockwork of fractures above and around the intrusion, with
+characteristic metal zonation out from the central intrusive core: Cu-Mo
+in the core, Cu-Au in the inner halo, and Ag/As/Sb/Te in the distal halo.
+That zonation is *what our features are trying to detect*.
+
+## The datasets
+
+Nine layers. Each has its own section below; the short version is:
+
+| Layer | Source | Role |
+|---|---|---|
+| **ARDF** (occurrence labels) | USGS Alaska Resource Data File | 56 porphyry-family positives — the *what we're trying to find* |
+| **MRDS** (occurrence mask) | USGS Mineral Resources Data System | any-commodity exclusion for pseudo-negatives |
+| **AGDB4** (geochemistry) | USGS Alaska Geochemical Database v4 | stream-sediment + soil pathfinder elements |
+| **SGMC** (bedrock geology) | USGS Alaska state geology compilation | lithology one-hot + fault lines |
+| **NRCan 100 m aeromagnetic** (residual total field) | Natural Resources Canada Alaska-Yukon compilation | magnetic anomaly map |
+| **NRCan 100 m aeromagnetic** (1st vertical derivative) | same | edge-sharpening processed product |
+| **USGS Bouguer gravity** | USGS national composite | density anomaly |
+| **Copernicus GLO-30 DEM** | Copernicus / ESA | elevation, slope, TRI |
+| **Sentinel-2 L2A** | ESA + Microsoft Planetary Computer | alteration-index proxies via SWIR ratios |
+
+Every dataset is open and public-domain. No API keys, no gated downloads.
+Raw downloads go to `data/raw/<dataset>/`; the feature pipeline
+([`src/ai_minerals/features/assemble.py`](../../src/ai_minerals/features/assemble.py))
+glues them into a single pixel-level DataFrame for modeling.
 
 ```{python}
 #| label: setup
@@ -131,7 +207,7 @@ later whether the model distinguishes the two.
 #       21b : Porphyry Mo, low-F
 #   - STRICT 21a (sensitivity check) — only the canonical Porphyry Cu-Mo.
 #
-# A sensitivity comparison runs after Day-5 validation: report whether
+# A sensitivity comparison runs after the validation notebook: report whether
 # AUC moves meaningfully between family (N~56) and strict (N~32) positives.
 
 import re
@@ -174,8 +250,10 @@ records with no model code (mostly speculative "porphyry?" attributions).
 
 Still small in absolute terms — class imbalance is a defining feature of
 mineral prospectivity mapping: out of millions of pixels in the AOI,
-only a few dozen are confirmed deposits. Day 3 addresses this directly
-(pseudo-negative sampling + PU-learning comparison). After Day 5 we'll
+only a few dozen are confirmed deposits. The [baseline-model notebook](baseline_model.qmd) addresses this
+directly (pseudo-negative sampling); the
+[validation notebook](validation.qmd) adds the PU-learning comparison.
+Beyond that we'll
 retrain on the strict 21a-only set and report whether model performance
 moves meaningfully between the two positive definitions.
 
@@ -203,7 +281,7 @@ can tell you about square kilometers of otherwise inaccessible terrain.
 
 Each sample has been analyzed by one or more methods for dozens of elements.
 We pulled the *location* table (`Geol_DeDuped.txt`); the best-value element
-data lives in parallel `BV_*.txt` tables that we'll join on Day 3.
+data lives in parallel `BV_*.txt` tables that we'll join in the feature-pipeline step.
 
 Let's see where the samples are and what agencies collected them.
 
@@ -350,7 +428,7 @@ one unfixable issue bit us:
    where every available S2 scene in our window has NaN pixels. Real
    data gap, confirmed across both PC and AWS backends with widened
    cloud/date filters. 10 of our 56 porphyry positives fall in this
-   gap; Day-3 modeling inherits NaN S2 features for those training
+   gap; downstream modeling inherits NaN S2 features for those training
    points and will document the limitation honestly.
 
 Four tiles at the AOI SE/NE corners had degenerate single-pixel AOI
@@ -393,7 +471,7 @@ below.
 ```{python}
 #| label: s2-iron-oxide
 # Compute the iron-oxide index: B04 / B02 (on downsampled arrays for speed).
-# Day-3 feature engineering will compute this at full 120 m from the raw bands.
+# The feature pipeline will compute this at full 120 m from the raw bands.
 red = s2.sel(band=3)[::5, ::5]
 blue = s2.sel(band=1)[::5, ::5]
 iron_oxide = red / blue
@@ -415,7 +493,7 @@ plt.tight_layout()
 ```
 
 Again: bright pixels near cyan stars are what the model wants to learn. In
-practice vegetation masks much of the bedrock signal in Alaska — Day 3's
+practice vegetation masks much of the bedrock signal in Alaska — the feature
 NDVI mask will help strip those out.
 
 ## 5. Topography (Copernicus GLO-30 DEM)
@@ -428,7 +506,7 @@ print(f"DEM shape: {dem.shape}, elevation range {int(dem.min())} – {int(dem.ma
 # Downsample for display. At native 30 m, the EastAK DEM is ~98 M pixels —
 # matplotlib renders every pixel, which hangs on reasonable hardware. A
 # ~1000-wide preview is plenty for a visual sanity check. (The full-res
-# data is still used by downstream Day-3 code.)
+# data is still used by the downstream feature pipeline.)
 dem_preview = dem[::10, ::10]
 
 fig, ax = plt.subplots(figsize=(10, 5))
@@ -442,7 +520,7 @@ plt.tight_layout()
 Elevation isn't itself a deposit predictor, but topographic *derivatives*
 are. Slope and ruggedness help because porphyry outcrops tend to sit on
 uplift blocks that erode faster than surrounding terrane — exposed bedrock,
-steeper slopes, less vegetation. Day 3 will compute slope + TRI (terrain
+steeper slopes, less vegetation. The feature pipeline will compute slope + TRI (terrain
 ruggedness index) as features.
 
 ## 6. Geophysics (magnetic + gravity anomalies)
@@ -524,7 +602,7 @@ late Cretaceous intrusive rocks. That's geology-as-feature in action: the
 rock unit a pixel is on is a strong predictor because porphyry *only* forms
 in specific geological settings. The `CLASS` and `STATE_SYMBOL` columns are
 numeric codes that join to the `nsaunits` / `nsakey` tables in the GDB for
-human-readable unit names — Day 3 resolves those and builds a one-hot
+human-readable unit names — the feature pipeline resolves those and builds a one-hot
 encoding of the top lithologic units as features.
 
 ## 8. Putting it together — the multi-layer view
@@ -557,7 +635,7 @@ ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-This is what the Day-3 ML pipeline is going to consume, sampled per pixel.
+This is what the ML pipeline consumes, sampled per pixel.
 Every pixel will have:
 
 - ~30 geochemical aggregates (Cu, Mo, Au, Ag, As, Sb, Pb, Zn, Bi, Te, each
@@ -572,7 +650,7 @@ That's about 40 features per pixel. The classifier learns which combinations
 correlate with the porphyry label — then we ask it to score every pixel in
 the AOI and produce the prospectivity map.
 
-## Key takeaways before we start Day 3
+## Key takeaways before modeling
 
 1. **The label problem is stark.** 62 known porphyries across ~67,000 km²
    (millions of pixels). Still rare in absolute terms —
@@ -588,9 +666,9 @@ the AOI and produce the prospectivity map.
 4. **The AOI has structure.** Porphyry sites cluster geographically —
    along specific geologic units and sub-regions of the
    Wrangellia–Yukon-Tanana boundary. A model that respects spatial
-   autocorrelation (which is why we use spatial CV on Day 3) will report
+   autocorrelation (which is why we use spatial block CV) will report
    honest performance.
 
-Next up: Day 3 builds the analysis grid, computes the features above, and
+Next up: [`baseline_model.qmd`](baseline_model.qmd) builds the analysis grid, computes the features above, and
 trains a first logistic-regression + Random Forest pair with spatial
 cross-validation.
