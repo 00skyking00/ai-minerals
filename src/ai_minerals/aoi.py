@@ -67,3 +67,19 @@ framing KoBold's Skolai project sits within. ~62 porphyry Cu-Mo positives across
 ~67,000 km² vs 15 in Tanacross alone. Chosen as v1 AOI for lower model variance
 and a stronger interior-Alaska-belt narrative.
 """
+
+
+NOME_PLACER = AOI(
+    name="NomePlacer",
+    min_lon=-165.50,
+    min_lat=64.45,
+    max_lon=-165.20,
+    max_lat=64.62,
+)
+"""Nome Placer Fields AOI — Cape Nome mining district, Seward Peninsula, AK.
+
+Bounds the lowland coastal placer benches (Bear Cub area, near 64.531°N
+165.337°W) and the Anvil-area uplands further inland. Family-held claim
+properties span both zones: 1 lowland near Bear Cub, 1 lowland adjacent
+(non-Murray-drilled), 2 upland Anvil-area.
+"""

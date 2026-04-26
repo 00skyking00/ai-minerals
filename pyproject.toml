@@ -38,6 +38,9 @@ dependencies = [
   "openpyxl>=3.1.5",
   "pypdfium2>=5.7.1",
   "anthropic>=0.97.0",
+  "streamlit>=1.39",
+  # 3D viz for Bear Cub placer subproject (drill collar + bedrock surface scenes)
+  "pyvista>=0.44",
 ]
 
 [project.optional-dependencies]
