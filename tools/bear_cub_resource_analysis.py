@@ -570,23 +570,34 @@ def main() -> None:
         print(f"  (skipped — only {len(pay)} holes have pay zones)")
 
     # ------------------------------------------------------------------ #
-    # Per-hole grade profile bar charts
+    # Per-hole grade profile bar charts (shared linear x-axis + log-scale
+    # twin so high-grade hits and faint sparse intervals are both readable)
     # ------------------------------------------------------------------ #
     print("\nPer-hole grade profile chart ...")
     n_holes = len(valid)
     ncols = 6
     nrows = math.ceil(n_holes / ncols)
+
+    # Shared linear x-axis runs to the max interval grade across all holes.
+    global_max = max(0.05, float(iv["grade_oz_per_cu_yd"].max() * 1.05))
+    # Floor for log-scale plotting (avoid log(0) on empty intervals).
+    LOG_MIN = 1e-4
+
     fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 2.5, nrows * 2.5),
-                             sharex=False)
+                             sharex=True)
     axes = np.array(axes).reshape(-1)
 
-    for i, (_, h) in enumerate(valid.sort_values("file_stem").iterrows()):
+    # Sort geographically (line then hole) so the panel reads west→east.
+    holes_sorted = valid.sort_values(
+        ["easting_local_ft", "northing_local_ft"]
+    ) if "easting_local_ft" in valid.columns else valid.sort_values("file_stem")
+
+    for i, (_, h) in enumerate(holes_sorted.iterrows()):
         ax = axes[i]
         sub = iv[iv.file_stem == h.file_stem].sort_values("depth_from_ft")
         if len(sub) == 0:
             ax.set_visible(False)
             continue
-        # horizontal bars, depth on y axis (inverted), grade on x axis
         for _, r in sub.iterrows():
             color = grade_to_jesse_color(r.grade_oz_per_cu_yd)
             ax.barh(
@@ -595,25 +606,109 @@ def main() -> None:
                 height=r.interval_ft if r.interval_ft else 1.0,
                 color=color, edgecolor="black", linewidth=0.3,
             )
-        # bedrock line
         if h.bedrock_depth_ft > 0:
             ax.axhline(h.bedrock_depth_ft, color="brown", linestyle="--",
-                       linewidth=1, label=f"BR {h.bedrock_depth_ft:.0f}ft")
+                       linewidth=1)
         ax.invert_yaxis()
-        ax.set_title(h.file_stem, fontsize=8)
-        ax.set_xlim(0, max(0.05, sub["grade_oz_per_cu_yd"].max() * 1.1))
+        # Show the hole's max grade in the title so readers can compare
+        # peak intensity at a glance (the bar widths are now on shared axes).
+        peak = float(sub["grade_oz_per_cu_yd"].max())
+        ax.set_title(f"{h.file_stem}  (peak {peak:.3f})", fontsize=7)
+        ax.set_xlim(0, global_max)
         ax.tick_params(labelsize=6)
         ax.grid(axis="x", alpha=0.3)
 
     for ax in axes[n_holes:]:
         ax.set_visible(False)
 
-    fig.suptitle("Per-hole grade profiles (oz/cu yd, Jesse color scheme)",
-                 fontsize=11, y=1.0)
+    fig.suptitle(
+        f"Per-hole grade profiles · shared x-axis 0–{global_max:.2f} oz/cu yd · "
+        f"Jesse color scheme · sorted west→east",
+        fontsize=11, y=1.0,
+    )
+    fig.supxlabel("Grade (oz/cu yd)", fontsize=10)
+    fig.supylabel("Depth (ft)", fontsize=10)
     fig.tight_layout()
     fig.savefig(OUT / "fig_grade_profiles.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
     print(f"  → fig_grade_profiles.png")
+
+    # ------------------------------------------------------------------ #
+    # Cross-hole fence diagram: 24 columns, one per hole, on a single
+    # depth axis with a single shared color scale. Lets you scan the whole
+    # corpus at once for the where/at-what-depth of high-grade intervals.
+    # ------------------------------------------------------------------ #
+    print("\nFence diagram (cross-hole grade comparison) ...")
+    from matplotlib.patches import Rectangle
+    from matplotlib.colors import LogNorm
+
+    holes_sorted = valid.sort_values(
+        ["easting_local_ft", "northing_local_ft"]
+    ) if "easting_local_ft" in valid.columns else valid.sort_values("file_stem")
+
+    n = len(holes_sorted)
+    fig, ax = plt.subplots(figsize=(max(14, n * 0.55), 8))
+    column_width = 0.7
+    max_depth = float(max(
+        valid["bedrock_depth_ft"].max() if "bedrock_depth_ft" in valid.columns else 0,
+        iv["depth_to_ft"].max(),
+    ))
+    grade_min = max(LOG_MIN, float(iv[iv["grade_oz_per_cu_yd"] > 0]["grade_oz_per_cu_yd"].min()))
+    grade_max = float(iv["grade_oz_per_cu_yd"].max())
+    norm = LogNorm(vmin=grade_min, vmax=grade_max)
+    cmap = plt.get_cmap("magma")
+
+    for col, (_, h) in enumerate(holes_sorted.iterrows()):
+        sub = iv[iv.file_stem == h.file_stem].sort_values("depth_from_ft")
+        for _, r in sub.iterrows():
+            g = float(r.grade_oz_per_cu_yd)
+            color = cmap(norm(max(g, LOG_MIN))) if g > 0 else (0.95, 0.95, 0.95, 1.0)
+            ax.add_patch(Rectangle(
+                (col - column_width/2, r.depth_from_ft),
+                column_width,
+                (r.depth_to_ft - r.depth_from_ft),
+                facecolor=color, edgecolor="black", linewidth=0.15,
+            ))
+        # bedrock cap as a thick brown bar at the bottom of the column
+        if h.bedrock_depth_ft and h.bedrock_depth_ft > 0:
+            ax.plot(
+                [col - column_width/2, col + column_width/2],
+                [h.bedrock_depth_ft, h.bedrock_depth_ft],
+                color="brown", linewidth=2.0, solid_capstyle="butt",
+            )
+        # pay-zone bracket on the column's left side
+        pz_top = h.get("pay_zone_top_ft")
+        pz_bot = h.get("pay_zone_bottom_ft")
+        if pz_top is not None and pz_bot is not None and pz_bot > pz_top:
+            ax.plot(
+                [col - column_width/2 - 0.05] * 2,
+                [pz_top, pz_bot],
+                color="cyan", linewidth=2.5, solid_capstyle="butt",
+            )
+
+    ax.set_xticks(range(n))
+    ax.set_xticklabels(
+        [h.file_stem for _, h in holes_sorted.iterrows()],
+        rotation=80, fontsize=8,
+    )
+    ax.set_xlim(-0.6, n - 0.4)
+    ax.set_ylim(0, max_depth + 5)
+    ax.invert_yaxis()
+    ax.set_ylabel("Depth (ft)")
+    ax.set_title(
+        "Bear Cub fence diagram — one column per hole, shared color scale (log)\n"
+        "magma = grade (oz/cu yd) · brown bar = bedrock · cyan = pay zone · "
+        "columns sorted west→east",
+        fontsize=10,
+    )
+    ax.grid(axis="y", alpha=0.3)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.025, pad=0.01)
+    cbar.set_label("Grade (oz/cu yd, log)", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig_grade_fence.png", dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  → fig_grade_fence.png")
 
     # ------------------------------------------------------------------ #
     # Pay-zone-only grade map (Tweet-comparable)
