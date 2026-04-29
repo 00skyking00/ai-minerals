@@ -5,6 +5,7 @@ project:
     - index.qmd
     - notebooks/eastak/*.qmd
     - notebooks/bcgt/*.qmd
+    - notebooks/bear_cub/*.qmd
 
 website:
   title: "ai-minerals"
@@ -39,6 +40,10 @@ website:
             text: Random Forest + SHAP
           - href: notebooks/bcgt/validation.qmd
             text: Validation + blind test
+      - text: "Bear Cub (pilot)"
+        menu:
+          - href: notebooks/bear_cub/main.qmd
+            text: Dark-data ingestion pipeline
       - text: Research
         menu:
           - href: research/kobold-analysis.md
