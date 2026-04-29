@@ -105,12 +105,16 @@ def local_to_pixel(
 # via the patent's course descriptions (Course 1: N 65°43' E, 622.3 ft;
 # Course 2: S 62° E, 1033.5 ft). Closure error around all 4 sides: 8 ft.
 #
-# Image-orientation labels (TL/TR/BR/BL) follow the dh-map's drawn
-# orientation, which is rotated ~90° CCW from north-up. So:
-#   image-TL = real-world Most-Westerly  (Corner 1, NW per patent)
-#   image-TR = real-world Most-Northerly (Corner 2, NE per patent)
-#   image-BR = real-world Most-Easterly  (Corner 3, SE per patent)
-#   image-BL = real-world Most-Southerly (Corner 4, SW per patent)
+# MS_1178_CORNERS keys (TL/TR/BR/BL) are *patent-corner labels*, not
+# image-orientation labels: TL=NW, TR=NE, BR=SE, BL=SW. Use these when
+# you need each corner's real-world WGS84 by compass direction.
+#
+# WARNING: the dh-map raster's *visual* TL/TR/BR/BL vertices map to the
+# patent corners with a one-step rotation: image-TL = NE, image-TR = SE,
+# image-BR = SW, image-BL = NW. Don't pair image-TL with this dict's
+# "TL" entry — the image apex labeled TL sits at NE in real-world. The
+# corrected pairing lives in `data/raw/bear_cub/dhmap_corners_user.json`'s
+# `blm_latlon` block (image-corner key → patent WGS84 value).
 MS_1178_CORNERS = {
     "TL": (64.531854, -165.341649),  # Corner 1 / NW — 2014 survey True NW
     "TR": (64.532556, -165.338029),  # Corner 2 / NE — patent Course 1 from TL
