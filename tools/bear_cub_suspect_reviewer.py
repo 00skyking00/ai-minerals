@@ -64,6 +64,33 @@ PROBLEM_HOLES = [
     ("L7500 H7556", "sparse_low",
      "🔍 Low grade, sparse capture (8 of 30 intervals, 17 mg). Not on beach line. "
      "May be genuinely low or missed. Lowest priority."),
+    # ---- Holes with depth-coverage gaps (truly-blank zones in the fence
+    # diagram, not just zero-grade rows). Surfaced 2026-04-29 from the
+    # cross-hole fence figure. Each annotation calls out the missing range. ----
+    ("L3 H2", "data_gap",
+     "📍 **Gap 66-76 ft** (10 ft missing, last leg before TD=76 ft). "
+     "This is the deepest unrecorded zone in the corpus. L3 H2 sits on the "
+     "3rd beach line so the missing 10 ft is exactly where bedrock-contact pay "
+     "should appear. Use the row generator to fill in the band, then re-link "
+     "samples if any."),
+    ("L6700 H6760", "data_gap",
+     "📍 **Gap 66-68 ft** (2 ft missing, immediately before bedrock at 77 ft). "
+     "Small but in the pay-zone window — Tweet's published 0.05 oz/cu yd "
+     "comes from the 30-48 ft pay zone, so this 2 ft is just below the pay "
+     "zone but worth confirming the OCR didn't drop a real row."),
+    ("L6900 H6952", "data_gap",
+     "📍 **Gap 82-83 ft** (1 ft missing at bedrock contact, BR=78.5 ft, TD=87 ft). "
+     "Likely a half-foot rounding artifact — this 3rd-beach-line hole already "
+     "has its bedrock-contact pay captured (peak grade 0.503 at 80-82 ft). "
+     "Verify the missing foot doesn't hide additional mg."),
+    ("L7100 H7156", "data_gap",
+     "📍 **Gap 64-72 ft** (8 ft missing, the last 8 ft of the 72 ft drilled, "
+     "with bedrock at 68 ft). This is a Convention C hole — sample-level mg "
+     "captured on the back page, per-interval rows inferred via color counts. "
+     "The missing rows below the last linked sample land at zero by default; "
+     "check the front page for rows the OCR dropped. Jesse's published pay "
+     "zone is 12-14 ft (early), so this gap is below the pay zone but the "
+     "physical drilling did happen."),
 ]
 
 DEFAULT_SAMPLE_ROW = {
