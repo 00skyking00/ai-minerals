@@ -521,6 +521,11 @@ def main() -> None:
                        + "\n".join(f"- {x}" for x in issues))
     st.markdown("---")
 
+    # ---------- Review checklist (auto-generated anomaly items) ----------
+    from ai_minerals.bear_cub.checklist_ui import render_checklist
+    render_checklist(file_stem)
+    st.markdown("---")
+
     # ---------- Single-page-at-a-time row-by-row editor ----------
     rows = st.session_state[rows_key]
     n_rows = len(rows)
