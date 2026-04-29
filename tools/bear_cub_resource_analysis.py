@@ -143,6 +143,77 @@ def main() -> None:
             print(f"  {row['file_stem']:13s} TD={row['total_depth_ft']:.0f}ft  "
                   f"IDW={estimated:.1f}  floor={floor:.1f}  → {imputed:.1f} ft  "
                   f"[neighbors: {neighbors}]")
+
+        # ------------------------------------------------------------ #
+        # Sensitivity sweep across K and floor — log to a CSV
+        # ------------------------------------------------------------ #
+        print("\nBedrock imputation sensitivity sweep ...")
+        sens_rows = []
+        # GP imputation alternative (with uncertainty) — same training set
+        from sklearn.gaussian_process import GaussianProcessRegressor
+        from sklearn.gaussian_process.kernels import RBF as _RBF, ConstantKernel, WhiteKernel
+        from sklearn.preprocessing import StandardScaler
+        gp_scaler = StandardScaler().fit(non_nbr_xy)
+        gp_kernel = (ConstantKernel(np.var(non_nbr_br), (1e-6, 1e3))
+                     * _RBF(length_scale=[100.0, 100.0], length_scale_bounds=(1.0, 1e4))
+                     + WhiteKernel(noise_level=1e-2, noise_level_bounds=(1e-4, 1e1)))
+        gp = GaussianProcessRegressor(kernel=gp_kernel, normalize_y=True,
+                                       n_restarts_optimizer=8, random_state=42)
+        gp.fit(gp_scaler.transform(non_nbr_xy), non_nbr_br)
+
+        for idx in collars[nbr_mask].index:
+            row = collars.loc[idx]
+            xy = np.array([row["_x_imp"], row["_y_imp"]])
+            d = np.linalg.norm(non_nbr_xy - xy, axis=1)
+            order_full = np.argsort(d)
+            td = float(row.get("total_depth_ft") or 0)
+            # KNN-IDW × {K, floor}
+            for k_try in (2, 3, 4, 5, 6):
+                ord_k = order_full[:k_try]
+                d_k = d[ord_k]
+                br_k = non_nbr_br[ord_k]
+                w = 1.0 / np.maximum(d_k, 1.0) ** 2
+                est = float(np.sum(w * br_k) / np.sum(w))
+                for floor_try in (0.0, 5.0, 10.0, 15.0):
+                    imp = max(est, td + floor_try)
+                    sens_rows.append({
+                        "file_stem": row["file_stem"],
+                        "method": "knn_idw",
+                        "K": k_try,
+                        "floor_ft": floor_try,
+                        "knn_idw_estimate": est,
+                        "floor_value_ft": td + floor_try,
+                        "imputed_ft": imp,
+                    })
+            # GP imputation
+            gp_mean, gp_std = gp.predict(gp_scaler.transform(xy.reshape(1, -1)), return_std=True)
+            sens_rows.append({
+                "file_stem": row["file_stem"],
+                "method": "gp",
+                "K": None,
+                "floor_ft": None,
+                "knn_idw_estimate": None,
+                "floor_value_ft": None,
+                "imputed_ft": float(gp_mean[0]),
+                "gp_std_ft": float(gp_std[0]),
+            })
+
+        sens_df = pd.DataFrame(sens_rows)
+        sens_df.to_csv(OUT / "bedrock_imputation_sensitivity.csv", index=False)
+        print(f"  → bedrock_imputation_sensitivity.csv "
+              f"({len(sens_df)} rows; {sens_df['file_stem'].nunique()} imputed holes)")
+        # Summary: per-hole min/max across all KNN-IDW choices + GP mean ± σ
+        for fs in sens_df.file_stem.unique():
+            sub = sens_df[sens_df.file_stem == fs]
+            knn = sub[sub.method == "knn_idw"]
+            gp_row = sub[sub.method == "gp"].iloc[0] if (sub.method == "gp").any() else None
+            print(f"  {fs}: KNN-IDW range across K∈{{2..6}} × floor∈{{0,5,10,15}}: "
+                  f"{knn['imputed_ft'].min():.1f}-{knn['imputed_ft'].max():.1f} ft "
+                  f"(default K=4, floor=5 → "
+                  f"{knn[(knn.K == 4) & (knn.floor_ft == 5.0)]['imputed_ft'].iloc[0]:.1f} ft)"
+                  + (f" · GP: {gp_row['imputed_ft']:.1f} ± {gp_row['gp_std_ft']:.1f} ft"
+                     if gp_row is not None else ""))
+
         collars = collars.drop(columns=["_x_imp", "_y_imp"])
 
     print(f"\n  {len(collars)} collars, {len(intervals)} intervals "
