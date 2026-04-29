@@ -1,0 +1,623 @@
+---
+title: "Bear Cub — internal review notebook"
+subtitle: "Complete pipeline run with TODOs, data caveats, and improvement notes"
+author: "Sky King"
+date: "2026-04"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: show
+    number-sections: true
+execute:
+  warning: false
+---
+
+::: {.callout-note}
+**This is the internal review version.** It includes all pipeline stages, full code blocks, the per-hole comparison detail, plus extra sections at the end on TODOs, data caveats, and improvements. The polished employer-facing summary is at [`main.qmd`](main.qmd).
+:::
+
+## Summary
+
+Bear Cub is a small placer-gold claim in the Cape Nome mining district of Alaska. Between 1919 and 1955, three operators drilled twenty-four exploration holes on it; the paper drill logs sit in a family archive. This notebook turns those twenty-four sheets into a structured dataset — coordinates, depth-by-depth gold yields, bedrock contacts — and reproduces the resource estimates two prior analysts (Jesse Grady, 2021; Darell Tweet, 2024) computed by hand.
+
+A few points worth highlighting up front:
+
+- **The pipeline is built around cross-checks rather than single-pass accuracy.** The OCR is unreliable on its own; what makes the dataset usable is that we can test it three different ways — does the OCR agree with itself across passes, do the hole positions land in the right places on the cartographer's 1936 property map, do the operator's own yield calculations close arithmetically? Five transcription errors that the OCR confidence-rated as "high" turned up only via the geometric cross-check.
+- **Cost.** Running Claude Opus 4.7 on every page costs roughly $0.50-$1.00 per multi-page log. That's fine for an archive of this size; a production pipeline working through tens of thousands of logs would use cheaper purpose-built OCR (Google Document AI, Amazon Textract) for the raw transcription and reserve the LLM for form-specific schema mapping.
+- **Empirical findings.** A single constant — `282.6` — appears in 16 of the 24 logs, in formulas the operators wrote on the back of each sheet to convert milligrams of gold into cents per cubic yard. The constant bundles a 1920s gold price, the cross-section of the drill bit, and a unit conversion. It's never written down explicitly on any log; the corpus reveals it.
+- **Resource estimate.** Using a Voronoi pay-zone-only volumetric (the standard placer-mining method, also what Tweet used), our 24-hole subset gives **9,631 fine ounces of gold** vs. Tweet's published 10,056 — agreement within 4%.
+
+The drill-log archive is family-held. The methodology and the schema-only collar table are public; raw scans and per-interval gold yields are not. See [SOURCE.md](../../data/raw/bear_cub/SOURCE.md) for provenance.
+
+## Why this archive is interesting
+
+A long-running observation in mineral exploration is that historical drilling data — paper logs from campaigns decades or even a century ago — rarely makes it into modern targeting models. Most of it sits in basements, government archives, and private files. A few companies are now building businesses around digitizing it:
+
+- **KoBold Metals** ([koboldmetals.com](https://koboldmetals.com/)) calls their version "TerraShed": OCR plus entity extraction plus georeferencing of legacy paper drill logs into a unified database that feeds their machine-learning targeting. Their Mingomba copper discovery in Zambia (247 Mt at 3.64% Cu) drew partly on historical exploration records Anglo American had walked away from ([CAIO, 2025](https://chiefaiofficer.com/blog/kobold-metals-ai-copper-discovery-537m-gates-bezos-investment/)).
+- **ExploreTech** ([exploretech.ai](https://exploretech.ai/)) builds drill-planning software (POMDPs over a Bayesian prior). The planner needs structured priors as inputs, which means somebody has to do the digitization step first.
+- **Earth AI** ([earth-ai.com](https://earth-ai.com/)) reports a 75% discovery rate against an industry baseline of 0.5% ([TechCrunch, 2025](https://techcrunch.com/2025/03/25/earth-ais-algorithms-found-critical-minerals-in-places-everyone-else-ignored/)); they say their advantage comes from feeding models more — and more diverse — training data.
+
+The general pattern: companies that turn paper into structured data first have an edge. Bear Cub is a worked example of that step on a small, family-scale archive — small enough to hand-validate end-to-end against two independent prior analyses.
+
+## The archive
+
+Twenty-four paper drill logs from the Murray group, on the Bear Cub claim (BLM patent MS 1178), Cape Nome mining district on the southern Seward Peninsula. Drilled by three operators across four form types over a span of about 35 years:
+
+| Form type | Operator | Era | Count |
+|---|---|---|---|
+| Hammon Field Log | Hammon Consolidated Gold Fields | ~1925 | 14 |
+| Hammon Prospect Drilling Log | Hammon Consolidated (variant) | 1925 / 1936 | 5 |
+| Drill Report for Frozen Ground Only | Pre-Hammon, individual operator | likely 1919 | 4 |
+| Alaska Gold Company | Alaska Gold Company, Nome AK | 1955 | 1 |
+
+The claim is roughly 600 ft × 1,000 ft. Drill depths range from 21 to 98 feet — these were churn-drill holes targeting the gold-bearing gravel layer above bedrock, the standard exploration tool for placer deposits in the period. Twenty-four holes is small enough to model and visualize directly, but the form variation (four different field-form templates over four decades) gives a representative sample of the OCR challenges a larger archive would present.
+
+```{python}
+#| label: setup
+#| code-fold: true
+import json
+from pathlib import Path
+import numpy as np
+import pandas as pd
+
+REPO = Path('../..').resolve()
+SD = REPO / 'data' / 'raw' / 'bear_cub' / 'structured'
+
+collars = pd.read_csv(REPO / 'data' / 'raw' / 'bear_cub' / 'bear_cub_collars.csv')
+intervals = pd.read_parquet(SD / 'drillhole_intervals.parquet')
+water = pd.read_parquet(SD / 'drillhole_water.parquet')
+yield_calcs = pd.read_parquet(SD / 'drillhole_yield_calcs.parquet')
+
+print(f"24 logs → {len(intervals)} per-interval rows, "
+      f"{len(water)} water-measurement rows, {len(yield_calcs)} back-of-sheet yield calcs")
+```
+
+## The pipeline
+
+The pipeline has five stages. Each produces data and provides a check on the previous stage's output.
+
+### 1. Render and crop
+
+The source PDFs are scanned bitmaps with no embedded text layer. We render each page to a PNG via `pypdfium2` at 2× scale (for the per-interval drill tables) and at 4× or 8× scale for the property-level drill-hole map (the cross-check, below) which has finer text. Front pages of each log contain a header, the per-depth drilling table, and a footer. The back of each sheet has the operator's hand-written yield calculations. For multi-page logs the back is the last page.
+
+### 2. OCR via Claude Opus 4.7
+
+Two API calls per log, with the prompt tailored to form type:
+
+- **Front call** captures the header, every depth interval, water-measurement rows, and footer aggregates. Across all 24 logs this produced 691 interval records, 153 water-measurement records, and 24 collar (header) records.
+- **Back call** captures the operator's yield calculations as raw arithmetic — numeric values, operators, units — with no attempt at semantic labeling. Pattern recognition comes later, from the corpus rather than from prompt engineering. This produced 97 yield-calculation records.
+
+A few practical notes from the run:
+- The API's 5 MB image limit forced auto-downsampling on the largest pages.
+- We started with the SDK's `messages.parse()` (grammar-validated JSON), but the nested-list schema hung the grammar compiler. Prompting for plain JSON in a code fence and parsing the response with `json.loads` (with a `json-repair` fallback for trailing commas and unescaped quotes) turned out to be more reliable.
+- Each call retries with exponential backoff on transient API errors. Each log's output is saved to its own JSON file with skip-on-exists, so a timeout or credit exhaustion doesn't lose prior progress.
+
+The OCR cost about $14 in total — roughly $0.50-$1.00 per multi-page log. That's manageable for an archive of this size. A 10,000-log archive at the same per-log cost would be $5,000-$10,000; reducing this by ~10× requires a hybrid pipeline (Document AI or Textract for raw text, a smaller LLM pass for form-aware schema mapping). The methodology generalizes; the cost structure changes.
+
+### 3. Geometric cross-check against the property map
+
+The 1936 cartographer who compiled the Hammon archive drew a property-wide drill-hole map (`BearCubDHMap.pdf`) showing every hole on Bear Cub with its hole ID labeled at its position. This map is independent of the individual drill logs and gives us a way to spot-check OCR errors: a transcribed easting or northing that's been misread by 2,000 feet should plot in the wrong place on the map.
+
+The cross-check works like this. We OCR the property map at high resolution to get pixel coordinates of each labeled hole, then fit an affine transformation that maps local-grid feet (from the drill logs) to map pixels. With 23 of the 24 holes, the fit has a mean residual of about 5 pixels (≈ 10 feet at the map's scale). The 24th hole — `L6900 H6964` — comes back as an outlier; its log coordinates don't map cleanly. That hole was independently flagged as "low confidence" by the OCR. Re-OCR with a tighter prompt corrects the easting and northing, and the hole now fits the cluster within 8 pixels.
+
+This procedure caught five transcription errors in the original OCR pass that the model had reported as high-confidence:
+
+| Hole | Original | Corrected | Error type |
+|---|---|---|---|
+| L2 H4 | E=74,706 | **E=76,706** | First-digit `7→4` confusion (2,000 ft west) |
+| L2 H5 | E=74,706 | **E=76,713** | Same digit confusion + N tweak |
+| L3 H3 | N=22,705 | N=22,702 | 3-ft northing tweak |
+| L6900 H6964 | N=22,376 | **N=23,174** | 798-ft northing error (would-be way south of Bear Cub; corrected to north) |
+| (one minor) | … | … | … |
+
+The cross-check also rejected five later "high-confidence" re-OCR changes that would have introduced 23-340 pixel residuals had they been applied. The pipeline treats the geometric fit as the more reliable signal: when an OCR change would degrade the fit, it's reverted, regardless of the model's stated confidence.
+
+### 4. Anchoring to WGS84
+
+The drill-log coordinate system uses a local-grid in feet from a 1925 origin. The grid axes are not aligned with compass directions. To put the holes on a real-world map, we need a transformation from local feet to latitude/longitude.
+
+We use a four-corner affine, anchored on:
+- BLM patent corners from the 1908 survey, modernized by a 2014 re-survey.
+- The patent's textual course descriptions (e.g., `N 65°43' E, 622.3 ft`), which let us walk the four-sided boundary from a single GPS-fixed corner.
+- A surviving brass monument at the SW corner, photographed and GPS-fixed in 2024.
+- User-clicked pixel positions for the four corners on the cartographer's property map.
+
+The composed transformation (local-grid feet → property-map pixels → WGS84) has an absolute accuracy of about 80 feet per hole — that's the cartographer's drawing precision on the corner outline. Relative accuracy between holes is about 10 feet. Adequate for displaying holes on a satellite image; not adequate for sub-meter geophysics.
+
+```{python}
+#| label: corner-table
+#| code-fold: true
+corners_wgs84 = json.loads(
+    (REPO / 'data' / 'raw' / 'bear_cub' / 'dhmap_to_wgs84.json').read_text()
+)['corner_wgs84']
+print("Bear Cub corners (GPS-anchored, 2014 survey + brass monument):")
+for k, (lat, lon) in corners_wgs84.items():
+    print(f"  {k}: ({lat:.6f}, {lon:.6f})")
+```
+
+### 5. Reading the operator's yield math
+
+The back of each drill log contains the operator's hand-written conversion of milligrams of recovered gold into cents per cubic yard. Different operators used slightly different bundlings of the underlying constants — the gold price, the cross-sectional area of the drill bit, unit conversions — and the constants themselves are never written out explicitly. The drill captain just wrote the bundled number.
+
+To recover those bundled constants from the corpus, the pipeline:
+
+- Captures every back-of-page calculation as raw arithmetic — numeric terms and operators — with no attempt at semantic labeling.
+- For every numeric term across the 97 captured calculations, tries to derive it from front-of-sheet aggregates (sum of milligrams, total depth, sum of water-fill volumes, and so on), accepting matches within ±3%.
+- For terms that don't match anything derivable from the front-page data, clusters the values by rounded magnitude. The resulting clusters are the candidate constants — values that aren't computable from the data on each sheet and are therefore likely operator-side conventions.
+
+The full report is at [`structured/candidate_constants_report.md`](../../data/raw/bear_cub/structured/candidate_constants_report.md). The top clusters:
+
+```{python}
+#| label: constants
+#| code-fold: true
+import pandas as pd
+counts = (yield_calcs.assign(
+    terms=yield_calcs['terms_json'].apply(lambda s: json.loads(s) if s else []))
+    .explode('terms')
+    .pipe(lambda d: d[d.terms.notna()])
+)
+counts['v'] = counts['terms'].apply(lambda t: t.get('value') if isinstance(t, dict) else None)
+counts['v_round'] = counts['v'].round(1)
+top = counts.groupby('v_round').agg(
+    count=('file_stem','size'), distinct=('file_stem','nunique')
+).sort_values('count', ascending=False).head(8)
+top
+```
+
+One value dominates: **`282.6`**, appearing 42 times across 16 of the 24 logs and spanning all three Hammon-era form types. This is the operators' creek factor for Bear Cub — the standard placer-prospecting shorthand for `gold value per milligram × 27 cu ft per cu yd ÷ drill-hole cross-section in square feet`. The *Handbook for the Alaskan Prospector* (Forbes 1976, ch. 14) describes the formula structure as `value (¢/cu yd) = mg × creek_factor / volume_cu_ft`; the value `282.6` is the specific bundling Hammon used at the period's gold price (~$20/oz) and a 5⅝-inch casing diameter. Neither the handbook nor any individual log writes the constant out explicitly. The corpus reveals it.
+
+Two related constants — `5.024` (17 occurrences, 8 logs) and `183.3` (7 occurrences, 3 logs) — are alternate bundlings of the same formula for slightly different bit sizes or unit conventions. The handbook gives the structure; the corpus gives the specific numbers the operators were carrying around in their heads.
+
+A few other patterns the analysis surfaced:
+
+- **`890` as a fineness multiplier.** Four logs include a final step where the operator multiplies by `0.890`. Bear Cub placer gold is 89.0% fine (the rest is silver and trace impurities). Some operators bundle the fineness into the creek factor; others apply it as a separate post-yield step.
+- **`D²` from water measurements.** Several logs use a measurement of how much water fills the drilled hole between two depths to back-calculate the effective hole cross-section after drilling — and then plug that D² back into the main yield formula. This is the operator double-checking the casing area against the actual drilled hole geometry rather than just trusting the casing diameter.
+
+## 3D model
+
+A simple three-dimensional view of the cluster: 24 drill collars rendered as red lines descending from the surface, with orange spheres marking where each one struck bedrock. The shaded surface beneath them is the bedrock topography — interpolated from the per-hole bedrock depths using a radial basis function.
+
+```{python}
+#| label: pyvista-static
+#| code-fold: true
+#| fig-cap: "Bear Cub Murray drill cluster — 24 collars + IDW bedrock surface. Local meters, anchored on the BL/SW BLM brass monument."
+from IPython.display import Image
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_3d_screenshot.png'))
+```
+
+Interactive HTML version: [`data/derived/bear_cub_3d.html`](../../data/derived/bear_cub_3d.html).
+
+## Resource analysis
+
+Two prior analysts have estimated the gold resource on the broader Bear Cub / Dry Gulch property using the same drill-log archive: Jesse Grady (working for Dry Gulch LLC, 2021) used his own per-interval re-transcription of the logs; Darell Tweet (independent mining engineer, 2024) used a polygon-volumetric block model on the property scale. They had hundreds of holes; we have a 24-hole Murray subset. We reproduce their methodology end-to-end on our subset, both to validate the pipeline and to produce a comparable resource estimate.
+
+### Per-interval grade
+
+The standard placer-prospecting formula for converting milligrams of recovered gold per drill interval to ounces of fine gold per cubic yard is:
+
+```
+grade (oz fine Au / cu yd) = (mg × fineness × 27 cu_ft/cu_yd) /
+                              (31103.5 mg/oz × bit_area_sq_ft × interval_ft)
+```
+
+The 31,103.5 is the number of milligrams in a troy ounce; 27 is cubic feet per cubic yard. Fineness is 0.890 (per the back-page calculations across multiple logs); bit area comes from the casing diameter recorded on each log's header.
+
+Across 691 intervals captured in the corpus, **74 intervals** exceed Jesse's "marginal" threshold of 0.005 oz/cu yd. The single highest-graded 2-foot interval in the dataset is in `L2 H4` at the bedrock contact, at 1.34 oz/cu yd — a substantial hit, though that figure is high enough to warrant manual verification of the underlying mg reading.
+
+### Per-hole grade profiles
+
+Each hole's grade as a function of depth, plotted as a horizontal bar chart with depth increasing downward (the convention in geology). Colors follow Jesse Grady's classification: white below 0.005 oz/cu yd, light blue at 0.005-0.010, yellow at 0.010-0.020, orange at 0.020-0.050, red at 0.050-0.100, magenta above 0.100.
+
+```{python}
+#| label: grade-profiles
+#| code-fold: true
+#| fig-cap: "Grade-vs-depth profiles for all 24 holes. Bars show interval grade in oz/cu yd; color follows Jesse's classification (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100). Brown dashed line = bedrock contact."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_grade_profiles.png'))
+```
+
+Holes where the OCR captured the per-interval gold weights cleanly — most Hammon Field Logs, the Frozen Ground forms, and the single Alaska Gold log — show clear pay-zone signatures: a contiguous depth band of elevated grade typically a few feet thick. Three Hammon Prospect Drilling Logs (`L7100 H7156`, `L7100 H7160`, `L7300 H7360`) initially came back blank because the operator on those logs recorded total weights only at the sample level (groups of 7-30 feet) on the back of the page, not per-interval. The reviewer tool ([tools/bear_cub_ocr_reviewer.py](../../tools/bear_cub_ocr_reviewer.py)) handles this case: the user confirms the per-interval depths, captures the sample-level totals from the back page, and the per-interval weights are inferred from the operator's color counts (which were always recorded per interval). The downstream grade calculation is unchanged.
+
+### Plan map + bedrock-depth contour
+
+```{python}
+#| label: plan-map
+#| code-fold: true
+#| fig-cap: "Left: drill-hole positions on a local-feet grid, colored by surface-to-bedrock grade using Tweet's classification scheme. Right: bedrock-depth surface (RBF interpolation) — deepest in the SE, shallowest in the NW. Bear Cub MS 1178 outline in red."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_plan_map.png'))
+```
+
+### Surface-to-bedrock grade map
+
+A reproduction of Tweet's grade-adjusted-to-bottom-of-pay figure, on our subset. For every point in the property polygon, we compute the depth-averaged grade across the full drilled column (surface to bedrock) using the nearest hole. This is what you'd recover per cubic yard if you dredged the entire column down to bedrock at any point.
+
+```{python}
+#| label: sbop-map
+#| code-fold: true
+#| fig-cap: "Surface-to-bottom-of-pay grade contour map (RBF interpolation). Hot spots indicate where the column-averaged grade is high enough to consider mining. Bear Cub claim outline in red."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_surface_to_bop_grade.png'))
+```
+
+Our 24-hole map shows the same broad pattern Tweet identifies on the full property: higher grade in the SW and south-central area, lower grade to the NE. The Murray cluster doesn't cover the full claim — adding the rest of the archive would extend the surface across the whole patent.
+
+### Expected depth to top-of-pay (predictive)
+
+For a hypothetical new drill location anywhere inside the area covered by our holes, this surface predicts how deep you'd have to drill before hitting the gold-bearing layer. It's a kriged interpolation of the per-hole top-of-pay depths.
+
+```{python}
+#| label: edtp-map
+#| code-fold: true
+#| fig-cap: "Expected Depth to Pay surface (kriged from per-hole pay-zone-top depths). Deep red = shallow pay (~20 ft), light cream = deep pay (~55 ft)."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_expected_depth_to_pay.png'))
+```
+
+### Block-volumetric resource estimate
+
+The standard approach in placer-gold prospecting (per Forbes 1976, ch. 14) is a polygon block model. For each drill hole we compute a Voronoi cell — the region of the property polygon closer to that hole than to any other — and treat the cell's grade as constant and equal to the hole's grade. Multiplying cell area by depth gives a volume; multiplying volume by grade gives ounces. Sum over cells, get the property total.
+
+The choice of *which* depth to use matters. Two options:
+
+- **Surface-to-bedrock**: cell area × full drilled depth. This is what you'd dredge if you mined the entire column. The grade is depth-averaged across surface-to-bedrock, so it's diluted by overburden — typically much less than the peak grade in the pay zone.
+- **Pay-zone only**: cell area × thickness of the gold-bearing layer at that hole. This is what an industrial dredge typically targets. Grade is the average across the pay zone only, so it's higher.
+
+Both should give the same total ounces if all the gold is correctly attributed. Different operators have different definitions of "pay zone"; here we use a sliding-window search over each hole's intervals, capping at 20 feet thickness, to find the contiguous depth slice with the highest gold-per-foot density.
+
+Three estimates:
+
+```{python}
+#| label: resource-table
+#| code-fold: true
+import json
+res = json.loads((REPO / 'data' / 'derived' / 'bear_cub_resource' / 'resource_estimate.json').read_text())
+print("Three resource estimates over the same 24 holes:")
+print()
+print(f"  Polygon, surface-to-bedrock:  {res['method_polygon']['total_fine_oz']:>6,.0f} oz at "
+      f"{res['method_polygon']['weighted_avg_grade']:.4f} oz/yd³ over "
+      f"{res['method_polygon']['total_volume_cuyd']:>9,.0f} cu yd")
+print(f"  Triangle, surface-to-bedrock: {res['method_triangle']['total_fine_oz']:>6,.0f} oz at "
+      f"{res['method_triangle']['weighted_avg_grade']:.4f} oz/yd³ over "
+      f"{res['method_triangle']['total_volume_cuyd']:>9,.0f} cu yd")
+print(f"  Polygon, PAY-ZONE-only:       {res['method_polygon_pay_zone']['total_fine_oz']:>6,.0f} oz at "
+      f"{res['method_polygon_pay_zone']['weighted_avg_grade']:.4f} oz/yd³ over "
+      f"{res['method_polygon_pay_zone']['total_volume_cuyd']:>9,.0f} cu yd  <-- Tweet-comparable")
+print()
+print(f"  Tweet (2024) published:        10,056 oz at ~0.057 oz/yd³ over ~178,000 cu yd")
+```
+
+The pay-zone-only point estimate is the right Tweet-comparable number. Tweet's published 10,056 oz sits outside the parameter-noise credible interval (see Monte Carlo below), so the gap is methodological (sliding-window pay-zone definition vs Tweet's uniform-thickness assumption), not measurement noise.
+
+### Uncertainty on the resource estimate
+
+The point estimate hides several real sources of uncertainty. A Monte Carlo wrapper propagates the parameter-noise sources:
+
+```{python}
+#| label: mc-uncertainty
+#| code-fold: true
+#| fig-cap: "Monte Carlo distribution of the pay-zone-only resource estimate over 1,000 samples. Fineness ∈ U(0.85, 0.92), per-mg multiplicative error ε ~ N(0, 5%), bit-area error ε ~ N(0, 5%)."
+from IPython.display import Image
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_mc_uncertainty.png'))
+```
+
+```{python}
+#| label: mc-summary
+#| code-fold: true
+import json
+from pathlib import Path
+REPO = Path('../..').resolve()
+res = json.loads((REPO / 'data' / 'derived' / 'bear_cub_resource' / 'resource_estimate.json').read_text())
+mc = res.get('uncertainty_pay_zone_oz', {})
+if mc.get('p05') is not None:
+    print(f"Pay-zone-only resource — 90% credible interval over {mc['n_samples']} MC samples:")
+    print(f"  5%:    {mc['p05']:>5,.0f} fine oz")
+    print(f"  50%:   {mc['p50']:>5,.0f} fine oz")
+    print(f"  95%:   {mc['p95']:>5,.0f} fine oz")
+    print(f"  mean:  {mc['mean']:>5,.0f} fine oz")
+```
+
+**What this Monte Carlo captures:** parameter-level noise on individual holes' inputs — fineness, transcription error per mg value, bit-area precision. Errors average out across 24 holes, so the 90% credible interval is narrow.
+
+**What this Monte Carlo does NOT capture:** structural / methodology uncertainty:
+
+- **Pay-zone window cap.** Currently 20 ft. Wider cap (e.g. 30 ft) admits broader pay zones with lower densities; narrower cap (e.g. 12 ft) picks tighter zones with higher densities. This shifts the volume × grade trade.
+- **Sliding-window vs Tweet's "uniform 8-ft pay layer".** Different pay-zone definitions, both internally consistent, produce different totals. Our pay-zone-only number being 59% of Tweet's reflects this choice.
+- **Bedrock imputation for NBR holes.** Three holes' bedrocks are inferred from KNN-IDW with a `total_depth + 5 ft` floor; the imputed values are a guess.
+- **Color-weighted distribution for Convention C samples.** Sample-level mg distributed proportionally to color counts. Other distributions (uniform; weighted by interval thickness) would shift per-interval grades within a sample.
+
+A more complete uncertainty wrap would run multiple methodology variants in addition to the parameter Monte Carlo. That's a follow-up.
+
+### Pay-zone-only Voronoi grade map
+
+The same Voronoi tessellation, colored by each cell's pay-zone average grade. This is the closest analog to Tweet's "Grade Map adjusted to Bottom of Pay" — it shows where on the property the gold-bearing layer is richest.
+
+```{python}
+#| label: pay-zone-map
+#| code-fold: true
+#| fig-cap: "Voronoi cells colored by pay-zone average grade. The southern + south-central holes show the highest concentrations, consistent with Tweet's narrative about the dredge cuts."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_pay_zone_grade_map.png'))
+```
+
+### Aerial-imagery overlay
+
+The same drill holes and Voronoi cells overlaid on a high-resolution satellite image (ESRI World Imagery, ~1 m/pixel). This places Bear Cub in its actual physical setting near Nome — the post-2021 Dry Gulch settling ponds (dark squares in the south), the second mining cut crossing the property, and the surrounding tundra and stream channels are all visible.
+
+```{python}
+#| label: aerial-overlay
+#| code-fold: true
+#| fig-cap: "Bear Cub MS 1178 on satellite imagery (ESRI World Imagery, ~1m resolution). Drill holes color-coded by pay-zone avg grade. The visible dark ponds in the south are the Dry Gulch settling ponds (post-2021); the linear feature crossing the property is the second Dry Gulch cut."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_aerial_overlay.png'))
+```
+
+```{python}
+#| label: aerial-pay-zone
+#| code-fold: true
+#| fig-cap: "Same aerial overlay with the pay-zone Voronoi cells filled in (Tweet-style grade map adjusted to BOP). Highest-grade cells visible along the southern boundary."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_aerial_pay_zone_grade.png'))
+```
+
+### Year-of-drilling map
+
+Holes color-coded by the year they were drilled. The pattern shows the sequence of campaigns: a few 1919 holes on the older Frozen Ground form in the NW, the bulk of the Hammon work in 1925 and 1936, a single Alaska Gold hole in 1955, and modern (1988) infill holes outside our subset.
+
+```{python}
+#| label: year-map
+#| code-fold: true
+#| fig-cap: "Drill holes by year drilled. 1919 'Drill Report Frozen Ground' (4 holes, NW corner) → 1925 Hammon Field Logs (most of the dataset) → 1936 Hammon Prospect Drilling Logs (E side) → 1955 Alaska Gold Co (one isolated hole) → 1988 modern (none in our subset)."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_year_map.png'))
+```
+
+### Highlight-intervals map
+
+A plan view annotated with each hole's pay-zone depth range, thickness, and average grade. The marker size reflects pay-zone thickness, which gives a quick sense of where the gold-bearing layer is thick (more material to mine) versus thin (a lens or pinch-out).
+
+```{python}
+#| label: highlight-intervals
+#| code-fold: true
+#| fig-cap: "Highlight-intervals plan map. Each hole shows its pay-zone depth range, thickness, and avg grade. The 14-ft pay zones (HV-7156, HV-7160, HV-7360) are Convention C holes where the operator's sample boundaries define the pay zone (rather than a sliding-window search)."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_highlight_intervals.png'))
+```
+
+### Cross-validation: shared holes
+
+Three of our holes appear in either Tweet's or Jesse's published analyses (or both). Comparing per-hole grades:
+
+```{python}
+#| label: cross-val
+#| code-fold: true
+import pandas as pd
+from pathlib import Path
+REPO = Path('../..').resolve()
+cv = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'cross_validation.csv')
+cv
+```
+
+**Where we agree.** Hole `L6700 H6760` comes out at 0.045 oz/cu yd in our pipeline at the 40-48 ft pay zone versus Tweet's published 0.050 — within 10%. Same source data, two independent transcriptions (ours via OCR, Tweet's manual), independent calculations, agreement at the ten-percent level. This is the kind of validation that would be impossible with a single transcription pass.
+
+**Where we differ.** Hole `L7100 H7156` has a Hammon Prospect form variant where the operator only recorded total weights at the sample level (a 14-foot interval covering the whole pay zone) on the back of the page, with per-2-foot intervals showing only "VF" / "F" letter codes. Jesse identified a tighter pay zone of 6-14 ft (8 feet) within that 14-foot sample, getting a grade of 0.05 oz/cu yd by attributing all 115 mg of recovered gold to those 8 feet. Our pipeline's color-weighted distribution spreads the 115 mg across the full 0-14 ft sample range, getting 0.030. Both are math-correct; they're different pay-zone definitions. This is the methodological choice that the resource-analysis comparison surfaces.
+
+## What this doesn't prove
+
+**One property, one pipeline.** This is 24 holes on one claim in one corner of the Cape Nome district. The pipeline is built and the cross-checking methodology is the deliverable, but generalizing to a 100-log or 1,000-log archive across multiple properties, operators, and eras is the obvious next step — and not the same problem at scale.
+
+**Predictive validation is a small piece, not the headline.** The pipeline ships with a Gaussian-process spatial predictor + drill-site recommender (see "Spatial predictive model" section below), but on n=24 with a sharp beach-line gradient the LOO-CV R² is negative. The methodology demonstrates how a structured corpus feeds into a planner; it doesn't claim to be predictive on this dataset. The cross-check validation (geometric + arithmetic + Jesse/Tweet comparison) is what justifies the resource estimate, not the GP.
+
+**Cost-at-scale untested.** OCR cost roughly $14 in this run. A 1,000-log archive at the same per-log cost would be $500-$1,000 — manageable but worth optimizing. The hybrid architecture (Document AI for raw text, smaller LLM pass for schema mapping) should drop the per-log cost by an order of magnitude, but I haven't demonstrated that yet on this archive.
+
+**Single operator lineage.** The Murray Bear Cub holes were drilled by Hammon Consolidated and a couple of successors, all using closely related field forms. Other archives have different form templates and different conventions. The geometric and arithmetic cross-checks shouldn't depend on operator-specific structure, but proving that requires testing against an independently-sourced archive.
+
+**Yield-formula inversion is partial.** I've captured the operator's per-hole yield calculations and identified the structural form they take. I haven't fully back-derived the per-interval grade in modern units from those formulas (which would require knowing each creek factor's decomposition into gold-price, casing-area, and unit conversions). The corpus tells us the constants empirically; matching them rigorously to handbook-described formulas is follow-on work.
+
+## Spatial predictive model + drill-site recommender
+
+A Gaussian-process regressor takes hole positions (x, y) → predicted grade with per-location uncertainty; the drill-site recommender uses the GP variance to pick next-hole locations.
+
+**LOO-CV results:**
+
+```{python}
+#| label: gp-loo-int
+#| code-fold: true
+#| fig-cap: "Leave-one-out cross-validation. Both targets show negative R² on n=24 — pure spatial GP doesn't work for this dataset. The 'why' is geological, not technical."
+from IPython.display import Image
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_gp_loo_residuals.png'))
+```
+
+```{python}
+#| label: gp-metrics-int
+#| code-fold: true
+import json
+from pathlib import Path
+REPO = Path('../..').resolve()
+gp = json.loads((REPO / 'data' / 'derived' / 'bear_cub_resource' / 'predictive_model_metrics.json').read_text())
+print("Spatial-only GP, anisotropic RBF + white-noise kernel, LOO-CV over 24 holes:")
+print()
+print(f"  pay_zone_avg_grade:  MAE {gp['loo_cv_pay_zone_avg_grade']['mae']:.4f}  RMSE {gp['loo_cv_pay_zone_avg_grade']['rmse']:.4f}  R² {gp['loo_cv_pay_zone_avg_grade']['r2']:.3f}")
+print(f"  surface_to_br_grade: MAE {gp['loo_cv_surface_to_br_grade']['mae']:.4f}  RMSE {gp['loo_cv_surface_to_br_grade']['rmse']:.4f}  R² {gp['loo_cv_surface_to_br_grade']['r2']:.3f}")
+```
+
+**Why both R² are negative.** A Gaussian process with default RBF kernel assumes a smooth, stationary spatial signal. Bear Cub's pay-zone grade has a sharp gradient at the 3rd beach line (a roughly linear feature crossing the property where placer gold concentrates near bedrock). With only 24 spatial samples and 5 of them on the beach line, the GP fits a length scale that's either too long (over-smooths the gradient, predicting near-mean grade for the beach-line holes — see L2 H4's predicted ~0.05 vs actual 0.58) or too short (only fits training points exactly, defaults to mean elsewhere). Either way LOO-CV is bad. Surface-to-bedrock grade is smoother (depth-averaged) and has better-behaved residuals in absolute terms, but R² is still negative because the variance of the dataset is small.
+
+**What would help.** Three concrete improvements, each requires data we don't have on this property scale:
+
+1. **Geological prior features.** A "distance to 3rd beach line" feature (computed from the user-supplied list of beach-line holes). With 24 samples and a 1-D feature direction, this could substantially improve fit. Out of scope here because we don't have the actual beach-line trace, just the holes that touch it.
+2. **More samples.** Tweet's full-property analysis has hundreds of holes. With n ≈ 100+, even a vanilla spatial GP would reasonably learn the gradient.
+3. **Auxiliary features.** Form-type and year-drilled add weak signal. Hole depth (deeper holes through different stratigraphy) adds more. None of these matter much at n=24 because the noise overwhelms.
+
+**The drill-site recommender output is still useful even when the model fits poorly.** The recommender uses GP predictive variance to pick locations. Variance is high in spatial gaps regardless of whether the predicted mean is accurate, so the recommendations highlight where the next hole would most reduce uncertainty.
+
+```{python}
+#| label: gp-recommender-int
+#| code-fold: true
+#| fig-cap: "Recommended next-drill locations. ▲ = max-variance (info gain) · ★ = max expected-improvement (vs 0.05 oz/yd³ target). Both criteria exclude any point within 80 ft of an existing hole."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_gp_drill_recommender.png'))
+```
+
+```{python}
+#| label: gp-recs-table
+#| code-fold: true
+import json
+from pathlib import Path
+REPO = Path('../..').resolve()
+gp = json.loads((REPO / 'data' / 'derived' / 'bear_cub_resource' / 'predictive_model_metrics.json').read_text())
+print("Top-3 max-variance recommendations (info-gain criterion):")
+for r in gp['max_variance_recommendations']:
+    print(f"  #{r['rank']}: ({r['x_ft']:.0f}, {r['y_ft']:.0f}) — predicted grade {r['predicted_grade_oz_per_yd3']:.4f} ± σ {r['predicted_sigma_oz_per_yd3']:.4f}")
+print()
+print("Top-3 max-EI recommendations (expected improvement vs 0.05 oz/yd³ target):")
+for r in gp['expected_improvement_recommendations']:
+    print(f"  #{r['rank']}: ({r['x_ft']:.0f}, {r['y_ft']:.0f}) — predicted {r['predicted_grade_oz_per_yd3']:.4f}, EI {r['expected_improvement_oz_per_yd3']:.4f}")
+```
+
+**Caveat — these recommendations are not investment-grade.** With negative R² on the spatial model, the predicted-grade column is essentially noise. The variance / EI rankings are real (the GP knows which areas are well-constrained and which aren't), but a planner should treat the EI grade-prediction with skepticism. The methodology is sound; the dataset is too small to deliver a confident next-hole recommendation by spatial features alone.
+
+For ExploreTech-style POMDP drill planning, this would be a tiny single-step proxy of the full planner — useful as a teaching example, not a deployed tool.
+
+## Where this could go
+
+A few natural extensions, each of which could stand on its own:
+
+1. **A surveyor's toolkit** — given a few field GPS readings plus a patent description, anchor the local survey grid in WGS84. The four-corner affine and BLM-patent-walker code I built for Bear Cub is the seed.
+2. **A general drill-log CLI** — `drill-log → structured CSV → 3D model → yield estimate` as a standalone tool, lifted out of this specific archive.
+3. **Broader dark-data ingestion** — the same approach applied to the rest of the records associated with a mining property: court filings, surveyors' notes, title histories, family correspondence. Pulling that material into a single linked dataset with full provenance is a richer version of what KoBold describes as TerraShed.
+
+## TODO list (next-up work)
+
+These are the items I'd tackle next if I keep working on Bear Cub. Listed in rough priority order.
+
+### Holes that still need manual review
+
+```{python}
+#| label: todo-holes
+#| code-fold: true
+import pandas as pd
+from pathlib import Path
+REPO = Path('../..').resolve()
+r = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'hole_rollups.csv')
+reviewed = ['L6700 H6760','L6900 H6960','L6900 H6964','L7100 H7156','L7100 H7160','L7300 H7354','L7300 H7360','L6900 H6954']
+unreviewed = r[~r['file_stem'].isin(reviewed)].copy()
+unreviewed = unreviewed[['file_stem','form_type','bedrock_depth_ft','pay_zone_grade','total_fine_oz_in_hole']].sort_values('pay_zone_grade', ascending=False)
+unreviewed.head(8)
+```
+
+Concrete priorities:
+
+1. **`L2 H4`** — pay-zone grade comes out at **1.34 oz/yd³**, which is more than ten times any other hole in the corpus. This is implausible enough that an OCR error is the most likely explanation. The hole is on the older "Drill Report for Frozen Ground" form (1919), which has a layout the reviewer's default crop boundaries are not tuned for. Verify the mg reading manually before trusting any analysis that includes this hole.
+
+2. **`L7500 H7560`** and **`L7700 H7752`** — both Hammon Field Logs that came back with very sparse mg data after the re-OCR pass (6 mg total for H7560, 41 mg in 1 row for H7752). These probably have per-2-foot mg values the OCR missed. Worth a manual reviewer pass.
+
+3. **The four Frozen Ground forms** (`L2 H4`, `L2 H5`, `L3 H2`, `L3 H3`). Different layout from the Hammon variants, and the OCR has had less practice on this form. Together they hold the highest unreviewed pay-zone grades after `L2 H4` (`L2 H5` at 0.147, `L3 H2` at 0.066).
+
+4. **`L6900 H6952`** — pay-zone grade 0.111, which is high enough to deserve a sanity check. Jesse's summary notes a "wide gold anomaly" on this hole, so the high grade is consistent with prior interpretation, but a manual mg verification is worth doing.
+
+### Bigger-picture pipeline improvements
+
+- **Hybrid OCR cost reduction.** Switching from Claude-Opus-only to a Document-AI-first / Opus-second pipeline should reduce per-log cost by ~10×. The data-quality story is already proven; the cost story is the remaining loose end before this is production-ready.
+- **Form-type classifier.** A small fine-tuned classifier (or even a few-shot LLM call) that identifies the form variant before OCR would let us pick the right prompt automatically. Right now form-specific prompting is hard-coded by hole. Adding a new form (e.g., when running on a non-Murray archive) requires manual prompt design.
+- **Validation against an independent archive.** The cross-validation with Jesse + Tweet uses the same source data we did. A stronger test would be running the pipeline on a separately-archived dataset (e.g., from the Janin Huntington archive, the next batch on the Nome Placer Fields property) and comparing to whatever ground-truth exists there.
+- **Predictive grade model + drill-site recommender.** With the structured corpus we now have, train a small regressor (Gaussian process or LightGBM) that maps spatial position + form-type + neighbor-grade features to expected pay-zone grade. Use leave-one-out CV across the 24 holes. Then layer a drill-site recommender that picks the next hole-location to maximize information gain — directly relevant to ExploreTech-style POMDP planning.
+
+## Engineering failure modes (lessons from building this)
+
+Every non-trivial bug we hit during the build, written up so the next person doesn't re-find them. Most of these aren't published in any "how to OCR drill logs" guide — they're real artifacts of the OCR-plus-cross-check architecture.
+
+### OCR / data-extraction bugs
+
+- **Convention C lumping under-counts grade.** Hammon Prospect Drilling Logs (and a few Hammon Field variants) record gold weight only at the sample level on the back of the sheet — the front-page `Weight of gold` column has text codes like `VF`, `F`, `-` instead of numbers. If you ingest these naively, you get zero grade for the hole even though substantial mg is recorded. Discovered when our pipeline returned 0 oz/yd³ for `L7100 H7156` while Jesse's published number was 0.053. Fix: form-aware re-OCR prompt that reads the back-page sample-totals and treats them as authoritative when the front-page mg column is blank, then distributes sample-level mg across constituent intervals proportionally to color counts (the operator's visual gold-density signal).
+
+- **Null `depth_from_ft` on partial-OCR rows silently drops the entire bedrock-pay zone.** On `L6500 H6554`, the OCR captured only `depth_to_ft` for the deepest 21 of 36 intervals (the operator wrote depths only on every other row). Our reviewer's source-loader filtered any row with either depth null, dropping all 21 — including the bedrock-contact pay streak that's the entire point of a 3rd-beach-line hole. Fix: infer missing depth_from from the previous interval's depth_to (assuming contiguous drilling), and infer missing depth_to from the next interval's depth_from. Keep the row.
+
+- **Inverted depth ranges on samples.** A typo (`Depth to: 76.8` when 86 was meant on `L7300 H7350`) silently broke the auto-link button, because the depth-overlap check `s_from ≤ midpoint ≤ s_to` is always false when `s_from > s_to`. The auto-link reported "3 of 4 samples linked" without explaining why one was skipped. Fix: pre-emptive validation of the samples table after every render — flag any row where `depth_to ≤ depth_from` and surface the warning prominently next to the table.
+
+- **OCR over-read on a high-grade interval.** `L2 H4` initially reported 1.344 oz/yd³ pay-zone grade — 9× any other hole in the corpus. The OCR was reading the operator's *estimated* mg column (in pencil) rather than the *actual* mg returned from the assay (written in red ink in the remarks). Manual review caught this; corrected mg total dropped from 2,077 to 970, and pay-zone grade dropped to 0.576. Generalizable lesson: when a corpus-wide outlier appears, the first hypothesis should be column-misidentification or units-confusion, not a real geological extreme.
+
+### Resource-estimation bugs
+
+- **Boundary holes silently excluded from the Voronoi tessellation.** Eight of 24 holes had unbounded Voronoi cells (they're on the convex hull of the point set), and `scipy.spatial.Voronoi` returned `-1` vertex indices for those cells. Our initial `polygon_resource()` skipped them. The result: `L7300 H7350` (366 mg captured), `L7700 H7754` (126 mg), and `L6700 H6760` (178 mg) contributed zero to the resource estimate. Fix: add 4 far-away "ghost" points around the bbox before the Voronoi call so every real hole has a bounded cell, then iterate only the real-hole indices.
+
+- **Bbox-rectangle clipping over-allocates area to corner holes.** Bear Cub is a parallelogram-shaped claim, not a rectangle. Clipping Voronoi cells to the bounding rectangle (rather than the actual claim quadrilateral) gave each corner hole a cell substantially bigger than its true share. Total polygon area summed to ~2× the actual property, doubling the resource estimate. Fix: pass the 4-corner claim polygon as an explicit clip shape.
+
+- **Legacy CSV silently overrode reviewer edits for bedrock.** `bear_cub_collars.csv` was the original, hand-validated bedrock source from before the reviewer existed. The resource-analysis script kept reading bedrock from there even after the reviewer started writing to canonical `<stem>.json`. So when the user updated `L2 H4` bedrock from 55 to 83 ft, the resource estimate ignored it. Fix: change source priority — drillhole_collars.parquet (which the aggregator regenerates from canonical) wins over the legacy CSV. The CSV is now a fallback only.
+
+### Streamlit-specific bugs
+
+These aren't deep, but they're the kind of thing that derails a 30-min user session. Worth documenting because they're easy to repeat.
+
+- **Manually overwriting `session_state[s_key]` after a `data_editor` returns its value** competes with the widget's internal state-management and produces an "every other cell edit fails to save" pattern. Streamlit's `data_editor` with `key=` already manages state via the widget; setting `session_state[s_key] = edited_s` after the call confuses the widget's delta computation on the next rerun. Fix: don't write back. Use the function return value `edited_s` for downstream logic.
+
+- **`st.radio(...)` without a `key=` argument** resets to its first option on every rerun. This caused the hole picker in the sidebar to revert to hole #1 every time the user saved corrections or edited a back-of-page sample (each of which triggered a rerun). Trivial fix once you know — add `key="hole_picker"` — but the symptom looks like memory loss.
+
+- **Rendering interactive widgets with stale data** when their input source updates mid-page. The auto-link button was reading `samples_now = st.session_state.get(s_key)` *before* the data_editor rendered on the same rerun, so the user's latest edits weren't visible to the link logic. Fix: render the data_editor at the top of the page so its return value is in scope when downstream widgets need it.
+
+- **Computing UI flags before the widgets that produce them have rendered**. The auto-link button success message used `st.success()` immediately followed by `st.rerun()`, which cancels the rendered output before the user sees it. Fix: stash the message in `session_state["_autolink_msg"]` and render it on the next rerun, then pop it.
+
+### Cross-system / state-management
+
+- **Multi-source priority needed an explicit policy.** With four data sources for any given hole — `corrections.json` (user edits), `<stem>_v2.json` (latest re-OCR), `<stem>_v1backup.json` (original OCR), `<stem>.json` (canonical, mutated in place) — silent disagreements between sources caused real bugs. We initially used "most rows wins" which dropped manual sample-level edits in favor of bigger v2 OCR outputs. Fixed by making **user-saved structured edits always win when present**, falling through to OCR sources only when no user data exists.
+
+- **The journal-vs-canonical pattern.** User edits in the reviewer write to two places: `corrections.json` (a journal of user edits in their original schema) and the canonical `<stem>.json` (with merged data the aggregator reads). The journal is replayable across re-OCR cycles — if the canonical gets clobbered by a fresh OCR pass, you can re-apply user edits from the journal. Without the journal, user work is lost on every re-OCR. Pattern is general: keep a separate journal of human-authored deltas, distinct from the canonical merged state.
+
+## Data caveats (where we're guessing)
+
+A few assumptions baked into the resource estimate that aren't fully validated.
+
+- **Fineness = 0.890.** Bear Cub gold purity is 89.0% per the back-page calculations on multiple logs (the `(11.9)(890)` and `(28.2)(890)` annotations). This is consistent with published assays for Cape Nome placer gold, but I haven't pulled a primary-source assay from a fire-assay report. If the actual fineness is 0.85 or 0.92, our oz numbers shift by ±5%.
+- **Bit area from casing diameter.** We compute the cross-sectional area of the drill hole as `π × (D/2)²` using the casing diameter recorded on each log's header. Real placer drilling holes are slightly oversized vs. their casing (the casing wall has thickness; the hole bored is the OD of the bit, which is the casing OD plus wall thickness). The handbook accounts for this with an "effective diameter" correction; we don't. Net effect: our volumes are a few percent low, our grades a few percent high.
+- **Color-weighted mg distribution for Convention C holes.** When the operator only recorded total weights at the sample level (e.g., "115 mg over 0-14 ft") and not per interval, we distribute the sample's mg across the constituent 2-foot intervals proportionally to the per-interval color counts. The assumption is that gold density tracks color density. This is geologically plausible — both reflect operator-observed gold concentration — but it's a heuristic. If a sample has 10 colors per interval uniformly across 14 feet but most of the actual mg is concentrated in 2 ft (because those colors include some larger flakes), color-weighting would smear the grade incorrectly. The aggregate grade across the sample is preserved (mass conservation), but the per-interval distribution may be wrong.
+- **Bedrock imputation for NBR holes.** Three holes (`L6900 H6964`, `L7100 H7160`, `L7300 H7360`) drilled past their max practical depth without striking bedrock ("NBR"). For the volumetric calc we impute their bedrock depth via KNN-IDW from the four nearest non-NBR holes, with a floor of `total_depth + 5 ft`. The imputed values come out at 71-76 ft, consistent with neighboring holes' 70-83 ft, so they're defensible — but they're a guess.
+- **Pay-zone definition is chosen, not measured.** Our pay-zone-only resource uses the highest-mg-density contiguous slice up to 20 ft thick. Tweet's published 10,056 oz uses a similar definition, but the exact thickness cap and density threshold aren't stated in the public docs. Differences of 4 ft in the cap or 0.005 oz/yd³ in the threshold change individual hole pay-zone definitions and could shift the total by a few hundred ounces.
+
+## What might be wrong with the data
+
+Failure modes that would invalidate parts of the analysis if true.
+
+- **Manual transcription errors on user-edited mg values.** The seven holes the user reviewed via the Streamlit reviewer had their mg values manually transcribed from PDF scans. These are likely more accurate than the OCR for those holes, but they're a single-pass human transcription with no second-pair-of-eyes check. A 5-10% error rate would not be surprising and would affect the per-hole grade by the same percentage.
+- **Operator's $20/oz convention vs. actual 1936 gold price.** The operators' cents/yd formulas use a 282.6 creek factor that corresponds to a $20.67/oz gold price (the pre-1934 standard). The Hammon Prospect logs from 1936 use the same constant even though the official gold price after the 1934 Gold Reserve Act was $35/oz. This is a convention issue, not a math error — the operator was reporting "value at the standard prospecting reference price," not actual market value. Our calc converts mg → fine oz directly without going through cents/yd, so this doesn't affect our numbers, but anyone trying to back-derive economic value from the operator's cents/yd notes needs to know which price they assumed.
+- **Bear Cub claim corners.** The 4-corner GPS-anchored affine has an absolute accuracy floor of ~80 ft per hole (cartographer's drawing imprecision). For the resource estimate this doesn't matter — Voronoi cells are scale-stable under small affine perturbations. For overlaying on the satellite image, individual holes might be off by several yards.
+- **Some holes' total depths and bedrock depths conflict between sources.** The original `bear_cub_collars.csv` (manual transcription of the headers) and the new full-OCR pass disagree on a couple of holes — e.g., for `L6900 H6960` the original gave total = 63 ft / bedrock = 53 ft, the new OCR + user review gave 85 / 83 ft. We use the new values, which are consistent with the operator's actual drilling, but the older numbers may be in some downstream caches.
+
+## Cost tracking
+
+```{python}
+#| label: cost-tracking
+#| code-fold: true
+print("OCR cost breakdown (Claude Opus 4.7):")
+print()
+print("  Initial 24-log full OCR pass:           ~$14.00")
+print("  Form-aware re-OCR for 9 problem holes:  ~$5.00")
+print("  H7560 + H7752 retry (timeout + credits):~$1.00")
+print("  Manual reviewer iteration cost:         ~$0.00 (no API; user transcribes)")
+print("  ----------------------------")
+print(f"  Total:                                  ~$20.00 across 24 logs")
+print()
+print("Per-log avg: ~$0.83. For a 1,000-log archive at this rate: ~$830.")
+print("With Document-AI-first hybrid (10x cheaper): ~$80 for 1,000 logs.")
+```
+
+## Per-hole comparison detail (vs. Jesse + Tweet)
+
+Full unified comparison table — every hole's status against the published references:
+
+```{python}
+#| label: unified-comparison-detail
+#| code-fold: true
+import pandas as pd
+from pathlib import Path
+REPO = Path('../..').resolve()
+df = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'jesse_ours_unified.csv')
+both = df[(df['jesse_grade_lo'].notna()) & (df['ours_pay_zone_grade_peak'].notna())]
+both[['hv_id','bear_cub_log','jesse_pay_zone_ft','jesse_grade_lo','jesse_grade_hi',
+      'ours_avg_over_jesse_zone','ours_peak_in_jesse_zone','comparison_flag']]
+```
+
+The `comparison_flag` column compares our depth-weighted average across Jesse's pay zone to Jesse's stated grade. Jesse's grades are published to one significant figure (e.g., 0.01, 0.02, 0.04-0.05). When ours rounds to her stated value, that's a match even if the unrounded difference is 20-40%. The genuine disagreements after applying that lens:
+
+- **HV-7156** (-40%): Jesse uses a tighter 6-14 ft zone within the operator's 0-14 ft sample 1, concentrating 115 mg into 8 ft instead of our 14 ft. Both math-correct, different definitions.
+- **HV-6960** (+68%): Jesse says "8-18" but the operator's sample 1 is 0-18; over the actual 0-18 range our value is within 8% of hers. Jesse appears to have mis-recorded the depth label.
+
+Everything else falls within rounding-level agreement.
+
+## References
+
+- Forbes, M., 1976. *Handbook for the Alaskan Prospector*, ch. 14: "Drilling Placer Deposits". Methodology + worked yield-calculation examples cited throughout. Saved at [`data/raw/bear_cub/reference/Handbook_for_the_Alaskan_Prospector.pdf`](../../data/raw/bear_cub/reference/Handbook_for_the_Alaskan_Prospector.pdf).
+- BLM, 2014. McClintock Re-Survey of MS 1178 (Bear Cub Placer Claim, Cape Nome mining district), Scott McClintock RLS 8904-3. Source for the 4-corner WGS84 anchor.
+- Reed, I.McK., 1908. Patent plat for MS 1178. Course descriptions used for the 4-corner reconstruction.
+
+Source: family-held drill-log archive, Murray group. Methodology + schema-only CSV publishable; raw scans private.

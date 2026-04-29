@@ -5,10 +5,11 @@ subtitle: "Mineral prospectivity mapping on public open data"
 
 A portfolio artifact demonstrating competent engagement with the problem space that [KoBold Metals](https://koboldmetals.com/), [ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/) work in. Public open data, Random Forest + SHAP, spatial block CV, external blind test — and an honest decomposition of where the standard approach fails.
 
-## Two regions
+## Two regions + a dark-data pilot
 
 - **v1 — [Eastern Alaska porphyry Cu-Mo-Au-Ag](notebooks/eastak/eastak_porphyry_prospectivity.qmd)** — Tanacross / Mt. Hayes / Nabesna quadrangles. The story is the external blind test that reveals an exploration-bias trap the training-label metrics hide.
 - **v2 — [BC Golden Triangle (Cu-Au porphyry + epithermal + skarn + VMS)](notebooks/bcgt/bcgt_porphyry_prospectivity.qmd)** — Brucejack / KSM / Red Chris / Galore Creek / Eskay Creek. Multi-deposit-class model validated against a **distribution** of 241 post-2015 drill holes (154 intersected positives + 87 drilled-negative), not the v1 N=1 anecdote.
+- **Pilot — [Bear Cub (Nome placer-Au)](notebooks/bear_cub/main.qmd)** — 24 hand-written 1925-1955 paper drill logs from a family-held archive, ingested end-to-end with a self-correcting OCR + property-map cross-check + empirical-formula-derivation pipeline. Targets KoBold's "TerraShed" pitch directly; demonstrates the legacy-archive ingestion methodology at single-property scale.
 
 ## v1 headline finding (for context)
 
