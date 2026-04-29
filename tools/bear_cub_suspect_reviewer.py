@@ -519,6 +519,9 @@ def main() -> None:
     sample_total = float(edited_s["mg_total"].sum()) if not edited_s.empty else 0.0
     st.caption(f"**Σ samples mg total: {sample_total:.1f}**")
 
+    from ai_minerals.bear_cub.row_editor_ui import render_sample_delete_button
+    render_sample_delete_button(file_stem, s_key, edited_s)
+
     # Pre-emptive validation of the samples table — flag issues before the
     # user clicks auto-link
     if not edited_s.empty:
