@@ -207,16 +207,35 @@ Across 691 intervals captured in the corpus, **74 intervals** exceed Jesse's "ma
 
 ### Per-hole grade profiles
 
-Each hole's grade as a function of depth, plotted as a horizontal bar chart with depth increasing downward (the convention in geology). Colors follow Jesse Grady's classification: white below 0.005 oz/cu yd, light blue at 0.005-0.010, yellow at 0.010-0.020, orange at 0.020-0.050, red at 0.050-0.100, magenta above 0.100.
+Each hole's grade as a function of depth, plotted as a horizontal bar chart with depth increasing downward (the convention in geology). Colors follow Jesse Grady's classification: white below 0.005 oz/cu yd, light blue at 0.005-0.010, yellow at 0.010-0.020, orange at 0.020-0.050, red at 0.050-0.100, magenta above 0.100. All 24 subplots share a common x-axis (0 → corpus max), so a 0.005 bar in one panel reads visually the same as a 0.005 bar anywhere else; each subplot's title prints that hole's peak so per-hole magnitude stays legible.
 
 ```{python}
 #| label: grade-profiles
 #| code-fold: true
-#| fig-cap: "Grade-vs-depth profiles for all 24 holes. Bars show interval grade in oz/cu yd; color follows Jesse's classification (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100). Brown dashed line = bedrock contact."
+#| fig-cap: "Grade-vs-depth profiles for all 24 holes. Shared x-axis 0 → corpus max (~0.6 oz/cu yd). Each subplot's title shows that hole's peak grade. Colors follow Jesse's classification (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100). Brown dashed line = bedrock contact. Holes sorted west→east."
 Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_grade_profiles.png'))
 ```
 
+The honest result of putting all panels on one scale: two holes (`L2 H4` peak 0.576, `L6900 H6952` peak 0.503) absolutely dominate the corpus. Most other holes' bars barely move from zero on this scale — their peaks are 1-2 orders of magnitude lower. The auto-scaled-per-panel version visually equalized them, which made it easy to misread a 0.005 bar as comparable to a 0.5 hit.
+
 Holes where the OCR captured the per-interval gold weights cleanly — most Hammon Field Logs, the Frozen Ground forms, and the single Alaska Gold log — show clear pay-zone signatures: a contiguous depth band of elevated grade typically a few feet thick. Three Hammon Prospect Drilling Logs (`L7100 H7156`, `L7100 H7160`, `L7300 H7360`) initially came back blank because the operator on those logs recorded total weights only at the sample level (groups of 7-30 feet) on the back of the page, not per-interval. The reviewer tool ([tools/bear_cub_ocr_reviewer.py](../../tools/bear_cub_ocr_reviewer.py)) handles this case: the user confirms the per-interval depths, captures the sample-level totals from the back page, and the per-interval weights are inferred from the operator's color counts (which were always recorded per interval). The downstream grade calculation is unchanged.
+
+#### Cross-hole fence diagram
+
+A complementary view: one column per hole, all on the same depth axis, with a single shared **log-scale** color ramp (so 0.001 and 0.5 oz/cu yd are both visible). Cyan brackets mark each hole's pay zone; brown bars at the column base mark bedrock contact. Read the whole 24-hole corpus at once.
+
+```{python}
+#| label: grade-fence
+#| code-fold: true
+#| fig-cap: "Bear Cub fence diagram — one column per hole, sorted west→east. Magma colormap on log scale across all intervals; brown bar = bedrock; cyan bracket = pay zone."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_grade_fence.png'))
+```
+
+Patterns that pop out at a glance:
+
+- **Bedrock-contact pay** on the 3rd-beach-line holes (`L2 H4`, `L6500 H6554`, `L6900 H6952`, `L7300 H7350`): brightest cells sit immediately above the brown bedrock bar.
+- **Near-surface pay** on the Hammon Prospect / NBR holes (`L7100 H7156`, `L7100 H7160`, `L7300 H7360`): cyan brackets cluster at the top of the column with no bedrock cap (these holes were terminated as "no bedrock reached" — see the *Bedrock imputation review* subsection).
+- **Sparse-mg holes** (`L7700 H7752`, `L7500 H7556`, `L7500 H7560`, `L7300 H7360`): mostly dark-to-dim columns — the cartographer recorded the holes but the per-interval weights were thin, so the corresponding rollup grades land low. The review checklist flags these (see `bear_cub_list_review_issues.py --status open`) so they're easy to revisit if the original logs become available again.
 
 ### Plan map + bedrock-depth contour
 
