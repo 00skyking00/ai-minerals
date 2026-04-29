@@ -727,6 +727,36 @@ def main() -> None:
                     "No samples defined yet — fill in the 'Per-sample mg totals' table "
                     "above first."
                 )
+
+        # Inverse: clear all sample_num linkages on this hole. Use this for
+        # Convention A/B holes where the per-interval mg are authoritative
+        # and shouldn't be overwritten by sample-anchored color-weighted
+        # redistribution. (Distribution only triggers when an interval has
+        # sample_num > 0 AND that sample row has mg_total > 0; clearing
+        # sample_num on every interval restores per-interval mg as the grade
+        # input, regardless of what's in the samples table.)
+        if st.button(
+            "🔓 Unlink ALL intervals from samples (per-interval mg authoritative)",
+            key=f"unlink_{file_stem}_p{page_idx}",
+            help="Sets sample# = 0 on every interval row. Use for holes where "
+                 "the operator recorded mg per interval (Convention A/B) so "
+                 "color-weighted redistribution does NOT overwrite them on save.",
+        ):
+            all_rows = st.session_state[rows_key]
+            n_cleared = 0
+            for actual_idx in range(len(all_rows)):
+                key = f"{file_stem}_iv{actual_idx}_sample"
+                prev = int(st.session_state.get(key, 0) or 0)
+                if prev != 0:
+                    n_cleared += 1
+                st.session_state[key] = 0
+            st.session_state["_autolink_msg"] = (
+                f"Cleared sample# on {n_cleared} of {len(all_rows)} intervals. "
+                f"On Save, per-interval mg will be used directly (no sample-anchored "
+                f"redistribution). The samples table itself is unchanged — delete rows "
+                f"there if any are bogus."
+            )
+            st.rerun()
     else:
         st.markdown(
             f"### 📄 Page {page_idx + 1} of {n_pages} · "
