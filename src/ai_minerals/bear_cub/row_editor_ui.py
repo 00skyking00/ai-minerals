@@ -90,6 +90,42 @@ def render_row_generator(file_stem: str, rows_key: str) -> None:
             st.rerun()
 
 
+def render_sample_delete_button(
+    file_stem: str,
+    s_key: str,
+    edited_s,
+) -> None:
+    """Drop a sample row from the per-sample-mg table by sample_num.
+
+    Streamlit's `data_editor` with `num_rows="dynamic"` supports row deletion
+    via leftmost-cell select + DEL key, but that's hidden UX. This helper
+    adds an explicit 🗑️ button. On click: pops the matching row from
+    `session_state[s_key]`, wipes the data_editor widget key so it re-inits
+    from the updated source, then reruns.
+    """
+    if edited_s is None or edited_s.empty:
+        return
+    nums = sorted({int(n) for n in edited_s["sample_num"].dropna().tolist() if int(n) > 0})
+    if not nums:
+        return
+    cols = st.columns([1.4, 1, 5])
+    with cols[0]:
+        target = st.selectbox(
+            "Drop sample #",
+            options=nums,
+            key=f"del_sample_pick_{file_stem}",
+            label_visibility="collapsed",
+        )
+    with cols[1]:
+        if st.button("🗑️ Delete sample row", key=f"del_sample_btn_{file_stem}"):
+            current = list(st.session_state.get(s_key, []))
+            new_rows = [r for r in current if int(r.get("sample_num") or 0) != int(target)]
+            st.session_state[s_key] = new_rows
+            # Wipe the data_editor widget key so it re-initializes from s_key
+            st.session_state.pop(f"editor_s_{file_stem}", None)
+            st.rerun()
+
+
 def render_reload_from_ocr(
     file_stem: str,
     rows_key: str,

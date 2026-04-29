@@ -466,6 +466,8 @@ def main() -> None:
     # Don't write `st.session_state[s_key] = edited_s` here — that would
     # cause the data_editor to reset on the next rerun and drop every-other
     # cell edit. The widget manages its own state via the `key=` arg.
+    from ai_minerals.bear_cub.row_editor_ui import render_sample_delete_button
+    render_sample_delete_button(file_stem, s_key, edited_s)
     sample_total = float(edited_s["mg_total"].sum()) if not edited_s.empty else 0.0
     st.caption(f"**Σ samples mg total: {sample_total:.1f}**")
 
