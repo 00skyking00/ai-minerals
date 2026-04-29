@@ -320,7 +320,7 @@ if mc.get('p05') is not None:
 
 - **Pay-zone window cap.** Currently 20 ft. Wider cap (e.g. 30 ft) admits broader pay zones with lower densities; narrower cap (e.g. 12 ft) picks tighter zones with higher densities. This shifts the volume × grade trade.
 - **Sliding-window vs Tweet's "uniform 8-ft pay layer".** Different pay-zone definitions, both internally consistent, produce different totals. Our pay-zone-only number being 59% of Tweet's reflects this choice.
-- **Bedrock imputation for NBR holes.** Three holes' bedrocks are inferred from KNN-IDW with a `total_depth + 5 ft` floor; the imputed values are a guess.
+- **Bedrock imputation for NBR holes.** Three holes' bedrocks are inferred from KNN-IDW with a `total_depth + 5 ft` floor. See the *Bedrock imputation review* subsection below for the sensitivity sweep + GP alternative — sensitivity is small (a couple percent on the property total) but the imputation is treated as a point estimate, not a distribution.
 - **Color-weighted distribution for Convention C samples.** Sample-level mg distributed proportionally to color counts. Other distributions (uniform; weighted by interval thickness) would shift per-interval grades within a sample.
 
 A more complete uncertainty wrap would run multiple methodology variants in addition to the parameter Monte Carlo. That's a follow-up.
@@ -393,6 +393,49 @@ cv
 **Where we agree.** Hole `L6700 H6760` comes out at 0.045 oz/cu yd in our pipeline at the 40-48 ft pay zone versus Tweet's published 0.050 — within 10%. Same source data, two independent transcriptions (ours via OCR, Tweet's manual), independent calculations, agreement at the ten-percent level. This is the kind of validation that would be impossible with a single transcription pass.
 
 **Where we differ.** Hole `L7100 H7156` has a Hammon Prospect form variant where the operator only recorded total weights at the sample level (a 14-foot interval covering the whole pay zone) on the back of the page, with per-2-foot intervals showing only "VF" / "F" letter codes. Jesse identified a tighter pay zone of 6-14 ft (8 feet) within that 14-foot sample, getting a grade of 0.05 oz/cu yd by attributing all 115 mg of recovered gold to those 8 feet. Our pipeline's color-weighted distribution spreads the 115 mg across the full 0-14 ft sample range, getting 0.030. Both are math-correct; they're different pay-zone definitions. This is the methodological choice that the resource-analysis comparison surfaces.
+
+### Bedrock imputation review
+
+Three holes — `L6900 H6964`, `L7100 H7160`, `L7300 H7360` — were terminated as "No Bedrock Reached" (NBR). Their pay zones extend the full drilled depth, but the polygon volume calculation needs a real bedrock elevation to compute a thickness above bedrock. We impute it.
+
+**Algorithm.** For each NBR hole, take the K=4 nearest non-NBR holes by 2D Euclidean distance, weight by inverse-distance-squared, and take the weighted average bedrock depth. Then floor the result at `total_depth + 5 ft` — geological constraint: NBR means bedrock is *below* the drilled depth, so the imputed value cannot be shallower than what was drilled.
+
+**Sensitivity sweep.** Re-run the imputation under `K ∈ {2,3,4,5,6}` and `floor ∈ {0, 5, 10, 15}` ft to see how robust each imputed value is.
+
+```{python}
+#| label: bedrock-sensitivity
+#| code-fold: true
+import pandas as pd
+from pathlib import Path
+REPO = Path('../..').resolve()
+sens = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'bedrock_imputation_sensitivity.csv')
+
+knn = sens[sens['method'] == 'knn_idw'].copy()
+gp = sens[sens['method'] == 'gp'].copy()
+
+# Per-hole pivot of imputed_ft over (K, floor)
+for fs in knn['file_stem'].unique():
+    sub = knn[knn['file_stem'] == fs]
+    pivot = sub.pivot(index='K', columns='floor_ft', values='imputed_ft').round(1)
+    pivot.index = [f"K={int(k)}" for k in pivot.index]
+    pivot.columns = [f"floor={int(f)}ft" for f in pivot.columns]
+    print(f"\n{fs}  (default K=4, floor=5: {sub[(sub.K==4) & (sub.floor_ft==5)].imputed_ft.values[0]:.1f} ft)")
+    print(pivot.to_string())
+
+print("\nGP alternative (mean ± std):")
+for _, r in gp.iterrows():
+    print(f"  {r['file_stem']}: {r['imputed_ft']:.1f} ± {r['gp_std_ft']:.1f} ft")
+```
+
+**Reading the table.** Within each hole, KNN-IDW is stable across K choices — the 5 K values cluster within ~3 ft for any fixed floor. The floor is what bites: at `floor=15 ft` (TD + 15), the floor wins for all three holes and pushes the imputed value above what the neighbors suggest. At `floor=0 ft` (no floor), KNN-IDW alone wins. Our default `K=4, floor=5 ft` lands in the middle of the floor-not-binding regime for two holes (H6964, H7160) and the floor-just-binding regime for H7360.
+
+**GP alternative.** A Gaussian Process regression on the 21 non-NBR holes' bedrock depths (anisotropic RBF + WhiteKernel, MLE-fit length scales) gives mean predictions broadly consistent with KNN-IDW (within 4 ft) and adds a posterior std of ~4-6 ft. That std is the right input to the existing Monte Carlo wrapper — the next iteration would draw imputed bedrocks from `N(GP mean, GP std)` per MC sample rather than treating the imputation as a point estimate.
+
+**What's good.** Conservative bias from the floor; smooth interpolation (no RBF-style wild extrapolation, which we tried first and gave 113 ft for H6964); robust to K choice.
+
+**What's missing.** Anisotropy. Bear Cub crosses the 3rd beach line; bedrock is not isotropic in space — a hole 100 ft along-trend is geologically more relevant than a hole 100 ft across-trend. Our KNN distance metric ignores that. The GP's anisotropic RBF *can* learn it, but with n=21 the length scales are weakly identified. A geologically-informed prior (e.g., distance projected onto a beach-line trace) would help — out of scope for this sprint, noted for the toolkit follow-up.
+
+**Impact on the resource estimate.** All three imputed holes are inside the polygon; their bedrock affects the column thickness above bedrock. Across the full sensitivity grid the imputed bedrocks vary by at most ~10 ft (most of that swing comes from the 15 ft floor case, which pushes shallowest neighbors out). On a polygon column averaging ~70 ft, that's a ~14% per-hole swing on three of 24 holes — at most a couple percent on the property total. The resource estimate is not load-bearing on this choice.
 
 ## What this doesn't prove
 
