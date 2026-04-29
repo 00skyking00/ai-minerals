@@ -500,6 +500,11 @@ def main() -> None:
 
     # ---------- Review checklist (auto-generated anomaly items) ----------
     from ai_minerals.bear_cub.checklist_ui import render_checklist
+    from ai_minerals.bear_cub.row_editor_ui import (
+        render_reload_from_ocr,
+        render_row_generator,
+        wipe_iv_widget_state,
+    )
     render_checklist(file_stem)
     st.markdown("---")
 
@@ -652,43 +657,20 @@ def main() -> None:
             f"depth {depth_from:.0f}-{depth_to:.0f} ft → **0 intervals match**"
         )
         st.warning(
-            "No intervals exist in this depth range — the OCR missed this section "
-            "(e.g., page 2 of a multi-page log when only page 1 was captured)."
+            "No intervals in this depth range — use the row generator below to "
+            "fill the page (set `from`/`to` to this page's depth range)."
         )
-        gen_cols = st.columns([2, 1, 1])
-        with gen_cols[0]:
-            st.markdown("**Auto-generate blank interval rows for this page:**")
-        with gen_cols[1]:
-            gen_step = st.number_input(
-                "Step (ft)", min_value=0.5, max_value=20.0,
-                value=2.0, step=0.5,
-                key=f"gen_step_{file_stem}_p{page_idx}",
-            )
-        with gen_cols[2]:
-            if st.button(
-                f"➕ Generate {int((depth_to - depth_from) / gen_step)} rows",
-                key=f"gen_btn_{file_stem}_p{page_idx}",
-                type="primary",
-            ):
-                new_rows = []
-                d = depth_from
-                while d < depth_to - 1e-6:
-                    new_rows.append({
-                        "depth_from_ft": float(d),
-                        "depth_to_ft": float(min(d + gen_step, depth_to)),
-                        "mg": 0.0,
-                        "colors": 0,
-                        "notes": "",
-                    })
-                    d += gen_step
-                st.session_state[rows_key] = rows + new_rows
-                st.rerun()
+
+    # Always-visible row generator (for filling missed bands or extending past TD)
+    render_row_generator(file_stem, rows_key)
+    st.markdown("")
 
     if n_rows_this_page == 0:
-        st.caption("(no intervals assigned to this page — set interval-range in the crop expander)")
+        st.caption("(no intervals on this page — set the interval range above and click Generate)")
     else:
         # Column header
-        hcols = st.columns([5, 0.8, 0.8, 1, 0.8, 0.7, 1.5])
+        col_widths = [5, 0.8, 0.8, 1, 0.8, 0.7, 1.2, 0.7]
+        hcols = st.columns(col_widths)
         hcols[0].markdown("**Cropped strip · TIME · DEPTH · COLORS · WEIGHT · VOLUME**")
         hcols[1].markdown("**from**")
         hcols[2].markdown("**to**")
@@ -696,11 +678,12 @@ def main() -> None:
         hcols[4].markdown("**colors**")
         hcols[5].markdown("**sample#**")
         hcols[6].markdown("**notes**")
+        hcols[7].markdown("**🗑️/➕**")
 
         for j, row in enumerate(page_rows):
             actual_idx = page_indices[j]
             strip = crop_strip(img, crop, n_rows_this_page, j)
-            cols = st.columns([5, 0.8, 0.8, 1, 0.8, 0.7, 1.5])
+            cols = st.columns(col_widths)
             with cols[0]:
                 st.image(strip, use_container_width=True)
             with cols[1]:
@@ -740,6 +723,33 @@ def main() -> None:
                     label_visibility="collapsed",
                     key=f"{file_stem}_iv{actual_idx}_notes",
                 )
+            with cols[7]:
+                if st.button("🗑️", key=f"del_{file_stem}_iv{actual_idx}",
+                             help="Delete this interval row"):
+                    cur = st.session_state[rows_key]
+                    if 0 <= actual_idx < len(cur):
+                        cur.pop(actual_idx)
+                        st.session_state[rows_key] = cur
+                        wipe_iv_widget_state(file_stem)
+                        st.rerun()
+                if st.button("➕", key=f"ins_{file_stem}_iv{actual_idx}",
+                             help="Insert a new row after this one"):
+                    cur = st.session_state[rows_key]
+                    if 0 <= actual_idx < len(cur):
+                        r = cur[actual_idx]
+                        d_from = float(r.get("depth_to_ft") or 0)
+                        d_step = float((r.get("depth_to_ft") or 0) - (r.get("depth_from_ft") or 0)) or 2.0
+                        cur.insert(actual_idx + 1, {
+                            "depth_from_ft": d_from,
+                            "depth_to_ft": d_from + d_step,
+                            "mg": 0.0,
+                            "colors": 0,
+                            "sample_num": 0,
+                            "notes": "",
+                        })
+                        st.session_state[rows_key] = cur
+                        wipe_iv_widget_state(file_stem)
+                        st.rerun()
 
     # Collect ALL pages' edits from session state (widget keys persist across page nav)
     updated_rows: list[dict] = []
@@ -761,23 +771,8 @@ def main() -> None:
     mg_sum = sum(r["mg"] for r in updated_rows)
     st.caption(f"**Σ mg across {n_rows} intervals: {mg_sum:.1f}**")
 
-    # ---------- Add / remove rows ----------
-    cc1, cc2, cc3 = st.columns([1, 1, 4])
-    with cc1:
-        if st.button("➕ Add row"):
-            cur_rows = st.session_state[rows_key]
-            last_to = max((float(r.get("depth_to_ft") or 0) for r in cur_rows), default=0.0)
-            st.session_state[rows_key].append({
-                "depth_from_ft": last_to,
-                "depth_to_ft": last_to + 2.0,
-                "mg": 0.0, "colors": 0, "sample_num": 0, "notes": "",
-            })
-            st.rerun()
-    with cc2:
-        if st.button("🔄 Reload from OCR") and src_label != "user-saved (ocr_corrections)":
-            del st.session_state[rows_key]
-            del st.session_state[f"_init_{file_stem}"]
-            st.rerun()
+    # ---------- Reload from OCR (with confirmation) ----------
+    render_reload_from_ocr(file_stem, rows_key, src_label, corrections, CORRECTIONS)
 
     # ---------- Back-of-page data (read from OCR's `back` field) ----------
     canonical_doc = load_json(OCR_DIR / f"{file_stem}.json")
