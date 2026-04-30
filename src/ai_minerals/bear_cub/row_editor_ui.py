@@ -39,14 +39,17 @@ def wipe_iv_widget_state(file_stem: str) -> None:
 def render_row_generator(file_stem: str, rows_key: str) -> None:
     """Always-visible block for generating N new rows of a fixed step.
 
-    Defaults: from=max existing depth_to, to=from+30, step=2.0. Appends
-    to `st.session_state[rows_key]` (does not replace) and wipes widget
-    state so existing rows re-render cleanly under their new indices.
+    Defaults: from=max existing depth_to, to=from+30, step=2.0. New rows
+    are MERGED into `st.session_state[rows_key]` and the combined list is
+    re-sorted by `depth_from_ft`, so a gap-fill at e.g. 82-83 ft slots
+    between existing 81-82 and 83-84 rows instead of appending to the end.
+    Then wipes widget state so all rows re-render cleanly under their new
+    sorted indices.
     """
     rows = st.session_state.get(rows_key, [])
     last_to = max((float(r.get("depth_to_ft") or 0) for r in rows), default=0.0)
 
-    st.markdown("**➕ Generate rows** (appends; useful when OCR missed an interval band)")
+    st.markdown("**➕ Generate rows** (inserts in sorted depth order; useful when OCR missed an interval band)")
     g = st.columns([1.2, 1.2, 1.2, 1.4, 4])
     with g[0]:
         gen_from = st.number_input(
@@ -85,7 +88,9 @@ def render_row_generator(file_stem: str, rows_key: str) -> None:
                     "notes": "",
                 })
                 d += gen_step
-            st.session_state[rows_key] = rows + new_rows
+            combined = list(rows) + new_rows
+            combined.sort(key=lambda r: float(r.get("depth_from_ft") or 0))
+            st.session_state[rows_key] = combined
             wipe_iv_widget_state(file_stem)
             st.rerun()
 
