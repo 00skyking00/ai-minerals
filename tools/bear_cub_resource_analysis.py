@@ -731,15 +731,21 @@ def main() -> None:
                 [h.bedrock_depth_ft, h.bedrock_depth_ft],
                 color="brown", linewidth=2.0, solid_capstyle="butt",
             )
-        # pay-zone bracket on the column's left side
+        # Pay-zone highlight: thick magenta frame around the pay-zone
+        # interval cells. Magenta contrasts with every color in hot_r
+        # (white, yellow, red, black), so the highlight reads at a glance
+        # whether the underlying cell is barren or high-grade.
         pz_top = h.get("pay_zone_top_ft")
         pz_bot = h.get("pay_zone_bottom_ft")
         if pz_top is not None and pz_bot is not None and pz_bot > pz_top:
-            ax.plot(
-                [col - column_width/2 - 0.05] * 2,
-                [pz_top, pz_bot],
-                color="cyan", linewidth=2.5, solid_capstyle="butt",
-            )
+            pz_pad = 0.04            # frame extends just beyond column edges
+            ax.add_patch(Rectangle(
+                (col - column_width/2 - pz_pad, pz_top),
+                column_width + 2*pz_pad,
+                pz_bot - pz_top,
+                fill=False, edgecolor="#ff00ff", linewidth=2.0,
+                zorder=5,            # over cells, under bedrock + axis grid
+            ))
 
     ax.set_xticks(range(n))
     ax.set_xticklabels(
@@ -754,7 +760,7 @@ def main() -> None:
         "Bear Cub fence diagram — one column per hole, shared color scale (log)\n"
         "hot_r: white→yellow→orange→red→black (darker = more gold) · "
         "white = drilled-but-barren · blue hatch = data gap · "
-        "brown bar = bedrock · cyan = pay zone · sorted west→east",
+        "brown bar = bedrock · magenta frame = pay zone · sorted west→east",
         fontsize=10,
     )
     ax.grid(axis="y", alpha=0.3, color="white")
@@ -771,10 +777,12 @@ def main() -> None:
               linewidth=0.4, label="Drilled, no row captured (data gap)"),
         Patch(facecolor="#e8e8e8", edgecolor="#888", linewidth=0.4,
               label="Below drilled depth (column ends)"),
+        Patch(facecolor="none", edgecolor="#ff00ff", linewidth=2.0,
+              label="Pay zone (sliding-window peak)"),
     ]
     ax.legend(
         handles=legend_handles, loc="lower right", fontsize=8,
-        framealpha=0.95, title="Non-grade states", title_fontsize=8,
+        framealpha=0.95, title="Annotations", title_fontsize=8,
     )
     fig.tight_layout()
     fig.savefig(OUT / "fig_grade_fence.png", dpi=120, bbox_inches="tight",
