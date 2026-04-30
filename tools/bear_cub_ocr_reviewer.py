@@ -55,6 +55,10 @@ PROBLEM_HOLES = [
     ("L7300 H7360", "convention_C", "Hammon Prospect Conv C — 48 mg"),
     ("L7500 H7560", "convention_A", "Hammon Field — 6 mg total"),
     ("L7700 H7752", "convention_A", "Hammon Field — 41 mg"),
+    ("L7700 H7754", "convention_A",
+     "Hammon Field — Σ user mg = 98 mg, peak 0.132 at 13-15 ft (well above bedrock 62 ft). "
+     "Sample-anchor redistribution rank #7 in the diff list (Σ|Δ|=7.7 mg, 8% change). "
+     "Per-interval mg are authoritative on Conv A — likely candidate for the 🔓 Unlink button."),
 ]
 
 DEFAULT_SAMPLE_ROW = {
