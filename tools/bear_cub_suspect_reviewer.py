@@ -193,6 +193,9 @@ def get_best_intervals(stem: str, existing: dict) -> tuple[str, list[dict]]:
                 "sample_num": int(r.get("sample_num") or 0),
                 "notes": r.get("notes", "") or "",
             })
+        # Always sort by depth_from so rows render top-to-bottom by drilled
+        # depth, even if a prior save appended a gap-fill row at the end.
+        rows.sort(key=lambda r: r["depth_from_ft"])
         if rows:
             return "user-saved (your edits)", rows
 
@@ -1015,6 +1018,31 @@ def main() -> None:
 
         # 2. Canonical with sample-distributed effective_mg as estimated_weight_mg
         canon_path = merge_to_canonical(file_stem, iv_filtered, new_bedrock, samples=s_filtered)
+
+        # 3. Refresh rows_key to match what we just persisted, sorted by
+        # depth_from. Without this, subsequent saves would read from a stale
+        # rows_key (whose .mg fallback values are pre-edit) — a problem if
+        # widget state ever gets cleared (e.g., via row generate / delete /
+        # reload after the save). The init flag is also bumped so the start-
+        # of-script re-init guard won't replay a stale "user-saved" snapshot.
+        sorted_rows = sorted(iv_filtered,
+                             key=lambda r: float(r.get("depth_from_ft") or 0))
+        st.session_state[rows_key] = [
+            {
+                "depth_from_ft": float(r.get("depth_from_ft") or 0),
+                "depth_to_ft":   float(r.get("depth_to_ft") or 0),
+                "mg":            float(r.get("mg") or 0),
+                "colors":        int(r.get("colors") or 0),
+                "sample_num":    int(r.get("sample_num") or 0),
+                "notes":         r.get("notes", "") or "",
+            }
+            for r in sorted_rows
+        ]
+        st.session_state[f"_init_{file_stem}"] = "user-saved (ocr_corrections)"
+        # Wipe widget state so next render binds widgets to the post-save
+        # rows_key indices, not stale pre-save indices.
+        from ai_minerals.bear_cub.row_editor_ui import wipe_iv_widget_state
+        wipe_iv_widget_state(file_stem)
 
         st.success(
             f"Saved {file_stem}: {len(iv_filtered)} intervals (Σ effective mg = {eff_mg_sum:.1f}), "

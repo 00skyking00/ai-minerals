@@ -144,6 +144,9 @@ def get_best_intervals(stem: str, existing: dict) -> tuple[str, list[dict]]:
                 "sample_num": int(r.get("sample_num") or 0),
                 "notes": r.get("notes", "") or "",
             })
+        # Sort by depth_from so a gap-fill row that historically landed at
+        # the end (pre-fix) renders in its correct position now.
+        rows.sort(key=lambda r: r["depth_from_ft"])
         if rows:
             return "user-saved (your edits)", rows
 
@@ -938,6 +941,26 @@ def main() -> None:
 
         # 2. Canonical with sample-distributed effective_mg as estimated_weight_mg
         canon_path = merge_to_canonical(file_stem, iv_filtered, new_bedrock, samples=s_filtered)
+
+        # 3. Refresh rows_key + wipe widget state so subsequent saves don't
+        # read from stale pre-edit rows_key values (see suspect reviewer for
+        # full reasoning).
+        sorted_rows = sorted(iv_filtered,
+                             key=lambda r: float(r.get("depth_from_ft") or 0))
+        st.session_state[rows_key] = [
+            {
+                "depth_from_ft": float(r.get("depth_from_ft") or 0),
+                "depth_to_ft":   float(r.get("depth_to_ft") or 0),
+                "mg":            float(r.get("mg") or 0),
+                "colors":        int(r.get("colors") or 0),
+                "sample_num":    int(r.get("sample_num") or 0),
+                "notes":         r.get("notes", "") or "",
+            }
+            for r in sorted_rows
+        ]
+        st.session_state[f"_init_{file_stem}"] = "user-saved (ocr_corrections)"
+        from ai_minerals.bear_cub.row_editor_ui import wipe_iv_widget_state
+        wipe_iv_widget_state(file_stem)
 
         st.success(
             f"Saved {file_stem}: {len(iv_filtered)} intervals (Σ effective mg = {eff_mg_sum:.1f}), "
