@@ -126,16 +126,31 @@ def main() -> None:
                     source=ctx.providers.Esri.WorldImagery,
                     zoom=18, attribution=False)
 
-    # Voronoi cells in Web Mercator, clipped to claim outline
+    # Voronoi cells in Web Mercator, clipped to claim outline. Augment
+    # with 4 ghost points far outside the bbox so the real holes' cells
+    # are all bounded — without this, every hole on the convex hull of
+    # the cluster (TL/TR/BR corners + boundary edges) is silently dropped
+    # because its Voronoi region extends to infinity (region contains -1).
     interior = valid[valid["pay_zone_thickness_ft"] > 0].copy()
     pts = interior[["x_merc", "y_merc"]].values
     if len(pts) >= 4:
-        vor = Voronoi(pts)
+        xs_pts, ys_pts = pts[:, 0], pts[:, 1]
+        pad = max(xs_pts.max() - xs_pts.min(),
+                  ys_pts.max() - ys_pts.min()) * 10
+        ghosts = np.array([
+            [xs_pts.min() - pad, ys_pts.min() - pad],
+            [xs_pts.max() + pad, ys_pts.min() - pad],
+            [xs_pts.max() + pad, ys_pts.max() + pad],
+            [xs_pts.min() - pad, ys_pts.max() + pad],
+        ])
+        n_real = len(pts)
+        augmented = np.vstack([pts, ghosts])
+        vor = Voronoi(augmented)
         claim_poly = Polygon(list(zip(corner_xs[:-1], corner_ys[:-1])))
-        for i, region_idx in enumerate(vor.point_region):
-            region = vor.regions[region_idx]
+        for i in range(n_real):           # iterate real holes only
+            region = vor.regions[vor.point_region[i]]
             if not region or -1 in region:
-                continue
+                continue                  # rare with ghost padding
             verts = vor.vertices[region]
             try:
                 cell = Polygon(verts).intersection(claim_poly)
