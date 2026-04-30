@@ -238,7 +238,8 @@ def main() -> None:
     rollups = hole_rollups(iv, collars)
     rollups = rollups.merge(collars[["file_stem", "lat_wgs84", "lon_wgs84",
                                      "easting_local_ft", "northing_local_ft",
-                                     "elevation_ft", "form_type"]],
+                                     "elevation_ft", "form_type",
+                                     "total_depth_ft"]],
                             on="file_stem", how="left")
     rollups.to_parquet(OUT / "hole_rollups.parquet", index=False)
     rollups.to_csv(OUT / "hole_rollups.csv", index=False)
@@ -658,17 +659,67 @@ def main() -> None:
     norm = LogNorm(vmin=grade_min, vmax=grade_max)
     cmap = plt.get_cmap("magma")
 
+    # Visual encoding (4 states):
+    #   1. Drilled, grade > 0     → magma color (log scale)
+    #   2. Drilled, grade = 0     → pale teal (operator panned, no gold)
+    #   3. Drilled, no iv row     → red diagonal hatch (data gap — OCR
+    #                              missed a row, or operator skipped)
+    #   4. Below total drilled    → blank (column simply ends)
+    BARREN_FILL = "#000003"          # nearly black — darker than magma's
+                                      # vmin so "darker = less gold" stays
+                                      # monotonic across the whole figure
+    GAP_HATCH_FILL = "#ffe6e6"       # very pale red wash under hatch
+    GAP_HATCH_EDGE = "#cc4444"       # red hatch lines
+
     for col, (_, h) in enumerate(holes_sorted.iterrows()):
         sub = iv[iv.file_stem == h.file_stem].sort_values("depth_from_ft")
+        # Determine drilled extent: total_depth_ft if present, else bedrock,
+        # else the deepest interval we have.
+        td = float(h.get("total_depth_ft") or 0)
+        br = float(h.bedrock_depth_ft) if h.bedrock_depth_ft and h.bedrock_depth_ft > 0 else 0.0
+        deepest_iv = float(sub["depth_to_ft"].max()) if len(sub) else 0.0
+        drilled_to = max(td, br, deepest_iv)
+
+        # Render iv rows
         for _, r in sub.iterrows():
             g = float(r.grade_oz_per_cu_yd)
-            color = cmap(norm(max(g, LOG_MIN))) if g > 0 else (0.95, 0.95, 0.95, 1.0)
+            color = cmap(norm(max(g, LOG_MIN))) if g > 0 else BARREN_FILL
             ax.add_patch(Rectangle(
                 (col - column_width/2, r.depth_from_ft),
                 column_width,
                 (r.depth_to_ft - r.depth_from_ft),
                 facecolor=color, edgecolor="black", linewidth=0.15,
             ))
+
+        # Render data-gap rows (drilled-but-no-iv-row) with red hatch
+        intervals_list = sorted(
+            (float(a), float(b)) for a, b in
+            zip(sub["depth_from_ft"].astype(float), sub["depth_to_ft"].astype(float))
+        )
+        cursor = 0.0
+        for a, b in intervals_list:
+            if a > cursor + 0.5:
+                ax.add_patch(Rectangle(
+                    (col - column_width/2, cursor),
+                    column_width,
+                    a - cursor,
+                    facecolor=GAP_HATCH_FILL,
+                    edgecolor=GAP_HATCH_EDGE,
+                    linewidth=0.4,
+                    hatch="////",
+                ))
+            cursor = max(cursor, b)
+        if drilled_to > 0 and cursor < drilled_to - 0.5:
+            ax.add_patch(Rectangle(
+                (col - column_width/2, cursor),
+                column_width,
+                drilled_to - cursor,
+                facecolor=GAP_HATCH_FILL,
+                edgecolor=GAP_HATCH_EDGE,
+                linewidth=0.4,
+                hatch="////",
+            ))
+
         # bedrock cap as a thick brown bar at the bottom of the column
         if h.bedrock_depth_ft and h.bedrock_depth_ft > 0:
             ax.plot(
@@ -697,14 +748,29 @@ def main() -> None:
     ax.set_ylabel("Depth (ft)")
     ax.set_title(
         "Bear Cub fence diagram — one column per hole, shared color scale (log)\n"
-        "magma = grade (oz/cu yd) · brown bar = bedrock · cyan = pay zone · "
-        "columns sorted west→east",
+        "magma = grade (lighter = more gold) · black = drilled-but-barren · "
+        "red hatch = data gap · brown bar = bedrock · cyan = pay zone · sorted west→east",
         fontsize=10,
     )
     ax.grid(axis="y", alpha=0.3)
     sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     cbar = plt.colorbar(sm, ax=ax, fraction=0.025, pad=0.01)
     cbar.set_label("Grade (oz/cu yd, log)", fontsize=9)
+
+    # Explicit legend for the non-magma states
+    from matplotlib.patches import Patch
+    legend_handles = [
+        Patch(facecolor=BARREN_FILL, edgecolor="white", linewidth=0.4,
+              label="Drilled, panned 0 mg (barren — below colorscale)"),
+        Patch(facecolor=GAP_HATCH_FILL, edgecolor=GAP_HATCH_EDGE, hatch="////",
+              linewidth=0.4, label="Drilled, no row captured (data gap)"),
+        Patch(facecolor="white", edgecolor="black", linewidth=0.4,
+              label="Below drilled depth (column ends)"),
+    ]
+    ax.legend(
+        handles=legend_handles, loc="lower right", fontsize=8,
+        framealpha=0.95, title="Non-grade states", title_fontsize=8,
+    )
     fig.tight_layout()
     fig.savefig(OUT / "fig_grade_fence.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
