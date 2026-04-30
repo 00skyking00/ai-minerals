@@ -648,28 +648,32 @@ def main() -> None:
     ) if "easting_local_ft" in valid.columns else valid.sort_values("file_stem")
 
     n = len(holes_sorted)
-    fig, ax = plt.subplots(figsize=(max(14, n * 0.55), 8))
+    fig, ax = plt.subplots(figsize=(max(14, n * 0.55), 8), facecolor="#e8e8e8")
+    ax.set_facecolor("#e8e8e8")
     column_width = 0.7
     max_depth = float(max(
         valid["bedrock_depth_ft"].max() if "bedrock_depth_ft" in valid.columns else 0,
         iv["depth_to_ft"].max(),
+        valid["total_depth_ft"].max() if "total_depth_ft" in valid.columns else 0,
     ))
     grade_min = max(LOG_MIN, float(iv[iv["grade_oz_per_cu_yd"] > 0]["grade_oz_per_cu_yd"].min()))
     grade_max = float(iv["grade_oz_per_cu_yd"].max())
     norm = LogNorm(vmin=grade_min, vmax=grade_max)
-    cmap = plt.get_cmap("magma")
+    cmap = plt.get_cmap("hot_r")     # white(low) → yellow → orange → red → black(high);
+                                      # darker = more gold reads against the medium-gray
+                                      # panel background, so high-grade hits pop visually
 
-    # Visual encoding (4 states):
-    #   1. Drilled, grade > 0     → magma color (log scale)
-    #   2. Drilled, grade = 0     → pale teal (operator panned, no gold)
-    #   3. Drilled, no iv row     → red diagonal hatch (data gap — OCR
-    #                              missed a row, or operator skipped)
-    #   4. Below total drilled    → blank (column simply ends)
-    BARREN_FILL = "#000003"          # nearly black — darker than magma's
-                                      # vmin so "darker = less gold" stays
-                                      # monotonic across the whole figure
-    GAP_HATCH_FILL = "#ffe6e6"       # very pale red wash under hatch
-    GAP_HATCH_EDGE = "#cc4444"       # red hatch lines
+    # Visual encoding (4 states), tuned to read against a medium-gray
+    # panel background so each non-grade state is unambiguous:
+    #   1. Drilled, grade > 0  → hot_r color (log) — darker means more gold
+    #   2. Drilled, grade = 0  → pure white (clearly off the colorscale,
+    #                            distinct from gray panel and from blue gap)
+    #   3. Drilled, no iv row  → blue diagonal hatch (orthogonal hue to
+    #                            the white→yellow→red→black gradient)
+    #   4. Below drilled depth → no rectangle drawn (gray panel shows)
+    BARREN_FILL = "#ffffff"
+    GAP_HATCH_FILL = "#e6f0ff"
+    GAP_HATCH_EDGE = "#3060c0"
 
     for col, (_, h) in enumerate(holes_sorted.iterrows()):
         sub = iv[iv.file_stem == h.file_stem].sort_values("depth_from_ft")
@@ -748,11 +752,12 @@ def main() -> None:
     ax.set_ylabel("Depth (ft)")
     ax.set_title(
         "Bear Cub fence diagram — one column per hole, shared color scale (log)\n"
-        "magma = grade (lighter = more gold) · black = drilled-but-barren · "
-        "red hatch = data gap · brown bar = bedrock · cyan = pay zone · sorted west→east",
+        "hot_r: white→yellow→orange→red→black (darker = more gold) · "
+        "white = drilled-but-barren · blue hatch = data gap · "
+        "brown bar = bedrock · cyan = pay zone · sorted west→east",
         fontsize=10,
     )
-    ax.grid(axis="y", alpha=0.3)
+    ax.grid(axis="y", alpha=0.3, color="white")
     sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     cbar = plt.colorbar(sm, ax=ax, fraction=0.025, pad=0.01)
     cbar.set_label("Grade (oz/cu yd, log)", fontsize=9)
@@ -760,11 +765,11 @@ def main() -> None:
     # Explicit legend for the non-magma states
     from matplotlib.patches import Patch
     legend_handles = [
-        Patch(facecolor=BARREN_FILL, edgecolor="white", linewidth=0.4,
-              label="Drilled, panned 0 mg (barren — below colorscale)"),
+        Patch(facecolor=BARREN_FILL, edgecolor="black", linewidth=0.4,
+              label="Drilled, panned 0 mg (barren)"),
         Patch(facecolor=GAP_HATCH_FILL, edgecolor=GAP_HATCH_EDGE, hatch="////",
               linewidth=0.4, label="Drilled, no row captured (data gap)"),
-        Patch(facecolor="white", edgecolor="black", linewidth=0.4,
+        Patch(facecolor="#e8e8e8", edgecolor="#888", linewidth=0.4,
               label="Below drilled depth (column ends)"),
     ]
     ax.legend(
@@ -772,7 +777,8 @@ def main() -> None:
         framealpha=0.95, title="Non-grade states", title_fontsize=8,
     )
     fig.tight_layout()
-    fig.savefig(OUT / "fig_grade_fence.png", dpi=120, bbox_inches="tight")
+    fig.savefig(OUT / "fig_grade_fence.png", dpi=120, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
     plt.close(fig)
     print(f"  → fig_grade_fence.png")
 
