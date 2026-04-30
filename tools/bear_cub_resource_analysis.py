@@ -787,19 +787,32 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     print("\nPay-zone-only grade map (Tweet-comparable) ...")
     fig, ax = plt.subplots(figsize=(11, 9))
-    # Draw Voronoi polygons colored by pay_zone_avg_grade
+    # Draw Voronoi polygons colored by pay_zone_avg_grade. Augment with
+    # ghost points so boundary holes' cells are bounded (otherwise every
+    # convex-hull hole is silently dropped from the figure). Clip to the
+    # claim quadrilateral, not the bounding rectangle, so cells stop at
+    # the patent edge.
     from scipy.spatial import Voronoi as _Vor
-    from shapely.geometry import Polygon as _Poly, box as _box
-    pz_clip = _box(*bbox)
+    from shapely.geometry import Polygon as _Poly
     pz_pts = interior[["x_ft", "y_ft"]].values
-    pz_vor = _Vor(pz_pts)
-    for i, region_idx in enumerate(pz_vor.point_region):
-        region = pz_vor.regions[region_idx]
+    xmin, ymin = pz_pts.min(axis=0)
+    xmax, ymax = pz_pts.max(axis=0)
+    pz_pad = max(xmax - xmin, ymax - ymin) * 10
+    pz_ghosts = np.array([
+        [xmin - pz_pad, ymin - pz_pad],
+        [xmax + pz_pad, ymin - pz_pad],
+        [xmax + pz_pad, ymax + pz_pad],
+        [xmin - pz_pad, ymax + pz_pad],
+    ])
+    pz_n_real = len(pz_pts)
+    pz_vor = _Vor(np.vstack([pz_pts, pz_ghosts]))
+    for i in range(pz_n_real):
+        region = pz_vor.regions[pz_vor.point_region[i]]
         if not region or -1 in region:
             continue
         verts = pz_vor.vertices[region]
         try:
-            poly_shape = _Poly(verts).intersection(pz_clip)
+            poly_shape = _Poly(verts).intersection(claim_poly)
         except Exception:
             continue
         if poly_shape.is_empty or poly_shape.area <= 0:
