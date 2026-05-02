@@ -10,6 +10,7 @@ project:
 website:
   title: "ai-minerals"
   description: "Open-data mineral prospectivity mapping with simple ML"
+  site-url: https://johnsondevco.com/plans/ai-minerals/
   repo-url: https://github.com/skyking/ai-minerals
   repo-actions: [edit, source]
   navbar:
