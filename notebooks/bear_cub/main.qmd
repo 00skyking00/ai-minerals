@@ -19,8 +19,8 @@ Bear Cub is a small placer-gold claim in the Cape Nome mining district of Alaska
 
 The key technical results:
 
-- **Resource estimate matches a prior published estimate within 4%.** Using a Voronoi pay-zone-only volumetric (the standard placer-mining method), our 24-hole subset gives **9,631 fine ounces of gold** versus Darell Tweet's published 10,056. Same source data, fully independent transcription and calculation, agreement at the four-percent level.
-- **Cross-checks catch OCR errors that the model rates as high-confidence.** The pipeline projects each transcribed hole onto a 1936 cartographer's property map. Five transcription errors that the OCR confidence-rated as "high" turned up only because the holes plotted in the wrong place. Without this cross-check, the dataset would have looked clean but been wrong by 800-2,000 feet in five spots.
+- **Pay-zone-only resource estimate of 6,251 fine ounces (90% MC CI 6,010–6,739).** That's 38% below the published 1936-vintage 10,056-ounce figure for the same property. The gap is *methodological*, not measurement-level — see [§Cross-validation](#cross-validation-shared-holes) and the [mining-engineer review notebook](mining_review.html). On the three holes where per-hole grades can be compared against Jesse Grady's and Tweet's published numbers, agreement is within 6–10% when the same pay-zone window is assumed; the property-wide gap comes from how each calculation defines the pay layer.
+- **Cross-checks catch OCR errors and a 45° geomorphology trap.** The pipeline projects each transcribed hole onto a 1936 cartographer's property map. Five OCR errors the model self-rated as "high confidence" turned up only because the holes plotted in the wrong place — wrong by 800-2,000 ft. A separate corner-label trap (the dh-map's image-axis labels don't match the patent's compass corners — they're rotated by one step) was caught the same way and required a re-derivation of the local-feet → WGS84 affine; corner round-trip residuals dropped from ~25 m to ~0.3 m once the labels were corrected.
 - **The corpus reveals constants the operators never wrote down.** A single value — `282.6` — appears in 16 of the 24 logs, in the operator's hand-written conversion of milligrams to cents per cubic yard. It bundles the 1920s gold price, the drill bit's cross-section, and unit conversions into a single creek factor. Empirical derivation from the corpus, not stated explicitly on any individual log.
 - **Cost.** OCR via Claude Opus 4.7 on every page: about $14 across all 24 logs, roughly $0.50-$1.00 per multi-page log. Manageable for an archive of this size; a 10,000-log archive would benefit from a hybrid pipeline (purpose-built OCR for raw text, an LLM pass for form-specific schema mapping) at roughly an order of magnitude lower cost.
 
@@ -180,7 +180,7 @@ The 90% credible interval is narrow because per-hole errors average out across 2
 
 ### Cross-validation: shared holes
 
-Three of our holes appear in either Tweet's or Jesse's published analyses. The strongest match is `L6700 H6760`: 0.045 oz/cu yd in our pipeline at the 40-48 ft pay zone versus Tweet's published 0.050 — within 10%. Same source data, two independent transcriptions, independent calculations.
+Three of our holes have published per-hole grades from Jesse Grady (2021) or Darell Tweet (2024). The comparison surfaces the key methodological lever — *how each calculation defines the pay zone* — much more clearly than the property-wide totals do:
 
 ```{python}
 #| label: cross-val
@@ -192,7 +192,9 @@ cv = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'cross_valida
 cv
 ```
 
-A more detailed seven-hole comparison with Jesse's published per-hole pay-zone grades is in [`internal.qmd`](internal.qmd).
+`L6700 H6760` is the only hole with a Tweet number to compare against: our sliding-window picks a tight 0.094 oz/cu yd over a 2 ft (40-42 ft) bedrock-contact band; Tweet's 0.050 is over an 18 ft (30-48 ft) wider window. The total recovered gold over Tweet's window is consistent with our depth-weighted reading on the same window — the difference is purely the assumed thickness over which to average. The two L7100 Convention C holes show the same pattern with Jesse's tighter pay-zone picks.
+
+The mining-engineer review notebook at [`mining_review.qmd`](mining_review.html) walks through the methodology in the depth a placer engineer would want.
 
 ## Visualizations
 
@@ -231,6 +233,15 @@ Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_pay_zone_grade_
 #| code-fold: true
 #| fig-cap: "Holes color-coded by drilling year. 1919 Frozen Ground forms (NW corner), 1925 + 1936 Hammon work (most of the dataset), and a single 1955 Alaska Gold hole."
 Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_year_map.png'))
+```
+
+### 3D drill-hole model
+
+```{python}
+#| label: model-3d
+#| code-fold: true
+#| fig-cap: "PyVista 3D scene: 24 drill collars as vertical sticks segmented at every captured 2 ft interval, colored by per-interval grade. Bedrock topography is a thin-plate spline interpolation. Vertical exaggeration 8× because the claim is ~1100 ft long but only ~80 ft deep. The bedrock-contact pay signature reads at the bottom of the marked sticks. Interactive WebGL version: [bear_cub_3d.html](../../data/derived/bear_cub_resource/bear_cub_3d.html)."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_3d_profile_east.png'))
 ```
 
 ## What this doesn't prove

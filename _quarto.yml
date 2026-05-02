@@ -47,6 +47,10 @@ website:
         menu:
           - href: notebooks/bear_cub/main.qmd
             text: Dark-data ingestion pipeline
+          - href: notebooks/bear_cub/mining_review.qmd
+            text: Mining-engineer review
+          - href: notebooks/bear_cub/internal.qmd
+            text: Full review (caveats + TODOs)
       - text: Research
         menu:
           - href: research/kobold-analysis.md

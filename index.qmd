@@ -5,11 +5,11 @@ subtitle: "Mineral prospectivity mapping on public open data"
 
 A portfolio artifact demonstrating competent engagement with the problem space that [KoBold Metals](https://koboldmetals.com/), [ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/) work in. Public open data, Random Forest + SHAP, spatial block CV, external blind test — and an honest decomposition of where the standard approach fails.
 
-## Two regions + a dark-data pilot
+## Two regions, a dark-data pilot, and a decision-theoretic add-on
 
 - **v1 — [Eastern Alaska porphyry Cu-Mo-Au-Ag](notebooks/eastak/eastak_porphyry_prospectivity.qmd)** — Tanacross / Mt. Hayes / Nabesna quadrangles. The story is the external blind test that reveals an exploration-bias trap the training-label metrics hide.
-- **v2 — [BC Golden Triangle (Cu-Au porphyry + epithermal + skarn + VMS)](notebooks/bcgt/bcgt_porphyry_prospectivity.qmd)** — Brucejack / KSM / Red Chris / Galore Creek / Eskay Creek. Multi-deposit-class model validated against a **distribution** of 241 post-2015 drill holes (154 intersected positives + 87 drilled-negative), not the v1 N=1 anecdote.
-- **Pilot — [Bear Cub (Nome placer-Au)](notebooks/bear_cub/main.qmd)** — 24 hand-written 1925-1955 paper drill logs from a family-held archive, ingested end-to-end with a self-correcting OCR + property-map cross-check + empirical-formula-derivation pipeline. Targets KoBold's "TerraShed" pitch directly; demonstrates the legacy-archive ingestion methodology at single-property scale.
+- **v2 — [BC Golden Triangle (Cu-Au porphyry + epithermal + skarn + VMS)](notebooks/bcgt/bcgt_porphyry_prospectivity.qmd)** — Brucejack / KSM / Red Chris / Galore Creek / Eskay Creek. Multi-deposit-class model validated against a **distribution** of 241 post-2015 drill holes (154 intersected positives + 87 drilled-negative), not the v1 N=1 anecdote. Now extended with a [decision-theoretic drill planner (POMDP)](notebooks/bcgt/decision_planning.qmd) on top of the BCGT prior — the methodology ExploreTech and KoBold's Stanford Mineral-X line publish on, ported onto our Python stack via [`pomdp_py`](https://github.com/h2r/pomdp-py).
+- **Pilot — [Bear Cub (Nome placer-Au)](notebooks/bear_cub/main.qmd)** — 24 hand-written 1919-1955 paper drill logs from a family-held archive, ingested end-to-end with a self-correcting OCR + property-map cross-check + empirical-formula-derivation pipeline. The cross-check itself caught a 45° geomorphology trap in the cartographer's drill-hole map that an OCR confidence score alone wouldn't have surfaced. There's a [mining-engineer review notebook](notebooks/bear_cub/mining_review.qmd) for the placer-engineer audience and an [internal review notebook](notebooks/bear_cub/internal.qmd) with the full caveats. Targets KoBold's "TerraShed" pitch directly; demonstrates the legacy-archive ingestion methodology at single-property scale.
 
 ## v1 headline finding (for context)
 
@@ -17,7 +17,7 @@ Under standard metrics the Random Forest looks good: ROC-AUC 0.88 ± 0.2 on 20-k
 
 The external blind test — Kenorland `23ETD062`, a 2023 porphyry drill intersection that postdates every training label — scores **P=0.012, 62nd percentile**. The feature diagnostic traces this to **exploration bias in three channels** (count / NaN-vs-value / magnitude-within-explored), with the third being dominant. A v1.1 sensitivity battery tests four remediations (drop counts, `has_data` indicators, no-geochem baseline, PU bagging); none rescues the blind test, though PU moves Kenorland 8 percentile points higher.
 
-The honest posture: a pseudo-supervised MPM pipeline at 500 m regional resolution can't distinguish a distal low-grade porphyry hit from background regardless of feature engineering. The v1.2 direction (prospect-scale alteration mineralogy via ASTER/EMIT SWIR, physics-consistent geophysical inversions via SimPEG, POMDP-style sequential drill planning) is the direction KoBold and ExploreTech actually build toward.
+The honest posture: a pseudo-supervised MPM pipeline at 500 m regional resolution can't distinguish a distal low-grade porphyry hit from background regardless of feature engineering. The v1.2 direction (prospect-scale alteration mineralogy via ASTER/EMIT SWIR, physics-consistent geophysical inversions via SimPEG, POMDP-style sequential drill planning) is the direction KoBold and ExploreTech actually build toward — and the [decision-planning notebook](notebooks/bcgt/decision_planning.qmd) takes the third step on the BCGT prior.
 
 ## Secondary material
 
