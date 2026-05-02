@@ -38,3 +38,10 @@ QUARTO_PYTHON=.venv/bin/python quarto render     # renders this site
 ```
 
 See [CLAUDE.md](CLAUDE.md) for project rules. License: MIT.
+
+```{python}
+#| echo: false
+#| output: asis
+import datetime as _dt
+print(f"\n---\n\n*Site rendered {_dt.date.today():%Y-%m-%d}.*")
+```

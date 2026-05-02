@@ -53,8 +53,10 @@ Thumbs.db
 *.key
 
 /.quarto/
-**/*.quarto_ipynb
+**/*.quarto_ipynb*
 
 # Quarto installer (downloaded to repo root, not a repo artifact)
 /quarto-*.deb
 outreach/
+
+**/*.quarto_ipynb
