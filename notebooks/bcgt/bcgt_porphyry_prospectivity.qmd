@@ -28,7 +28,7 @@ The architectural payoff of the v2 plan: **adding a second region with a differe
 
 - **v1 (Eastern Alaska)** established the pipeline + discovered the exploration-bias trap via a single blind drill hole.
 - **v2 (BC Golden Triangle)** validates the same pipeline shape against an actual distribution of post-training drill outcomes, and tests whether the multi-deposit-class framing (training on porphyry ∪ epithermal ∪ skarn ∪ VMS positives together) works.
-- **v1.2 (not in this document)**: prospect-scale features (ASTER SWIR), physics-consistent inversions, end-to-end PU learning, POMDP drill planning.
+- **v1.2**: prospect-scale features (ASTER SWIR), physics-consistent inversions, end-to-end PU learning. Decision-theoretic drill planning has now been built — see [`decision_planning.qmd`](decision_planning.qmd).
 
 ## Data
 
@@ -417,12 +417,12 @@ print(f"  K-S p-value:     {ks_p:.1e}  (positives-vs-negatives distributions)")
 - **That this model would find unrecognized mineralization.** The blind-test distributions tell us how much lift the model gives over random; they don't tell us whether the *model's* top-ranked previously-unknown cells are where drill planners should actually go — that would require actual post-training drilling at model-flagged-high cells, a multi-year experiment no portfolio demo can run.
 - **Gravity precision beyond 2 km.** NRCan's 2 km isostatic-residual is the finest Canada-wide gravity product; local prospect-scale gravity surveys are private to the operators.
 
-## Next steps (v1.2 ideas, un-built)
+## Next steps
 
-1. **ASTER SWIR alteration mapping** — 30 m SWIR, six narrow bands; resolves specific alteration minerals (kaolinite, alunite, muscovite, chlorite) that S2 can only see as mixtures.
-2. **Physics-consistent geophysical inversions** (SimPEG) of the NRCan magnetic + gravity to produce subsurface susceptibility/density rather than surface-grid anomalies.
-3. **End-to-end PU learning** with weighted-PU or Elkan-Noto calibration, not just post-hoc ranking comparison.
-4. **Decision-theoretic drill planning** — POMDP over the model's posterior, à la Stanford Mineral-X's Intelligent Prospector.
+1. **Decision-theoretic drill planning** — *built and linked: see [`decision_planning.qmd`](decision_planning.qmd).* POMDP over the model's posterior on a 30×30 cell subarea, with random / greedy / POMCP baselines. v1.0-fidelity (Mern et al.) framing; honest about the independent-Bernoulli + noiseless-sensor simplifications that limit POMCP's lift over greedy in this particular problem setup.
+2. **ASTER SWIR alteration mapping** — 30 m SWIR, six narrow bands; resolves specific alteration minerals (kaolinite, alunite, muscovite, chlorite) that S2 can only see as mixtures.
+3. **Physics-consistent geophysical inversions** (SimPEG) of the NRCan magnetic + gravity to produce subsurface susceptibility/density rather than surface-grid anomalies.
+4. **End-to-end PU learning** with weighted-PU or Elkan-Noto calibration, not just post-hoc ranking comparison.
 5. **Extend the AOI north** to Yukon — brings in the Carmacks / Minto porphyry belt, reuses every piece of infrastructure.
 
 ## Code + design tour
