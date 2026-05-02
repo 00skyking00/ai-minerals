@@ -57,3 +57,4 @@ Thumbs.db
 
 # Quarto installer (downloaded to repo root, not a repo artifact)
 /quarto-*.deb
+outreach/
