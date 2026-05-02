@@ -176,17 +176,29 @@ A few other patterns the analysis surfaced:
 
 ## 3D model
 
-A simple three-dimensional view of the cluster: 24 drill collars rendered as red lines descending from the surface, with orange spheres marking where each one struck bedrock. The shaded surface beneath them is the bedrock topography — interpolated from the per-hole bedrock depths using a radial basis function.
+A three-dimensional view of the cluster, rendered with PyVista. Each drill collar is a vertical stick descending from the surface (z=0) to its bedrock contact, segmented at every captured per-2-ft interval and colored by that interval's grade on the same Jesse-tier scheme used in the 2D figures (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100 oz/cu yd). The shaded surface beneath the sticks is the bedrock topography — a thin-plate-spline RBF fit on the 24 holes' bedrock depths (3 NBR holes carry their KNN-IDW imputed values; see [§6.13 Bedrock imputation review](#bedrock-imputation-review)).
+
+Vertical exaggeration is **8×** because the claim is roughly 600×1100 ft in plan and only ~80 ft deep — at 1:1 scale the depth signature is invisible. Hole-id labels are restricted to the four bedrock-contact pay holes plus the two L7100 NBR holes, so the figure stays readable.
 
 ```{python}
-#| label: pyvista-static
+#| label: 3d-oblique
 #| code-fold: true
-#| fig-cap: "Bear Cub Murray drill cluster — 24 collars + IDW bedrock surface. Local meters, anchored on the BL/SW BLM brass monument."
+#| fig-cap: "Oblique view from south. Red parallelogram = patent boundary at surface. Drill sticks colored by per-interval grade. Bedrock surface (terrain colormap) shows the gentle dip toward the south."
 from IPython.display import Image
-Image(str(REPO / 'data' / 'derived' / 'bear_cub_3d_screenshot.png'))
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_3d_oblique.png'))
 ```
 
-Interactive HTML version: [`data/derived/bear_cub_3d.html`](../../data/derived/bear_cub_3d.html).
+```{python}
+#| label: 3d-profile-east
+#| code-fold: true
+#| fig-cap: "Profile from west, looking east — closer to a cross-section view. The bedrock-contact pay zone (magenta segments at the bottom of the marked sticks) is the 3rd-beach-line signature of the deposit: most of the gold on Bear Cub is concentrated in the last 2-4 ft above bedrock at L2 H4, L6900 H6952, L7300 H7350, and L7700 H7754. The deeper bedrock in the foreground (south side of the claim) is consistent with the pre-glacial slope toward the present-day Dry Gulch drainage."
+Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_3d_profile_east.png'))
+```
+
+Interactive HTML version (rotate / pan / zoom in browser):
+[`data/derived/bear_cub_resource/bear_cub_3d.html`](../../data/derived/bear_cub_resource/bear_cub_3d.html).
+
+The 3D model is a cosmetic narrative layer — it doesn't add information beyond what the per-hole grade fence and 2D plan maps already convey, but it makes the *geological* story (bedrock-contact pay on a tilted bedrock surface) read instantly to a placer-mining audience that's used to seeing this kind of figure.
 
 ## Resource analysis
 

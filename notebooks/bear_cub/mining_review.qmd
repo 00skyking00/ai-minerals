@@ -178,6 +178,26 @@ Image(str(DERIVED / "fig_aerial_pay_zone_grade.png"))
 Image(str(DERIVED / "fig_plan_map.png"))
 ```
 
+### 3D drill-hole model
+
+A 3D view of the corpus: each hole is a vertical stick from surface (z=0) to its bedrock contact, segmented at every captured 2-ft interval and colored on the same Jesse classification scheme used in the fence diagram and 2D maps (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100 oz/cu yd). The shaded surface is the RBF-interpolated bedrock topography. **Vertical scale is exaggerated 8×** — the claim is ~600 × 1100 ft in plan and only ~80 ft deep, so at 1:1 the depth signature is invisible.
+
+```{python}
+#| label: model-3d-oblique
+#| code-fold: true
+#| fig-cap: "Oblique-from-south view. The bedrock surface dips toward the present-day Dry Gulch drainage in the south. Magenta cells at the base of select sticks are the 3rd-beach-line bedrock-contact pay zones."
+Image(str(DERIVED / "fig_3d_oblique.png"))
+```
+
+```{python}
+#| label: model-3d-profile
+#| code-fold: true
+#| fig-cap: "Profile-from-west view (closer to an E-W cross section). The bedrock-contact pay signature reads at a glance: bright magenta cells immediately above the bedrock surface at L2 H4, L6900 H6952, L7300 H7350, and L7700 H7754, all of which sit on what the 2014 surveyors mapped as the 3rd palaeo-beach line."
+Image(str(DERIVED / "fig_3d_profile_east.png"))
+```
+
+An interactive WebGL version (rotate / pan / zoom in browser) is at [`bear_cub_3d.html`](../../data/derived/bear_cub_resource/bear_cub_3d.html). The 3D figures don't add quantitative information beyond the 2D plan maps and per-hole grade fence, but they make the geological narrative — bedrock-contact pay on a gently south-tilted bedrock surface — read instantly.
+
 ## Resource estimate
 
 ```{python}
