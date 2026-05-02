@@ -52,6 +52,34 @@ if mc:
 
 The pay-zone-only polygon estimate of about **6,250 fine ounces** is the most directly comparable number to a published 1936-vintage estimate of **10,056 fine ounces** for the same property. The 38% gap is explained almost entirely by how each calculation defines the pay zone — see [§7](#cross-validation-against-published-numbers). Per-hole grades agree closely with the published numbers within their respective pay-zone definitions; the disagreement is in the spatial extent assumed for the pay layer, not in the per-hole assays.
 
+## What the source logs look like
+
+Three representative pages from the corpus, to anchor what the OCR is reading from. These are family-archive originals; the larger collection has 24 logs across three operators and three form types (1919 *Drill Report Frozen Ground*, 1925 and 1936 *Hammon Field Log*, 1936-55 *Hammon Prospect Drilling Log*).
+
+```{python}
+#| label: scan-l2-h4
+#| code-fold: true
+#| fig-cap: "**L2 H4** — 1919 *Drill Report for Frozen Ground Only*. Per-2-ft intervals down the left, with TIME, DEPTH, FORMATION, COLORS, EST. WEIGHT, REMARKS columns. The hole goes to 83 ft and finishes on bedrock. Most of the gold (the bedrock-contact pay zone) is recorded in the last 13-15 ft (depths 70-83 ft); the WEIGHT column entries on those rows total 470+ mg, which is the largest single-hole hit in the 24-hole corpus. Reading these by eye is feasible per-hole but doesn't scale to a 100-log archive without OCR + cross-checks."
+RAW = REPO / 'data' / 'raw' / 'bear_cub' / 'page_pngs'
+Image(str(RAW / 'L2 H4__p1.png'))
+```
+
+```{python}
+#| label: scan-l7100-h7156
+#| code-fold: true
+#| fig-cap: "**L7100 H7156** — 1936 *Hammon Consolidated Gold Fields Prospect Drilling Field Log* (Convention C). The WEIGHT column is empty: this form records weights only at the **sample level** on a back page, with the front page giving per-interval color counts. Sample boundaries are penciled in (Sample 1, 2, 3, 4, 5 visible). Without recovering the back-page sample totals and distributing them via color counts, every Convention C hole comes back at zero grade — see [§4 Methodology](#methodology) for the recovery rule used."
+Image(str(RAW / 'L7100 H7156__p1.png'))
+```
+
+```{python}
+#| label: scan-dhmap
+#| code-fold: true
+#| fig-cap: "**Bear Cub MS 1178 plat** — 1936-vintage cartographer's drill-hole map. Each black dot is a drilled hole with the hole number annotated. Used as the **geometric cross-check** during ingestion: each hole's transcribed local-grid coordinates project onto the plat and must land on its annotated dot (see methodology section on the corner-label trap that introduced a ~45° rotation in an early iteration of the projection). The red parallelogram is the patent boundary."
+Image(str(RAW / 'BearCubDHMap__p1.png'))
+```
+
+These three scans cover the three structural cases the OCR has to handle: per-2-ft weights present (L2 H4), sample-level-only weights (L7100 H7156, "Convention C"), and the cartographer's spatial reference (BearCubDHMap). The 24-log corpus is a mix of all three.
+
 ## Methodology
 
 ### Source corpus
