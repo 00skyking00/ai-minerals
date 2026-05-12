@@ -1,0 +1,141 @@
+---
+title: "Chapter 3 — Reproducing + auditing two published methods"
+subtitle: "Cloned the official code for Lawley 2022 and DEEP-SEAM, ran end-to-end, found label leaks and evaluation-inflation issues in both"
+---
+
+[← back to portfolio map](index.qmd)
+
+## What this chapter is about
+
+Two canonical mineral-prospectivity-mapping publications, each
+re-run from the authors' published code on the authors' published
+data, then audited against the paper text. Both reproduce cleanly.
+Both also report headline numbers that are partly evaluation-inflated
+in ways the paper text doesn't acknowledge. The audits document the
+gap concretely, with numbers per source of optimism.
+
+This is the most useful single chapter for a hiring manager looking
+at this portfolio: it demonstrates the work of taking a published
+result seriously enough to reproduce it end-to-end, then taking the
+reproduction seriously enough to ask where the published number came
+from.
+
+## Lawley et al. 2022 — continental Zn-Pb prospectivity
+
+**Paper.** Lawley et al. 2022 (*Ore Geology Reviews* 141, 104635)
+trained a gradient-boosted-trees model to predict sediment-hosted
+lead-zinc mineralization across the US, Canada, and Australia on a
+5.16-million-hexagon Uber H3 data cube. Reported AUC: **0.983**.
+
+**Reproduction.** We cloned SRI International's public re-implementation
+([DARPA-CRITICALMAAS/sri-ta3-baselines](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines),
+MIT license), ran the `H3_MVT_GBM_preferred` configuration end-to-end
+on a 16 GB laptop. Test AUC on the held-out fold: **0.9965**.
+Reproduces the published number within 0.014.
+
+**Audit.** Three sources of optimism, each measured:
+
+| Source | AUC loss |
+|---|---|
+| Label leak: `Training_MVT_Occurrence` is in the feature set and arithmetically defines half the target | 2.4 pp |
+| 1-D latitude-band CV doesn't isolate cells across longitude (2-D quantile-block CV vs 1-D) | 9.0 pp |
+| Within-continent vs cross-continent transfer (US/Canada → Australia, the conservative direction) | ~16 pp |
+
+After all three corrections the honest AUC range is **0.71 to 0.87**,
+not 0.983. The 0.87 number under 2-D spatial blocking is real signal —
+the proximity-to-black-shale, proximity-to-passive-margin, and
+sedimentary-host-rock dictionary features encode the MVT mineral
+system. What's overstated is the headline number's claim to
+generalization. The reverse cross-continent transfer (train Australia,
+test US/Canada) collapses to **AUC 0.557** — barely above random.
+
+**Engineering side-finding.** Reproducing the SRI pipeline on a 16 GB
+laptop required performance work: the published 7.2 GB CSV inflates
+to ~25 GB in pandas, the published `neighbor_deposits` helper used
+row-wise `df.apply` + an O(N²) list-not-in-list dedup that ran for
+42+ minutes without completing on the US + Canada subset, and the
+published `convert_categorical` used `df.replace(dict)` that took
+~5 minutes per string column. Three fixes (streaming CSV → parquet
+via pyarrow, vectorized `neighbor_deposits` using
+`explode + isin + groupby`, `pd.factorize` for categorical encoding)
+brought end-to-end runtime to **3 minutes**. The vectorized
+`neighbor_deposits` is a lower-bound ≥130× speedup on the 3.6 M-row
+US + Canada subset; the CSV → parquet load went from hours of
+swap-bound thrashing to 5 seconds.
+
+## DEEP-SEAM Luo 2026 — Curnamona REE prospectivity
+
+**Paper.** Luo et al. 2026 (*Geoscientific Model Development* 19:2593)
+introduced DEEP-SEAM, a semi-supervised deep-anomaly-detection
+architecture (deviation network from Pang et al. 2019, plus heavy
+upstream feature engineering) for mineral prospectivity. Reported
+top-2% capture on the Curnamona REE dataset (7 known deposits across
+870 feature cells): **86%**, with the deviation network beating
+Random Forest by a 2-3× factor.
+
+**Reproduction.** We re-implemented the deviation network in PyTorch
+from the paper alone (Pang 2019 plus Luo 2026), without consulting
+the authors' code. Under leave-one-out training on the seven
+positives, the re-implemented model places three of seven held-out
+positives in the top 1% of cells and matches the published top-30%
+number. Curnamona top-1% capture: 43%, vs Random Forest's 0%. The
+qualitative finding reproduces.
+
+**Audit.** We then cloned the official EarthByte
+([MPM_Curnamona_REE](https://github.com/EarthByte/MPM_Curnamona_REE),
+MIT license, Zenodo DOI 10.5281/zenodo.17098677) and found three
+issues:
+
+| Issue | Implication |
+|---|---|
+| The 86% top-2% capture is measured under `sklearn.train_test_split(test_size=0.3, stratify=labels)` — i.e. **0-D random splitting, no spatial blocking at all** | The published number is in-sample-like recall, strictly more permissive than Lawley's 1-D scheme |
+| The Gaussian reference distribution in the deviation loss is `K.variable(np.random.normal(...))` — initialized **once at module load and frozen**, not sampled fresh per batch as Pang 2019 specifies | The implemented loss is a deterministic margin loss, not the stochastic-reference loss the paper describes |
+| `confidence_margin = 20` instead of Pang 2019's default of `5` | A hyperparameter the paper doesn't explicitly call out |
+
+## Cross-cutting methodology checklist
+
+Both audits surfaced findings via the same questions. Worth applying
+to any future MPM reproduction:
+
+1. **What spatial-block scheme does the published evaluation use?**
+   0-D (random), 1-D (latitude band), 2-D (lat-lon block), region
+   transfer, or LOO. Each level up tightens the leakage. Lawley
+   uses 1-D; DEEP-SEAM uses 0-D.
+2. **Are the input features computed in a way that can be evaluated
+   separately from the target?** Lawley's `Training_MVT_Occurrence`
+   arithmetically defines half the target.
+3. **Is the loss function as implemented the same as the loss
+   function as described?** DEEP-SEAM's frozen reference variable
+   was the concrete instance.
+4. **Are hyperparameters consistent between paper and code?**
+   DEEP-SEAM's `confidence_margin = 20` against Pang's 5.
+5. **What does `predict_proba` actually return?** Calibrated
+   probability, normalized rank, raw score, sigmoid of normalized
+   rank?
+
+## What this implies for the field
+
+Both papers report headline numbers that are reproducible but
+partly inflated by evaluation choices the paper text doesn't fully
+acknowledge. The published geological insight is intact in both
+cases — the features encode real mineral-system signal, the
+architectures do real work. What's overstated is the claim to
+generalization. For exploration use the difference between "AUC
+0.983 under random-adjacent CV" and "AUC 0.71-0.87 under honest
+spatial isolation" is the difference between "this model can
+highlight regions you have already characterized" and "this model
+can predict deposits in regions you haven't drilled yet."
+
+The next chapter ([cross-region experiments](cross_region.qmd))
+extends this finding by testing whether DEEP-SEAM's published
+advantage transfers to other deposit types and other REE provinces.
+It doesn't.
+
+## Deeper notebooks
+
+- [Lawley 2022 portfolio summary](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html) — reproduction of the published AUC 0.983.
+- [Lawley 2022 code + methodology audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html) — three sources of evaluation inflation, with numbers.
+- [DEEP-SEAM four-region transfer summary](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html) — the cross-region experiment that motivated this work.
+- [DEEP-SEAM official-code audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) — comparison of EarthByte's TensorFlow implementation against the paper text + our PyTorch port.
+
+[← back to portfolio map](index.qmd)

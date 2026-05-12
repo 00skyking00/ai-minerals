@@ -21,12 +21,11 @@ already drilled. Real exploration campaigns are sequential: each hole
 costs roughly $0.5–2M, returns information about the local geology,
 and that information should change the next-hole decision.
 
-[ExploreTech][et] and [KoBold's Stanford Mineral-X collaboration][kobold]
-build their decision layer on exactly this observation: drill planning
-is a **partially observable Markov decision process** (POMDP), and a
-Monte-Carlo-tree-search planner can substantially outperform fixed-grid
-or greedy-prior campaigns at the per-dollar-spent margin. The
-methodological reference is *Intelligent Prospector* v1.0
+The methodological framing for this is a **partially observable Markov
+decision process** (POMDP) over the prospectivity prior, with a
+Monte-Carlo-tree-search planner that can substantially outperform
+fixed-grid or greedy-prior campaigns at the per-dollar-spent margin.
+The published reference is *Intelligent Prospector* v1.0
 ([Mern et al., GMD 2023][mern1]) and v2.0 ([arXiv 2410.10610, 2024][mern2]).
 
 This notebook ports that framework — at the v1.0 (single-hypothesis)
@@ -35,8 +34,6 @@ policies side by side: random, greedy, and POMCP. It is a methodology
 demonstration, not a state-of-the-art benchmark — see
 *[What this doesn't establish](#what-this-doesnt-establish)* below.
 
-[et]: https://exploretech.ai/technology
-[kobold]: https://koboldmetals.com/
 [mern1]: https://gmd.copernicus.org/articles/16/289/2023/
 [mern2]: https://arxiv.org/abs/2410.10610
 [bcgt-rf]: bcgt_porphyry_prospectivity.qmd

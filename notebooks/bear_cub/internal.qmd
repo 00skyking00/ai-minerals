@@ -32,13 +32,9 @@ The drill-log archive is family-held. The methodology and the schema-only collar
 
 ## Why this archive is interesting
 
-A long-running observation in mineral exploration is that historical drilling data — paper logs from campaigns decades or even a century ago — rarely makes it into modern targeting models. Most of it sits in basements, government archives, and private files. A few companies are now building businesses around digitizing it:
+A long-running observation in mineral exploration is that historical drilling data — paper logs from campaigns decades or even a century ago — rarely makes it into modern targeting models. Most of it sits in basements, government archives, and private files. The industry term for this material is *dark data*: structured information that exists on paper but isn't in any database. The current generation of AI-driven exploration teams treat dark-data ingestion as a competitive advantage, because the company that turns paper into structured data first gets to feed it into its targeting models first.
 
-- **KoBold Metals** ([koboldmetals.com](https://koboldmetals.com/)) calls their version "TerraShed": OCR plus entity extraction plus georeferencing of legacy paper drill logs into a unified database that feeds their machine-learning targeting. Their Mingomba copper discovery in Zambia (247 Mt at 3.64% Cu) drew partly on historical exploration records Anglo American had walked away from ([CAIO, 2025](https://chiefaiofficer.com/blog/kobold-metals-ai-copper-discovery-537m-gates-bezos-investment/)).
-- **ExploreTech** ([exploretech.ai](https://exploretech.ai/)) builds drill-planning software (POMDPs over a Bayesian prior). The planner needs structured priors as inputs, which means somebody has to do the digitization step first.
-- **Earth AI** ([earth-ai.com](https://earth-ai.com/)) reports a 75% discovery rate against an industry baseline of 0.5% ([TechCrunch, 2025](https://techcrunch.com/2025/03/25/earth-ais-algorithms-found-critical-minerals-in-places-everyone-else-ignored/)); they say their advantage comes from feeding models more — and more diverse — training data.
-
-The general pattern: companies that turn paper into structured data first have an edge. Bear Cub is a worked example of that step on a small, family-scale archive — small enough to hand-validate end-to-end against two independent prior analyses.
+Bear Cub is a worked example of that step on a small, family-scale archive — small enough to hand-validate end-to-end against two independent prior analyses.
 
 ## The archive
 
@@ -542,7 +538,7 @@ for r in gp['expected_improvement_recommendations']:
 
 **Caveat — these recommendations are not investment-grade.** With negative R² on the spatial model, the predicted-grade column is essentially noise. The variance / EI rankings are real (the GP knows which areas are well-constrained and which aren't), but a planner should treat the EI grade-prediction with skepticism. The methodology is sound; the dataset is too small to deliver a confident next-hole recommendation by spatial features alone.
 
-For ExploreTech-style POMDP drill planning, this would be a tiny single-step proxy of the full planner — useful as a teaching example, not a deployed tool.
+For full-scale POMDP drill planning (per the Mern et al. *Intelligent Prospector* line), this would be a tiny single-step proxy of the full planner — useful as a teaching example, not a deployed tool.
 
 ## Where this could go
 
@@ -550,7 +546,7 @@ A few natural extensions, each of which could stand on its own:
 
 1. **A surveyor's toolkit** — given a few field GPS readings plus a patent description, anchor the local survey grid in WGS84. The four-corner affine and BLM-patent-walker code I built for Bear Cub is the seed.
 2. **A general drill-log CLI** — `drill-log → structured CSV → 3D model → yield estimate` as a standalone tool, lifted out of this specific archive.
-3. **Broader dark-data ingestion** — the same approach applied to the rest of the records associated with a mining property: court filings, surveyors' notes, title histories, family correspondence. Pulling that material into a single linked dataset with full provenance is a richer version of what KoBold describes as TerraShed.
+3. **Broader dark-data ingestion** — the same approach applied to the rest of the records associated with a mining property: court filings, surveyors' notes, title histories, family correspondence. Pulling that material into a single linked dataset with full provenance is the broader version of the dark-data ingestion pattern that AI-exploration companies are publicly working on.
 
 ## TODO list (next-up work)
 
@@ -586,7 +582,7 @@ Concrete priorities:
 - **Hybrid OCR cost reduction.** Switching from Claude-Opus-only to a Document-AI-first / Opus-second pipeline should reduce per-log cost by ~10×. The data-quality story is already proven; the cost story is the remaining loose end before this is production-ready.
 - **Form-type classifier.** A small fine-tuned classifier (or even a few-shot LLM call) that identifies the form variant before OCR would let us pick the right prompt automatically. Right now form-specific prompting is hard-coded by hole. Adding a new form (e.g., when running on a non-Murray archive) requires manual prompt design.
 - **Validation against an independent archive.** The cross-validation with Jesse + Tweet uses the same source data we did. A stronger test would be running the pipeline on a separately-archived dataset (e.g., from the Janin Huntington archive, the next batch on the Nome Placer Fields property) and comparing to whatever ground-truth exists there.
-- **Predictive grade model + drill-site recommender.** With the structured corpus we now have, train a small regressor (Gaussian process or LightGBM) that maps spatial position + form-type + neighbor-grade features to expected pay-zone grade. Use leave-one-out CV across the 24 holes. Then layer a drill-site recommender that picks the next hole-location to maximize information gain — directly relevant to ExploreTech-style POMDP planning.
+- **Predictive grade model + drill-site recommender.** With the structured corpus we now have, train a small regressor (Gaussian process or LightGBM) that maps spatial position + form-type + neighbor-grade features to expected pay-zone grade. Use leave-one-out CV across the 24 holes. Then layer a drill-site recommender that picks the next hole-location to maximize information gain — directly relevant to POMDP-style drill planning per the Mern et al. *Intelligent Prospector* line.
 
 ## Engineering failure modes (lessons from building this)
 

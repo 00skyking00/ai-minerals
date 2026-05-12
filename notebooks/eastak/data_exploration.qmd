@@ -13,10 +13,9 @@ execute:
 
 `ai-minerals` is a portfolio demonstration of **mineral prospectivity mapping
 (MPM)** — the use of machine learning on public geoscientific data to rank
-locations by their likelihood of hosting a mineral deposit. The target
-audience is AI-exploration companies like [KoBold Metals](https://koboldmetals.com/),
-[ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/),
-who are building production-grade versions of exactly this kind of pipeline.
+locations by their likelihood of hosting a mineral deposit. The audience is
+AI-driven mineral-exploration teams building production-grade versions of
+this kind of pipeline.
 
 The repo covers two regions with the same infrastructure:
 
@@ -58,11 +57,10 @@ quadrangles covering ~62,000 km² of east-central Alaska:
 - **Mt. Hayes (MH)** — 63–64 °N, 147–144 °W — Wrangellia / Delta Range
 - **Nabesna (NB)** — 62–63 °N, 144–141 °W — Wrangellia / eastern Alaska Range
 
-This AOI straddles the **Wrangellia–Yukon-Tanana tectonic boundary** — the
-regional framework within which KoBold's Skolai Ni-Cu-Co-PGM project
-sits. It's an established porphyry belt with 56 porphyry-family
-occurrences in the USGS Alaska Resource Data File (ARDF) and several
-active greenfield exploration programs.
+This AOI straddles the **Wrangellia–Yukon-Tanana tectonic boundary**.
+It's an established porphyry belt with 56 porphyry-family occurrences
+in the USGS Alaska Resource Data File (ARDF) and several active
+greenfield exploration programs.
 
 ## The target deposit class
 
@@ -304,11 +302,11 @@ ax.legend(markerscale=4)
 plt.tight_layout()
 ```
 
-Multi-decade, multi-agency legacy data is exactly what KoBold calls "**dark
-data**" when it's scanned reports, and "ingested data" when it's already
-standardized like AGDB4 is. This dataset is unusually clean for mineral
-exploration — the USGS has already done the painful integration of samples
-analyzed by 120 different lab methods into one "best-value" schema with
+Multi-decade, multi-agency legacy data is exactly what the industry calls
+"**dark data**" when it's scanned reports, and "ingested data" when it's
+already standardized like AGDB4 is. This dataset is unusually clean for
+mineral exploration — the USGS has already done the painful integration of
+samples analyzed by 120 different lab methods into one "best-value" schema with
 provenance kept.
 
 ```{python}

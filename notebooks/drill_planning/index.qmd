@@ -1,0 +1,108 @@
+---
+title: "Drill planning under uncertainty"
+subtitle: "Two pieces, two scales — POMDP on a regional porphyry-Cu prior and a Gaussian process on a placer-claim grade surface"
+date: 2026-05-12
+format:
+  html:
+    toc: true
+    toc-depth: 3
+---
+
+## What this chapter is about
+
+A prospectivity model gives you a per-cell probability that a deposit
+exists. It does not tell you where to drill next given what you've
+already drilled. Real exploration campaigns are sequential: each hole
+costs money, returns information about the local geology, and that
+information should update the next-hole decision.
+
+This chapter collects the two pieces of decision-theoretic
+drill-planning work in this portfolio, at very different scales:
+
+1. **BCGT POMDP decision planning** — regional porphyry-Cu prospectivity
+   prior (BC Golden Triangle, ~3,500 prior-positive cells over a
+   ~90,000 km² AOI), framed as a partially observable Markov decision
+   process and solved with Monte Carlo Tree Search (POMCP). Methodology
+   port of *Intelligent Prospector* v1.0 (Mern et al., *Geosci. Model
+   Dev.* 16:289, 2023). Three policies compared side by side: random,
+   greedy, POMCP. See
+   [BCGT POMDP decision planning](../bcgt/decision_planning.qmd).
+
+2. **Bear Cub Gaussian-process drill-site recommender** — single-claim
+   placer-gold property (Cape Nome MS 1178, 24 historical drill holes
+   over a 597,000 ft² patent), framed as Bayesian regression on
+   (x, y) → pay-zone grade with a per-location uncertainty estimate
+   from the GP posterior variance. Two recommender criteria
+   compared: maximum predictive variance (pure information gain) and
+   expected improvement against a target grade. See
+   [Bear Cub GP recommender](bear_cub_gp_recommender.qmd).
+
+The two pieces use different mathematical machinery (POMDP / MCTS
+versus GP regression / acquisition functions) and target different
+exploration questions (sequential drilling on a regional prior versus
+next-hole picks on a single property), but they answer the same
+class of question: *given what we know about the subsurface, where
+should the next hole go?*
+
+## Why these two together
+
+The prospectivity-mapping work in chapters 2-4 produces probability
+surfaces. A practical exploration team has a budget that converts
+probability into hole-location decisions. The mathematical step from
+probability surface to decision is what this chapter is about.
+
+Two ways the bridge gets crossed in practice:
+
+- **At regional scale**, the question is "given a per-cell
+  prospectivity prior over thousands of square kilometers, where
+  should we sequentially drill to maximize expected resource value
+  while staying within a fixed budget?" The POMDP framing handles
+  the sequential dependency directly: each hole's result updates
+  the belief state, the planner re-solves, the next decision
+  reflects everything learned so far. The BCGT notebook walks through
+  POMCP (a sample-based MCTS planner) on the BCGT prior and
+  benchmarks it against random and greedy baselines.
+
+- **At property scale**, the question is "given a sparse grid of
+  historical drill data, where should the next hole go to
+  maximize information gain or expected grade?" The GP framing
+  handles the sparse-data uncertainty directly: the posterior
+  variance is highest where data is sparsest, and an acquisition
+  function (max-variance, expected-improvement) chooses points to
+  drill that optimize against either uncertainty or grade. The
+  Bear Cub notebook applies this to 24 holes on a 597,000 ft²
+  patent and outputs two recommended next-hole locations under
+  different acquisition criteria.
+
+## What each piece does and doesn't establish
+
+The POMDP work is a methodology demonstration on a regional prior,
+not a production-grade resource model. The path-planning policy is
+single-hypothesis (the prior is fixed, not updated mid-campaign),
+which is the v1.0 simplification rather than the v2.0 multi-hypothesis
+extension. Real exploration would also need to handle drill-cost
+gradients (terrain, access), real per-hole information yield
+distributions (not the simulated ones we use), and the practical
+constraint that drill rigs cost money to move. The notebook documents
+these limits explicitly.
+
+The Bear Cub GP recommender produces a defensible next-hole pair
+even with n=24 holes and a spatial-only GP that doesn't predict
+pay-zone grade well in absolute terms (negative leave-one-out R²
+because the beach-line geology creates a gradient that 24 samples
+can't constrain). The recommender output is still meaningful
+because the GP posterior variance is a faithful map of where the
+data is sparse, even when the GP mean is unreliable.
+
+## Files
+
+- [BCGT POMDP decision planning](../bcgt/decision_planning.qmd) (full notebook)
+- [Bear Cub GP recommender](bear_cub_gp_recommender.qmd) (full notebook)
+- [Bear Cub dark-data ingestion pipeline](../bear_cub/main.qmd) (parent notebook the GP recommender was extracted from)
+- [BCGT regional pipeline](../bcgt/bcgt_porphyry_prospectivity.qmd) (the prior the POMDP runs on top of)
+
+## Sources
+
+- Mern, J. et al. 2023. *Intelligent Prospector v1.0: a robotic exploration planner for mineral prospectivity mapping.* *Geosci. Model Dev.* 16, 289-302.
+- Mern, J. et al. 2024. Intelligent Prospector v2.0: scalable POMDP planning with information-gain rewards. arXiv:2410.10610.
+- Rasmussen, C. E. and Williams, C. K. I. 2006. *Gaussian Processes for Machine Learning*. MIT Press. (Reference for GP regression + acquisition functions.)

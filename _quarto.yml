@@ -3,17 +3,32 @@ project:
   output-dir: _site
   render:
     - index.qmd
+    - bear_cub.qmd
+    - regional.qmd
+    - reproductions.qmd
+    - cross_region.qmd
+    - drill_planning.qmd
 
 website:
   title: "ai-minerals"
-  description: "Open-data mineral prospectivity mapping with simple ML"
+  description: "Mineral prospectivity mapping on public open data"
   site-url: https://johnsondevco.com/plans/ai-minerals/
   favicon: favicon.png
   repo-url: https://github.com/skyking/ai-minerals
   navbar:
     left:
       - href: index.qmd
-        text: Home
+        text: Portfolio
+      - href: bear_cub.qmd
+        text: "1. Bear Cub"
+      - href: regional.qmd
+        text: "2. Regional MPM"
+      - href: reproductions.qmd
+        text: "3. Reproductions + audits"
+      - href: cross_region.qmd
+        text: "4. Cross-region"
+      - href: drill_planning.qmd
+        text: "5. Drill planning"
 
 format:
   html:

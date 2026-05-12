@@ -107,11 +107,11 @@ century of exploration history.
 Arizona's southeastern porphyry belt was picked as the third
 regional AOI for two reasons:
 
-The first reason is **commodity match** with the broader AI-minerals
-target audience. Porphyry copper is the primary deposit type for
-KoBold Metals, Earth AI, and Explore Tech. Running the same
-methodology on a porphyry-Cu region they would naturally evaluate
-makes the within-region numbers directly relevant to their workflow.
+The first reason is **commodity relevance**. Porphyry copper is the
+primary deposit type driving the AI-driven mineral-exploration
+industry's current targeting work. Running the same methodology on
+a porphyry-Cu region makes the within-region numbers directly
+relevant to that workflow.
 
 The second reason is **methodological control**. Tanacross v1 was a
 mixed-metallogenic AOI (porphyry-Cu, distal porphyry, polymetallic

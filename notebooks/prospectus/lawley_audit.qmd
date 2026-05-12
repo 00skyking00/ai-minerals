@@ -1,0 +1,284 @@
+---
+title: "Lawley 2022 reproduction + audit"
+subtitle: "Reproduced the published AUC 0.983, then accounted for where it overstates real generalization"
+date: 2026-05-12
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## Context
+
+Lawley et al. (2022, *Ore Geology Reviews* 141, 104635) trained a
+gradient-boosted-trees model to predict sediment-hosted lead-zinc
+mineralization across the United States, Canada, and Australia on a
+5.16-million-hexagon Uber H3 data cube, reporting an AUC of 0.983.
+SRI International published a public Jupyter reimplementation under
+the DARPA-CRITICALMAAS program
+([DARPA-CRITICALMAAS/sri-ta3-baselines](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines),
+MIT license).
+
+We reproduced the experiment on a 16 GB laptop, then layered three
+orthogonal tightenings on the published evaluation plus a like-for-
+like DevNet comparison. This page is the parallel to the
+[DEEP-SEAM official-code audit](deep_seam_audit.qmd) — same shape,
+applied to the Lawley pipeline.
+
+Three methodological findings + three performance findings, in
+descending order of importance.
+
+## Finding 1: label leak in the published `preferred` feature configuration
+
+The published `preferred` feature set includes `Training_MVT_Occurrence`
+as an **input feature**. The target the GBM is trained on is computed
+inside the feature pipeline as:
+
+$$\text{MVT\_Deposit} = \text{Training\_MVT\_Deposit} \text{ OR } \text{Training\_MVT\_Occurrence}$$
+
+One of the inputs arithmetically defines half of the target. The
+model can learn the trivial identity "Training_MVT_Occurrence == True
+→ target == True" as one of its first decision splits and never need
+to use the geological, geophysical, or proximity features.
+
+The SRI notebook's fit cell drops only five columns before fitting
+(`target`, `Latitude_EPSG4326`, `group`, `H3_Geometry`,
+`Continent_Majority`); `Training_MVT_Occurrence` is not in that
+drop list.
+
+**Quantified contribution: 2.4 percentage points of held-out AUC.**
+
+| Configuration | Test AUC |
+|---|---|
+| Phase 1 reproduction (leak in, matches paper) | 0.9965 |
+| Phase 1b leak-corrected (drop both `Training_MVT_*`) | **0.9721** |
+
+The geological, geophysical, and proximity features carry the model
+to 0.972 on their own — that's real signal; the additional 0.024 is
+the leak.
+
+## Finding 2: 1-D latitude-band CV vs 2-D quantile-block CV
+
+The published evaluation uses 72 latitude bins quantized on
+positive-deposit latitudes, grouped into 6 folds. Held-out cells
+share their latitude band but not their longitude — i.e., the test
+fold is a horizontal strip that can contain cells whose geographic
+neighbors immediately east or west are in the training set. The
+neighbor-expansion step in the feature pipeline propagates positive
+flags to every cell sharing an H3 vertex with a positive cell,
+which means the held-out test strip can also contain cells whose
+neighbors are positive in the training set.
+
+Replacing the 1-D scheme with **2-D quantile-block CV** (12×12 lat-lon
+bins → 144 cells → 6 folds via `cell_id % 6`) drops AUC from 0.958
+to 0.868.
+
+```{python}
+#| label: phase2-results
+#| code-fold: true
+import json
+from pathlib import Path
+import pandas as pd
+
+base = Path("../../data/derived/lawley")
+p2 = json.loads((base / "path2_tightened_eval_metrics.json").read_text())
+
+rows = [
+    ("Lawley 1-D latitude-band CV (held-out fold 0)",
+     p2["cv_1d_lat_band"]["auc"]["mean"],
+     p2["cv_1d_lat_band"]["auc"]["ci95"]),
+    ("2-D quantile-block CV (12x12 grid)",
+     p2["cv_2d_blocks"]["auc"]["mean"],
+     p2["cv_2d_blocks"]["auc"]["ci95"]),
+]
+df = pd.DataFrame(rows, columns=["Scheme", "AUC", "95% CI"])
+df["AUC"] = df["AUC"].apply(lambda x: f"{x:.4f}")
+df["95% CI"] = df["95% CI"].apply(lambda ci: f"[{ci[0]:.3f}, {ci[1]:.3f}]")
+df
+```
+
+**Quantified contribution: 9.0 percentage points of held-out AUC.**
+
+The 2-D number is the more honest within-continent generalization
+measurement. The 9-pp gap quantifies how much of the 1-D number was
+longitudinal spatial leakage rather than generalization. It's
+larger than the label-leak effect from Finding 1.
+
+For comparison with the DEEP-SEAM audit: Lawley uses 1-D blocking;
+DEEP-SEAM uses **0-D random blocking** (i.e., no spatial isolation at
+all). The DEEP-SEAM evaluation is therefore strictly more permissive
+than the Lawley evaluation. Both inflate the headline number in the
+same direction.
+
+## Finding 3: cross-continent transfer collapse
+
+The published model is trained on the union of all three continents
+and evaluated on held-out latitude bands within that combined cube.
+The experiment was never run as a held-out cross-continent transfer
+test — train on one continent, predict on another.
+
+We ran both directions:
+
+```{python}
+#| label: phase2-transfer
+#| code-fold: true
+rows = [
+    ("USCAN → Australia",
+     p2["transfer_uscan_to_aus"]["auc"]["mean"],
+     p2["transfer_uscan_to_aus"]["auc"]["ci95"],
+     p2["transfer_uscan_to_aus"]["capture"]["top_1_pct"]["rate"]),
+    ("Australia → USCAN",
+     p2["transfer_aus_to_uscan"]["auc"]["mean"],
+     p2["transfer_aus_to_uscan"]["auc"]["ci95"],
+     p2["transfer_aus_to_uscan"]["capture"]["top_1_pct"]["rate"]),
+]
+df = pd.DataFrame(rows, columns=["Direction", "AUC", "95% CI", "Top-1% capture"])
+df["AUC"] = df["AUC"].apply(lambda x: f"{x:.4f}")
+df["95% CI"] = df["95% CI"].apply(lambda ci: f"[{ci[0]:.3f}, {ci[1]:.3f}]")
+df["Top-1% capture"] = df["Top-1% capture"].apply(lambda x: f"{x*100:.1f}%")
+df
+```
+
+The reverse direction (Australia → USCAN) is functionally close to
+random guessing (AUC 0.5). The asymmetry has a geological
+explanation: Australia's MVT positives (Lennard Shelf, Mt Isa)
+sample a narrow slice of the mineral-system context; a model fit
+only to that slice does not know how to recognize MVT in the much
+more varied US + Canada landscape. The forward direction has more
+training-context variety but transfers to a different tectonic
+setting, losing ~25 pp of AUC.
+
+**Quantified contribution: ~16 percentage points of AUC, in the
+conservative direction.**
+
+## The cumulative accounting
+
+Stacking the three methodological findings:
+
+| Source of optimism | AUC loss when corrected |
+|---|---|
+| Label leak (`Training_MVT_Occurrence` aggregates into target) | 2.4 pp |
+| 1-D vs 2-D spatial blocking | 9.0 pp |
+| Within-continent vs cross-continent (USCAN → Aus) | ~16 pp |
+
+The honest range for "this model predicts deposits in held-out
+geological context" is **0.71 to 0.87**, not 0.983. Still useful —
+top-1% capture of 6-28% is informative — but it's not the
+headline-grade benchmark the published 0.983 suggests.
+
+## Performance characterization
+
+The SRI reference code as published does not run end-to-end on a
+16 GB machine without intervention. Three hot spots, with concrete
+fixes.
+
+### 1. CSV → parquet streaming converter (7.2 GB → 1.2 GB)
+
+The published CSV is **7.2 GB**. Loaded naively with pandas, it
+inflates to ~25 GB (object dtypes everywhere). On 16 GB RAM this
+triggers hours of swap-bound thrashing.
+
+The fix was a pyarrow `ParquetWriter`-based streaming converter:
+cast "Present"/"Absent" strings to bool, downcast float64 to float32,
+write parquet row-group by row-group.
+
+| Stage | Before | After | Speedup |
+|---|---|---|---|
+| Disk size | 7.2 GB CSV | 1.2 GB parquet | 6× smaller |
+| Load time | hours (swap-bound) | 5 seconds | >720× |
+| RAM during load | exceeds 16 GB | ~3 GB | fits |
+
+### 2. Vectorized `neighbor_deposits` (>=130× speedup)
+
+The published `neighbor_deposits` helper used row-wise pandas apply
++ O(N²) list-not-in-list dedup. On the 3.6 M-row US + Canada
+subset, the function had run for **42 minutes** on the first
+attempt without completing before being killed.
+
+Rewrote each of the four phases as vectorized pandas + a single
+Python set: `a | b` for the OR; `.str[10:-2].str.split(", ")` for
+WKT parsing; `set.update()` for vertex collection (eliminating the
+O(N²) list dedup); `.explode().isin().groupby(level=0).any()` for
+the per-cell intersection check.
+
+| Region | SRI original runtime | Vectorized runtime |
+|---|---|---|
+| Australia (1.5 M rows) | did not complete | 6 seconds |
+| US + Canada (3.6 M rows) | did not complete in 42 minutes | 19 seconds |
+
+### 3. `pd.factorize` replaces dict-replace categorical encoding (~100× speedup)
+
+The published `convert_categorical` used
+`df[col].replace(dict).astype("uint8")` — Python-level row iteration
+on a 5 M-row column takes ~5 minutes per column. `pd.factorize` is
+the C-level implementation of the same operation. Replacing the
+call dropped per-column encoding from ~5 minutes to under one second.
+
+### End-to-end runtime
+
+**About 3 minutes** on the same 16 GB laptop after all three fixes,
+including the GBM fit (32.9 seconds for 4.3 M training rows × 25
+features × 110 boosting iterations).
+
+## Methodology checklist (same one as the DEEP-SEAM audit)
+
+Both audits surface findings via the same set of questions. Worth
+applying to any future MPM reproduction:
+
+1. **What spatial-block scheme does the published evaluation use?**
+   0-D (random), 1-D (latitude band), 2-D (lat-lon block), region
+   transfer, or LOO. Each level up tightens the leakage. Lawley
+   uses 1-D; DEEP-SEAM uses 0-D.
+2. **Are the input features computed in a way that can be
+   evaluated separately from the target?** Lawley's
+   `Training_MVT_Occurrence` arithmetically defines half the target.
+3. **Is the loss function as implemented the same as the loss
+   function as described?** Not a finding for Lawley/GBM (sklearn's
+   `HistGradientBoostingClassifier` is well-documented), but DEEP-
+   SEAM's frozen reference variable was a concrete instance of
+   "implementation diverges from paper."
+4. **Are hyperparameters consistent between paper and code?**
+   Stable for Lawley. DEEP-SEAM had `confidence_margin = 20` against
+   Pang 2019's default of 5.
+5. **What does `predict_proba` actually return?** sklearn returns
+   calibrated probabilities. DEEP-SEAM's min-max-then-sigmoid was an
+   outlier.
+
+## What this implies for the field
+
+A published, USGS-blessed, DARPA-funded continental MPM benchmark
+reports AUC 0.983. The reproduction matches and exposes that the
+number is partly evaluation-inflated:
+
+- ~0.024 of it comes from a label leak in the published feature
+  configuration.
+- ~0.090 of it comes from 1-D vs 2-D spatial blocking.
+- The model does not generalize across continents — the harder
+  direction collapses to AUC 0.557, barely above random.
+
+The geological insight in the paper is intact; what's overstated is
+the headline number's claim to generalization. For exploration use,
+the difference between "0.983 AUC under random-adjacent CV" and
+"0.71-0.87 AUC under honest spatial isolation" is the difference
+between "this model can highlight regions you have already
+characterized" and "this model can predict deposits in regions you
+haven't drilled yet."
+
+## Files
+
+- Phase 1 driver: [scripts/lawley_phase1_gbm.py](../../scripts/lawley_phase1_gbm.py)
+- Phase 1b driver (leak-corrected): [scripts/lawley_phase1b_leak_corrected.py](../../scripts/lawley_phase1b_leak_corrected.py)
+- Phase 2 driver (2-D blocks + cross-continent): [scripts/lawley_phase2_eval.py](../../scripts/lawley_phase2_eval.py)
+- Phase 3 driver (DevNet head-to-head): [scripts/lawley_phase3_devnet.py](../../scripts/lawley_phase3_devnet.py)
+- CSV → parquet converter: [scripts/lawley_csv_to_parquet.py](../../scripts/lawley_csv_to_parquet.py)
+- Audit research synthesis: [research/lawley_audit_2026-05.md](../../research/lawley_audit_2026-05.md)
+- Reference code (cloned): `third_party/sri-ta3-baselines/`
+- Companion: [DEEP-SEAM audit](deep_seam_audit.qmd)
+
+## Sources
+
+- Lawley, C. J. M. et al. 2022. Data-driven prospectivity modelling of sediment-hosted Zn-Pb mineral systems and their critical raw materials. *Ore Geology Reviews* 141, 104635.
+- USGS data release `619552fbd34eb622f6906b26`.
+- NRCan GeoScan publication R=329203 (DOI 10.4095/329203).
+- DARPA-CRITICALMAAS program, USGS/DARPA AI for Critical Minerals (AI4M).

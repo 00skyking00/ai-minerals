@@ -1,0 +1,143 @@
+---
+title: "Bear Cub GP drill-site recommender"
+subtitle: "Where should hole #25 go? Gaussian-process regression + acquisition functions on a 24-hole placer-Au property"
+date: 2026-05-12
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## What this notebook is about
+
+Bear Cub Mining Claim MS 1178 carries 24 paper drill logs from
+campaigns between 1919 and 1955. The
+[parent notebook](../bear_cub/main.qmd) walks through the OCR
+pipeline, the 3-D drill-hole model, and the resource estimate. This
+notebook extracts the **drill-site recommender** piece into its own
+page so it sits alongside the BCGT POMDP work in the
+[drill-planning chapter](index.qmd).
+
+The question this notebook answers is: given 24 holes on a
+597,000 ft² patent, where should the next hole go? Two acquisition
+criteria, two recommended locations.
+
+## How the recommender works
+
+The data input is the 24-hole table of (x, y, pay-zone average
+grade) tuples on the local-feet grid. The model is a Gaussian
+process regressor with an anisotropic radial-basis function kernel
+plus a white-noise term, fit by maximum-likelihood on the
+leave-one-out residuals.
+
+A trained GP gives two things per location it's asked about:
+
+- A **mean prediction** — the model's best guess at pay-zone
+  grade.
+- A **posterior variance** — the model's uncertainty about that
+  guess. Variance is high where the training data is sparse, low
+  where many holes have been drilled nearby.
+
+The recommender uses two acquisition functions on top of those
+outputs:
+
+- **Maximum predictive variance** — pick the location that
+  maximizes the GP's posterior variance. This is pure
+  information gain: drill where the model is most uncertain,
+  because that's where a new measurement teaches the model the
+  most.
+- **Expected improvement** — pick the location that maximizes
+  E[max(grade_at_x - target, 0)] under the GP's posterior, with
+  target = 0.05 oz/yd³. This combines high predicted grade with
+  high uncertainty, the standard Bayesian-optimization
+  acquisition. Drill where the model thinks there might be a
+  pay-zone hit *and* it's not sure.
+
+Both criteria exclude points within 80 ft of an existing hole
+(no point re-drilling where data already exists).
+
+## The output
+
+![Recommended next-drill locations on the GP-predicted grade surface. Cyan triangles maximize predictive variance (info gain). Magenta stars maximize expected improvement against a 0.05 oz/yd³ target. Both criteria exclude points within 80 ft of an existing hole.](../../data/derived/bear_cub_resource/fig_gp_drill_recommender.png)
+
+The two criteria recommend different locations:
+
+- **Max-variance** picks the gaps in the existing drill grid — the
+  largest empty spaces between holes. These are the locations where
+  a new measurement most reduces overall model uncertainty.
+- **Expected-improvement** picks gaps that are also near
+  already-known high-grade holes. The GP's spatial-correlation
+  assumption says high-grade neighbors imply high probability of
+  another high-grade hit nearby; EI weights that probability against
+  the uncertainty at the candidate location.
+
+For an exploration program with a budget for one more hole, the EI
+criterion is what most planners would use — it directly targets
+high-grade discovery. For a research campaign focused on
+understanding the deposit's overall shape, max-variance is more
+informative — it tells you the most about the spatial structure of
+grade across the property.
+
+## Honest limits
+
+The spatial-only GP doesn't predict pay-zone grade well in absolute
+terms on n=24 holes (leave-one-out R² is negative — the model
+performs worse than just predicting the dataset mean). The
+geological reason is that pay-zone grade has a sharp gradient at
+the third beach line, a paleo-shoreline crossing the property where
+placer gold concentrates; 24 spatial samples can't constrain a
+gradient that steep without additional features (a "beach-line
+distance" indicator, formation type, hole depth).
+
+The recommender output is **still meaningful even with a weak
+predictive model**. The recommender uses the GP's *uncertainty
+structure*, not its point predictions. The posterior variance is a
+faithful map of where the training data is sparse, regardless of
+how well the mean predicts. Max-variance picks remain the gaps in
+the drill grid; EI picks remain the gaps near known high-grade
+holes. Both criteria produce defensible next-hole picks even when
+the GP mean is unreliable.
+
+The fix for the underlying prediction problem is more data — either
+more holes (the operator drilled 24 over 35 years; more would
+constrain the gradient) or auxiliary geological features (a
+beach-line-distance covariate would let the GP fit the gradient
+explicitly). The recommender output suggests **which next hole would
+most help**: the max-variance pick is the maximum-information-gain
+next location for the GP itself.
+
+## Where this fits in a longer exploration program
+
+For the Bear Cub property specifically, the family is not planning
+to drill in the near term. The recommender output is useful for two
+things:
+
+- **If the family ever decides to drill**, the two recommended
+  locations are the defensible places to start. Either criterion
+  gives a justifiable answer to "where would one more hole help
+  most?"
+- **If the family hires a contract driller**, the recommender output
+  is the kind of derivative product that converts the OCR-recovered
+  historical data into actionable decisions. The recovered drill
+  data plus the resource estimate plus the recommender output is a
+  small but complete decision-support package.
+
+At the level of methodology, the framing is the same as the BCGT
+POMDP work: a probabilistic model of the subsurface, plus an
+acquisition / planning step that converts the probability into a
+hole-location decision. The mathematical machinery is different (GP
++ acquisition function versus POMDP + MCTS planner) but the
+intellectual move is identical.
+
+## Files
+
+- Parent notebook (full Bear Cub project): [bear_cub/main.qmd](../bear_cub/main.qmd)
+- Bear Cub resource estimate figures: [data/derived/bear_cub_resource/](../../data/derived/bear_cub_resource/)
+- Chapter overview: [drill_planning/index.qmd](index.qmd)
+- Sibling: [BCGT POMDP decision planning](../bcgt/decision_planning.qmd)
+
+## Sources
+
+- Rasmussen, C. E. and Williams, C. K. I. 2006. *Gaussian Processes for Machine Learning*. MIT Press.
+- Močkus, J. 1989. *Bayesian Approach to Global Optimization*. Kluwer Academic Publishers. (Origin of expected-improvement as an acquisition function.)
