@@ -1,0 +1,124 @@
+---
+title: "Chapter 2 — Regional MPM pipelines"
+subtitle: "Four within-region prospectivity pipelines, same methodology, four deposit types"
+---
+
+[← back to portfolio map](index.qmd)
+
+## What this chapter is about
+
+Four regional mineral-prospectivity pipelines, all using the same
+methodology stack: USGS / NRCan / state-survey public open data,
+feature-frame assembly with `build_feature_frame()`, Random Forest
+classification with 20-km spatial-block cross-validation, leak-free
+out-of-fold scoring, bootstrap confidence intervals on AUC and on
+top-k% capture rates. Each region tests whether the methodology
+holds up on a geologically distinct problem.
+
+## Headline results
+
+| Region | Commodity | Positives | Top-1% capture | Top-5% capture | Spatial-block CV AUC |
+|---|---|---|---|---|---|
+| Eastern Alaska v1 (Tanacross + Mt Hayes + Nabesna) | porphyry Cu-Mo | 45 | 22.2% (22×) | 64% (13×) | — |
+| BC Golden Triangle v2 (multi-deposit) | Cu / Au / Ag / Zn | 154 (blind set) | — | — | — |
+| Mother Lode v3 / v3.1 (Sierra foothills) | orogenic Au | 6,149 | — | 19.5% (4×) | 0.85 [0.79, 0.90] |
+| Arizona v4 (SE porphyry belt) | porphyry Cu | 191 | 23.0% (23×) | 51.3% (10×) | — |
+
+Top-1% / top-5% are capture rates: fraction of held-out positives in
+the top k% of cells the model ranks most prospective. The parenthetical
+×N is the enrichment factor over the density a random sample would
+produce. Top-1% lift of ~22× is in the same regime across two
+porphyry-Cu provinces 4,000 km apart — that's the central
+reproducibility claim the four-region work supports.
+
+## How the pipeline works
+
+Federal and state agencies publish several decades of geophysical,
+geochemical, and geological data on a national grid. The pipeline:
+
+1. **Fetch** raw rasters and shapefiles from public APIs — USGS
+   aeromagnetic and Bouguer/isostatic gravity, USGS State Geologic
+   Map Compilation (SGMC) lithology and structural faults, USGS
+   Mineral Resources Data System (MRDS) occurrence records, USGS
+   National Geochemical Database (NGDB) stream-sediment chemistry,
+   USGS 30-m DEM, Sentinel-2 SWIR alteration indices, plus
+   region-specific feeds (Alaska Geochemical Database AGDB4 v4 for
+   Tanacross; British Columbia Geological Survey RGS/MINFILE for
+   BCGT).
+2. **Reproject** every layer onto a common equal-area CRS
+   (California Albers EPSG:3310 for the CONUS work; NAD83/Alaska
+   Albers for Tanacross). Resample onto a 500-m grid.
+3. **Assemble** the per-cell feature vector: geophysics columns,
+   four magnetic-field derivatives (1VD, HGM, analytic signal,
+   tilt), pathfinder geochemistry by element (5-km radius mean,
+   max, count, has-data flag), SGMC top-level lithology + MAJOR1/2/3
+   fine-grained lithology, distance-to-fault, Sentinel-2 indices,
+   slope/aspect/terrain ruggedness from the DEM.
+4. **Clean labels** via Cox-Singer-aware filtering of the MRDS
+   free-text deposit-type field. For Mother Lode this drops placer
+   / epithermal / skarn-Au records and keeps in-place orogenic-Au;
+   for Tanacross it keeps porphyry-Cu plus distal-porphyry; for
+   Arizona it keeps porphyry-Cu while excluding porphyry-Mo and
+   skarn-Cu (tracked for diagnostics).
+5. **Train** Random Forest with `class_weight='balanced_subsample'`,
+   pseudo-negatives sampled with a 5-km exclusion zone around any
+   known occurrence.
+6. **Score** with 20-km spatial-block CV. Every cell is predicted
+   by a model that did not train on its block. Bootstrap CIs on AUC
+   + top-k% capture.
+
+## The Mother Lode v3.1 increment
+
+Mother Lode shipped as v3 in April 2026 with an AUC of 0.85 under
+spatial-block CV, then iterated through eight v3.1 experiments that
+either improved or tightened the result:
+
+- **B1**: magnetic-field derivatives (1VD, HGM, analytic signal,
+  tilt) — added; ~1 pp AUC gain.
+- **B2**: SGMC MAJOR1/2/3 fine-grained lithology one-hots —
+  factorized and encoded; modest gain, mostly improves SHAP
+  feature-attribution interpretability.
+- **C1**: weighted-PU port from Hajihosseinlou et al. 2025
+  with Optuna TPE search on the weight ratio — implemented and
+  scored alongside the bagging-PU baseline.
+- **C2**: geology-only model + Klamath cross-region transfer —
+  Klamath AUC 0.58, barely above random. Documented as a known
+  limit, not hidden.
+- **D1**: MRDS Cox-Singer-cleaned positive labels — dropped 20%
+  of the v3 positives that were placer / epithermal / skarn-Au
+  rather than in-place orogenic. AUC roughly unchanged; the
+  cleanup is correctness-not-performance.
+
+## What the four regions together show
+
+**The methodology reproduces across deposit type and region.** Top-1
+capture of 22% on Tanacross (porphyry-Cu) and 23% on Arizona
+(porphyry-Cu, different continental crust setting) lands in the same
+regime. The pipeline is portable.
+
+**Cross-region transfer is the unsolved frontier.** Mother Lode →
+Klamath (geology-only): AUC 0.58. Eastern Alaska v1 blind test
+against Kenorland's 2023 porphyry intersection scored at the 62nd
+percentile of the model's prospectivity ranking; diagnostic traced
+this to exploration bias in the training labels. Four documented
+remediations did not rescue the blind test. The fix is structural,
+not feature-tweaking — see [Chapter 3 audits](reproductions.qmd) for
+how the published literature deals with the same problem (it
+mostly doesn't).
+
+**SHAP feature attribution matches geology.** On Mother Lode the top
+features are distance-to-greenstone-belt, distance-to-fault, NGDB
+arsenic and antimony, plus the Calaveras Complex and Mariposa Slate
+lithology one-hots — exactly the canonical orogenic-Au recipe. On
+Arizona the top features are AGDB4 Cu and Mo stream-sediment,
+porphyry-host intrusive lithology, distance-to-fault — also the
+canonical recipe. Reasonable model behavior.
+
+## Deeper notebooks
+
+- [Eastern Alaska v1 integrated report](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html) — full pipeline + Kenorland blind test diagnostic.
+- [BC Golden Triangle v2 integrated report](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html) — 154-positive blind-drill validation against post-2015 holes.
+- [Mother Lode v3 portfolio summary](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [v3.1 improvements (8 experiments)](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/motherlode/data_exploration.html).
+- [Arizona v4 integrated report](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) — Cox-Singer-cleaned 191-positive porphyry-Cu set with 4-cell DEEP-SEAM-style methodology comparison.
+
+[← back to portfolio map](index.qmd)

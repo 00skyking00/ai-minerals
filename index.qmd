@@ -3,229 +3,115 @@ title: "ai-minerals"
 subtitle: "Mineral prospectivity mapping on public open data"
 ---
 
-This site is a portfolio. Each project asks, on a different geological
-problem, the same question: how far can a careful machine-learning
-pipeline trained on public data go toward narrowing where to drill?
-The work is aimed at AI-mineral-exploration teams (KoBold Metals,
-ExploreTech, Earth AI) and is meant to demonstrate working knowledge
-of the methodology and the places where the methodology breaks.
+This site is a portfolio. Each chapter asks, on a different geological
+problem or methodological angle, the same question: how far can a
+careful machine-learning pipeline trained on public data go toward
+narrowing where to drill, and where does the methodology break?
 
-The methodology is straightforward. Federal and state agencies publish
-several decades of mineral-occurrence records, geologic maps,
-geophysical surveys, stream-sediment geochemistry, and remote-sensing
-imagery. Resampled onto a common grid, each cell of land becomes a
-feature vector. A Random Forest is trained to recognize the cells that
-contain a known deposit, holding out spatial blocks so it cannot cheat
-by memorizing neighbors. The output is a per-cell score, mapped back
-across the region: where the model thinks the unknown deposits are.
+The work covers four regional pipelines (Eastern Alaska porphyry-Cu,
+BC Golden Triangle multi-deposit, California Mother Lode orogenic-Au,
+Arizona porphyry-Cu), independent reproductions of two canonical
+published methods (Lawley 2022 continental Zn-Pb; DEEP-SEAM Curnamona
+REE), a five-region cross-region experiment testing whether published
+methods transfer across deposit types and provinces, and
+decision-theoretic drill-planning work at both regional and property
+scale. Underneath each chapter sits a deeper notebook trail covering
+data, methodology, code, and limitations
+([review build](https://johnsondevco.com/plans/ai-minerals-internal/)).
+
+## Chapters
+
+### [1. Bear Cub (Cape Nome placer Au)](bear_cub.qmd)
+
+Family-heritage mineral patent on the Nome paleo-beach gold deposits.
+Twenty-four 1919-1955 paper drill logs ingested with a multi-engine
+OCR pipeline (Tesseract, TrOCR, Cloud Vision, Claude Opus with
+structured-output JSON arbitration), reconstructed as a
+three-dimensional model of bedrock surface + pay-zone horizon, and
+resourced with Voronoi-cell volumetrics + Monte Carlo uncertainty.
+
+### [2. Regional MPM pipelines](regional.qmd)
+
+Four within-region prospectivity pipelines built on the same
+methodology: USGS / NRCan / state-survey public data → Random Forest
+with 20 km spatial-block CV → leak-free out-of-fold scoring with
+bootstrap CIs. Top-1% capture rates of 22-23% across the four
+regions, 22-23× enrichment over random.
+
+### [3. Reproducing + auditing two published methods](reproductions.qmd)
+
+Cloned and re-ran the official code for two canonical MPM
+publications. **Lawley 2022** (continental Zn-Pb, AUC 0.983
+published) reproduces cleanly but the published number includes a
+label leak (2.4 pp), a 1-D vs 2-D spatial-blocking gap (9.0 pp), and
+a cross-continent transfer collapse (~16 pp). Honest AUC: 0.71-0.87.
+**DEEP-SEAM** (Curnamona REE, 86% top-2% capture published) is
+measured under a 0-D random split with no spatial blocking; the
+implementation also diverges from the paper text in two places.
+
+### [4. Cross-region experiments](cross_region.qmd)
+
+Five-region transferability test for the DEEP-SEAM deviation-network
+architecture. The published 2-3× advantage over Random Forest holds
+on its tuning dataset (Curnamona REE, 7 positives) and on nothing
+else: Tanacross porphyry-Cu (45 positives), Arizona porphyry-Cu (191
+positives), Lawley continental MVT (2,027 positives, 2-D blocked CV),
+and US Western Carbonatite REE Belt (14 positives, within-niche test)
+all favor classical tree-based methods by 7 to 37 percentage points.
+
+### [5. Drill planning under uncertainty](drill_planning.qmd)
+
+The downstream question — given a prospectivity map, where should
+the next hole go? — at two scales. A POMDP framing with Monte Carlo
+Tree Search on the BCGT regional prior, plus a Gaussian-process
+drill-site recommender on the Bear Cub placer property. Two
+different mathematical machineries, same intellectual move from
+probability surface to hole-location decision.
+
+## Methodology in one paragraph
+
+The methodology is standard: federal and state agencies publish
+mineral occurrence records, geologic maps, geophysical surveys,
+stream-sediment geochemistry, and remote-sensing imagery. Resampled
+onto a common grid, each cell of land becomes a feature vector. A
+Random Forest (or gradient-boosted trees, or a deep deviation
+network) is trained to recognize cells that contain a known deposit,
+holding out spatial blocks so it can't memorize neighbors. The
+output is a per-cell score, mapped back across the region: where the
+model thinks the unknown deposits are.
 
 What separates a portfolio model from an academic exercise is what
 happens after the score map is drawn. The methodology has four
-well-known traps (training-positive inflation; spatial leakage;
-exploration bias in the labels; cross-region transfer failure). All
-four show up in the work below.
+well-known traps — training-positive inflation, spatial leakage,
+exploration bias in the labels, cross-region transfer failure — and
+all four show up in the work below. The audit work in Chapter 3
+quantifies how much of two canonical published AUC numbers comes
+from each trap.
 
-# California Mother Lode (orogenic gold)
+## Stack
 
-The current project. The Sierra Nevada foothills hold the historic
-Mother Lode gold belt; the engineering challenge is assembling,
-aligning, and feature-engineering a heterogeneous mix of public
-datasets so a model can learn from them.
+USGS, NRCan, state-survey, and Sentinel-2 public data feeds. Python
+plus scikit-learn, pandas + pyarrow, geopandas + rasterio, PyTorch
+(for the DEEP-SEAM PyTorch port), PyVista (for Bear Cub 3-D
+visualization), Quarto (for this site).
 
-The pipeline pulls together six independent sources onto a shared
-500-metre grid in California Albers projection:
+## Site map
 
-- USGS aeromagnetic field plus four standard derivatives (first
-  vertical derivative, horizontal gradient magnitude, analytic
-  signal, tilt), each highlighting a different geometric property
-  of the underlying rocks.
-- USGS isostatic and Bouguer gravity, sensitive to crustal-density
-  variations between the Sierra Nevada batholith and the metamorphic
-  foothills belt that hosts the gold.
-- USGS State Geologic Map Compilation lithology, with three levels
-  of granularity (top-level GENERALIZED_LITH plus the MAJOR1, MAJOR2,
-  and MAJOR3 free-text named lithologies, factorized to integer codes
-  and one-hot encoded).
-- USGS National Geochemical Database stream-sediment chemistry across
-  the orogenic-Au pathfinder suite (Au, As, Sb, Hg, W, Ag plus base
-  metals).
-- Sentinel-2 SWIR-derived alteration indices (iron-oxide, ferrous,
-  clay, NDVI), with cloud and vegetation masking applied per scene.
-- USGS Mineral Resource Data System occurrence records, filtered to
-  in-place orogenic gold via Cox-Singer-style screening of placer and
-  alluvial records.
+| Chapter | Detail |
+|---|---|
+| [1. Bear Cub](bear_cub.qmd) | [internal/bear_cub/main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
+| [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) |
+| [3. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
+| [4. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
+| [5. Drill planning](drill_planning.qmd) | [overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html), [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
 
-Each layer is fetched from public APIs, reprojected, gridded, and
-joined into a single feature frame. The figure below shows the
-magnetic-field derivatives over the Mother Lode AOI as one example
-of the feature engineering involved.
-
-![Magnetic-field derivatives over the Mother Lode AOI: first vertical derivative (sharpens shallow-source edges), horizontal gradient magnitude (peaks over rock contacts), analytic signal (orientation-independent edge detector), and tilt (equalizes anomaly amplitudes so weak features compete with strong ones).](data/derived/motherlode/fig_magnetic_derivatives_grid.png){width=100%}
-
-Downstream of the pipeline, a Random Forest baseline trained on the
-cleaned positive set plus spatial pseudo-negatives gives mean ROC-AUC
-0.85 (95% CI [0.79, 0.90]) under 20-km spatial-block
-cross-validation across 62 valid folds. The model is a validation of
-the pipeline rather than a state-of-the-art predictor; deep-learning
-prospectivity approaches like DEEP-SEAM and graph-based methods do
-better in the published literature.
-
-The interesting result that survived the validation tightening was a
-methodology negative: cross-region transfer remains hard. A model
-trained on the Sierra Mother Lode and applied to the Klamath
-Mountains (a separate orogenic-Au province in northern California)
-ranks Klamath cells at-or-below random at most cutoffs, even when the
-regional-shifting features (geophysics, stream-sediment chemistry,
-remote sensing) are stripped out. Geology-only transfer raises the
-very top of the ranking to 1.27× random at top 1% but falls below
-random for deeper cutoffs. The Sierra and Klamath belts share
-lithology categories at the geologic-map level; the spatial context
-of those lithologies differs enough that a model trained on one does
-not generalize to the other. This is the unsolved frontier that
-foundation-model approaches like GFM4MPM are trying to
-address.[^gfm4mpm]
-
-[^gfm4mpm]: Daruna et al., "GFM4MPM: Towards Geospatial Foundation
-    Models for Mineral Prospectivity Mapping," 2024. The proposal
-    is to pretrain a vision-style encoder on geophysical and
-    geological grids so that downstream prospectivity classifiers
-    inherit a transferable representation rather than learning
-    region-specific spatial-context patterns from scratch.
-
-# DEEP-SEAM independent replication
-
-A separate diagnostic exercise: take the published DEEP-SEAM
-mineral-prospectivity model (Luo et al. 2026, *Geosci. Model Dev.*),
-re-implement the underlying Deviation Network architecture from the
-paper alone (without consulting the authors' code), and check whether
-the published headline result reproduces. Their dataset (Curnamona
-REE, South Australia, 7 known deposits across 870 feature cells) is
-publicly released on Zenodo.[^deepseam]
-
-Result: under leave-one-out training over the seven positives, the
-re-implemented model places every held-out deposit inside the top 5%
-of the score distribution and inside the top 30% as the original
-paper reports. Three of seven held-out positives land inside the top
-1% of cells. The headline 86% of deposits in the top 2% number
-underperforms slightly (we recover 43% at that cutoff), which is
-consistent with hyperparameter or measurement-methodology gaps not
-specified in the paper alone. The qualitative result reproduces.
-
-The same dataset run through a Random Forest of equivalent
-configuration is materially worse: only 43% of held-out positives
-inside the top 5%, only 57% inside the top 30%. The DEEP-SEAM
-architecture is doing real work over classical ensemble methods on
-that data.
-
-When the same Deviation Network is applied to the California Mother
-Lode feature frame, the architecture does not transfer. The
-anomaly-detection framing assumes positives are feature-space
-outliers in a sea of "normal" unlabeled samples, which holds for
-seven REE deposits in a tightly curated South Australian dataset. It
-does not hold for 6,149 orogenic-gold positives spread densely across
-the Mother Lode foothills belt. Out-of-distribution scoring on
-unlabeled cells produces unbounded outputs that crowd out the true
-positives at the top of the ranking. This is a structural
-incompatibility between the model's framing and the data's shape, not
-a preprocessing gap that more PCA decomposition fixes.
-
-The takeaway from the 2×2 (their method × their data, our method ×
-their data, their method × our data, our method × our data): the
-methodology stack is sound and produces results consistent with the
-data's structure on each problem. Cross-region generalization remains
-the open frontier; deep-learning architectures alone do not solve it.
-
-[^deepseam]: Luo et al., "DEEP-SEAM: an explainable semi-supervised
-    deep learning framework for mineral prospectivity mapping,"
-    *Geosci. Model Dev.* 19, 2593 (2026). Implementation in this
-    portfolio at `src/ai_minerals/model_devnet.py`, ported from the
-    Pang et al. 2019 deviation-networks paper that DEEP-SEAM itself
-    builds on. The replication scripts are in
-    `scripts/deep_seam_cell_{a,b,c}*.py`.
-
-# Eastern Alaska and BC Golden Triangle (porphyry copper)
-
-Two earlier projects covered porphyry copper-molybdenum systems in
-Alaska's Yukon-Tanana terrane and British Columbia's Stikine arc.
-Both used the same Random Forest plus spatial-block CV methodology
-applied to two regions hosting world-class porphyry deposits
-(Brucejack, KSM, Red Chris, Galore Creek).
-
-The notable result was an external blind test on the Alaska model.
-Kenorland's `23ETD062`, a 2023 porphyry intersection that postdates
-every training label, scored at the 62nd percentile of the
-prospectivity ranking. A diagnostic traced the failure to
-*exploration bias*: areas with denser historical sampling had
-denser positive labels, regardless of underlying geology. The
-model had learned where geologists had previously looked, not
-where the rocks favored mineralization. Four remediations (drop
-sample-count features, mark missing data with indicators, train on
-no-geochemistry features, switch to PU bagging) all failed to
-rescue the blind test. The lesson is that an un-corrected
-pseudo-supervised pipeline at regional resolution cannot
-distinguish a distal low-grade porphyry hit from background. It
-can rank the historic-sampling intensity, which is correlated but
-not identical.
-
-The BC Golden Triangle model was validated against a distribution
-of 241 post-2015 drill holes (154 intersected positives, 87
-drilled-negative) rather than a single intersection, which gives a
-truer view of operating-point precision. The same exploration-bias
-caveat applies in a milder form.
-
-# Bear Cub (dark-data pilot)
-
-A working pipeline that ingests 24 hand-written 1919-1955 paper
-drill logs from a placer-gold property held by the user's family in
-Nome, Alaska. The pipeline extracts hole locations and assay values
-via OCR, cross-checks them against a 1955 cartographer's property
-map, and derives the original-operator's empirical formula for
-converting drill-log assay numbers into ounces per cubic yard. The
-cross-check caught a 45° geomorphology error in the cartographer's
-hole-numbering, which an OCR-confidence threshold alone would not
-have surfaced.
-
-The project demonstrates a methodology relevant to junior-mining
-acquisition workflows: a meaningful fraction of historical mining
-data exists only as scanned paper, and a self-correcting ingestion
-pipeline (OCR plus a structural-consistency check against a known
-external reference) can turn that data into modern feature vectors.
-A 3D PyVista model of the drill-hole intersections is included.
-
-# Themes
-
-What the four projects together demonstrate:
-
-- **Validation discipline matters more than the headline metric.**
-  Spatial-block CV, bootstrap confidence intervals, external blind
-  tests, and held-out cross-region transfer are the tools that
-  separate a real result from an apparently-good one. Three of the
-  four projects above show one of these checks falsifying a
-  result that point-estimate metrics had endorsed.
-- **Label cleanup beats feature engineering on this class of problem.**
-  The largest single improvement on Mother Lode came from filtering
-  20% of the positives that did not match the deposit type the model
-  was trying to learn. New features mostly substituted for old ones.
-- **Cross-region transfer is the unsolved frontier.** Sierra to
-  Klamath fails. Eastern Alaska to a future Kenorland-style
-  intersection fails. The published foundation-model approaches
-  (GFM4MPM) are trying to build encoders that survive this kind of
-  shift, and that is the direction the next round of work in this
-  space is likely to come from.
-- **Public data plus open libraries reach a working model.** None
-  of the projects above used proprietary data feeds or hosted
-  ML platforms. USGS, GSC, NGDB, SGMC, MRDS, and Sentinel-2 plus
-  scikit-learn and Quarto are the entire stack.
-
-# Reproduce
+## Reproduce
 
 ```bash
 git clone <this-repo>
 cd ai-minerals
 uv sync
-uv run python -m ai_minerals.data.fetch.all
-uv run python -m ai_minerals.features.assemble
-QUARTO_PYTHON=.venv/bin/python quarto render
+quarto render
 ```
 
 License: MIT.
@@ -233,6 +119,6 @@ License: MIT.
 ```{python}
 #| echo: false
 #| output: asis
-import datetime as _dt
-print(f"\n---\n\n*Site rendered {_dt.date.today():%Y-%m-%d}.*")
+from datetime import date
+print(f"\n---\n\n*Site rendered {date.today().isoformat()}.*")
 ```
