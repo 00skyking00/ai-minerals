@@ -42,24 +42,43 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
     dem = sample_raster(region.raw_paths["dem"], grid)
     slope, tri = slope_and_tri(dem, grid.resolution_m)
 
-    print("[assemble] Sentinel-2 indices")
-    s2 = s2_indices(region.raw_paths["sentinel2"], grid)
+    s2_path = region.raw_paths.get("sentinel2")
+    if s2_path is not None and s2_path.exists():
+        print("[assemble] Sentinel-2 indices")
+        s2 = s2_indices(s2_path, grid)
+    else:
+        print("[assemble] Sentinel-2 indices SKIPPED (file missing); proceeding without S2 features")
+        s2 = {}
 
     print("[assemble] geophysics")
     geophys_adapter = get_adapter("geophysics", region.geophysics_source)
     mag = geophys_adapter(sample_raster(region.raw_paths["magnetic"], grid))
     grav = geophys_adapter(sample_raster(region.raw_paths["gravity"], grid))
-    # Optional: 1st vertical derivative of the magnetic field (edge-sharpening
-    # product). Present for regions where NRCan ships both RTF + 1VD.
-    mag_1vd = None
-    if "magnetic_1vd" in region.raw_paths and region.raw_paths["magnetic_1vd"].exists():
-        mag_1vd = geophys_adapter(sample_raster(region.raw_paths["magnetic_1vd"], grid))
+    # Optional gravity isostatic-residual variant.
+    grav_iso = None
+    if "gravity_isostatic" in region.raw_paths and region.raw_paths["gravity_isostatic"].exists():
+        grav_iso = geophys_adapter(sample_raster(region.raw_paths["gravity_isostatic"], grid))
+    # Optional magnetic-field derivatives (v3.1 feature engineering):
+    # 1VD, HGM, analytic signal, tilt. Computed by
+    # `data.magnetic_derivatives.write_derivatives`.
+    mag_derivs: dict[str, np.ndarray] = {}
+    for key in ("magnetic_1vd", "magnetic_hgm", "magnetic_analytic_signal", "magnetic_tilt"):
+        if key in region.raw_paths and region.raw_paths[key].exists():
+            mag_derivs[key] = geophys_adapter(sample_raster(region.raw_paths[key], grid))
 
     # --- Geology (canonical schema: lith_class, lith_group) ---
     print("[assemble] geology polygons + faults")
     geo_adapter = get_adapter("geology", region.geology_source)
     geo_poly = geo_adapter(region.raw_paths["geology"], region.aoi)
     lith, top_classes = assign_lithology(grid, geo_poly, top_n=10, class_column="lith_class")
+    # v3.1: also assign MAJOR1/2/3 codes per cell. These carry finer-grained
+    # lithology than GENERALIZED_LITH and feed an additional set of one-hots
+    # in `add_lithology_onehot` (model.py).
+    extra_lith_grids: dict[str, np.ndarray] = {}
+    if "major1_class" in geo_poly.columns:
+        for col in ("major1_class", "major2_class", "major3_class"):
+            extra_grid, _ = assign_lithology(grid, geo_poly, top_n=10, class_column=col)
+            extra_lith_grids[col] = extra_grid
 
     aoi_mask = gpd.GeoSeries(
         [region.aoi.polygon], crs=region.aoi.crs
@@ -136,8 +155,10 @@ def build_feature_frame(region, resolution_m: int = 500) -> pd.DataFrame:
         "tri": tri.ravel(),
         "magnetic": mag.ravel(),
         "gravity": grav.ravel(),
-        **({"magnetic_1vd": mag_1vd.ravel()} if mag_1vd is not None else {}),
+        **({"gravity_isostatic": grav_iso.ravel()} if grav_iso is not None else {}),
+        **{name: arr.ravel() for name, arr in mag_derivs.items()},
         "lithology_class": lith.ravel().astype(np.int32),
+        **{col: arr.ravel().astype(np.int32) for col, arr in extra_lith_grids.items()},
         "distance_to_fault_m": dist_fault.ravel(),
         "any_mineral_occurrence": any_occ.ravel(),
     }

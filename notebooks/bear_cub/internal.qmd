@@ -466,7 +466,7 @@ for _, r in gp.iterrows():
 
 **What's missing.** Anisotropy. Bear Cub crosses the 3rd beach line; bedrock is not isotropic in space — a hole 100 ft along-trend is geologically more relevant than a hole 100 ft across-trend. Our KNN distance metric ignores that. The GP's anisotropic RBF *can* learn it, but with n=21 the length scales are weakly identified. A geologically-informed prior (e.g., distance projected onto a beach-line trace) would help — out of scope for this sprint, noted for the toolkit follow-up.
 
-**Impact on the resource estimate.** All three imputed holes are inside the polygon; their bedrock affects the column thickness above bedrock. Across the full sensitivity grid the imputed bedrocks vary by at most ~10 ft (most of that swing comes from the 15 ft floor case, which pushes shallowest neighbors out). On a polygon column averaging ~70 ft, that's a ~14% per-hole swing on three of 24 holes — at most a couple percent on the property total. The resource estimate is not load-bearing on this choice.
+**Impact on the resource estimate.** All three imputed holes are inside the polygon; their bedrock affects the column thickness above bedrock. Across the full sensitivity grid the imputed bedrocks vary by at most ~10 ft (most of that swing comes from the 15 ft floor case, which pushes shallowest neighbors out). On a polygon column averaging ~70 ft, that's a ~14% per-hole swing on three of 24 holes — at most a couple percent on the property total. The resource estimate does not turn on this choice.
 
 ## What this doesn't prove
 

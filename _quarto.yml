@@ -3,9 +3,6 @@ project:
   output-dir: _site
   render:
     - index.qmd
-    - notebooks/eastak/*.qmd
-    - notebooks/bcgt/*.qmd
-    - notebooks/bear_cub/*.qmd
 
 website:
   title: "ai-minerals"
@@ -13,59 +10,10 @@ website:
   site-url: https://johnsondevco.com/plans/ai-minerals/
   favicon: favicon.png
   repo-url: https://github.com/skyking/ai-minerals
-  repo-actions: [edit, source]
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - text: "Eastern Alaska (v1)"
-        menu:
-          - href: notebooks/eastak/eastak_porphyry_prospectivity.qmd
-            text: Integrated report
-          - href: notebooks/eastak/data_exploration.qmd
-            text: Data exploration
-          - href: notebooks/eastak/baseline_model.qmd
-            text: Baseline model
-          - href: notebooks/eastak/random_forest_and_shap.qmd
-            text: Random Forest + SHAP
-          - href: notebooks/eastak/validation.qmd
-            text: Validation + sensitivities
-      - text: "BC Golden Triangle (v2)"
-        menu:
-          - href: notebooks/bcgt/bcgt_porphyry_prospectivity.qmd
-            text: Integrated report
-          - href: notebooks/bcgt/data_exploration.qmd
-            text: Data exploration
-          - href: notebooks/bcgt/baseline_model.qmd
-            text: Baseline model
-          - href: notebooks/bcgt/random_forest_and_shap.qmd
-            text: Random Forest + SHAP
-          - href: notebooks/bcgt/validation.qmd
-            text: Validation + blind test
-          - href: notebooks/bcgt/decision_planning.qmd
-            text: Decision-theoretic drill planning (POMDP)
-      - text: "Bear Cub (pilot)"
-        menu:
-          - href: notebooks/bear_cub/main.qmd
-            text: Dark-data ingestion pipeline
-          - href: notebooks/bear_cub/mining_review.qmd
-            text: Mining-engineer review
-          - href: notebooks/bear_cub/internal.qmd
-            text: Full review (caveats + TODOs)
-      - text: Research
-        menu:
-          - href: research/kobold-analysis.md
-            text: KoBold
-          - href: research/explore-tech-analysis.md
-            text: ExploreTech
-          - href: research/competitive-landscape.md
-            text: Competitive landscape
-          - href: research/state-of-the-art.md
-            text: State of the art
-          - href: research/open-datasets.md
-            text: Open datasets
-      - href: design/mvp-proposal.md
-        text: Design
 
 format:
   html:

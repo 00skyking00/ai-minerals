@@ -1,0 +1,196 @@
+---
+title: "DEEP-SEAM official implementation audit"
+subtitle: "Cloned the authors' code; compared to paper text and our PyTorch port"
+date: 2026-05-12
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## Context
+
+After our cross-region experiment showed that DEEP-SEAM's
+architectural advantage holds only on its tuning dataset (Curnamona
+REE), and after our Lawley 2022 audit demonstrated how much of a
+published number can hide in the gap between paper-text and
+implementation-code, we cloned the official DEEP-SEAM v1.0
+repository ([EarthByte/MPM_Curnamona_REE](https://github.com/EarthByte/MPM_Curnamona_REE),
+MIT license, Zenodo DOI 10.5281/zenodo.17098677) and compared the
+implementation against the paper and against our independent
+PyTorch reimplementation.
+
+Three findings, in descending order of importance.
+
+## Finding 1: random 70/30 split, no spatial blocking
+
+The published top-2-percent capture rate of 86 percent is measured
+under an `sklearn.model_selection.train_test_split(test_size=0.3,
+random_state=56, stratify=labels)`. That is **0-D spatial blocking
+— equivalent to no spatial blocking**.
+
+The training set has:
+
+- 7 known REE deposit positives at their actual coordinates.
+- ~863 unlabeled samples generated uniformly at random across the
+  Curnamona AOI polygon.
+
+Stratified random 70/30 puts 5 positives + 604 unlabeled in train,
+2 positives + 259 unlabeled in test. The 2 test positives sit at
+known deposit coordinates; the training set contains random-
+uniform unlabeled samples that can be tens of meters from those
+test positives.
+
+For comparison:
+
+| Benchmark | Spatial scheme | Notes |
+|---|---|---|
+| **DEEP-SEAM (Curnamona REE)** | **0-D random** | No spatial blocking at all |
+| Lawley 2022 (continental MVT, published) | 1-D latitude bands | Documented 9-pp leakage in [Lawley Phase 2](lawley.qmd) |
+| Our cross-region experiment | OOF spatial-block CV (20 km) | 2-D blocking |
+| Our Phase 2 tightening of Lawley | 2-D 12x12 quantile blocks | Strictest tested |
+
+DEEP-SEAM's split is strictly more permissive than Lawley's. The
+86 percent top-2-percent capture is reproducible (we replicated it
+earlier in the cross-region experiment) but it is not a measurement
+of spatial generalization; it's a measurement of in-sample-like
+recall.
+
+The implication for our portfolio narrative: the "DEEP-SEAM wins
+on Curnamona" comparator we kept citing in the cross-region
+writeups now carries an asterisk. The architecture has a real loss
+function tuned for tiny positive sets, but the *measured advantage*
+in the published paper depends on a 0-D split that hides spatial
+leakage.
+
+## Finding 2: implementation diverges from paper in two places
+
+### 2a. The reference distribution is frozen, not sampled per batch
+
+The Pang et al. (2019) paper that introduced the deviation network
+specifies:
+
+$$L = (1 - y) \cdot |dev(x)| + y \cdot \max(0, a - dev(x))$$
+
+with $dev(x) = (\phi(x; \theta) - \mu_R) / \sigma_R$ and
+$\mu_R, \sigma_R$ **sampled fresh per batch from a standard normal
+prior**. The stochasticity is a form of regularization.
+
+DEEP-SEAM's implementation (in
+`Curnamona_MPM_ipynb_109.ipynb` cell 67):
+
+```python
+ref = K.variable(np.random.normal(loc=0., scale=1.0, size=50000),
+                  dtype='float32')
+
+def deviation_loss(y_true, y_pred):
+    confidence_margin = 20
+    dev = (y_pred - K.mean(ref)) / K.std(ref)
+    ...
+```
+
+`K.variable` is initialized **once at module load** with one
+50,000-sample draw. `K.mean(ref)` and `K.std(ref)` are then
+constants for the entire training (close to 0 and 1, but the
+specific value depends on the one draw). The implemented loss is
+therefore a deterministic margin loss, not the stochastic-reference
+loss the paper describes.
+
+Our PyTorch port draws `ref` fresh each batch (matching Pang's
+algorithm). The two implementations optimize subtly different loss
+functions. In practice the difference is small (a 50K-sample mean
+is very close to 0), but the discrepancy between paper and code is
+worth noting.
+
+### 2b. `confidence_margin = 20`, not Pang's default of 5
+
+Pang 2019 sets $a = 5$ as the default. DEEP-SEAM uses $a = 20$ —
+four times further. Not necessarily a bug (they may have tuned for
+their data) but the paper does not explicitly call out this
+hyperparameter choice. Our port used $a = 5$.
+
+## Finding 3: performance characterization
+
+The feature-engineering pipeline (the ILR-PCA + GLCM preprocessing
+in cells 35-42) uses Python-loop patterns similar to what we
+optimized in Lawley's `neighbor_deposits`:
+
+- `get_mean_std` iterates over points × buffer-zone pixels in Python.
+- `get_diss_corr` calls `skimage.graycomatrix` once per point.
+- The outer `for grid in tqdm(grid_filenames)` loop reads + reprojects
+  each input raster sequentially.
+- Intermediate CSVs written to Google Drive at every step.
+
+For 870 samples the pipeline runs in minutes on Colab. At larger
+AOI scale (the way we ran it on the 1.17-million-cell US Western
+Carbonatite Belt) it would benefit from the same vectorization
+approach we used on Lawley (≥130× speedup on `neighbor_deposits`):
+explode + isin + groupby for spatial joins, vectorized numpy for
+buffer statistics, batch GLCM via one `graycomatrix` call per
+raster patch.
+
+We don't need to optimize their code to use our work, so this is a
+recommendation note rather than a fix.
+
+## What changes for the cross-region story
+
+The four-region finding from our earlier work
+([cross-region](deep_seam_cross_region.qmd)) is **strengthened**, not
+weakened, by this audit.
+
+The earlier framing said: "DEEP-SEAM beats RF on Curnamona but
+doesn't transfer to Tanacross / Arizona / Lawley." The audit
+clarifies *why*: the published Curnamona advantage is measured
+under a 0-D random split that doesn't isolate test cells from
+training cells spatially. When the same architecture is evaluated
+on regions where spatial blocking is enforced (Tanacross, Arizona,
+Lawley under 2-D blocks, US Carbonatite REE under LOO), the
+advantage disappears.
+
+In other words: the architecture's published 2-3x lift over
+Random Forest is partly an evaluation artifact. Under honest
+spatial isolation we'd expect the lift to shrink. We can't measure
+this directly on Curnamona itself (7 positives forces LOO under
+any spatial scheme, and LOO with that few positives is itself
+noisy), but the [US Western Carbonatite Belt experiment](us_carbonatite_ree.qmd)
+gives us the closest available analog: same deposit family,
+larger positive set, LOO evaluation. Under that setup **Random
+Forest beats DevNet 85.7% to 71.4% at top-1 percent capture**.
+
+## Methodology checklist (one for both Lawley and DEEP-SEAM)
+
+Both audits surfaced findings via the same pattern of questions.
+Worth applying to any future MPM reproduction:
+
+1. **What spatial-block scheme does the published evaluation use?**
+   0-D (random), 1-D (latitude band), 2-D (lat-lon block), region
+   transfer, or LOO. Each level up tightens the leakage.
+2. **Are the input features computed in a way that can be
+   evaluated separately from the target?** Lawley's
+   `Training_MVT_Occurrence` arithmetically defined half the
+   target. The feature dictionary needs inspection.
+3. **Is the loss function as implemented the same as the loss
+   function as described?** DEEP-SEAM's frozen reference variable
+   is a concrete instance of "implementation diverges from paper."
+4. **Are hyperparameters consistent between paper and code?**
+   DEEP-SEAM's `confidence_margin = 20` against Pang's default of 5.
+5. **What does `predict_proba` actually return?** Calibrated
+   probability, normalized rank, raw score, sigmoid of normalized
+   rank?
+
+## Files
+
+- DEEP-SEAM official source: `third_party/MPM_Curnamona_REE/`
+- Audit writeup: [research/deep_seam_audit_2026-05.md](../../research/deep_seam_audit_2026-05.md)
+- Our PyTorch port: [src/ai_minerals/model_devnet.py](../../src/ai_minerals/model_devnet.py)
+- Companion notebooks:
+  [DEEP-SEAM four-region transfer](deep_seam_cross_region.qmd),
+  [US Carbonatite REE within-niche](us_carbonatite_ree.qmd),
+  [Lawley 2022 audit](lawley.qmd)
+
+## Sources
+
+- Luo, Z., Farahbakhsh, E., Hore, S., and Müller, R. D., 2026. DEEP-SEAM: an explainable semi-supervised deep learning framework for mineral prospectivity mapping. *Geosci. Model Dev.* 19, 2593.
+- Pang, G., Shen, C., and van den Hengel, A., 2019. Deep Anomaly Detection with Deviation Networks. arXiv:1911.08623.
+- DEEP-SEAM v1.0 archive: Zenodo DOI 10.5281/zenodo.17098677.

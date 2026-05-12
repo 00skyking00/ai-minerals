@@ -25,16 +25,23 @@ def fit_pu_bagging(
     df: pd.DataFrame,
     top_classes: list[int],
     *,
+    label_col: str = "is_porphyry",
     n_bags: int = 30,
     random_state: int = 42,
     rf_kwargs: dict | None = None,
 ) -> tuple[np.ndarray, list[str]]:
     """Fit a bagging PU ensemble and return out-of-bag probabilities for EVERY cell.
 
+    `label_col` selects which binary positive-label column to train against
+    (`is_porphyry` for BCGT, `is_orogenic_gold` for Mother Lode, etc.).
+
     Each bag: positives + random unlabeled draw of equal size -> RF fit.
     Each cell's final score averages predictions from bags where the cell was
     NOT in the unlabeled-as-negative training set (OOB).
     """
+    if label_col not in df.columns:
+        raise KeyError(f"label_col {label_col!r} not in dataframe columns")
+
     rng = np.random.default_rng(random_state)
     rf_kwargs = rf_kwargs or dict(
         n_estimators=200,
@@ -44,11 +51,24 @@ def fit_pu_bagging(
         n_jobs=-1,
     )
 
-    df_oh = add_lithology_onehot(df, top_classes)
-    feat_cols = [c for c in df_oh.columns if c not in NON_FEATURE_COLUMNS and c != "lithology_class"]
+    # v3.1: auto-detect major1/2/3 columns and pass them through.
+    extra: dict[str, list[int]] = {}
+    for col in ("major1_class", "major2_class", "major3_class"):
+        if col in df.columns:
+            top_majors = (
+                df[col][df[col] >= 0].value_counts().head(10).index.tolist()
+            )
+            extra[col] = top_majors
+    df_oh = add_lithology_onehot(df, top_classes, extra_class_columns=extra or None)
+    feat_cols = [
+        c for c in df_oh.columns
+        if c not in NON_FEATURE_COLUMNS
+        and c != "lithology_class"
+        and c not in ("major1_class", "major2_class", "major3_class")
+    ]
     X_all = df_oh[feat_cols].fillna(-9999).to_numpy()
 
-    pos_mask = (df["is_porphyry"] == 1).to_numpy()
+    pos_mask = (df[label_col] == 1).to_numpy()
     pos_idx = np.where(pos_mask)[0]
     unl_idx = np.where(~pos_mask)[0]
     n_pos = len(pos_idx)
