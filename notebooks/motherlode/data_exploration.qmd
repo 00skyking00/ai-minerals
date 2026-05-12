@@ -1,0 +1,602 @@
+---
+title: "California Mother Lode: data exploration"
+subtitle: "A tour of the v3 datasets, ground up"
+format:
+  html:
+    toc: true
+    code-fold: show
+execute:
+  warning: false
+---
+
+A walk through the data feeding the Mother Lode v3 orogenic-Au
+prospectivity work. Each section explains what the dataset is, why it
+helps for orogenic-gold prospectivity in particular, and what it
+actually looks like when you load it. Every section ends with a short
+interpretation note. The point is to make the modeling later in the
+project legible to a reader who is interested in this work but is
+not a geophysicist.
+
+The region of interest is the Sierra Nevada foothills from south of
+Yosemite up to the El Dorado-Placer county line, roughly -121.5° to
+-119.5° W, 37.5° to 40° N. The Mother Lode Belt itself, a thin N-S
+strip from Mariposa through El Dorado County, sits inside this AOI.
+The AOI also includes the Sierra Nevada batholith to the east and a
+strip of Central Valley to the west; we keep those in the frame so
+the model can learn what does *not* host orogenic Au.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rioxarray  # noqa: F401
+
+from ai_minerals.regions.motherlode import MOTHERLODE
+from ai_minerals.data._common import DATA_RAW
+
+AOI = MOTHERLODE.aoi
+WORKING_CRS = MOTHERLODE.working_crs
+
+print(f"AOI: {AOI.name}  ({AOI.min_lon}-{AOI.max_lon} °W, {AOI.min_lat}-{AOI.max_lat} °N)")
+print(f"Working CRS: {WORKING_CRS}  (California Albers Equal Area, NAD83)")
+```
+
+The working CRS is California Albers Equal Area (EPSG:3310). All raster
+clipping and all per-cell aggregation runs in this projection so areas
+and distances are accurate. Klamath, our Phase 5 cross-region transfer
+target, uses the same CRS so the two feature frames are directly
+comparable.
+
+## 1. USGS MRDS: the mineral-occurrence database
+
+The Mineral Resources Data System is the United States' national
+catalog of mineral occurrences and known deposits. Records range from
+historical small workings to producing mines. Every record carries a
+location, a list of commodities, an operation type (placer vs lode),
+a development-status flag (past producer, current producer, prospect,
+occurrence), and free-text fields for deposit type, model, alteration,
+and bibliographic references.
+
+For us, MRDS plays two roles:
+
+- **Positive labels** for orogenic-Au cells. We commodity-filter to
+  records that mention "Au" or "gold" anywhere in `commod1/2/3`.
+- **Exclusion mask** for pseudo-negative sampling. Cells within 5 km
+  of *any* mineral occurrence (Au, Cu, Pb, Zn, anything) are excluded
+  from being labeled as negatives, because they may host
+  yet-undiscovered mineralization.
+
+Why we use MRDS specifically: it has the broadest coverage for
+California of any public source, and the per-record metadata is rich
+enough to do clean commodity filtering. The original USGS bbox-query
+API was returning HTTP 500 errors when we pulled, so we instead used
+the per-state shapefile bundle from `mrdata.usgs.gov/mrds/`.
+
+```{python}
+#| label: mrds-load
+from ai_minerals.data.adapters import get_adapter
+mrds = get_adapter("occurrences", "mrds")(
+    DATA_RAW / "mrds" / "mrds_motherlode.gpkg", AOI
+)
+print(f"MRDS records in Mother Lode AOI: {len(mrds):,}")
+au_mask = mrds["commodity"].str.contains("au|gold", case=False, regex=True, na=False)
+print(f"  Au-bearing: {int(au_mask.sum()):,} ({100*au_mask.mean():.1f}%)")
+print(f"  Other:      {int((~au_mask).sum()):,}  (drives the exclusion mask)")
+```
+
+```{python}
+#| label: mrds-map
+fig, ax = plt.subplots(figsize=(8, 9))
+mrds.plot(ax=ax, color="lightgray", markersize=2, label="any commodity")
+mrds[au_mask].plot(ax=ax, color="goldenrod", markersize=3, label="Au-bearing")
+ax.set_aspect("equal")
+ax.set_title(f"MRDS records in Mother Lode AOI ({len(mrds):,} total)")
+ax.legend(loc="upper left")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.** Au-bearing records dominate (about 83% of the
+in-AOI set), as expected for a region named for its gold endowment.
+The dense N-S linear cluster running through the middle of the map is
+the Mother Lode Belt itself: a roughly 120-mile-long shear-zone
+system from Mariposa County north through El Dorado. The Sierra
+Nevada batholith to the east is sparser; the Central Valley to the
+west is almost empty. This is the geological-control signal we want
+the model to learn.
+
+## 2. USGS SGMC: the bedrock geology
+
+The State Geologic Map Compilation is a national geologic
+map of the conterminous US, compiled from individual state surveys
+into one consistent polygon database. Every polygon carries a unit
+name, age range, primary lithology, and (the field that does the most
+work for us) a controlled-vocabulary `GENERALIZED_LITH` field that
+classifies the unit into one
+of about 33 standard rock-type categories. SGMC was specifically built
+to support cross-region comparison.
+
+For orogenic-Au prospectivity, the discriminations we care about are:
+
+- **Greenstone belts**: metamorphosed mafic volcanic units (often
+  basalt that's been altered to chlorite-actinolite-epidote
+  assemblages). Most of California's lode gold comes out of these.
+- **Metasediments**: schist, phyllite, slate. The Mariposa Slate is
+  the type example for the Mother Lode and hosts a lot of vein gold.
+- **Ultramafic / serpentinite**: peridotite-derived rocks, often
+  faulted into greenstone-belt sequences. Frequently mark major shear
+  zones that control gold mineralization.
+- **Granitic intrusions**: the Sierra Nevada batholith. Generally
+  *not* the host but is spatially adjacent.
+- **Sedimentary clastics**: Central Valley fill. Should rank low for
+  prospectivity.
+
+```{python}
+#| label: sgmc-load
+from ai_minerals.data.adapters.geology.usgs_sgmc import load as sgmc_load
+geo = sgmc_load(DATA_RAW / "sgmc" / "sgmc_geology_motherlode.gpkg", AOI)
+print(f"SGMC polygons in AOI: {len(geo):,}")
+print(f"\nlith_group distribution:")
+for k, v in geo["lith_group"].value_counts().items():
+    print(f"  {v:>5}  {k}")
+```
+
+```{python}
+#| label: sgmc-map
+fig, ax = plt.subplots(figsize=(8, 9))
+group_colors = {
+    "greenstone":    "#3a7d44",
+    "ultramafic":    "#8b4513",
+    "metasediment":  "#7b9bd9",
+    "metamorphic":   "#a0a4cc",
+    "melange":       "#b0c4de",
+    "intrusive":     "#d2a574",
+    "volcanic":      "#cc6677",
+    "sedimentary":   "#f0e68c",
+    "surficial":     "#f5f5dc",
+    "water":         "#a6cee3",
+    "tectonite":     "#8c564b",
+    "other":         "#cccccc",
+}
+for grp, sub in geo.groupby("lith_group"):
+    sub.plot(ax=ax, color=group_colors.get(grp, "#cccccc"), edgecolor="none",
+             label=grp)
+ax.set_aspect("equal")
+ax.set_title("SGMC bedrock geology, simplified to canonical lith_group")
+ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=8)
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.** The N-S strip of metamorphic + greenstone +
+metasediment polygons in the middle of the map is the Foothills
+Metamorphic Belt that hosts the Mother Lode. The orange granitoid
+mass to the east is the Sierra Nevada batholith. The yellow strip on
+the west edge is the Central Valley sedimentary fill. The model's
+lithology one-hot encoding will let it learn that "near greenstone
+or metasediment in the foothills" is prospective; that "in the
+batholith or in the valley" is not.
+
+## 3. SGMC structure: fault and shear-zone geometry
+
+SGMC ships fault traces as a separate line layer. For orogenic Au,
+proximity to faults is a major control: the gold-bearing quartz veins
+are emplaced along shear zones that develop alongside or within
+high-angle faults. The Mother Lode Fault System is the type example.
+
+```{python}
+#| label: faults-load
+faults = gpd.read_file(DATA_RAW / "sgmc" / "sgmc_structure_motherlode.gpkg")
+print(f"Fault arcs in AOI: {len(faults):,}")
+```
+
+```{python}
+#| label: faults-map
+fig, ax = plt.subplots(figsize=(8, 9))
+faults.plot(ax=ax, color="black", linewidth=0.4, alpha=0.7)
+mrds[au_mask].plot(ax=ax, color="goldenrod", markersize=2)
+ax.set_aspect("equal")
+ax.set_title("SGMC fault traces (black) + MRDS Au records (gold)")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.** Au records align tightly along the fault network
+in the foothills. The model's `distance_to_fault_m` feature is one of
+the most informative cell-level inputs for orogenic prospectivity.
+Far from any fault → unprospective. Near a fault and in the right
+host rock → prospective. SHAP analysis in Phase 2 confirms this is
+among the top features.
+
+## 4. USGS NGDB: stream-sediment geochemistry
+
+The National Geochemical Database is the United States' aggregated
+catalog of stream-sediment, soil, rock, and concentrate geochemistry.
+It pulls together USGS regional surveys, the 1970s NURE (National
+Uranium Resource Evaluation) reconnaissance, and individual
+contributor programs. Quality varies by submitter, but for regional
+prospectivity at our scale it is the best public US geochemistry.
+
+For orogenic-Au prospectivity, the relevant pathfinders are:
+
+- **Au itself**: direct evidence of mineralization upstream.
+- **As, Sb**: strongly co-genetic with orogenic Au (arsenopyrite +
+  stibnite are common gangue).
+- **Hg, W**: often spatially associated with Au-bearing veins.
+- **Ag, Cu, Pb, Zn, Mo, Bi, Te**: kept as supporting context;
+  weaker pathfinders alone but useful in combination.
+
+```{python}
+#| label: ngdb-load
+from ai_minerals.data.adapters.geochem.ngdb import load as ngdb_load
+gc = ngdb_load(
+    DATA_RAW / "ngdb" / "ngdb_sediment_motherlode.gpkg", AOI,
+    elements=MOTHERLODE.pathfinder_elements,
+)
+print(f"NGDB stream-sediment samples in AOI: {len(gc):,}")
+print()
+print("Pathfinder presence (samples with at least one valid value):")
+for el in ["Au", "As", "Sb", "Hg", "W", "Cu"]:
+    col = f"{el}_ppm"
+    if col in gc.columns:
+        n = int(gc[col].notna().sum())
+        print(f"  {col:>10}: {n:>5} samples")
+```
+
+```{python}
+#| label: ngdb-au-map
+fig, ax = plt.subplots(figsize=(8, 9))
+gc.plot(ax=ax, color="lightgray", markersize=2, label="all samples")
+au_samples = gc[gc["Au_ppm"].notna()]
+if len(au_samples):
+    ax.scatter(
+        au_samples.geometry.x, au_samples.geometry.y,
+        c=au_samples["Au_ppm"], s=12, cmap="viridis",
+        norm=plt.matplotlib.colors.LogNorm(vmin=0.001, vmax=au_samples["Au_ppm"].max()),
+        edgecolor="black", linewidth=0.2, label="Au value",
+    )
+ax.set_aspect("equal")
+ax.set_title(f"NGDB samples (gray) + Au measurements (color, log-scale)")
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.** Sample density is reasonable: about one sample
+per 27 km² across the AOI. But Au itself is reported at fewer than 4% of
+sites because of detection-limit issues with older survey methods.
+The samples that *do* report Au cluster on and around the Mother
+Lode Belt, exactly as expected. As/Sb/Cu coverage is much denser and
+provides the bulk of the geochemical signal in the feature frame
+through the per-cell `*_mean_5km` and `*_max_5km` aggregates.
+
+## 5. USGS magnetic: residual aeromagnetic anomaly
+
+The USGS conterminous-US magnetic compilation is a stitched
+aeromagnetic survey of the lower 48 states at roughly 1 km native
+resolution. We use the residual total intensity grid, which has the
+long-wavelength regional field already removed.
+
+For orogenic-Au prospectivity, magnetic anomalies tell us:
+
+- **Greenstone belts** typically read as positive magnetic anomalies
+  (more iron-rich than surrounding granitoids).
+- **Granitoid intrusions** in the Sierra Nevada batholith show
+  characteristic patterns.
+- **Faults and shear zones** sometimes produce linear discontinuities
+  in the magnetic field that are harder to see in surface geology.
+
+We pull the GXF (Geosoft Grid Exchange Format) version, not the
+GeoTIFF: the .tif files USGS hosts on the same portal are RGB
+visualizations, not actual data values. GDAL reads GXF directly via
+the `GXF` driver.
+
+```{python}
+#| label: mag-map
+import rasterio
+mag_path = DATA_RAW / "gsc_geophysics" / "magnetic_motherlode.tif"
+with rasterio.open(mag_path) as src:
+    mag = src.read(1)
+    bounds = src.bounds
+    nodata = src.nodata
+
+mag_show = np.where(np.isfinite(mag) & (mag != nodata), mag, np.nan)
+fig, ax = plt.subplots(figsize=(8, 9))
+extent = (bounds.left, bounds.right, bounds.bottom, bounds.top)
+im = ax.imshow(mag_show, extent=extent, origin="upper", cmap="RdBu_r",
+               vmin=np.nanpercentile(mag_show, 5),
+               vmax=np.nanpercentile(mag_show, 95))
+plt.colorbar(im, ax=ax, label="residual TI (nT)", shrink=0.7)
+ax.set_aspect("equal")
+ax.set_title("USGS residual magnetic, Mother Lode AOI")
+plt.tight_layout()
+plt.show()
+print(f"\nMagnetic stats: range {np.nanmin(mag_show):.1f} to "
+      f"{np.nanmax(mag_show):.1f} nT, median {np.nanmedian(mag_show):.1f} nT")
+```
+
+**Interpretation.** The N-S linear high-magnetic stripe along the
+foothills is the greenstone belt's signature: metavolcanic rocks
+read magnetic-positive against the lower-magnetic batholith and
+sediments. The model's `magnetic` feature lets it discriminate this
+geological corridor even when the lithology one-hot is ambiguous.
+
+## 6. USGS gravity: Bouguer + isostatic anomalies
+
+Two separate gridded products from `mrdata.usgs.gov/gravity/`:
+
+- **Bouguer gravity**: total observed gravity with topographic-mass
+  correction applied. High Bouguer = denser rock.
+- **Isostatic gravity**: Bouguer minus the long-wavelength gravity
+  signal from deep crustal mass that supports topography. Removes
+  the long-wavelength signature of regions that are simply
+  thick-crusted, leaving the local-density signal.
+
+For orogenic-Au prospectivity, gravity discriminates:
+
+- **Greenstone belts**: denser metavolcanics produce positive
+  Bouguer anomalies relative to surrounding granitoids.
+- **Sierra Nevada batholith**: granitic magma is light, so the
+  batholith reads as a strong Bouguer low.
+- **Sediment basins**: even lower density, even stronger lows.
+
+We use the GXF format for the same reason as magnetic.
+
+```{python}
+#| label: grav-map
+fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+for ax, name in zip(axes, ["gravity_motherlode.tif", "gravity_isostatic_motherlode.tif"]):
+    p = DATA_RAW / "gsc_geophysics" / name
+    with rasterio.open(p) as src:
+        grav = src.read(1)
+        bounds = src.bounds
+        nodata = src.nodata
+    # The GXF nodata sentinel is a very large negative float (-1e32).
+    # `np.isfinite` returns True for it (it isn't NaN or inf), so we must
+    # mask it explicitly before computing percentiles, or it crushes the
+    # colormap.
+    grav_show = np.where(np.isfinite(grav) & (grav != nodata), grav, np.nan)
+    extent = (bounds.left, bounds.right, bounds.bottom, bounds.top)
+    im = ax.imshow(grav_show, extent=extent, origin="upper", cmap="RdBu_r",
+                   vmin=np.nanpercentile(grav_show, 5),
+                   vmax=np.nanpercentile(grav_show, 95))
+    plt.colorbar(im, ax=ax, label="mGal", shrink=0.7)
+    ax.set_aspect("equal")
+    ax.set_title(name.replace("_motherlode.tif", ""))
+plt.tight_layout()
+plt.show()
+```
+
+**Interpretation.** Bouguer (left) shows the strong gravity low over
+the Sierra Nevada batholith on the east side. The foothills belt
+shows up as a relatively less-negative band along the western Sierra,
+which corresponds to the denser greenstone-belt sequences. Isostatic
+(right) removes more of the regional signal and isolates the
+local-density contrasts; the foothills band is more visually
+prominent.
+
+## 7. Copernicus GLO-30 DEM: topography
+
+A 30-meter global digital elevation model maintained by the European
+Space Agency. We derive elevation, slope, and terrain-ruggedness
+features from it for each cell.
+
+For orogenic-Au prospectivity, topography matters because:
+
+- The Mother Lode Belt sits in a specific elevation band along the
+  Sierra foothills (roughly 200 to 1500 m).
+- Steep slopes can mark fault-controlled landforms.
+- Paleo-stream channels in the foothills (where placer gold was
+  recovered) follow specific elevation contours.
+
+```{python}
+#| label: dem-map
+dem_path = DATA_RAW / "dem" / "dem_motherlode.tif"
+with rasterio.open(dem_path) as src:
+    dem = src.read(1)
+    bounds = src.bounds
+
+fig, ax = plt.subplots(figsize=(8, 9))
+extent = (bounds.left, bounds.right, bounds.bottom, bounds.top)
+im = ax.imshow(dem, extent=extent, origin="upper", cmap="terrain",
+               vmin=np.nanpercentile(dem, 1),
+               vmax=np.nanpercentile(dem, 99))
+plt.colorbar(im, ax=ax, label="elevation (m)", shrink=0.7)
+ax.set_aspect("equal")
+ax.set_title("Copernicus GLO-30 DEM, Mother Lode AOI")
+plt.tight_layout()
+plt.show()
+print(f"Elevation range: {np.nanmin(dem):.0f} to {np.nanmax(dem):.0f} m, "
+      f"median {np.nanmedian(dem):.0f} m")
+```
+
+**Interpretation.** The Sierra Nevada climbs east of -120.5°,
+reaching ~3000 m at the crest. The Central Valley to the west sits
+near sea level. The Mother Lode Belt occupies the transition zone in
+between, in the foothills. Including elevation as a feature helps
+the model learn this band-restriction even when other features are
+ambiguous.
+
+## 8. Sentinel-2 mosaic: alteration indices
+
+Sentinel-2 is the European Space Agency's open-data optical
+multi-spectral satellite. We composite a summer 2024 mosaic at 60 m
+resolution, filtered to scenes with under 10% cloud cover. From the
+six selected scenes we derive four alteration indices:
+
+- **Iron oxide**: sensitive to ferric iron in oxidized cap rocks.
+- **Ferrous iron**: complementary band ratio.
+- **Clay group**: phyllosilicate alteration markers.
+- **NDVI**: vegetation index, used as a secondary discriminator
+  for soil-development zones.
+
+For orogenic-Au prospectivity, these are weaker signals than for
+porphyry deposits (which have classic alteration halos), but they
+add useful context, particularly in arid zones where bedrock is
+exposed.
+
+```{python}
+#| label: s2-coverage
+import rasterio
+s2_path = DATA_RAW / "sentinel2" / "s2_mean_motherlode.tif"
+with rasterio.open(s2_path) as src:
+    s2_band1 = src.read(1)
+    s2_shape = src.shape
+finite = np.isfinite(s2_band1) & (s2_band1 != 0)
+print(f"Sentinel-2 mosaic shape: {s2_shape}")
+print(f"Finite coverage: {100*finite.mean():.1f}% of cells")
+```
+
+**Interpretation.** Sentinel-2 coverage is partial across the AOI
+because the cloud-filtered scenes don't tile perfectly. The model's
+Sentinel-2 features therefore have many missing values, and the
+SHAP analysis in Phase 2 will reveal whether they contribute meaningful
+signal at the Mother Lode scale. (Spoiler: not much. Geology +
+geophysics + geochemistry dominate. Sentinel-2 is more useful for
+porphyry-style deposits where alteration halos are the diagnostic
+feature.)
+
+## 9. Putting it together: the feature frame
+
+`build_feature_frame(MOTHERLODE, resolution_m=500)` reads everything
+above, projects to the working CRS, samples or aggregates each layer
+onto a 500-meter grid, and emits a single flat DataFrame with one row
+per cell. The output for Mother Lode v3 has 192,968 cells × 66 columns.
+
+```{python}
+#| label: features-summary
+DATA_DERIVED = Path("/home/sky/src/learning/ai-minerals/data/derived")
+df = pd.read_parquet(DATA_DERIVED / "features_motherlode_500m.parquet")
+print(f"Feature frame: {df.shape}")
+print(f"Columns ({len(df.columns)} total):")
+groups = {
+    "geometry / coords":  ["row", "col", "x", "y"],
+    "labels":             [c for c in df.columns if c.startswith("is_")],
+    "exclusion mask":     ["any_mineral_occurrence"],
+    "topography":         ["elevation", "slope", "tri"],
+    "geophysics":         ["magnetic", "gravity"],
+    "geology":            ["lithology_class", "distance_to_fault_m"],
+    "Sentinel-2":         [c for c in df.columns if c.startswith("s2_")],
+    "geochem (per pathfinder × {mean, max, count, has_data} at 5 km)":
+        [c for c in df.columns if c.endswith("_5km")],
+}
+for label, cols in groups.items():
+    if cols:
+        print(f"  {label:>40} : {len(cols)} cols")
+
+print(f"\nLabel distribution:")
+print(f"  is_orogenic_gold:       {int(df['is_orogenic_gold'].sum()):>5} cells "
+      f"({100*df['is_orogenic_gold'].mean():.1f}%)")
+print(f"  is_low_sulfidation:     {int(df['is_low_sulfidation'].sum()):>5} cells")
+print(f"  any_mineral_occurrence: {int(df['any_mineral_occurrence'].sum()):>5} cells")
+```
+
+**Interpretation.** 192,968 cells at 500 m means the AOI is roughly
+220 km × 220 km in projected coordinates. 7,713 cells (4.0%) are
+labeled positive for orogenic Au. That is a high positive base rate
+for regional MPM (typical regions are below 1%) and reflects the
+Mother Lode's status as one of the most heavily-recorded gold belts
+in North America. The 9,388 `any_mineral_occurrence` cells (4.9%)
+serve as the exclusion mask for pseudo-negative sampling: cells
+within 5 km of any of these are not eligible to be labeled negative.
+
+## 10. Modeling and validation summary
+
+The feature frame above is the substrate for three model variants
+trained in Phase 2 (`scripts/motherlode_phase2.py`):
+
+- **RF baseline** (full feature set, 200 trees, balanced subsampling)
+- **RF without count features**: drops `*_count_5km` and
+  `*_has_data_5km` columns. The Bear Cub Game Trail v2 work showed
+  these proxy for exploration density and bias the model.
+- **HGB-no-count**: gradient-boosted comparison with the same trim.
+
+Spatial-block cross-validation (20 km blocks) on Mother Lode produces:
+
+| Model            | AUC                | PR-AUC             |
+|------------------|--------------------|--------------------|
+| RF full          | 0.846 ± 0.21       | 0.776 ± 0.35       |
+| RF no-count      | **0.857 ± 0.20**   | 0.785 ± 0.34       |
+| HGB no-count     | 0.832 ± 0.23       | 0.785 ± 0.33       |
+
+Bootstrap 95% CI on the RF-no-count mean AUC, NaN-folds filtered:
+**[0.805, 0.900]**.
+
+Phase 3 within-Sierra validation (`scripts/motherlode_phase3.py`):
+
+- **Mother Lode Belt blind holdout**: median P inside belt 0.97,
+  outside 0.12 → **lift 7.9×**. The model lights up the belt.
+- **Central Valley sanity check**: median P in the valley 0.03 vs
+  AOI median 0.22. The model correctly de-rates the unprospective
+  region.
+- **NGDB Au correlation**: Pearson r 0.12 (n=11,872). Weak; NGDB Au
+  is too sparse in CA at this resolution to drive a strong
+  correlation.
+
+Phase 4b applies a Deviation Network (DEEP-SEAM port,
+`src/ai_minerals/model_devnet.py`) to the same feature frame for
+methodological comparison. Random Forest outperforms DevNet on this
+problem; DEEP-SEAM was tuned for very small positive sets (7 REE
+deposits) and the deviation-loss framing loses its advantage when
+the positive class is large.
+
+Phase 5 trains the Mother Lode RF, then scores Klamath/Trinity belt
+cells without retraining, to test whether the model picked up
+generalizable rock-type signal vs Sierra-specific clusters.
+
+## 11. What we can claim, and what we can't
+
+It is worth being precise about what this kind of work can and
+cannot prove. Regional prospectivity mapping is an area where
+overclaiming is common, and the cleanest way to avoid that here is
+to spell out both sides directly.
+
+The work shows the following:
+
+1. A pipeline that pulls public USGS data into one feature frame,
+   trains a Random Forest on it, and reports per-cell scores for a
+   famous gold belt. The whole thing is reproducible from a fresh
+   checkout.
+2. A spatial-block cross-validation result. Mean AUC across 98
+   valid folds is 0.86, with a bootstrap 95% confidence interval of
+   [0.81, 0.90].
+3. SHAP feature attributions that line up with orogenic-gold
+   geology: greenstone-belt lithology, distance to fault, and the
+   residual magnetic field are among the top features the model
+   relies on.
+4. A within-region holdout test. We held out the Mother Lode Belt,
+   trained on the surrounding terrain, and the model rated belt
+   cells about eight times higher than the rest of the AOI.
+5. A sanity check on the Central Valley, which has no orogenic
+   gold. The model's median score there is 0.03 against an AOI
+   median of 0.22, which is the right answer.
+6. A working port of the DEEP-SEAM methodology (published 2026)
+   into our toolchain, applied to the same Mother Lode feature
+   frame for direct comparison with the Random Forest. The Random
+   Forest wins on this problem and we report that as it stands.
+
+The work does not show the following:
+
+1. Whether the top-ranked previously-unknown cells would be the
+   source of new gold discoveries. Answering that question takes
+   years of follow-on drilling, and no regional model can answer it
+   without that drilling.
+2. Performance at the level of current state-of-the-art methods.
+   Geospatial foundation models (GFM4MPM, Prithvi, Clay) are the
+   research frontier today and would change the cross-region
+   transfer story noticeably.
+3. A drill-hole blind test. California has no public drilling
+   database that would let us run the equivalent of BC's GeoFile
+   2025-11 blind test from the BCGT v2 work. The Sierra-to-Klamath
+   cross-region transfer in Phase 5 is the substitute we use
+   instead.
+
+The story is about whether the methodology behaves correctly, not
+about whether the model would find new gold. Those are different
+claims and the writeup keeps them separate on purpose.

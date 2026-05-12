@@ -1,0 +1,403 @@
+---
+title: "Arizona Porphyry Cu (v4)"
+subtitle: "Cox-Singer-cleaned porphyry-Cu prospectivity over the southeastern Arizona belt"
+date: 2026-05-11
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+execute:
+  warning: false
+---
+
+```{python}
+#| label: setup
+#| include: false
+import warnings
+warnings.filterwarnings("ignore")
+
+import json
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from ai_minerals.regions.arizona import ARIZONA
+
+DATA_DERIVED = Path("/home/sky/src/learning/ai-minerals/data/derived")
+AZ_DERIVED = DATA_DERIVED / "arizona"
+FEATURES = DATA_DERIVED / "features_arizona_500m.parquet"
+METRICS = AZ_DERIVED / "path3_decomposed_metrics.json"
+```
+
+## Summary
+
+Same modeling pipeline as Mother Lode v3 and Tanacross v1, applied to
+the densest Laramide porphyry-copper belt in the United States. The
+goal of this region is reproducibility and cross-region comparison —
+running the same methodology on a third geologically- and
+commodity-distinct AOI to test whether the within-region performance
+of the public-data feature stack holds up when neither the labels
+nor the geology are the ones the pipeline was first developed
+against.
+
+The headline finding: the standard Random Forest on the
+seventy-seven-column feature stack captures **23.0 percent of
+held-out porphyry-Cu positives in its top 1 percent of cells**
+(enrichment factor 23 over random sampling), and **51.3 percent in
+its top 5 percent**. Same model class, different region, different
+deposit type, comparable lift to the earlier Mother Lode and
+Tanacross numbers. The result also feeds the four-region cross-
+methodology experiment (Curnamona REE, Tanacross porphyry-Cu,
+Arizona porphyry-Cu, Lawley continental MVT) that gets its own
+notebook.
+
+## AOI and deposit type
+
+The southeastern Arizona porphyry belt covers a rectangle from
+$-110.4°$ to $-109.0°$ W and $32.0°$ to $33.7°$ N — roughly 150 km
+east-west by 190 km north-south, total area about 28,500 km². The
+AOI contains five major porphyry-Cu districts: Globe-Miami, Pima,
+Ray, Safford, and Morenci, including world-class deposits like
+Morenci, Ray, Sierrita, Pinto Valley, and Resolution.
+
+The deposit type is Cox-Singer model 17 (porphyry Cu), 21a (porphyry
+Cu-Mo), and 20c (porphyry Cu, low-fluorine subtype). We exclude
+21b (porphyry Mo low-F) from the positive label set — it's a
+Mo-dominant deposit type with different host rocks and different
+exploration targeting. After the Cox-Singer commodity-and-deposit-
+type filter against MRDS, the AOI contains **191 porphyry-Cu
+positive cells** out of 98,828 total at 500 m resolution.
+
+```{python}
+#| label: aoi-map
+#| code-fold: true
+#| fig-cap: "Arizona AOI with 191 porphyry-Cu positives (red) on a base of any-mineral-occurrence cells (gray)."
+df = pd.read_parquet(FEATURES, columns=['x', 'y', 'is_porphyry_cu', 'any_mineral_occurrence'])
+
+fig, ax = plt.subplots(figsize=(11, 8))
+neg = df[df['is_porphyry_cu'] == 0]
+any_occ = df[(df['is_porphyry_cu'] == 0) & (df['any_mineral_occurrence'] == 1)]
+pos = df[df['is_porphyry_cu'] == 1]
+ax.scatter(neg['x'], neg['y'], s=0.3, c='#e8e8e8', alpha=0.4, label='AOI cells')
+ax.scatter(any_occ['x'], any_occ['y'], s=2, c='#888', alpha=0.6, label='any mineral occurrence')
+ax.scatter(pos['x'], pos['y'], s=25, c='#cc0033', alpha=0.85, label='porphyry-Cu positive', edgecolors='black', linewidths=0.3)
+ax.set_aspect('equal')
+ax.set_title("Arizona SE porphyry belt, 191 Cox-Singer-cleaned porphyry-Cu positives")
+ax.set_xlabel("CA Albers x (m)")
+ax.set_ylabel("CA Albers y (m)")
+ax.legend(loc='lower left', fontsize=9, framealpha=0.9)
+plt.tight_layout()
+plt.show()
+```
+
+The positive cells cluster along the Laramide-age intrusive arc,
+running roughly NW-SE through the southern part of the AOI. The
+visible alignment of positives with the major district centers is
+expected: this is one of the most extensively explored porphyry-Cu
+belts in the world, and the spatial pattern of known deposits
+reflects both the geological substrate (the Laramide arc) and a
+century of exploration history.
+
+## Why this region — methodological choice
+
+Arizona's southeastern porphyry belt was picked as the third
+regional AOI for two reasons:
+
+The first reason is **commodity match** with the broader AI-minerals
+target audience. Porphyry copper is the primary deposit type for
+KoBold Metals, Earth AI, and Explore Tech. Running the same
+methodology on a porphyry-Cu region they would naturally evaluate
+makes the within-region numbers directly relevant to their workflow.
+
+The second reason is **methodological control**. Tanacross v1 was a
+mixed-metallogenic AOI (porphyry-Cu, distal porphyry, polymetallic
+veins all in the cleaned label set), and Mother Lode v3 was orogenic
+Au. Arizona is a single-event, single-deposit-type AOI: every
+positive in the 191-cell label set is a Laramide porphyry-Cu deposit
+formed in a narrow 66-74 Ma window in a single tectonic setting.
+This homogeneous label set was the cleanest test of whether the
+DEEP-SEAM-class deep-anomaly-detection architectures would beat
+classical tree-based methods when the deposit population is
+maximally homogeneous. The cross-region experiment writeup
+documents the result; the v4 notebook here presents the within-region
+prospectivity numbers that the cross-region work was built on top of.
+
+## Data layers
+
+Same public-data feature stack as Mother Lode and Tanacross,
+adapted to Arizona's geology:
+
+- **USGS magnetic + Bouguer gravity + isostatic gravity** national
+  grids, clipped to the AOI. Porphyry-Cu intrusive centers typically
+  produce a positive magnetic anomaly (from magnetite in the host
+  intrusion) and a moderate negative residual gravity anomaly (from
+  the alteration halo around the intrusion).
+- **Four magnetic derivatives** (1VD, HGM, analytic signal, tilt)
+  computed from the residual TI grid via scipy convolution kernels.
+  These are the standard structural-edge enhancement layers used
+  in porphyry-Cu exploration.
+- **SGMC State Geologic Map Compilation** for canonical 33-class
+  lithology plus the MAJOR1/2/3 fine-grained lithology columns
+  (~hundreds of distinct intrusive-unit names).
+- **NGDB stream-sediment chemistry** for the eleven-element porphyry-
+  Cu pathfinder suite: Cu, Mo, Pb, Zn, Au, Ag, As, Sb, W, Bi, Te.
+  Four statistics per element per cell (mean, max, count, has-data
+  flag) within a 5 km radius.
+- **Distance to mapped fault traces** from SGMC structural lines.
+- **30 m DEM** with derived slope and terrain-roughness products.
+- **Cox-Singer-cleaned porphyry-Cu positive labels** from MRDS.
+
+Sentinel-2 spectral indices were paused for this region due to
+upstream data-fetcher reliability issues during the build window;
+they would normally contribute iron-oxide and clay-alteration
+proxies for the (typically well-exposed) Arizona desert
+intrusives.
+
+```{python}
+#| label: feature-stack
+#| code-fold: true
+df = pd.read_parquet(FEATURES)
+print(f"Feature frame: {df.shape[0]:,} cells x {df.shape[1]} columns")
+print(f"Cells inside AOI:     {len(df):,}")
+print(f"Porphyry-Cu positives: {int(df['is_porphyry_cu'].sum()):,}")
+print(f"Any-occurrence cells:  {int(df['any_mineral_occurrence'].sum()):,}")
+```
+
+```{python}
+#| label: geophysics-grid
+#| code-fold: true
+#| fig-cap: "Four geophysical layers across the Arizona AOI: residual magnetic intensity, Bouguer gravity, isostatic-residual gravity, and magnetic 1st-vertical-derivative. Porphyry-Cu districts (red) align with magnetic-high / gravity-low intersections, which is the canonical porphyry-Cu signature."
+fig, axes = plt.subplots(2, 2, figsize=(13, 11))
+df_sub = df.sample(n=min(30000, len(df)), random_state=42)
+pos = df[df['is_porphyry_cu'] == 1]
+
+for ax, col, title in [
+    (axes[0, 0], 'magnetic', 'Residual magnetic intensity (nT)'),
+    (axes[0, 1], 'gravity', 'Bouguer gravity (mGal)'),
+    (axes[1, 0], 'gravity_isostatic', 'Isostatic-residual gravity (mGal)'),
+    (axes[1, 1], 'magnetic_1vd', 'Magnetic 1st vertical derivative'),
+]:
+    sc = ax.scatter(df_sub['x'], df_sub['y'], c=df_sub[col], s=1.5, alpha=0.6,
+                    cmap='RdBu_r', rasterized=True)
+    ax.scatter(pos['x'], pos['y'], s=20, c='#cc0033', alpha=0.9,
+               edgecolors='black', linewidths=0.4, label='porphyry-Cu')
+    ax.set_aspect('equal')
+    ax.set_title(title, fontsize=10)
+    ax.set_xticks([]); ax.set_yticks([])
+    plt.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
+axes[0, 0].legend(loc='lower left', fontsize=9, framealpha=0.9)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: geochem-grid
+#| code-fold: true
+#| fig-cap: "Four NGDB stream-sediment pathfinder elements across the AOI: Cu, Mo, As, and Sb (5-km radius mean, log10 scale where available). Porphyry-Cu positives (red) align with the high-Cu / high-Mo intersections, the headline pathfinder columns."
+fig, axes = plt.subplots(2, 2, figsize=(13, 11))
+
+for ax, col, title in [
+    (axes[0, 0], 'cu_mean_5km', 'NGDB Cu (mean within 5 km)'),
+    (axes[0, 1], 'mo_mean_5km', 'NGDB Mo (mean within 5 km)'),
+    (axes[1, 0], 'as_mean_5km', 'NGDB As (mean within 5 km)'),
+    (axes[1, 1], 'sb_mean_5km', 'NGDB Sb (mean within 5 km)'),
+]:
+    vals = df_sub[col].copy()
+    vals = np.log10(np.where(vals > 0, vals, np.nan))
+    sc = ax.scatter(df_sub['x'], df_sub['y'], c=vals, s=1.5, alpha=0.6,
+                    cmap='viridis', rasterized=True)
+    ax.scatter(pos['x'], pos['y'], s=20, c='#cc0033', alpha=0.9,
+               edgecolors='black', linewidths=0.4, label='porphyry-Cu')
+    ax.set_aspect('equal')
+    ax.set_title(title, fontsize=10)
+    ax.set_xticks([]); ax.set_yticks([])
+    plt.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
+axes[0, 0].legend(loc='lower left', fontsize=9, framealpha=0.9)
+plt.tight_layout()
+plt.show()
+```
+
+## Methodology — the four-cell controlled experiment
+
+Arizona was the third AOI in a four-region experiment whose primary
+goal was to test the transferability of DEEP-SEAM-class deep-anomaly-
+detection architectures across different regional MPM contexts. The
+four-cell design factors model architecture against data-preprocessing
+choice:
+
+|   | DevNet (DEEP-SEAM architecture) | Random Forest (our baseline) |
+|---|---|---|
+| **DEEP-SEAM data style** (ILR-PCA on geochem + GLCM textural features on geophysics) | Cell A | Cell B |
+| **Our data style** (raw 77-column feature stack, no decomposition) | Cell C | Cell D |
+
+All four cells are scored under leak-free out-of-fold spatial-block
+cross-validation with 20-km blocks. The same train / test partition
+is used across all four cells, so the only thing that varies between
+cells is the model architecture or the data preprocessing.
+
+```{python}
+#| label: oof-table
+#| code-fold: true
+metrics = json.loads(METRICS.read_text())
+rows = []
+for cell, friendly in [
+    ('RF_raw',           '(D) RF on raw features'),
+    ('RF_decomposed',    '(B) RF on DEEP-SEAM-style preprocessed features'),
+    ('DevNet_raw',       '(C) DevNet on raw features'),
+    ('DevNet_decomposed',  '(A) DevNet on DEEP-SEAM-style preprocessed features'),
+]:
+    cap = metrics[cell]["capture_at_top_k"]
+    rows.append({
+        'Cell':            friendly,
+        'Top 1%':          f"{cap['top_1_pct']['rate']*100:.1f}% ({cap['top_1_pct']['captured']}/191)",
+        'Top 2%':          f"{cap['top_2_pct']['rate']*100:.1f}%",
+        'Top 5%':          f"{cap['top_5_pct']['rate']*100:.1f}%",
+        'Top 10%':         f"{cap['top_10_pct']['rate']*100:.1f}%",
+        'Top 30%':         f"{cap['top_30_pct']['rate']*100:.1f}%",
+    })
+pd.DataFrame(rows)
+```
+
+The table reads as out-of-fold capture rates: the fraction of
+held-out positive cells that fall inside the top k percent of cells
+the model ranks most prospective. The factor 23x at top-1 percent
+for cell D (RF on raw features) is the canonical reporting metric
+for regional MPM: the top 1 percent of pixels by predicted
+probability contains 23 times the density of real porphyry-Cu
+deposits that random sampling would produce.
+
+## Headline result and cross-region comparison
+
+```{python}
+#| label: capture-curves
+#| code-fold: true
+#| fig-cap: "Capture curves for the four cells of the Arizona experiment. The diagonal is random selection. RF on raw features (orange, top) is the leader; the DEEP-SEAM-style preprocessing helps DevNet a little but hurts RF."
+fig, ax = plt.subplots(figsize=(9, 6))
+percents = [1, 2, 5, 10, 30]
+x = np.array(percents) / 100
+
+for cell, color, label in [
+    ('RF_raw',          '#cc6600', '(D) RF on raw features'),
+    ('RF_decomposed',   '#ff9933', '(B) RF on DEEP-SEAM preprocessed'),
+    ('DevNet_raw',      '#003366', '(C) DevNet on raw features'),
+    ('DevNet_decomposed', '#3366aa', '(A) DevNet on DEEP-SEAM preprocessed'),
+]:
+    cap = metrics[cell]['capture_at_top_k']
+    ys = [cap[f'top_{p}_pct']['rate'] for p in percents]
+    ax.plot(x, ys, '-o', color=color, label=label, lw=2, markersize=7)
+ax.plot([0, 1], [0, 1], '--', color='#888', label='random', lw=1)
+ax.set_xlabel("Fraction of area flagged (top k%)")
+ax.set_ylabel("Fraction of held-out porphyry-Cu positives captured")
+ax.set_xscale('log'); ax.set_yscale('linear')
+ax.set_xlim(0.008, 0.5)
+ax.set_ylim(0, 1)
+ax.legend(loc='lower right', fontsize=9, framealpha=0.95)
+ax.grid(True, alpha=0.3)
+ax.set_title("Arizona porphyry-Cu, four-cell OOF capture (191 positives, 20 km spatial blocks)")
+plt.tight_layout()
+plt.show()
+```
+
+The standout numbers are at the top of the curve. RF on raw
+features puts 23 percent of held-out positives in the top 1 percent
+of cells; DevNet on raw features puts 8.9 percent there. The
+DEEP-SEAM-style preprocessing helps DevNet substantially (it goes
+from 8.9 to 13.6 percent at top-1) but hurts RF (it goes from 23.0
+to 14.7 percent at top-1). That last result confirms a pattern we
+observed on Tanacross as well: the published DEEP-SEAM preprocessing
+pipeline, while genuinely helpful for the deviation-network
+architecture it was tuned with, actively damages classical tree-
+based models because the principal-components projection throws away
+multivariate information the trees would otherwise exploit.
+
+The cross-region table puts Arizona alongside the other regions in
+the methodology experiment:
+
+| Region | Positives | RF raw top-1 | DevNet raw top-1 | RF decomposed top-1 | DevNet decomposed top-1 |
+|---|---|---|---|---|---|
+| Curnamona REE (LOO) | 7 | 0% | 43% | — | — |
+| Tanacross (OOF) | 45 | 22.2% | 13.3% | 15.6% | 13.3% |
+| **Arizona (OOF)** | **191** | **23.0%** | **8.9%** | **14.7%** | **13.6%** |
+
+The Arizona number sits right alongside the Tanacross number for RF
+on raw features, which is the reproducibility claim the regional
+pipeline is meant to support. The DEEP-SEAM-vs-RF gap is wider on
+Arizona (14 pp) than on Tanacross (9 pp), and both regions are
+inverted relative to Curnamona — where DevNet beats RF — by
+substantial margins. That inversion is the cross-region experiment's
+central finding; the standalone four-cell notebook works through it.
+
+## What this does and doesn't establish
+
+The Arizona v4 work establishes three things:
+
+- **The within-region prospectivity numbers reproduce.** The
+  RF-on-raw-features result at top-1 percent capture (23.0 percent,
+  enrichment factor 23) sits in the same regime as Mother Lode v3
+  (top-5 percent capture 19.5 percent) and Tanacross v1 (top-1
+  percent capture 22.2 percent). Three regions, three deposit types,
+  one consistent methodology, comparable numerical results.
+
+- **The DEEP-SEAM-style preprocessing is not a free win.** Applying
+  the published ILR-PCA + GLCM pipeline to Arizona's raw features
+  helps DevNet (8.9 → 13.6 percent at top-1) but hurts RF (23.0 →
+  14.7 percent). The preprocessing reshapes the data into a form
+  that fits the deviation-loss assumption, at the cost of
+  information that the gradient-boosted-trees / random-forest
+  family otherwise uses. This is the second region (after Tanacross)
+  where the pattern holds in the same direction.
+
+- **A homogeneous deposit population does not rescue the DEEP-SEAM
+  architecture.** The hypothesis going into the Arizona experiment
+  was that Tanacross's mixed metallogenic history (porphyry-Cu plus
+  distal porphyry plus polymetallic veins, 100+ Myr of history) was
+  obscuring the deviation network's signal — that a cleaner,
+  single-event, single-deposit-type AOI would let the architecture
+  win. Arizona's southeastern porphyry belt is exactly that
+  cleaner AOI: single tectonic context, single 66-74 Ma event,
+  single deposit type. DevNet still underperformed RF by 14
+  percentage points at top-1. **Deposit homogeneity is not the gap.**
+
+The Arizona v4 work does **not** establish:
+
+- That the v4 model would generalize to other porphyry-Cu belts.
+  We did not run a cross-region transfer test from Arizona to a
+  second porphyry-Cu region (BCGT or the Andes). The within-Arizona
+  numbers are the ceiling on what this region's data can do; the
+  cross-region transfer test is a separate experiment.
+
+- That the published Cox-Singer commodity-and-deposit-type
+  filtering produces a strictly correct positive label set. The 191
+  positives include some uncertainty from MRDS's free-text
+  classification.
+
+- A complete picture of feature attribution. SHAP attribution on the
+  Arizona fit is computed via the same harness used on Mother Lode
+  v3.1 and Tanacross v1 (see those notebooks for the in-detail
+  SHAP-by-feature treatment); the geological interpretation specific
+  to Arizona's porphyry-Cu pathfinder ranking is a separate writeup.
+
+## Files and reproduction
+
+- Region config: [src/ai_minerals/regions/arizona.py](../../src/ai_minerals/regions/arizona.py)
+- Feature frame: [data/derived/features_arizona_500m.parquet](../../data/derived/features_arizona_500m.parquet)
+- Decomposed feature frame: [data/derived/features_arizona_500m_decomposed.parquet](../../data/derived/features_arizona_500m_decomposed.parquet)
+- 4-cell OOF metrics: [data/derived/arizona/path3_decomposed_metrics.json](../../data/derived/arizona/path3_decomposed_metrics.json)
+- Build scripts: [arizona_fetch_all.py](../../scripts/arizona_fetch_all.py), [arizona_features.py](../../scripts/arizona_features.py), [arizona_decompose_features.py](../../scripts/arizona_decompose_features.py), [arizona_oof_comparison.py](../../scripts/arizona_oof_comparison.py)
+- Companion notebook: [cross-region four-cell deep dive](../cross_region/four_cell.qmd)
+
+## Sources
+
+- Cox, D. P. and Singer, D. A. (eds), 1986. *Mineral deposit models*. USGS Bulletin 1693.
+- Singer, D. A. and Berger, V. I., 2007. *Porphyry copper deposit models*. USGS Scientific Investigations Report 2007-5202.
+- USGS, gridded aeromagnetic + Bouguer gravity + isostatic-residual gravity for the conterminous United States.
+- USGS, National Geochemical Database (NGDB) stream-sediment chemistry.
+- USGS, State Geologic Map Compilation (SGMC).
+- USGS, Mineral Resources Data System (MRDS).
+- USGS, 1 arc-second digital elevation model.
+- Luo, Z. et al. 2026. DEEP-SEAM: an explainable semi-supervised deep learning framework for mineral prospectivity mapping. *Geosci. Model Dev.* 19, 2593.
+- Pang, G. et al. 2019. Deep Anomaly Detection with Deviation Networks. arXiv:1911.08623.

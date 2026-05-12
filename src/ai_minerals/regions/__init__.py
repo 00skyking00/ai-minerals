@@ -51,6 +51,8 @@ class Region:
 
 
 from ai_minerals.regions.eastak import EASTAK  # noqa: E402
+from ai_minerals.regions.klamath import KLAMATH  # noqa: E402
+from ai_minerals.regions.motherlode import MOTHERLODE  # noqa: E402
 from ai_minerals.regions.nome_placer import NOME_PLACER_REGION  # noqa: E402
 
-__all__ = ["Region", "EASTAK", "NOME_PLACER_REGION"]
+__all__ = ["Region", "EASTAK", "KLAMATH", "MOTHERLODE", "NOME_PLACER_REGION"]

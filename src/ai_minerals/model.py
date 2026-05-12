@@ -18,7 +18,13 @@ from sklearn.preprocessing import StandardScaler
 IDENTITY_COLUMNS = frozenset({
     "row", "col", "x", "y",
     "any_mineral_occurrence",
-    "lithology_class",  # handled specially as one-hot
+    "lithology_class",   # handled specially as one-hot
+    # v3.1: SGMC MAJOR1/2/3 fine-grained lithology codes. Same handling
+    # as `lithology_class`: integer codes are excluded from raw
+    # features, and `add_lithology_onehot` expands them to one-hots.
+    "major1_class",
+    "major2_class",
+    "major3_class",
 })
 
 
@@ -100,12 +106,29 @@ def sample_pseudo_negatives(
     return negs
 
 
-def add_lithology_onehot(df: pd.DataFrame, top_classes: list[int]) -> pd.DataFrame:
-    """Expand lithology_class into one-hot columns for the top-N classes + 'other'."""
+def add_lithology_onehot(
+    df: pd.DataFrame,
+    top_classes: list[int],
+    *,
+    extra_class_columns: dict[str, list[int]] | None = None,
+) -> pd.DataFrame:
+    """Expand lithology_class into one-hot columns for the top-N classes + 'other'.
+
+    If `extra_class_columns` is given, also one-hot-encode each named
+    integer column with its own top-N list. Used by v3.1 to encode
+    SGMC MAJOR1/2/3 fine-grained lithology alongside the existing
+    `lithology_class` one-hot.
+    """
     out = df.copy()
     for c in top_classes:
         out[f"litho_{int(c)}"] = (df["lithology_class"] == c).astype(np.uint8)
     out["litho_other"] = (~df["lithology_class"].isin(top_classes)).astype(np.uint8)
+    if extra_class_columns:
+        for col, classes in extra_class_columns.items():
+            short = col.replace("_class", "")
+            for c in classes:
+                out[f"{short}_{int(c)}"] = (df[col] == c).astype(np.uint8)
+            out[f"{short}_other"] = (~df[col].isin(classes)).astype(np.uint8)
     return out
 
 
@@ -118,6 +141,7 @@ def build_training_set(
     random_state: int = 42,
     label_col: str = "is_porphyry",
     label_cols: tuple[str, ...] = ("is_porphyry", "is_porphyry_strict"),
+    extra_class_top_n: int = 10,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Assemble (X, y) for model training: positives + pseudo-negatives with one-hot lith.
 
@@ -134,7 +158,22 @@ def build_training_set(
         label_col=label_col,
     )
     combined = pd.concat([pos, neg], ignore_index=True)
-    combined = add_lithology_onehot(combined, top_classes)
+
+    # v3.1: auto-detect major1/2/3 class columns and compute their top-N
+    # from the combined training rows. If absent, the dict is empty and
+    # `add_lithology_onehot` falls back to single-column behavior.
+    extra: dict[str, list[int]] = {}
+    for col in ("major1_class", "major2_class", "major3_class"):
+        if col in combined.columns:
+            top_majors = (
+                combined[col][combined[col] >= 0]
+                .value_counts()
+                .head(extra_class_top_n)
+                .index.tolist()
+            )
+            extra[col] = top_majors
+
+    combined = add_lithology_onehot(combined, top_classes, extra_class_columns=extra or None)
     y = combined[label_col].to_numpy(dtype=np.int64)
     non_feat = non_feature_columns(label_cols)
     X = combined.drop(

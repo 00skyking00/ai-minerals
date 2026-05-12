@@ -1,0 +1,188 @@
+---
+title: "Tanacross Alaska porphyry-Cu — the public-data template"
+subtitle: "Same modeling pipeline, different region, different commodity, reproducible numbers"
+date: 2026-05-11
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## The experiment
+
+The Tanacross 1:250,000 quadrangle covers a porphyry-copper-
+molybdenum belt in eastern Alaska that the USGS has flagged as a
+tier-one critical-minerals target area. We built a porphyry-
+prospectivity pipeline on this footprint using the same class of
+public open data as Mother Lode but adapted to Alaskan geological
+surveys.
+
+The point of running Tanacross alongside Mother Lode was to test
+whether the same modeling pipeline produces reproducible numbers on
+a geologically and commodity-distinct region without per-region
+retuning. Same model architecture, same cross-validation harness,
+same evaluation metrics, only the input data and the deposit type
+change.
+
+## Data layers
+
+### Composite view — what the AOI looks like
+
+A combined visualization of DEM, geology overlay, and geophysics
+overlay. The Tanacross AOI runs from the Yukon border west to the
+Mentasta Mountains, with the porphyry belt along the Mid-Cretaceous
+intrusive arc.
+
+![Composite view: DEM + geology + geophysics overlay](../../_freeze/notebooks/eastak/data_exploration/figure-html/composite-view-output-1.png)
+
+### Geochemistry — AGDB4 stream sediments
+
+The Alaska Geochemical Database (version 4) carries pathfinder
+elements for porphyry-Cu: Cu, Mo, Au, Ag, As, Sb. Mid-resolution
+stream-sediment sampling at roughly one sample per 50 km².
+
+![AGDB4 stream-sediment Cu, log10 scale — the headline pathfinder column for porphyry-Cu](../../_freeze/notebooks/eastak/data_exploration/figure-html/agdb4-cu-map-output-2.png)
+
+![AGDB4 stream-sediment data, multi-element composite](../../_freeze/notebooks/eastak/data_exploration/figure-html/agdb4-map-output-1.png)
+
+### Geology — USGS SGMC with Alaska overburden mask
+
+State Geologic Map Compilation, restricted to the bedrock-exposed
+fraction of the AOI (Quaternary overburden masked out — porphyry-Cu
+exploration cannot see through unconsolidated cover).
+
+![SGMC geology in the Tanacross AOI](../../_freeze/notebooks/eastak/data_exploration/figure-html/geology-map-output-1.png)
+
+### Geophysics — USGS gridded aeromagnetic and Bouguer gravity
+
+The basement-rock signature. Porphyry-Cu intrusive centers typically
+produce a positive magnetic anomaly (from magnetite in the host
+intrusion) and a moderate negative gravity anomaly (from the
+intrusive's lower density relative to surrounding country rock).
+
+![USGS magnetic + Bouguer gravity overlay](../../_freeze/notebooks/eastak/data_exploration/figure-html/geophys-output-1.png)
+
+### Remote sensing — Sentinel-2 alteration proxies
+
+Sentinel-2 spectral indices for iron oxide and hydroxyl-rich clay
+alteration. Porphyry-Cu deposits typically produce a halo of
+hematite/limonite plus argillic alteration at surface.
+
+![Sentinel-2 RGB composite over the AOI](../../_freeze/notebooks/eastak/data_exploration/figure-html/s2-rgb-output-1.png)
+
+![Sentinel-2 iron-oxide index (BSI proxy)](../../_freeze/notebooks/eastak/data_exploration/figure-html/s2-iron-oxide-output-1.png)
+
+### Topography — DEM
+
+Slope, aspect, and terrain ruggedness layers derived from a
+1-arc-second DEM. Context features for the intrusive-belt geology.
+
+![DEM in the Tanacross AOI](../../_freeze/notebooks/eastak/data_exploration/figure-html/dem-output-2.png)
+
+## How the algorithm consumes the data
+
+Same Random Forest plus 20-kilometer spatial-block cross-validation
+harness as Mother Lode. The model builds an ensemble of decision
+trees over the joint feature space; each tree learns conditional
+rules like "prospective if (AGDB4 Cu above 50 ppm) AND (within 2 km
+of an intrusive contact) AND (within 5 km of a mapped fault)." The
+trees vote; the score is the proportion voting prospective.
+
+The known porphyry-Cu positives in the AOI: 45 cells inside the
+clean MRDS + Alaska Resource Data File label set, after the same
+Cox-Singer commodity-and-deposit-type filter we used on Mother
+Lode.
+
+## Results
+
+### Out-of-fold prospectivity map
+
+The leak-free out-of-fold prospectivity raster across the AOI. The
+high-prospectivity belt aligns with the published mid-Cretaceous
+intrusive arc; the model has surfaced exactly the structurally-
+controlled magmatic belt the regional geology would predict.
+
+![Tanacross out-of-fold prospectivity raster](../../_freeze/notebooks/eastak/eastak_porphyry_prospectivity/figure-html/prospectivity-raster-output-1.png)
+
+### Success-rate curve — top-k capture
+
+The success-rate curve plots cumulative fraction of held-out
+positives captured (y-axis) against cumulative fraction of area
+flagged (x-axis). A perfect model would jump to 100 percent on the
+y-axis with a tiny fraction of area on the x-axis. Random sampling
+gives the diagonal line. Useful models sit well above the diagonal
+in the lower-left corner.
+
+![Tanacross success-rate curve. Top 1% captures 22.2% of held-out positives; top 5% captures 64%.](../../_freeze/notebooks/eastak/eastak_porphyry_prospectivity/figure-html/success-rate-output-2.png)
+
+### SHAP feature attribution
+
+The SHAP analysis ranks features by their average effect on model
+output. The top features are AGDB4 Cu and Mo stream-sediment values
+(the headline pathfinder columns), followed by the SGMC canonical
+lithology one-hots for the porphyry-host intrusive units, then
+distance to mapped fault traces.
+
+![SHAP feature attribution: top features for the Tanacross porphyry-Cu model](../../_freeze/notebooks/eastak/eastak_porphyry_prospectivity/figure-html/shap-summary-bar-output-1.png)
+
+## Interesting finding 1: same pipeline, different region, comparable numbers
+
+The out-of-fold cross-validated **top 1 percent of cells captured
+22.2 percent of held-out positives**, an enrichment of roughly 22 over
+the density of deposits that random sampling would produce. **Top 5
+percent of cells captured 64 percent of held-out positives.** The
+absolute numbers are different from Mother Lode (different deposit
+count, different feature stack, different geology), but the relative
+performance is in the same regime: tree-based models on public open
+data deliver useful exploration value at the regional scale.
+
+This is the second independent region whose comparable numbers
+support the methodology paper's reproducibility claim. When a
+published method's performance is quoted on a single region, that
+number alone tells you nothing about whether the method will work
+on the next region. Running the same methodology on a second region
+with a different commodity is the minimum bar for a portable claim.
+
+## Interesting finding 2: feature engineering choices that worked, and one that did not
+
+SHAP analysis on the Tanacross fit surfaced AGDB4 Cu and Mo
+stream-sediment values as the top-ranked features, followed by the
+SGMC canonical lithology one-hots for the porphyry-host intrusive
+units, then distance to mapped fault traces.
+
+The features that did **not** survive the cross-region transfer test
+were the **count-style features** ("number of MRDS occurrences within
+5 km") that we had initially included as a domain-knowledge proxy
+for historical exploration density. Those features inflated
+within-region AUC but did not transfer; they encoded "places people
+have already looked" rather than "places where deposits actually
+form." Removing them was a small within-region cost (a fraction of
+a percentage point of AUC) for a substantial cross-region honesty
+gain.
+
+The lesson is that some features look helpful inside a region for
+the same reason they fail outside it: they encode information about
+the labeling process, not about the underlying geology. A feature
+that says "many deposits have been found here historically" is a
+proxy for "exploration money has been spent here," not a proxy for
+"deposits exist." The two correlate inside a single region but
+diverge across regions; the latter is the only signal that
+generalizes.
+
+## Files and reproduction
+
+- Pipeline driver: [scripts/eastak_path2_stage1bc_oof_kenorland.py](../../scripts/eastak_path2_stage1bc_oof_kenorland.py)
+- Region config: [src/ai_minerals/regions/eastak.py](../../src/ai_minerals/regions/eastak.py)
+- Original Tanacross notebook: [notebooks/eastak/eastak_porphyry_prospectivity.qmd](../../notebooks/eastak/eastak_porphyry_prospectivity.qmd)
+- Data exploration: [notebooks/eastak/data_exploration.qmd](../../notebooks/eastak/data_exploration.qmd)
+
+## Sources
+
+- USGS, gridded aeromagnetic data for Alaska.
+- USGS, Bouguer gravity for Alaska.
+- USGS, Alaska Resource Data File (ARDF) — historical occurrence records.
+- USGS, State Geologic Map Compilation (SGMC) — Alaska coverage.
+- Alaska Division of Geological and Geophysical Surveys, Alaska Geochemical Database version 4 (AGDB4).
+- ESA Copernicus, Sentinel-2 multispectral imagery.
+- USGS, 1 arc-second DEM (NED).

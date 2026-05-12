@@ -1,0 +1,229 @@
+---
+title: "Lawley 2022 continental Zn-Pb benchmark — reproduced and audited"
+subtitle: "Reproducing AUC 0.983 on 5.16M H3 hexagons, then accounting for where the published number overstates real generalization"
+date: 2026-05-11
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## The experiment
+
+Lawley et al. (2022, *Ore Geology Reviews*) trained a gradient-boosted
+decision-tree model to predict sediment-hosted lead-zinc mineralization
+across the United States, Canada, and Australia. They divided the
+three continents into 5.16 million hexagonal cells (about 5 km² each)
+and assembled ninety-seven features per cell: gravity and magnetic
+geophysical responses at multiple spatial scales, seismic
+depth-to-Moho and depth-to-LAB, lithology and geological-period
+dictionaries, paleo-latitude, and proximity-to-feature columns for
+terrane boundaries, passive margins, black shales, and faults. The
+published model reported an AUC of 0.983 — meaning a randomly chosen
+real-deposit cell scored higher than a randomly chosen non-deposit
+cell 98.3 percent of the time.
+
+SRI International published a public Jupyter reimplementation of the
+paper as part of the DARPA-CRITICALMAAS program. We reproduced the
+experiment using the public code on the public data, then layered
+three orthogonal tightenings on the published evaluation (a label-leak
+fix, a stricter spatial cross-validation, and a held-out cross-
+continent transfer test), and ran the DEEP-SEAM deep-anomaly-detection
+architecture on the same benchmark for a like-for-like comparison.
+The work establishes a quantitative breakdown of where the published
+0.983 number comes from and where it overstates generalization.
+
+## How the algorithm consumes the data
+
+The gradient-boosted-trees algorithm consumes the ninety-seven-column
+feature stack by iteratively building shallow decision trees. Each
+tree node asks a threshold question of one feature ("is distance to
+the nearest passive margin less than 50 kilometers" or "is the Bouguer
+gravity at this cell above the regional median"), and a new tree is
+added at each iteration to correct the residual errors of the
+previous trees. The final score for a cell is a weighted sum across
+all trees. The architecture is good at learning conditional
+multivariate rules of the form "prospective if sedimentary host rock
+AND near black shale AND near fault," which is exactly the geological
+recipe the Lawley feature stack encodes.
+
+## Results: the cumulative accounting
+
+```{python}
+#| label: results-table
+#| code-fold: true
+import json
+from pathlib import Path
+import pandas as pd
+
+base = Path("../../data/derived/lawley")
+p1 = json.loads((base / "path1_baseline_metrics.json").read_text())
+p1b = json.loads((base / "path1b_leak_corrected_metrics.json").read_text())
+p2 = json.loads((base / "path2_tightened_eval_metrics.json").read_text())
+
+rows = [
+    ("Lawley 2022 published", "—", 0.983, "—", "—"),
+    ("Phase 1: reproduction (leak in)",
+     "Lawley 1-D latitude-band CV", p1["auc_test"],
+     f"{p1['n_train']:,}", f"{p1['n_test']:,}"),
+    ("Phase 1b: leak corrected",
+     "Lawley 1-D latitude-band CV", p1b["auc_test"],
+     f"{p1b['n_train']:,}", f"{p1b['n_test']:,}"),
+    ("Phase 2: 2-D blocked CV",
+     "12 x 12 lat x lon quantile blocks", p2["cv_2d_blocks"]["auc"]["mean"],
+     "~4.1 M", "~1.0 M"),
+    ("Phase 2: USCAN -> Australia transfer",
+     "Train US/Canada, predict Australia", p2["transfer_uscan_to_aus"]["auc"]["mean"],
+     "3,620,022", "1,544,811"),
+    ("Phase 2: Australia -> USCAN transfer",
+     "Train Australia, predict US/Canada", p2["transfer_aus_to_uscan"]["auc"]["mean"],
+     "1,544,811", "3,620,022"),
+]
+df = pd.DataFrame(rows, columns=["Phase", "CV scheme", "Test AUC", "Train cells", "Test cells"])
+df["Test AUC"] = df["Test AUC"].apply(lambda x: f"{x:.4f}" if isinstance(x, float) else x)
+df
+```
+
+The four numbers together (0.997 → 0.972 → 0.868 → 0.71 → 0.56)
+account for the entire gap between the published score and an honest
+measurement of cross-region generalization. The 0.87 number under 2-D
+spatial blocks is real geological signal, mostly carried by the
+proximity-to-black-shale, proximity-to-passive-margin, and
+sedimentary-host-rock dictionary features. The leak-and-evaluation
+findings do not invalidate the paper's geological insight; they put
+the right error bars on its headline number.
+
+## Interesting finding 1: performance engineering required to make the experiment run on consumer hardware
+
+The published Lawley CSV is **7.2 GB**. Loaded naively with pandas,
+the in-memory representation expands to roughly **25 GB** because
+pandas defaults to object dtypes for string-typed columns. On a 16 GB
+machine this triggers hours of swap-bound thrashing.
+
+Three optimizations, applied in order:
+
+### Optimization 1: CSV streamed → parquet
+
+The fix was to stream the CSV through a chunked pyarrow `ParquetWriter`,
+casting "Present" / "Absent" string columns to boolean and 64-bit
+floats to 32-bit floats during the stream. The output is a 1.2 GB
+compressed parquet that loads in five seconds. The conversion itself
+runs in 2.3 minutes on the same hardware, with peak RAM during
+conversion of ~600 MB.
+
+| Stage | Before | After | Speedup |
+|---|---|---|---|
+| Disk size | 7.2 GB CSV | 1.2 GB parquet | 6× smaller |
+| Load time | hours (swap-bound) | 5 seconds | >720× |
+| RAM during load | exceeds 16 GB | ~3 GB | fits |
+
+### Optimization 2: vectorized `neighbor_deposits`
+
+The published `neighbor_deposits` feature helper used a row-wise
+pandas apply combined with a quadratic-time list-deduplication step.
+On the 3.6-million-row US + Canada subset, it had run for 42 minutes
+on the first attempt without completing before being killed.
+
+The fix replaced each of the four phases with vectorized pandas or
+numpy primitives: numpy boolean OR over the underlying bool arrays
+for step 1; `.str[10:-2].str.split(", ")` for step 2;
+Python `set.update()` for step 3 (eliminating the O(N²) list scan);
+`.explode().isin().groupby(level=0).any()` for step 4.
+
+| Region | SRI original runtime | Vectorized runtime |
+|---|---|---|
+| Australia (1.5M rows) | did not complete | 6 seconds |
+| US + Canada (3.6M rows) | did not complete in 42 minutes | 19 seconds |
+
+Lower bound on speedup: ≥130× on the US + Canada subset alone.
+
+### Optimization 3: `pd.factorize` replaces dict-replace categorical encoding
+
+The published `convert_categorical` helper used
+`pd.Series.replace(dict)` to map string categories to integer codes.
+That operation iterates row-wise in Python; on a 5-million-row
+column it takes about 5 minutes per column, and the loop runs over
+4-5 columns. `pd.factorize` is the C-level implementation of the
+same operation. Replacing the call dropped per-column encoding from
+~5 minutes to under one second — roughly **100× speedup**.
+
+End-to-end, the experiment now runs in **about 3 minutes** on the
+same 16 GB laptop. The takeaway is the gap between published
+research code and operationally usable code is often a fixed amount
+of unglamorous engineering, and the engineering is what makes the
+science reproducible.
+
+## Interesting finding 2: where the published 0.983 actually comes from
+
+The reproduction matches the published number to within 0.014. The
+gap between the reproduction (0.9965) and the "honest" generalization
+number breaks down as follows:
+
+### The label leak (2.4 pp)
+
+The published `preferred` feature configuration includes the column
+`Training_MVT_Occurrence` as an input feature, and the target the
+model is trained on is computed as the logical OR of
+`Training_MVT_Deposit` and `Training_MVT_Occurrence`. One of the
+inputs arithmetically defines half of the target. Dropping that
+column from the feature set produces an AUC of 0.972 instead of
+0.997 on the same held-out fold.
+
+### 1-D vs 2-D spatial blocking (9 pp)
+
+The published evaluation isolates the held-out fold by latitude
+only, so cells in the test strip are typically a few hundred
+kilometers from training cells with similar geology immediately east
+or west. The 2-D quantile-grid evaluation isolates the test fold
+across both axes. AUC drops from 0.958 to 0.868 with bootstrap 95%
+CI [0.848, 0.887].
+
+### Cross-continent transfer (16 pp)
+
+Training on the US + Canada cube and asking the model to score
+Australia produces AUC 0.71 with CI [0.677, 0.741]. The reverse
+direction (train Australia, score US + Canada) collapses to AUC
+0.557 with CI [0.544, 0.570] — where 0.5 would be random guessing.
+The "top 1 percent" of cells the model ranks most prospective
+contains only 2 percent of the real deposits in the harder direction;
+the published model has not learned anything generalizable enough
+to surface deposits in a continent it has not seen.
+
+## What the model is actually learning (when the leak is removed)
+
+The 0.87 AUC under 2-D spatial blocks is real geological signal. The
+features doing the most work are the proximity-to-feature columns
+(black shale, passive margin, fault) and the sedimentary-host-rock
+dictionary aggregate. These features encode the published MVT
+mineral-system model directly: sediment-hosted lead-zinc deposits
+form in carbonate basins near reduced source rocks, on passive
+continental margins, along structurally-prepared fluid pathways.
+The model is learning the recipe, and the recipe carries genuine
+signal at the continental scale.
+
+What the model is *not* learning is something general enough to
+predict deposits in a continent it has not seen. The Australia →
+USCAN transfer collapse demonstrates that the model has learned
+local pattern-matching, not transferable geological theory. That
+distinction is important for exploration use: a model that produces
+top-1% capture inside its training continent but coin-flip
+predictions outside it is useful for areas you have already drilled
+and useful in a narrower way than the published number suggests for
+areas you have not.
+
+## Files and reproduction
+
+- Phase 1 driver: [scripts/lawley_phase1_gbm.py](../../scripts/lawley_phase1_gbm.py)
+- Phase 1b driver: [scripts/lawley_phase1b_leak_corrected.py](../../scripts/lawley_phase1b_leak_corrected.py)
+- Phase 2 driver: [scripts/lawley_phase2_eval.py](../../scripts/lawley_phase2_eval.py)
+- CSV → parquet converter: [scripts/lawley_csv_to_parquet.py](../../scripts/lawley_csv_to_parquet.py)
+- Reference code (SRI baseline): [`DARPA-CRITICALMAAS/sri-ta3-baselines`](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines)
+- Findings writeups: [Phase 1](../../research/lawley_phase1_findings_2026-05.md), [Phase 2](../../research/lawley_phase2_findings_2026-05.md)
+
+## Sources
+
+- Lawley, C. J. M. et al. 2022. Data-driven prospectivity modelling of sediment-hosted Zn-Pb mineral systems and their critical raw materials. *Ore Geology Reviews* 141, 104635.
+- USGS data release [`619552fbd34eb622f6906b26`](https://data.usgs.gov/datacatalog/data/USGS:619552fbd34eb622f6906b26). Prospectivity models for the United States, Canada, and Australia.
+- NRCan GeoScan publication R=329203, DOI 10.4095/329203. The underlying H3 data cube.
+- DARPA-CRITICALMAAS program, USGS/DARPA AI for Critical Minerals (AI4M).

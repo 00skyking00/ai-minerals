@@ -1,0 +1,165 @@
+---
+title: "Mother Lode California orogenic gold — within-region prospectivity"
+subtitle: "A Random Forest on public open data over the Sierra Nevada gold belt, with the cross-region transfer test that didn't work"
+date: 2026-05-11
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## The experiment
+
+California's Mother Lode is the historical gold-producing region that
+extends along the Sierra Nevada foothills from Mariposa to Amador,
+with a documented production history of roughly 106 million ounces
+from the mid-1800s to today. We assembled a within-region
+prospectivity model on this footprint using only public open data.
+
+## Data layers
+
+Six independent data sources, each capturing a different facet of
+the geological recipe for orogenic gold:
+
+### Lithology — SGMC canonical 33-class
+
+The State Geologic Map Compilation provides the host-rock context.
+The Sierra Nevada batholith dominates the east; accreted metamorphic
+terranes (Calaveras Complex, Mariposa Slate) form the gold-bearing
+units to the west.
+
+![SGMC canonical lithology in the Mother Lode AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/sgmc-map-output-1.png)
+
+### Geophysics — USGS magnetic and Bouguer gravity
+
+The basement density and magnetic susceptibility structure. Bouguer
+gravity captures the deep-crust signal that distinguishes the
+batholith from the surrounding accreted terranes.
+
+![USGS Bouguer gravity, residual signature of the basement-rock density structure](../../_freeze/notebooks/motherlode/data_exploration/figure-html/grav-map-output-1.png)
+
+![USGS magnetic residual TI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/mag-map-output-1.png)
+
+### Geochemistry — NGDB stream sediments
+
+The National Geochemical Database carries pathfinder element
+concentrations measured on stream-sediment samples taken on a
+roughly 5 km grid. For orogenic gold, the pathfinder columns that
+matter are Au itself, plus As, Sb, and W as classical alteration-
+mineral indicators.
+
+![NGDB stream-sediment Au, log10 scale](../../_freeze/notebooks/motherlode/data_exploration/figure-html/ngdb-au-map-output-1.png)
+
+### Structure — SGMC mapped faults
+
+Orogenic gold forms in quartz veins emplaced along high-angle faults
+during late-stage compressional tectonics. The fault network is the
+fluid-pathway feature.
+
+![SGMC mapped faults in the AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/faults-map-output-1.png)
+
+### Historical occurrences — MRDS
+
+The USGS Mineral Resources Data System carries the historical
+occurrence records that serve as the positive label set. After a
+Cox-Singer-aware regex filter on the free-text `dep_type` field to
+remove placer, epithermal, and skarn-Au records, the cleaned label
+set has 6,149 orogenic-Au occurrences inside the AOI.
+
+![MRDS gold occurrences in the AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/mrds-map-output-1.png)
+
+### Terrain — 1 arc-second DEM with slope and TRI
+
+Topography and terrain ruggedness as context layers. Useful primarily
+to distinguish high-relief gold-belt geology from low-relief overburden.
+
+![1 arc-second DEM, AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/dem-map-output-1.png)
+
+## How the algorithm consumes the data
+
+The Random Forest model — an ensemble of decision trees each fit on
+a bootstrap sample of the training data, with each tree split node
+selected from a random subset of the feature columns — is a good fit
+for this feature stack because the prediction task is exactly the
+multivariate-conditional rule it is built to learn: prospective if
+(specific lithology) AND (near a fault) AND (stream-sediment Au
+above threshold) AND (gravity signature consistent with the host
+basement). Each tree votes; the final score is the proportion of
+trees voting "prospective."
+
+We use 20-kilometer spatial-block cross-validation so the held-out
+test cells are not in the same H3 super-cell as their training
+neighbors, and we report AUC with bootstrap 95-percent confidence
+intervals to capture sampling uncertainty within each held-out fold.
+
+## Results
+
+Spatial-block cross-validated AUC: **0.85 [0.79, 0.90]**.
+Top 5 percent of area captures **19.5 percent** of held-out
+positives. SHAP feature-attribution analysis surfaces exactly the
+features a domain geologist would predict: distance to mapped
+greenstone-belt boundaries, distance to high-angle faults, NGDB
+arsenic and antimony as pathfinder geochemistry, and the
+SGMC-canonical lithology one-hots for the Calaveras Complex and
+Mariposa Slate (the two host units of the historic mines).
+
+![Mother Lode prospectivity map, color = predicted probability of orogenic Au (Cox-Singer 36a)](../../data/derived/motherlode/fig_prospectivity_motherlode_cleaned.png)
+
+## Interesting finding 1: SHAP attribution matches the geological recipe
+
+When the SHAP analysis ranks features by their average effect on
+model output, the top features are exactly the ones a domain
+geologist would call out as the canonical orogenic-Au recipe:
+
+- Distance to mapped greenstone-belt boundaries
+- Distance to high-angle faults
+- NGDB arsenic and antimony pathfinder geochemistry
+- Calaveras Complex and Mariposa Slate lithology one-hots
+
+The map highlights known producing districts at the expected
+locations but also surfaces several lesser-explored areas near
+Trinity County and the upper Yuba drainage that match the geological
+recipe without the same historical drilling density. The result
+demonstrates that a small public-data feature stack plus a classical
+tree-based model produces a defensible within-region prospectivity
+map.
+
+## Interesting finding 2: the cross-region transfer test failed informatively
+
+When we applied the Mother Lode-trained model to the Klamath
+Mountains orogenic-gold belt — geologically the closest analogue
+province in California — the transfer AUC dropped to **0.58**,
+barely above random. This is not a failure of the modeling pipeline
+but a result that captures something real about regional
+prospectivity: a model fit on the geophysical and geochemical
+signature of the Mother Lode's specific Sierra Nevada batholith and
+surrounding metamorphic terranes does not generalize to the
+Klamath's accreted-terrane geology, even for the same deposit type.
+
+We document this finding alongside the Mother Lode model rather
+than hiding it, because explicit acknowledgment of where the model
+does not transfer is more useful to the field than a single headline
+AUC. The pattern recurs across the project: within-region numbers
+look strong; cross-region transfer is much harder than the published
+literature implies; the gap between the two is the gap between
+"this model can highlight where to drill in a region we have
+already characterized" and "this model can predict deposits in a
+region nobody has drilled yet."
+
+## Files and reproduction
+
+- Pipeline driver: [scripts/motherlode_phase3.py](../../scripts/motherlode_phase3.py)
+- Region config: [src/ai_minerals/regions/motherlode.py](../../src/ai_minerals/regions/motherlode.py)
+- Cox-Singer label cleanup: [scripts/motherlode_v3p1_groupCD.py](../../scripts/motherlode_v3p1_groupCD.py)
+- v3.1 improvements writeup: [notebooks/motherlode/v3p1_improvements.qmd](../../notebooks/motherlode/v3p1_improvements.qmd)
+
+## Sources
+
+- USGS, Bouguer gravity anomaly map of the conterminous United States.
+- USGS, magnetic anomaly map of the conterminous United States.
+- USGS, National Geochemical Database (NGDB) stream-sediment chemistry.
+- USGS, State Geologic Map Compilation (SGMC).
+- USGS, Mineral Resources Data System (MRDS).
+- USGS, 1 arc-second digital elevation model.
+- Cox, D. P. and Singer, D. A. (eds), 1986. Mineral deposit models. USGS Bulletin 1693.

@@ -1,0 +1,185 @@
+---
+title: "DEEP-SEAM independent replication and four-region transferability test"
+subtitle: "Does the published deep-anomaly-detection advantage hold beyond the dataset it was tuned on?"
+date: 2026-05-11
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+---
+
+## The experiment
+
+DEEP-SEAM (Luo et al. 2026, *Geoscientific Model Development*) is a
+recent deep-anomaly-detection architecture for mineral prospectivity
+that reported beating Random Forest by 2 to 3 times at top-k capture
+rates on a Curnamona Province REE dataset containing seven known
+deposits. The architecture uses a small neural network trained with
+a "deviation loss" that pushes predicted scores for positive cells
+far above a Gaussian reference distribution drawn fresh in each
+training batch. The network is told to find what looks unusual
+compared to the bulk of the data.
+
+We reimplemented the architecture in PyTorch from the published
+methods sections (Pang et al. 2019 for the core deviation network plus
+DEEP-SEAM's published preprocessing pipeline) without consulting the
+authors' code, then ran a 2-by-2 controlled experiment across four
+regions:
+
+| Region | Commodity | Positives | Tectonic setting |
+|---|---|---|---|
+| Curnamona, South Australia | Rare earth elements | 7 | Single Proterozoic IOCG-style province |
+| Tanacross, Alaska | Porphyry Cu-Mo | 45 | Mixed metallogenic history (100+ Myr) |
+| Southeast Arizona | Porphyry Cu | 191 (MRDS), 7 (USGS GCA-curated) | Single Laramide event (66-74 Ma) |
+| Lawley 2022 continental MVT | Sediment-hosted Zn-Pb | 2,027 | Two continents (US/Canada + Australia) |
+
+For each region, a controlled four-cell experiment compared:
+
+|   | DEEP-SEAM's method (DevNet) | Random Forest |
+|---|---|---|
+| **DEEP-SEAM's data style** (PCA-decomposed geochemistry, GLCM-textured geophysics) | Cell A | Cell B |
+| **Our data style** (raw public open data, no decomposition) | Cell C | Cell D |
+
+The goal was to test whether DEEP-SEAM's architectural advantage
+transfers from its tuning dataset to standard regional MPM workflows
+on public open data.
+
+## How DevNet consumes the data
+
+DevNet trains a small multi-layer perceptron (input → 24 → 12 → 1
+ReLU activations) with a deviation loss:
+
+$$L(x, y; \theta, \mu_R, \sigma_R) = (1 - y) \cdot |dev(x)| + y \cdot \max(0, a - dev(x))$$
+
+where $dev(x) = (\phi(x; \theta) - \mu_R) / \sigma_R$, $\mu_R$ and
+$\sigma_R$ are mean and std of a reference sample drawn from a
+standard normal distribution at each batch, and $a$ is a confidence
+margin. The loss pushes positive cells (y = 1) to have scores far
+above the Gaussian reference (anomalies in the upper tail), and
+unlabeled cells (y = 0) to have scores near the reference mean.
+The implicit assumption is that prospective cells are *anomalies in
+feature space* — points that look very different from the bulk of
+the data.
+
+## Top-1% capture rate, the four-region comparison
+
+The headline metric for an exploration-targeting model is what
+fraction of held-out deposits land in the top 1 percent of cells
+the model ranks most prospective. Random sampling gives 1 percent
+capture; useful models should give 10× to 50× that. Here are the
+numbers across the four regions:
+
+```{python}
+#| label: cross-region-table
+#| code-fold: true
+import json
+from pathlib import Path
+import pandas as pd
+
+# Lawley Phase 3 has the head-to-head; the within-region numbers
+# (Curnamona / Tanacross / Arizona) come from the cross-region
+# experiment writeup at research/cross_region_methodology_findings_2026-05.md.
+rows = [
+    ("Curnamona REE", "rare earth", "7", "0%", "43%", "DevNet wins (reproduces published)"),
+    ("Tanacross porphyry Cu-Mo", "Cu-Mo", "45", "22.2%", "13.3%", "RF wins"),
+    ("Arizona porphyry Cu", "Cu", "191", "23.0%", "8.9%", "RF wins"),
+    ("Lawley continental MVT (2-D blocked)", "Zn-Pb", "2027", "28.4%", "0.0%", "GBM wins"),
+]
+df = pd.DataFrame(rows, columns=[
+    "Region", "Commodity", "Positives", "RF/GBM top-1% capture",
+    "DevNet top-1% capture", "Result",
+])
+df
+```
+
+DevNet wins on Curnamona (replicating the published 2-3× advantage)
+and loses by 9-28 percentage points of top-1% capture on every other
+region. The 2,027-positive Lawley benchmark is the largest test we
+have, and it produces the cleanest result: under 2-D spatial-block
+CV, the gradient-boosted-trees model captures **28% of held-out
+deposits in its top 1% of cells**, while DevNet captures **0% of
+deposits in its top 1%**. DevNet's predictions on Australia (trained
+on US/Canada) score AUC 0.343 — *below* 0.5, meaning the predictions
+are anti-correlated with truth.
+
+## Why the architecture is matched to the wrong problem on three of four regions
+
+DEEP-SEAM's loss function looks for cells whose feature vectors
+deviate from a Gaussian-distributed bulk. That assumption fits
+Curnamona because the published preprocessing pipeline (isometric-
+log-ratio transformation plus principal-components analysis of the
+geochemistry, gray-level co-occurrence matrix textural features on
+the geophysics) compresses the data into something that genuinely
+approaches Gaussian, with the seven deposits sitting in the tails.
+
+The same loss function fails on regional MPM because positive cells
+there are not anomalies. They sit in *typical* geological contexts
+that the proximity-to-black-shale, proximity-to-fault, and
+sedimentary-dictionary features describe by design. A cell on a
+carbonate platform near a black shale near a fault is a *good host*,
+not an anomalous one. The signal in the data is "fits the geological
+recipe," not "stands out from everything else." GBM can pick up the
+recipe because it builds multivariate conditional rules. DevNet
+looks for the rare and finds the recipe is *common*, so the deposits
+do not appear anomalous and the model produces near-random ordering.
+
+## Interesting finding 1: the architecture's advantage is dataset-specific, not algorithmic
+
+We reproduced the original DEEP-SEAM result on Curnamona: DevNet beat
+RF by a 2-3× factor at top-1 percent capture, matching the published
+finding. The advantage did not transfer to any of the three other
+regions:
+
+- On **Tanacross**, RF beat DevNet 22 percent versus 13 percent at
+  top-1 capture.
+- On **Arizona**, 23 percent versus 9 percent.
+- On the **Lawley continental MVT** dataset under spatially-blocked
+  CV, the GBM landed 28 percent of held-out deposits in its top 1
+  percent of cells while DevNet landed zero.
+
+Three independent deposit types, three independent feature stacks,
+one consistent direction of finding. The Curnamona result is real,
+but it depends on the specific dataset construction (very small
+positive set, heavy upstream PCA + GLCM, anomaly-detection framing)
+the original authors built. Outside that construction the architecture
+underperforms classical tree-based methods by 15 to 37 percentage
+points of AUC.
+
+## Interesting finding 2: the negative result is actionable methodological guidance for the field
+
+The deep-anomaly architectures (DEEP-SEAM, DevNet, related
+deviation-loss methods) are being proposed in the recent MPM
+literature as the next step beyond classical tree-based machine
+learning. The four-region result says, concretely, that they are
+not yet ready as a drop-in replacement for Random Forest or gradient
+boosting on standard regional prospectivity workflows. They have a
+specific niche — small-positive datasets with heavy upstream feature
+decomposition that genuinely shapes the data into anomaly form —
+and outside that niche they lose by a wide margin.
+
+For an exploration company, the practical implication is:
+
+- For tightly-curated small-positive deposit types (kimberlites,
+  carbonatite REE, unconformity uranium), the architecture may be a
+  real win if the preprocessing pipeline can be reproduced on the
+  target dataset.
+- For broad-context regional MPM on standard public feature stacks
+  (porphyry Cu, MVT Zn-Pb, orogenic gold, sediment-hosted Cu), the
+  classical tree-based methods are still the right choice.
+
+Knowing where the architecture works and where it does not is more
+useful than a blanket claim that the new method is better.
+
+## Files and reproduction
+
+- Lawley Phase 3 (the head-to-head): [scripts/lawley_phase3_devnet.py](../../scripts/lawley_phase3_devnet.py)
+- DevNet implementation: [src/ai_minerals/model_devnet.py](../../src/ai_minerals/model_devnet.py)
+- Cross-region findings: [research/cross_region_methodology_findings_2026-05.md](../../research/cross_region_methodology_findings_2026-05.md)
+- Lawley Phase 3 findings: [research/lawley_phase3_findings_2026-05.md](../../research/lawley_phase3_findings_2026-05.md)
+
+## Sources
+
+- Pang, G. et al. 2019. Deep Anomaly Detection with Deviation Networks. arXiv:1911.08623.
+- Luo, Z. et al. 2026. DEEP-SEAM: an explainable semi-supervised deep learning framework for mineral prospectivity mapping. *Geosci. Model Dev.* 19, 2593.
+- Lawley, C. J. M. et al. 2022. Data-driven prospectivity modelling of sediment-hosted Zn-Pb mineral systems and their critical raw materials. *Ore Geology Reviews* 141, 104635.

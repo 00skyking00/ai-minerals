@@ -22,8 +22,12 @@ uv.lock
 .ipynb_checkpoints/
 *.ipynb_meta
 _site/
+_site_internal/
 .quarto/
 _freeze/
+
+# Third-party repositories cloned for reference / reproduction work
+third_party/
 
 # Data — large files belong in data/raw/ but stay out of git
 # If a specific small file *should* be committed, force-add with `git add -f`
