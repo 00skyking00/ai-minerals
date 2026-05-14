@@ -1,114 +1,149 @@
 ---
 title: "ai-minerals"
-subtitle: "A programmer learning to model where the next ore body might be — on public data, on my own time"
 ---
 
-I'm a programmer. Thirty years of experience, twenty-five at Check Point
-on Windows systems and security, and I'm now pivoting toward AI in
-mineral exploration. This site is what I've built on my own time over
-the last year or so: five projects, all on public data, mostly asking
-some version of the same question — how much can a careful ML pipeline
-really tell you about where to drill, and where does it break down? The
-family-history reason I'm doing this at all is in the cover letter;
-short version, three generations of mining engineers on my mother's
-side, and once I started digging into family-claim records I kept
-running into problems that turned out to be programming problems.
+I have nearly thirty years of programming experience developing
+anti-malware solutions on Windows, mostly low-level work on kernel
+drivers and Windows internals.
 
-The chapters cover four within-region prospectivity pipelines,
-reproductions of two well-known published methods (one of which doesn't
-survive an honest audit as cleanly as its published numbers suggest), a
-five-region transfer test, and two takes on the actual decision — given
-a probability map, where do you put the next drill hole? Each chapter
-has a longer notebook trail behind it — full data, code, methodology
-choices, and what didn't work — at the
-[review build](https://johnsondevco.com/plans/ai-minerals-internal/).
+Disclaimer: I'm not a geologist, and I'm not a data scientist. But I
+have a deep passion for mining.
+
+A few years ago I started helping my mom research a book about her
+grandfather, Walter W. Johnson, a mining engineer, miner, and builder
+of large placer-mining machinery. In the process we discovered that
+the family still owned a large interest in several patented mining
+claims in Nome, Alaska. One of those claims had recently been
+high-graded by lessees of the other partial-interest holder without
+our knowledge, and the others purportedly still held unmined gold.
+The family connection, along with that practical hook, kicked off a
+quest to apply my programming skills to the domain in every way I
+could. The Bear Cub drill-logs project below is but one application
+of that. The rest of this site is me poking at what machine learning
+can usefully tell us about public mining data, and a few interesting
+things I found along the way.
 
 ## Chapters
 
 ### [1. Bear Cub (Cape Nome placer Au)](bear_cub.qmd)
 
-My family's claim on the Nome paleo-beach gold deposits — the project
-that started everything. Twenty-four hand-written drill logs from
-1919–1955 ingested with a multi-engine OCR pipeline (Tesseract, TrOCR,
-Cloud Vision, Claude Opus arbitrating with structured-output JSON),
-reconstructed into a 3D bedrock + pay-zone model, then resourced with
-Voronoi-cell volumetrics and Monte Carlo uncertainty. It started as an
-ongoing-litigation problem on the claim (high-grading by another
-owner's lessees) and grew into a methodology I've reused since.
+I dove into the history first. Old newspapers, state and national
+archives, museum collections; territorial court transcripts, recorded
+documents, old mining journals, mining engineer reports, drill logs,
+company reports. Bear Cub sits on the legendary Third Beach Line at
+Nome, and cases involving its ownership had already worked their way
+up to the Supreme Court within a few years of its 1899 staking.
+Figuring out how to ingest all this disparate information, add
+structure to it, and use it as input for computational processes is
+turning into a lifelong quest. I tracked down the Bear Cub drill logs
+in the archives of the Huntington Library, in their Charles Janin
+collection: 24 early 20th-century placer churn drill logs. I
+developed a multi-engine OCR pipeline (Tesseract, TrOCR, Cloud
+Vision, Claude Opus arbitrating with structured-output JSON) to
+ingest them, programmatically mapped each hole onto a recent plat of
+the claim, built a 3D model of the bedrock and each hole, and used
+standard algorithms (Voronoi-cell volumetrics, Monte Carlo
+uncertainty) to compute potential yield. In the end, per-hole grades
+matched two mining engineers' independent analyses within 6%. I'm
+using the results to feed the damages calculation in our active
+litigation, and to develop a plan to mine the deeper gold that's
+still there.
+
+## Machine learning on public geological data
+
+When I started looking at machine learning on public geological
+data, I had two criteria: which regions interested me personally, and
+which felt amenable to the methodology. My great-grandfather, and
+his four sons including my grandfather, had mined across the
+California Mother Lode, British Columbia, and Alaska, so those areas
+were the natural draw. The Arizona copper porphyry belt held no
+personal interest for me, but the data and the geology looked right
+for the methodology to work.
 
 ### [2. Regional MPM pipelines](regional.qmd)
 
-Four within-region prospectivity pipelines, all built the same way:
-USGS / NRCan / state-survey public data → Random Forest with 20 km
-spatial-block CV → leak-free out-of-fold scoring with bootstrap
-confidence intervals. The four regions: Eastern Alaska (porphyry-Cu),
-BC Golden Triangle (multi-deposit), California Mother Lode
-(orogenic-Au), Arizona (porphyry-Cu). Top-1% capture rates of 22–23%
-across all four — about 22× better than random.
+For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
+Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
+porphyry-Cu), I built the same kind of pipeline: pull public USGS,
+NRCan, and state-survey data onto a common grid, train a Random
+Forest, and hold out spatial blocks during validation so the model
+can't cheat by memorizing neighbors. The chapter walks through each
+region's data, the model output, and which features it leaned on
+most.
 
 ### [3. Reproducing + auditing two published methods](reproductions.qmd)
 
-I cloned the official code for two well-known MPM papers and re-ran
-them under honest validation. **Lawley 2022** (continental Zn-Pb,
-published AUC 0.983) reproduces cleanly, but the published number
-includes a label leak (2.4 pp), a 1-D vs 2-D spatial-blocking gap
-(9.0 pp), and a cross-continent transfer collapse (~16 pp). Honest
-AUC: 0.71–0.87. **DEEP-SEAM** (Curnamona REE, published 86% top-2%
-capture) is measured under a 0-D random split with no spatial
-blocking; the implementation also diverges from the paper text in two
-places. I tried to find a charitable read of both and report what I
-actually saw.
+I cloned the official code for two well-known mineral-prospectivity
+papers and re-ran them with proper validation. **Lawley 2022**
+(continental Zn-Pb, published AUC 0.983) reproduces cleanly, but the
+published number includes a label leak (2.4 pp), a 1-D vs 2-D
+spatial-blocking gap (9.0 pp), and a cross-continent transfer
+collapse (~16 pp). Properly validated, the AUC drops to 0.71-0.87.
+The published code also had a performance problem: a critical piece
+used an O(N²) algorithm that didn't finish after half an hour. I
+rewrote it as O(N) and got the runtime down to a few minutes.
+**DEEP-SEAM** (Curnamona REE, published 86% top-2% capture) is
+measured under a 0-D random split with no spatial blocking at all,
+and the implementation diverges from the paper text in two places. I
+tried to find a charitable read of each and report what I actually
+saw.
 
 ### [4. Cross-region experiments](cross_region.qmd)
 
-A five-region transferability test for the DEEP-SEAM deviation-network
-architecture. The 2–3× advantage over Random Forest that the paper
-reports holds on its tuning dataset (Curnamona REE, 7 positives) and
-nowhere else: Tanacross porphyry-Cu (45 positives), Arizona
-porphyry-Cu (191 positives), Lawley continental MVT (2,027 positives,
-2-D blocked CV), and US Western Carbonatite REE Belt (14 positives,
-within-niche test) all favor classical tree-based methods, by 7 to 37
-percentage points. Useful negative result.
+I ran a five-region transferability test on the DEEP-SEAM
+deviation-network architecture. The 2-3× advantage over Random
+Forest that the paper reports holds on its tuning dataset (Curnamona
+REE, 7 positives) and nowhere else. The most pointed test was on the
+US Western Carbonatite REE Belt (14 positives, the same deposit
+type as Curnamona): DEEP-SEAM still loses to Random Forest. On the
+other three regions (Tanacross porphyry-Cu, Arizona porphyry-Cu,
+Lawley continental MVT under 2-D blocked CV), the gap widens to 7-37
+percentage points in favor of tree-based methods. Useful negative
+result.
 
 ### [5. Drill planning under uncertainty](drill_planning.qmd)
 
-The downstream question: given a prospectivity map, where should the
-next hole actually go? Two takes at different scales — a POMDP with
-Monte Carlo Tree Search on the BCGT regional prior, plus a
-Gaussian-process drill-site recommender on the Bear Cub placer
-property. Different math, same job — turn a probability map into a
-hole location, factoring in the uncertainty.
+A prospectivity map by itself doesn't tell you where to put the next
+drill hole. I built two small experiments on top of the earlier work
+to take a stab at that question. The first is a POMDP planner with
+Monte Carlo Tree Search, run on the BC Golden Triangle regional
+prospectivity prior and ported from Mern et al.'s Intelligent
+Prospector (GMD, 2023). The second is a Gaussian-process drill-site
+recommender on the Bear Cub property, picking the next hole by
+either uncertainty or expected grade. Both are 1.0 versions, with
+simplifications documented in the chapter. The 24 historical Bear
+Cub drill holes were too few for the Gaussian process to do anything
+too predictive with, but the variance structure still gives a
+sensible answer to where the next hole would teach the model the
+most.
 
-## Methodology in one paragraph
+## Methodology
 
-Here's the methodology in plain terms, with the caveat that I'm a
-programmer, not a geologist or a research statistician — when I say
-"the methodology" I mean "what the published literature does, and
-what I've tried to do carefully over the past year."
+Keeping in mind that I am a programmer and not a statistician, here
+is my take on methodology.
 
 Federal and state surveys publish a lot of mineral data: occurrence
 records, geologic maps, magnetics and gravity, stream-sediment
-geochemistry, satellite imagery. Resample everything onto a common
-grid and each cell of land becomes a feature vector. Train a Random
-Forest (or gradient-boosted trees, or a deeper neural net) to
-recognize cells with known deposits, holding out spatial blocks so
-the model can't cheat by memorizing neighbors. The output is a
+geochemistry, satellite imagery. I pull these onto a common grid and
+each cell of land becomes a feature vector. I train a Random Forest
+to recognize cells with known deposits, holding out spatial blocks
+so the model can't cheat by memorizing neighbors. The output is a
 per-cell score across the region: the model's guess at where the
 unknown deposits are.
 
 The part I've spent the most time on isn't the training, it's the
-honesty check afterward. The methodology has four well-known traps —
+validation afterward. The methodology has four well-known traps:
 inflated training positives, spatial leakage, exploration bias in
-the labels, and cross-region transfer failure — and all four show up
-in this portfolio. Chapter 3 is the most explicit about it: I
-quantify how much of two published AUC numbers each trap accounts
-for. But the same issues are flagged in the within-region work too
+the labels, and cross-region transfer failure. All four show up in
+this portfolio. Chapter 3 is the most explicit about quantifying
+them, showing how much of two published AUC numbers each trap
+accounts for. The same issues are flagged in the within-region work
 where I noticed them, and I'm sure I missed some.
 
 ## Stack
 
 Public data sources: USGS, NRCan, state surveys, Sentinel-2. Code is
-Python — scikit-learn, pandas + pyarrow, geopandas + rasterio,
+Python: scikit-learn, pandas + pyarrow, geopandas + rasterio,
 PyTorch (for the DEEP-SEAM port), PyVista for the Bear Cub 3D
 visualization, Quarto for the site itself.
 
@@ -116,7 +151,7 @@ visualization, Quarto for the site itself.
 
 | Chapter | Detail |
 |---|---|
-| [1. Bear Cub](bear_cub.qmd) | [internal/bear_cub/main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
+| [1. Bear Cub](bear_cub.qmd) | [main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
 | [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) |
 | [3. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
 | [4. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
