@@ -1,5 +1,5 @@
 ---
-title: "Chapter 4 — Cross-region experiments"
+title: "Chapter 4: Cross-region experiments"
 subtitle: "Five-region transferability test for the DEEP-SEAM deviation-network architecture"
 ---
 
@@ -13,11 +13,12 @@ REE dataset with seven known deposits. The natural follow-up
 question: does that advantage transfer? To other deposit types? To
 other REE provinces?
 
-This chapter answers both. Across five independent regions covering
-four deposit types and three continents, the deviation-network
-architecture wins on exactly one — its tuning dataset. Classical
-tree-based methods (Random Forest or gradient boosting) win on the
-other four by 7 to 37 percentage points of top-1% capture.
+This chapter answers both. I ran the same DEEP-SEAM architecture on
+five independent regions covering four deposit types and three
+continents. The deviation-network architecture wins on exactly one:
+its tuning dataset. Classical tree-based methods (Random Forest or
+gradient boosting) win on the other four by 7 to 37 percentage
+points of top-1% capture.
 
 ## The five-region scorecard
 
@@ -38,60 +39,62 @@ prospective.
 The "DEEP-SEAM works on REE" reading of the published result is
 falsified by row 2 of the table. The US Western Carbonatite Belt
 test (8 deposits from Bear Lodge WY, Bearpaw MT, Elk Creek NE, Gem
-Park CO, Iron Hill CO, North Fork ID, Ravalli MT, Wet Mountains CO;
-14 positive cells after spatial join to Lawley's H3 cube; 408,293
-unlabeled context cells; leave-one-out CV) sits in the **same
-deposit family** as Curnamona — small positive set, distinctive
-alkaline-intrusive host rock, characteristic geophysical signature.
-DEEP-SEAM still loses to RF.
+Park CO, Iron Hill CO, North Fork ID, Ravalli MT, Wet Mountains
+CO; 14 positive cells after spatial join to Lawley's H3 cube;
+408,293 unlabeled context cells; leave-one-out CV) sits in the
+**same deposit family** as Curnamona: a small positive set,
+distinctive alkaline-intrusive host rock, characteristic
+geophysical signature. DEEP-SEAM still loses to RF.
 
 The geological explanation is clean. DEEP-SEAM's loss function
 pushes positive cells far above a Gaussian-distributed reference
-distribution. The assumption is that positive cells are feature-space
-*anomalies* — points that look different from the bulk of the data.
-That assumption fits Curnamona because the published preprocessing
-pipeline (isometric log-ratio + PCA on geochem, GLCM textural
-features on geophysics) compresses the data into something
-approximately Gaussian with the seven deposits sitting in the tails.
+distribution. The assumption is that positive cells are
+feature-space *anomalies*: points that look different from the
+bulk of the data. That assumption fits Curnamona because the
+published preprocessing pipeline (isometric log-ratio plus PCA on
+geochem, GLCM textural features on geophysics) compresses the data
+into something approximately Gaussian with the seven deposits
+sitting in the tails.
 
-It does not fit regional MPM on standard public-data feature stacks.
-Lawley's MVT cube encodes prospectivity through proximity-to-feature
-columns (distance to black shale, distance to passive margin,
-distance to fault) and presence-flag dictionaries (sedimentary host,
-igneous host). A prospective cell *fits the geological recipe*; it
-is not an anomaly. The deviation loss looks for rare and finds the
-recipe is common, so the deposits do not appear anomalous and the
-model produces near-random ordering. RF can learn the recipe via
-multivariate conditional splits; DevNet can't.
+It does not fit regional MPM on standard public-data feature
+stacks. Lawley's MVT cube encodes prospectivity through
+proximity-to-feature columns (distance to black shale, distance to
+passive margin, distance to fault) and presence-flag dictionaries
+(sedimentary host, igneous host). A prospective cell *fits the
+geological recipe*; it is not an anomaly. The deviation loss
+looks for rare and finds the recipe is common, so the deposits do
+not appear anomalous and the model produces near-random ordering.
+RF can learn the recipe via multivariate conditional splits;
+DevNet can't.
 
-This is also strictly consistent with the [Chapter 3
-audits](reproductions.qmd): the published Curnamona 86% top-2% capture
-is measured under 0-D spatial blocking (no spatial isolation at
-all). When the same architecture is evaluated under any form of
-spatial isolation (LOO on a different REE province, OOF on
-porphyry-Cu, 2-D blocked OOF on continental MVT), the advantage
-disappears.
+This is also strictly consistent with the
+[Chapter 3 audits](reproductions.qmd): the published Curnamona 86%
+top-2% capture is measured under 0-D spatial blocking (no spatial
+isolation at all). When the same architecture is evaluated under
+any form of spatial isolation (LOO on a different REE province,
+OOF on porphyry-Cu, 2-D blocked OOF on continental MVT), the
+advantage disappears.
 
 ## What this implies for the field
 
 The deep-anomaly-detection architectures (DEEP-SEAM, DevNet,
 related deviation-loss methods) are being proposed in the recent
 MPM literature as the next step beyond classical tree-based machine
-learning. The five-region experiment says, concretely, that they are
-not yet ready as a drop-in replacement for Random Forest or gradient
-boosting on standard regional prospectivity workflows. They have a
-specific niche — small-positive datasets with heavy upstream feature
-decomposition that genuinely shapes the data into anomaly form — and
-outside that niche they lose by a wide margin.
+learning. The five-region experiment says, concretely, that they
+are not yet ready as a drop-in replacement for Random Forest or
+gradient boosting on standard regional prospectivity workflows.
+They have a specific niche (small-positive datasets with heavy
+upstream feature decomposition that genuinely shapes the data into
+anomaly form), and outside that niche they lose by a wide margin.
 
-The architecture is not broken. It is matched to the wrong problem
-shape for general regional MPM. Knowing where it works and where it
-doesn't is more useful for an exploration team than a blanket claim
-that the new method is better.
+The architecture isn't broken; it's matched to the wrong problem
+shape for general regional MPM. Knowing where it works and where
+it doesn't is more useful for an exploration team than a blanket
+claim that the new method is better.
 
 ## Deeper notebooks
 
-- [Cross-region four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html) — the 2×2 controlled experiment design (DevNet/RF × DEEP-SEAM-style features / our raw features) across Curnamona / Tanacross / Arizona.
-- [US Carbonatite REE within-niche transfer test](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) — full writeup of the row-2 within-niche falsification.
+- [Cross-region four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html): the 2×2 controlled experiment design (DevNet/RF × DEEP-SEAM-style features / my raw features) across Curnamona / Tanacross / Arizona.
+- [US Carbonatite REE within-niche transfer test](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html): full writeup of the row-2 within-niche falsification.
 
 [← back to portfolio map](index.qmd)

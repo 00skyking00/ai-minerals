@@ -1,5 +1,5 @@
 ---
-title: "Chapter 1 — Bear Cub (Cape Nome placer Au)"
+title: "Chapter 1: Bear Cub (Cape Nome placer Au)"
 subtitle: "OCR + 3-D modeling of 24 paper drill logs from a family heritage mining claim"
 ---
 
@@ -7,69 +7,72 @@ subtitle: "OCR + 3-D modeling of 24 paper drill logs from a family heritage mini
 
 ## What this is
 
-Bear Cub Mining Claim is a four-patent placer claim on the Nome
-paleo-beach gold deposits in western Alaska, held by the family since
-the early twentieth century. Its drilling history covers three
-operators across four form-types between 1919 and 1955, producing
-twenty-four paper drill logs that had never been transcribed. This
-chapter turned those logs into a structured geospatial dataset with
-quantified resource estimates, a three-dimensional model of the
-bedrock surface and pay zone, and a defensible chain of title back to
-the original 1908 federal mineral patent.
+Bear Cub is a four-patent placer claim on the Nome paleo-beach gold
+deposits in western Alaska, held by the family since the early
+twentieth century. Its drilling history covers three operators
+across four form-types between 1919 and 1955, producing twenty-four
+paper drill logs that had never been transcribed. I turned those
+logs into a structured geospatial dataset with quantified resource
+estimates, a three-dimensional model of the bedrock surface and pay
+zone, and a verified chain of title back to the original 1908
+federal mineral patent.
 
 ![Bear Cub MS 1178 on satellite imagery, drill holes colored by pay-zone average grade.](data/derived/bear_cub_resource/fig_aerial_pay_zone_grade.png)
 
 ## What got built
 
-**OCR pipeline.** Multi-engine with arbitration: Tesseract for
-printed form headers, Hugging Face TrOCR for handwritten depth and
-lithology columns, Google Cloud Vision for the red-pencil supervisor
-corrections layered on top of the original ink, and Claude Opus
-4.5 with structured-output JSON as the final arbiter. The four
-upstream engines each produce a candidate per cell; Claude selects
-the most plausible value given the column's expected unit, and flags
-cells where the engines disagree more than the column's measurement
-uncertainty for manual review.
+**OCR pipeline.** I built a multi-engine pipeline with arbitration:
+Tesseract for printed form headers, Hugging Face TrOCR for
+handwritten depth and lithology columns, Google Cloud Vision for
+the red-pencil supervisor corrections layered on top of the
+original ink, and Claude Opus 4.5 with structured-output JSON as
+the final arbiter. The four upstream engines each produce a
+candidate per cell; Claude selects the most plausible value given
+the column's expected unit, and flags cells where the engines
+disagree more than the column's measurement uncertainty for manual
+review.
 
 **Schema-aware ingestion.** The four operator-specific form
-conventions disagree about what the same field on the same physical
-form means. Convention C (1936 Hammon field log) records weights
-only at the sample level on a back page; the front page has color
-counts but no weights. Without recovering and distributing the
-back-page sample totals across intervals via a color-weighted
-proportional rule, every Convention C hole comes back at zero grade
-and the property-total resource is halved. The pipeline implements
-the recovery rule as a post-OCR step. Full breakdown of how
-historical placer drill logs encode their data lives at
+conventions disagree about what the same field on the same
+physical form means. Convention C (1936 Hammon field log) records
+weights only at the sample level on a back page; the front page
+has color counts but no weights. Without recovering and
+distributing the back-page sample totals across intervals via a
+color-weighted proportional rule, every Convention C hole comes
+back at zero grade and the property-total resource is halved. I
+implemented the recovery rule as a post-OCR step. The full
+breakdown of how historical placer drill logs encode their data
+lives at
 [`research/bear_cub_placer_drill_log_anatomy.md`](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html#archive-and-conventions).
 
-**Resource estimation.** Voronoi polygon block model: tessellate the
-property's four-corner quadrilateral into cells around drill-hole
-positions, multiply cell area × pay-zone depth × hole grade, sum
-over cells. Monte Carlo wrapper propagates three uncertainty sources
-(gold fineness, OCR transcription noise, bit-area uncertainty) over
-1,000 samples to produce a 90% credible interval. The published
-1962 operator estimate (Tweet, Bear Cub Mining Company) puts the
-property total at 10,056 oz; our pay-zone polygon-block credible
-interval sits well below that, with the gap traced to a generous
-pay-zone definition the operator used.
+**Resource estimation.** I used a Voronoi polygon block model:
+tessellate the property's four-corner quadrilateral into cells
+around drill-hole positions, multiply cell area × pay-zone depth ×
+hole grade, sum over cells. A Monte Carlo wrapper propagates three
+uncertainty sources (gold fineness, OCR transcription noise,
+bit-area uncertainty) over 1,000 samples to produce a 90%
+uncertainty interval. The published 1962 operator estimate (Tweet,
+Bear Cub Mining Company) puts the property total at 10,056 oz; my
+pay-zone polygon-block interval sits well below that, with the gap
+traced to a generous pay-zone definition the operator used.
 
-**3-D model.** PyVista mesh of the implied bedrock surface and
-pay-zone horizon, plus a fence diagram in profile view. The dark
-band immediately above the bedrock surface shows the third
-beach-line geometry the historic operators were chasing — five
-specific holes sit on that line and account for most of the
+**3-D model.** I rendered a PyVista mesh of the implied bedrock
+surface and pay-zone horizon, plus a fence diagram in profile view.
+The dark band immediately above the bedrock surface shows the
+third beach-line geometry the historic operators were chasing.
+Five specific holes sit on that line and account for most of the
 property's gold.
 
 ![Fence diagram, west-to-east. Dark cells above the brown bedrock line are bedrock-contact pay.](data/derived/bear_cub_resource/fig_grade_fence.png)
 
-**Drill-site recommender.** Gaussian-process regression on the 24
-holes' (x, y) → predicted pay-zone grade, with a per-location
-uncertainty estimate from the GP posterior variance. Two acquisition
-functions: max-variance (pure information gain) and expected
-improvement (against a 0.05 oz/yd³ target). Each returns a
-defensible next-hole pick. See [Chapter 5](drill_planning.qmd) for
-the full drill-planning treatment.
+**Drill-site recommender.** I fit a Gaussian-process regressor on
+the 24 holes' (x, y) → predicted pay-zone grade, with a
+per-location uncertainty estimate from the GP posterior variance.
+Two acquisition functions: max-variance (pure information gain)
+and expected improvement (against a 0.05 oz/yd³ target). Each
+returns a sensible next-hole pick. See
+[Chapter 5](drill_planning.qmd) for the full drill-planning
+treatment.
 
 ## Proving title
 
@@ -84,39 +87,39 @@ specific WGS84 coordinates and a specific legal owner:
 - Alaska state recorder's chain-of-title from the original patentee
   through to the current family ownership.
 
-The four-corner reconstruction walks the historical metes-and-bounds
-language to within 0.3 m of the 2014 corner monuments — the
-round-trip residual on the affine transform that takes the local-feet
-survey grid to modern WGS84.
+I wrote the four-corner reconstruction that walks the historical
+metes-and-bounds language to within 0.3 m of the 2014 corner
+monuments. That's the round-trip residual on the affine transform
+that takes the local-feet survey grid to modern WGS84.
 
 ## Interesting findings
 
 **The historical record is internally inconsistent in ways that
 matter.** Each row of each log has up to three different numbers
 describing the same depth interval's gold content: the field
-panner's color count + rule-of-thumb weight estimate, the
+panner's color count plus rule-of-thumb weight estimate, the
 supervisor's bench-scale weight after Wells/Janin displacement
 correction, and a green-pencil reprice updating the historical
-pennyweight value to a later gold price. The three numbers describe
-different things and the discrepancies are not noise — they encode
+pennyweight value to a later gold price. The three numbers
+describe different things, and the differences between them encode
 real measurement uncertainty plus successive valuation layers. The
-OCR pipeline preserves all three columns + a derived discrepancy
-flag rather than collapsing them.
+OCR pipeline preserves all three columns plus a derived
+discrepancy flag rather than collapsing them.
 
 **The pipeline generalizes to the rest of the Nome paleo-beach
 archive.** Three concrete spinoff projects: a surveyor's toolkit
-(four-corner WGS84 anchoring from a few GPS readings + a patent
+(four-corner WGS84 anchoring from a few GPS readings plus a patent
 description), a drill-log CLI (folder of historical mining-record
-scans → structured CSV with provenance + confidence flags per
+scans to structured CSV with provenance and confidence flags per
 cell), and a broader dark-data archive ingestion framework (court
 filings, surveyors' notes, title histories, family correspondence,
 all into one linked dataset).
 
 ## Deeper notebooks
 
-- [Full Bear Cub project notebook](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html) — pipeline, modeling, resource analysis with code.
-- [Mining-engineer re-analysis](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) — per-hole grades, plan view, resource estimate framed for a placer engineer.
-- [Internal review notebook](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/internal.html) — caveats, TODOs, methodology audit trail.
-- [Placer drill-log anatomy](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html#archive-and-conventions) — how mid-twentieth-century churn-drill logs encode their data (Wolff + Wells references).
+- [Full Bear Cub project notebook](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html): pipeline, modeling, resource analysis with code.
+- [Mining-engineer re-analysis](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html): per-hole grades, plan view, resource estimate framed for a placer engineer.
+- [Internal review notebook](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/internal.html): caveats, TODOs, methodology audit trail.
+- [Placer drill-log anatomy](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html#archive-and-conventions): how mid-twentieth-century churn-drill logs encode their data (Wolff + Wells references).
 
 [← back to portfolio map](index.qmd)
