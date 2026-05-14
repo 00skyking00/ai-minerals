@@ -7,15 +7,14 @@ subtitle: "OCR + 3-D modeling of 24 paper drill logs from a family heritage mini
 
 ## What this is
 
-Bear Cub is a four-patent placer claim on the Nome paleo-beach gold
-deposits in western Alaska, held by the family since the early
-twentieth century. Its drilling history covers three operators
+Bear Cub is a patented placer claim on the Nome paleo-beach deposit
+known as the Third Beach Line, on the Seward Peninsula in
+north-western Alaska. The family has held it since the early twentieth century. Its drilling history covers three operators
 across four form-types between 1919 and 1955, producing twenty-four
 paper drill logs that had never been transcribed. I turned those
 logs into a structured geospatial dataset with quantified resource
-estimates, a three-dimensional model of the bedrock surface and pay
-zone, and a verified chain of title back to the original 1908
-federal mineral patent.
+estimates and a three-dimensional model of the bedrock surface and
+pay zone.
 
 ![Bear Cub MS 1178 on satellite imagery, drill holes colored by pay-zone average grade.](data/derived/bear_cub_resource/fig_aerial_pay_zone_grade.png)
 
@@ -59,7 +58,7 @@ traced to a generous pay-zone definition the operator used.
 **3-D model.** I rendered a PyVista mesh of the implied bedrock
 surface and pay-zone horizon, plus a fence diagram in profile view.
 The dark band immediately above the bedrock surface shows the
-third beach-line geometry the historic operators were chasing.
+Third Beach Line geometry the historic operators were chasing.
 Five specific holes sit on that line and account for most of the
 property's gold.
 
@@ -89,7 +88,8 @@ OCR pipeline preserves all three columns plus a derived
 discrepancy flag rather than collapsing them.
 
 **The pipeline generalizes to the rest of the Nome paleo-beach
-archive.** Three concrete spinoff projects: a surveyor's toolkit
+archive.** Three concrete spinoff projects fall out of it: a
+surveyor's toolkit
 (four-corner WGS84 anchoring from a few GPS readings plus a patent
 description), a drill-log CLI (folder of historical mining-record
 scans to structured CSV with provenance and confidence flags per

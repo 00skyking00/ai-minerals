@@ -14,7 +14,7 @@ question: does that advantage transfer? To other deposit types? To
 other REE provinces?
 
 This chapter answers both. I ran the same DEEP-SEAM architecture on
-five independent regions covering four deposit types and three
+five independent regions covering four deposit types and two
 continents. The deviation-network architecture wins on exactly one:
 its tuning dataset. Classical tree-based methods (Random Forest or
 gradient boosting) win on the other four by 7 to 37 percentage
