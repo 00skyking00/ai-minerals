@@ -74,24 +74,6 @@ returns a sensible next-hole pick. See
 [Chapter 5](drill_planning.qmd) for the full drill-planning
 treatment.
 
-## Proving title
-
-The claim is BLM Mineral Survey 1178 in the Cape Nome mining
-district. Title rests on three documents pinning the property to
-specific WGS84 coordinates and a specific legal owner:
-
-- 1908 federal mineral patent (General Mining Law of 1872) with the
-  metes-and-bounds surveyor's course descriptions.
-- 2014 BLM re-survey (Scott McClintock, RLS 8904-3) re-locating the
-  four boundary monuments under modern geodesy.
-- Alaska state recorder's chain-of-title from the original patentee
-  through to the current family ownership.
-
-I wrote the four-corner reconstruction that walks the historical
-metes-and-bounds language to within 0.3 m of the 2014 corner
-monuments. That's the round-trip residual on the affine transform
-that takes the local-feet survey grid to modern WGS84.
-
 ## Interesting findings
 
 **The historical record is internally inconsistent in ways that
