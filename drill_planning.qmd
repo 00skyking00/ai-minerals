@@ -87,7 +87,7 @@ informative.
 accurately on n=24 holes. The leave-one-out R² is negative; the
 model performs worse than just predicting the dataset mean. The
 geological reason is that pay-zone grade has a sharp gradient at
-the third beach line crossing the property, and 24 spatial
+the Third Beach Line crossing the property, and 24 spatial
 samples can't constrain a gradient that steep. The recommender
 output is **still meaningful even with a weak predictive model**:
 it uses the GP's *uncertainty structure* (which is a faithful map

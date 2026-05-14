@@ -95,7 +95,7 @@ either improved or tightened the result:
 
 ## What the four regions together show
 
-**The methodology reproduces across deposit type and region.** Top-1
+**The methodology reproduces across deposit type and region.** Top-1%
 capture of 22% on Tanacross (porphyry-Cu) and 23% on Arizona
 (porphyry-Cu, different continental crust setting) lands in the
 same regime. The pipeline is portable.

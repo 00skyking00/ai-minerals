@@ -30,7 +30,7 @@ lead-zinc mineralization across the US, Canada, and Australia on a
 **Reproduction.** I cloned SRI International's public
 re-implementation
 ([DARPA-CRITICALMAAS/sri-ta3-baselines](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines),
-MIT license), and ran the `H3_MVT_GBM_preferred` configuration
+MIT license) and ran the `H3_MVT_GBM_preferred` configuration
 end-to-end on a 32 GB laptop. Test AUC on the held-out fold:
 **0.9965**. Reproduces the published number within 0.014.
 
