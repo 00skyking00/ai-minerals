@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Deploy the rendered Quarto site to johnsondevco.com/plans/ai-minerals/
-# on Hostinger via SFTP/SSH.
+# Deploy the rendered Quarto site to johnsondevco.com/ai-minerals/
+# on Hostinger via SFTP/SSH. (Was /plans/ai-minerals/ until 2026-05-28;
+# the old path now serves a 301 redirect via .htaccess.)
 #
 # Usage:
 #   bash scripts/deploy_to_hostinger.sh
@@ -17,7 +18,8 @@
 set -euo pipefail
 
 REMOTE_HOST="hostinger"          # ~/.ssh/config alias
-SUBPATH="plans/ai-minerals"
+SUBPATH="ai-minerals"
+LEGACY_SUBPATH="plans/ai-minerals"   # 301 redirect target after the rename
 
 # Hostinger's web root for the primary domain. If johnsondevco.com is
 # served from domains/johnsondevco.com/public_html/, change this to
@@ -46,5 +48,19 @@ rsync -avz --delete --progress \
   "${REMOTE_HOST}:${REMOTE_DIR}/"
 
 echo
+echo "==> Updating legacy-path 301 redirect"
+# Ensure the old /plans/ai-minerals/ path only serves a .htaccess that
+# 301-redirects every request to /ai-minerals/, preserving sub-paths.
+ssh "${REMOTE_HOST}" "
+  mkdir -p ${REMOTE_BASE}/${LEGACY_SUBPATH}
+  cat > ${REMOTE_BASE}/${LEGACY_SUBPATH}/.htaccess <<'EOF'
+# 301 redirect /plans/ai-minerals/* -> /ai-minerals/*  (rename 2026-05-28)
+RewriteEngine On
+RewriteRule ^(.*)\$ /ai-minerals/\$1 [R=301,L]
+EOF
+"
+
+echo
 echo "==> Done."
 echo "    https://johnsondevco.com/${SUBPATH}/"
+echo "    Legacy URL  https://johnsondevco.com/${LEGACY_SUBPATH}/  -> 301 -> /${SUBPATH}/"
