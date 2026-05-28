@@ -8,11 +8,14 @@ project:
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
+    - posts.qmd
+    - posts/*/index.qmd
+    - notebooks/mountain_pass/spectral_v1.qmd
 
 website:
   title: "ai-minerals"
   description: "Mineral prospectivity mapping on public open data"
-  site-url: https://johnsondevco.com/plans/ai-minerals/
+  site-url: https://johnsondevco.com/ai-minerals/
   favicon: favicon.png
   repo-url: https://github.com/skyking/ai-minerals
   navbar:
@@ -29,6 +32,8 @@ website:
         text: "4. Cross-region"
       - href: drill_planning.qmd
         text: "5. Drill planning"
+      - href: posts.qmd
+        text: "Notes"
 
 format:
   html:

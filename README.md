@@ -10,7 +10,7 @@ engagement with the problem space that [KoBold Metals](https://koboldmetals.com/
 [ExploreTech](https://exploretech.ai/), and [Earth AI](https://earth-ai.com/)
 work in.
 
-**Live site:** <https://johnsondevco.com/plans/ai-minerals/>
+**Live site:** <https://johnsondevco.com/ai-minerals/>
 
 ## Where to start
 

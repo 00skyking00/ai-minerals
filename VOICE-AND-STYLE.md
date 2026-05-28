@@ -1,6 +1,6 @@
 # VOICE-AND-STYLE.md
 
-This file is the voice/style rule for any prose produced in this repo that ends up on the public portfolio site at `https://johnsondevco.com/plans/ai-minerals/` or in any cover-letter render.
+This file is the voice/style rule for any prose produced in this repo that ends up on the public portfolio site at `https://johnsondevco.com/ai-minerals/` or in any cover-letter render.
 
 Applies to: `index.qmd`, chapter pages (`bear_cub.qmd`, `regional.qmd`, etc.), and any other reader-facing markdown/Quarto source. **Does not apply** to internal scaffolding (Python comments, JOBSEARCH-BRIEFING.md, HANDOFF entries, configs).
 
