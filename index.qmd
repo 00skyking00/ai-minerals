@@ -39,9 +39,9 @@ KoBold Metals works in this part of the field commercially,
 across four continents, with a stack that goes well beyond what
 I'm doing here (full-physics inversions, Bayesian drill planning,
 proprietary sensor data on top of the public layers). I've been
-playing with what the public-data, tree-ensemble branch of it
-looks like at the scale of an individual prospector or a
-family-owned claim.
+playing with what tree-based ML (random forests, gradient
+boosting) trained on public data looks like at the scale of an
+individual prospector or a family-owned claim.
 
 ## Chapters
 
