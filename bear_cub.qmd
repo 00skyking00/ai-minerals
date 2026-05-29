@@ -70,7 +70,7 @@ per-location uncertainty estimate from the GP posterior variance.
 Two acquisition functions: max-variance (pure information gain)
 and expected improvement (against a 0.05 oz/yd³ target). Each
 returns a sensible next-hole pick. See
-[Chapter 5](drill_planning.qmd) for the full drill-planning
+[Chapter 6](drill_planning.qmd) for the full drill-planning
 treatment.
 
 ## Interesting findings

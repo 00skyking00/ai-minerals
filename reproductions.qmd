@@ -1,5 +1,5 @@
 ---
-title: "Chapter 3: Reproducing + auditing two published methods"
+title: "Chapter 4: Reproducing + auditing two published methods"
 subtitle: "Cloned the official code for Lawley 2022 and DEEP-SEAM, ran end-to-end, found label leaks and evaluation-inflation issues in both"
 ---
 
@@ -19,6 +19,8 @@ If you only have time for one chapter, this is probably it: I took
 a published result seriously enough to reproduce it end-to-end, then
 took the reproduction seriously enough to ask where the published
 number came from.
+
+![Where Lawley 2022's published continental Zn-Pb AUC of 0.983 comes from. Removing a label leak takes it to 0.959; switching from 1-D to 2-D spatial-block cross-validation takes it to 0.868; training on Australia + Canada and testing on the US (a cross-continent transfer) takes it to 0.709.](data/derived/portfolio_charts/lawley_waterfall.png)
 
 ## Lawley et al. 2022: continental Zn-Pb prospectivity
 
