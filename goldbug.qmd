@@ -1,0 +1,132 @@
+---
+title: "Chapter 3: goldbug (CA Mother Lode placer + lode Au)"
+subtitle: "A live web map: ML prospectivity on federal land in the Mother Lode, filtered to acres actually open to an individual prospector"
+---
+
+[← back to portfolio map](index.qmd)
+
+::: {.d-none .d-lg-block}
+<iframe src="https://www.johnsondevco.com/goldbug/goldbug_map.html"
+        style="width:100%;height:75vh;border:1px solid #ccc;border-radius:6px"
+        loading="lazy"></iframe>
+:::
+
+::: {.d-lg-none .my-3}
+[Open the live tool →](https://www.johnsondevco.com/goldbug/goldbug_map.html){.btn .btn-primary .btn-lg target="_blank"}
+
+The map works best on a wider screen. Tap the button to open it in
+a new tab.
+:::
+
+## What this is
+
+A live web tool that ranks open federal parcels in California's
+Mother Lode by gold prospectivity. The score combines a random
+forest trained on the same kind of public USGS data the regional
+pipelines in [Chapter 2](regional.qmd) use (geology, geophysics,
+geochemistry, occurrence records) with several heuristic components
+for distance to known producers, fault proximity, water access, and
+road access.
+
+The piece that took the most work isn't the modeling. It's the
+question of which acres are actually open for an individual
+prospector to file on. BLM publishes the data needed to answer
+that, but it lives across roughly a dozen different endpoints with
+inconsistent schemas, and several of the obvious filters are
+subtly wrong.
+
+## What got built
+
+**Pipeline.** A Python package (`goldbug`) that fetches all the
+public data for a configured bounding box, identifies parcels that
+are federally administered and open to mineral entry, scores each
+parcel using the ML model and heuristics, and renders the result
+as an interactive map plus a GeoJSON export. The same package
+also scores a single user-drawn polygon via a Cloud Run API, so a
+visitor can sketch their own area on the live map and get a score
+back.
+
+**Open-land calculation.** Starting from the federal surface
+estate (the BLM California Surface Management Agency layer), the
+pipeline subtracts:
+
+- Wilderness, Wilderness Study Areas, Areas of Critical
+  Environmental Concern, and National Monuments / NCAs (the BLM
+  National Conservation Lands hierarchy).
+- NHD lakes and reservoirs over 50 acres.
+- Bureau of Reclamation lands. The BLM SMA layer doesn't include
+  them; the tool pulls them separately from PAD-US.
+- Active BLM mining claims, filtered by the MLRS data-quality
+  score so claims that BLM only geocoded to an entire 640-acre
+  section don't over-erase the actual open ground.
+- BLM Acquired Lands (these are not Public Domain and not subject
+  to the 1872 Mining Law; closed to staking under federal law).
+- Land-tenure segregations and withdrawals where the underlying
+  case actually closes locatable mineral entry. Some of these
+  (Power Site Reservations in particular) close the surface
+  estate but explicitly preserve metalliferous mining, so the
+  tool renders them with a warning but does not subtract them.
+
+State-managed lands open to mineral leasing (California State
+Lands Commission parcels in PAD-US) are added in as a separate
+jurisdiction. State land is administered by the CSLC under
+California Public Resources Code §6890, not the federal 1872
+Mining Law, so the popup for a state parcel routes the user to
+the CSLC application process instead of a federal claim form.
+
+A simpler version of the same pipeline (intersect federal surface,
+subtract active claims, stop) misses several categories of closed
+ground. Each of the subtractions above came from working through
+BLM's actual mineral-entry algorithm in detail.
+
+**Scoring stability.** Each component of a parcel's score is a
+percentile rank against a fixed reference distribution, not
+against the current scan's cohort. This means adding a new
+exclusion layer or fixing a bug in an old one removes the
+encumbered parcels without shifting the scores of the survivors.
+A parcel's score moves only when its underlying signal moves: a
+new MRDS deposit nearby, an updated geology layer, a re-trained
+ML model.
+
+**Interactive map.** Layer toggles for jurisdiction (federal vs
+state), withdrawals, geology, MRDS deposits, and topography.
+Parcel navigator that cycles through ranked gap parcels or active
+claims, opens the popup for each, and centers the map. Per-parcel
+popup with the score breakdown plus one-click cross-check links
+into BLM's GLO Records patent search and the MLRS Research Map.
+Draw a polygon to score arbitrary ground against the same model.
+Compare basket for side-by-side parcel analysis with CSV export.
+MRDS filter by development status and grade.
+
+## What this doesn't prove
+
+A few categories the tool still doesn't catch:
+
+- **Historic mineral patents.** Many Mother Lode sections had
+  multiple patents issued out of federal title between 1870 and
+  1925. BLM's GLO Records database has all of those documents,
+  but the search interface is JavaScript-rendered and doesn't
+  expose a public API, so the tool can't yet flag a parcel that
+  overlaps a patented mining claim. The popup includes a
+  pre-filled link into the GLO patent search for manual
+  verification.
+- **Split estate.** Where the surface was patented out long ago
+  but federal mineral rights remain ("ALL MIN" in BLM's Master
+  Title Plat notation), or vice versa ("NO MIN"), the Surface
+  Management Agency layer doesn't expose the distinction.
+  Catching this requires parsing the scanned Master Title Plats,
+  which is a separate project (tracked as future work).
+- **Placer-vs-lode signal.** The model is trained on a label that
+  includes both lode and placer gold operations but is dominated
+  by lode. The feature set has no drainage, basin, or
+  alluvial-cover variables that would distinguish a placer target
+  from a lode one. Using this for placer is reasonable as a
+  starting point, not as the primary signal. A separate document
+  in the repo lays out what a placer-specific model would need.
+
+## Where to look
+
+- **Live tool:** [johnsondevco.com/goldbug](https://www.johnsondevco.com/goldbug/goldbug_map.html)
+- **Stack:** Python 3.13, FastAPI on Cloud Run for the
+  polygon-scoring API, Folium + Leaflet for the map, GeoPandas +
+  Rasterio for the data work, scikit-learn for the model.

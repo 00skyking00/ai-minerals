@@ -6,22 +6,35 @@ I have nearly thirty years of programming experience developing
 anti-malware solutions on Windows, mostly low-level work on kernel
 drivers and Windows internals.
 
-Disclaimer: I'm not a geologist, and I'm not a data scientist. But I
+Disclaimer: I'm not a geologist or a data scientist. But I
 have a deep passion for mining.
 
 A few years ago I started helping my mom research a book about her
-grandfather, Walter W. Johnson, a mining engineer, miner, and builder
-of large placer-mining machinery. In the process we discovered that
+grandfather, Walter W. Johnson, a mining and mechanical engineer and
+builder of large placer-mining machinery. In the process we discovered that
 the family still owned a large interest in several patented mining
 claims in Nome, Alaska. One of those claims had recently been
 high-graded by lessees of the other partial-interest holder without
 our knowledge, and the others purportedly still held unmined gold.
-The family connection, along with that practical hook, kicked off a
-quest to apply my programming skills to the domain in every way I
-could. The Bear Cub drill-logs project below is but one application
-of that. The rest of this site is me poking at what machine learning
-can usefully tell us about public mining data, and a few interesting
-things I found along the way.
+As I started researching the book and the mining claims, two things
+happened that I was not expecting. 1) I fell in love with mining.
+2) Every mining problem I encountered looked like it could be
+decomposed into a computer program. Thus began my quest
+to apply my programming skills to the domain in every way I
+could. Computing Bear Cub's resource estimates from 100-year-old drill
+logs is one example of that.
+
+The rest of this site is me poking around to see how useful public
+data is for machine learning. One
+offshoot of that line of investigation is goldbug, which unites
+it with one of my other unexpected new passions: title research.
+goldbug looks at machine learning through the lens of public land
+law, showing you not just where the most gold might be, but where
+the most gold that you can legally claim as your own might be.
+
+KoBold Metals does this kind of modeling at continental scale;
+I've been playing with what it looks like at the scale of an
+individual prospector or a family-owned claim.
 
 ## Chapters
 
@@ -73,7 +86,22 @@ can't cheat by memorizing neighbors. The chapter walks through each
 region's data, the model output, and which features it leaned on
 most.
 
-### [3. Reproducing + auditing two published methods](reproductions.qmd)
+### [3. goldbug (live tool, CA Mother Lode)](goldbug.qmd)
+
+The Mother Lode model from Chapter 2 is interesting on its own,
+but it doesn't tell a prospector where to actually go. goldbug
+closes that gap. It takes the per-cell probabilities and filters
+them to federal land that's actually open for an individual
+prospector to file a notice of location on. The hard part isn't
+the modeling. It's that BLM publishes the relevant data across
+roughly a dozen different endpoints with inconsistent schemas,
+and several of the obvious filters are subtly wrong. The chapter
+has the live map embedded plus a writeup of what the tool does,
+how the open-land calculation is built, and what it still doesn't
+catch (historic mineral patents, split estate, placer-specific
+modeling).
+
+### [4. Reproducing + auditing two published methods](reproductions.qmd)
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
@@ -90,7 +118,7 @@ and the implementation diverges from the paper text in two places. I
 tried to find a charitable read of each and report what I actually
 saw.
 
-### [4. Cross-region experiments](cross_region.qmd)
+### [5. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
 deviation-network architecture. The 2-3× advantage over Random
@@ -103,7 +131,7 @@ Lawley continental MVT under 2-D blocked CV), the gap widens to 7-37
 percentage points in favor of tree-based methods. Useful negative
 result.
 
-### [5. Drill planning under uncertainty](drill_planning.qmd)
+### [6. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
 drill hole. I built two small experiments on top of the earlier work
@@ -155,9 +183,10 @@ visualization, Quarto for the site itself.
 |---|---|
 | [1. Bear Cub](bear_cub.qmd) | [main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
 | [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) |
-| [3. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
-| [4. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
-| [5. Drill planning](drill_planning.qmd) | [overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html), [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
+| [3. goldbug](goldbug.qmd) | [live tool](https://www.johnsondevco.com/goldbug/goldbug_map.html) |
+| [4. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
+| [5. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
+| [6. Drill planning](drill_planning.qmd) | [overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html), [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
 
 ## Reproduce
 
