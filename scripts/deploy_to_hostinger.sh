@@ -8,8 +8,8 @@
 #
 # Prerequisites:
 #   - Site rendered at _site/  (run: quarto render --no-execute)
-#   - SSH config alias 'hostinger' in ~/.ssh/config pointing at
-#     u739994379@157.173.209.26:65002 with the deploy key.
+#   - SSH config alias 'hostinger' in ~/.ssh/config pointing at the
+#     Hostinger SFTP account, with the deploy key configured.
 #   - Public key (~/.ssh/id_ed25519.pub) registered at
 #     Hostinger -> Hosting -> Manage -> SSH Access -> SSH Keys.
 #
