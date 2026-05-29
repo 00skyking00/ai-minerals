@@ -15,12 +15,12 @@ THUMB_WIDTH = 320
 SOURCES = {
     "ch1_bear_cub.png": "data/derived/bear_cub_resource/fig_aerial_pay_zone_grade.png",
     "ch1_bear_cub_fence.png": "data/derived/bear_cub_resource/fig_grade_fence.png",
+    "ch1_bear_cub_gp.png": "data/derived/bear_cub_resource/fig_gp_drill_recommender.png",
     "ch2_regional.png": "data/derived/eastak/fig_prospectivity_tanacross.png",
     "ch3_goldbug.png":  "data/derived/portfolio_charts/goldbug_screenshot.png",
     "ch4_reproductions.png": "data/derived/portfolio_charts/lawley_waterfall.png",
     "ch5_cross_region.png":  "data/derived/portfolio_charts/cross_region_top1.png",
     "ch6_drill_planning.png": "data/derived/bcgt/fig_pomcp_discovery_curves.png",
-    "ch6_drill_planning_gp.png": "data/derived/bear_cub_resource/fig_gp_drill_recommender.png",
 }
 
 OUT_DIR = Path("data/derived/portfolio_charts/thumbs")

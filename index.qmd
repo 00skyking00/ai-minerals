@@ -71,12 +71,16 @@ uncertainty) to compute potential yield. In the end, per-hole grades
 matched two mining engineers' independent analyses within 6%. I'm
 using the results to feed the damages calculation in our active
 litigation, and to develop a plan to mine the deeper gold that's
-still there.
+still there. On top of the same 24-hole grid I also built a
+Gaussian-process next-drill-site recommender to ask where hole #25
+should go.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Bear Cub aerial photo with pay-zone grade overlay](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](bear_cub.qmd)
 
 [![Fence diagram: 24 Bear Cub drill holes, log-scale gold grade, pay-zone framing](data/derived/portfolio_charts/thumbs/ch1_bear_cub_fence.png)](bear_cub.qmd)
+
+[![Next-drill-site recommender on Bear Cub: max-variance + max-EI picks against the GP-predicted grade surface](data/derived/portfolio_charts/thumbs/ch1_bear_cub_gp.png)](bear_cub.qmd)
 :::
 ::::
 
@@ -180,23 +184,18 @@ result.
 ### [6. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
-drill hole. I built two small experiments on top of the earlier work
-to take a stab at that question. The first is a POMDP planner with
-Monte Carlo Tree Search, run on the BC Golden Triangle regional
-prospectivity prior and ported from Mern et al.'s Intelligent
-Prospector (GMD, 2023). The second is a Gaussian-process drill-site
-recommender on the Bear Cub property, picking the next hole by
-either uncertainty or expected grade. Both are 1.0 versions, with
-simplifications documented in the chapter. The 24 historical Bear
-Cub drill holes were too few for the Gaussian process to do anything
-too predictive with, but the variance structure still gives a
-sensible answer to where the next hole would teach the model the
-most.
+drill hole. I built a POMDP planner with Monte Carlo Tree Search,
+run on the BC Golden Triangle regional prospectivity prior and
+ported from Mern et al.'s Intelligent Prospector (GMD, 2023).
+Three policies side-by-side on the same prior: random, greedy, and
+POMCP. POMCP gains roughly 10-15% in expected reward over greedy
+at modest planner-depth budgets, more at deeper budgets. This is a
+1.0 version against the v1.0 assumptions (i.i.d. Bernoulli prior,
+noiseless sensor); the v2.0 extensions (correlated draws, noisy
+sensors) would widen the POMCP-vs-greedy gap.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch6_drill_planning.png)](drill_planning.qmd)
-
-[![Bear Cub GP next-drill-site recommendation, max-variance + max-EI picks](data/derived/portfolio_charts/thumbs/ch6_drill_planning_gp.png)](drill_planning.qmd)
 :::
 ::::
 
@@ -234,12 +233,12 @@ visualization, Quarto for the site itself.
 
 | Chapter | Detail |
 |---|---|
-| [1. Bear Cub](bear_cub.qmd) | [main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
+| [1. Bear Cub](bear_cub.qmd) | [main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
 | [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) |
 | [3. goldbug](goldbug.qmd) | [live tool](https://www.johnsondevco.com/goldbug/) |
 | [4. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
 | [5. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
-| [6. Drill planning](drill_planning.qmd) | [overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html), [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
+| [6. Drill planning](drill_planning.qmd) | [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html) |
 
 ## Reproduce
 

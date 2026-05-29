@@ -64,14 +64,50 @@ property's gold.
 
 ![Fence diagram, west-to-east. Dark cells above the brown bedrock line are bedrock-contact pay.](data/derived/bear_cub_resource/fig_grade_fence.png)
 
-**Drill-site recommender.** I fit a Gaussian-process regressor on
-the 24 holes' (x, y) → predicted pay-zone grade, with a
-per-location uncertainty estimate from the GP posterior variance.
-Two acquisition functions: max-variance (pure information gain)
-and expected improvement (against a 0.05 oz/yd³ target). Each
-returns a sensible next-hole pick. See
-[Chapter 6](drill_planning.qmd) for the full drill-planning
-treatment.
+## Where to drill next
+
+The 24 historical Bear Cub holes are sparse: the property is about
+597,000 ft², and the holes cluster along three roughly east-west
+lines. Given that grid, where should hole #25 go? I treated this as
+a Bayesian-experimental-design question.
+
+The model is a Gaussian-process regressor with an anisotropic RBF
+kernel on (x, y) → predicted pay-zone grade. Two acquisition
+functions:
+
+- **Maximum predictive variance** picks the location maximizing
+  the GP's posterior variance. The idea is to drill where the
+  model is most uncertain, because that's where a new
+  measurement teaches the model the most.
+- **Expected improvement** picks the location maximizing
+  E[max(grade(x) − target, 0)] under the GP posterior with
+  target = 0.05 oz/yd³. The idea is to drill where the model
+  thinks there might be a hit *and* it's not sure.
+
+Both criteria exclude points within 80 ft of an existing hole.
+
+![Recommended next-drill locations on the GP-predicted grade surface. Cyan triangles maximize predictive variance (info gain). Magenta stars maximize expected improvement against a 0.05 oz/yd³ target.](data/derived/bear_cub_resource/fig_gp_drill_recommender.png)
+
+The two criteria recommend different locations: max-variance picks
+the gaps in the existing drill grid (largest empty spaces between
+holes), while expected-improvement picks gaps that are also near
+already-known high-grade holes. For an exploration program with a
+budget for one more hole, the EI criterion is what most planners
+would use; for a research campaign focused on understanding the
+deposit's overall shape, max-variance is more informative.
+
+**Limit.** The spatial-only GP doesn't predict pay-zone grade
+accurately on n=24 holes. The leave-one-out R² is negative; the
+model performs worse than just predicting the dataset mean. The
+geological reason is that pay-zone grade has a sharp gradient at
+the Third Beach Line crossing the property, and 24 spatial
+samples can't constrain a gradient that steep. The recommender
+output is **still meaningful even with a weak predictive model**:
+it uses the GP's *uncertainty structure* (which is a faithful map
+of where training data is sparse) rather than the GP's point
+predictions. Max-variance picks remain the gaps in the grid; EI
+picks remain gaps near known high-grade holes. The next hole
+would help the GP fit the gradient.
 
 ## Interesting findings
 
@@ -103,5 +139,6 @@ all into one linked dataset).
 - [Mining-engineer re-analysis](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html): per-hole grades, plan view, resource estimate framed for a placer engineer.
 - [Internal review notebook](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/internal.html): caveats, TODOs, methodology audit trail.
 - [Placer drill-log anatomy](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html#archive-and-conventions): how mid-twentieth-century churn-drill logs encode their data (Wolff + Wells references).
+- [Bear Cub GP drill-site recommender](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html): full notebook with both acquisition functions and the limits discussion.
 
 [← back to portfolio map](index.qmd)
