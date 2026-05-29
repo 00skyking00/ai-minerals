@@ -2,6 +2,8 @@
 title: "ai-minerals"
 ---
 
+![](data/derived/portfolio_charts/region_locator_map.png){fig-alt="North America locator map showing the five regions worked across in this portfolio: Bear Cub (Nome, AK) for OCR + 3-D modeling of historical drill logs; and four regional MPM pipelines at Tanacross (eastern Alaska), the BC Golden Triangle, the California Mother Lode, and the Arizona porphyry-Cu belt."}
+
 I have nearly thirty years of programming experience developing
 anti-malware solutions on Windows, mostly low-level work on kernel
 drivers and Windows internals.
@@ -68,6 +70,8 @@ still there.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Bear Cub aerial photo with pay-zone grade overlay](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](bear_cub.qmd)
+
+[![Fence diagram: 24 Bear Cub drill holes, log-scale gold grade, pay-zone framing](data/derived/portfolio_charts/thumbs/ch1_bear_cub_fence.png)](bear_cub.qmd)
 :::
 ::::
 
@@ -96,7 +100,7 @@ region's data, the model output, and which features it leaned on
 most.
 :::
 ::: {.g-col-12 .g-col-md-3}
-[![California Mother Lode prospectivity map](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
+[![Tanacross (eastern Alaska) porphyry-Cu prospectivity, random forest output](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
 :::
 ::::
 
@@ -186,6 +190,8 @@ most.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch6_drill_planning.png)](drill_planning.qmd)
+
+[![Bear Cub GP next-drill-site recommendation, max-variance + max-EI picks](data/derived/portfolio_charts/thumbs/ch6_drill_planning_gp.png)](drill_planning.qmd)
 :::
 ::::
 
