@@ -1,0 +1,12 @@
+---
+title: "Notes"
+subtitle: "Short writeups on data, methods, and current work outside the main portfolio chapters."
+listing:
+  contents: posts
+  type: default
+  sort: "date desc"
+  fields: [date, title, subtitle, categories]
+  date-format: iso
+---
+
+[← back to portfolio map](index.qmd)

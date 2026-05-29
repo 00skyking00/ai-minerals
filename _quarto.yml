@@ -18,7 +18,7 @@ website:
   description: "Mineral prospectivity mapping on public open data"
   site-url: https://johnsondevco.com/ai-minerals/
   favicon: favicon.png
-  repo-url: https://github.com/skyking/ai-minerals
+  repo-url: https://github.com/00skyking00/ai-minerals
   navbar:
     left:
       - href: index.qmd
@@ -35,8 +35,9 @@ website:
         text: "5. Cross-region"
       - href: drill_planning.qmd
         text: "6. Drill planning"
-      - href: posts.qmd
-        text: "Notes"
+      # Hidden until first note lands. The page itself still renders.
+      # - href: posts.qmd
+      #   text: "Notes"
 
 format:
   html:
