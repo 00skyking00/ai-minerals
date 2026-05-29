@@ -24,6 +24,7 @@ points of top-1% capture.
 
 ## The five-region scorecard
 
+::: {.striped-table}
 | Region | Commodity | Positives | RF/GBM top-1% | DevNet top-1% | Winner |
 |---|---|---|---|---|---|
 | Curnamona REE (LOO, original tuning data) | REE | 7 | 0% | **43%** | DevNet (matches publication) |
@@ -31,6 +32,7 @@ points of top-1% capture.
 | Tanacross porphyry-Cu (OOF) | Cu-Mo | 45 | **22.2%** | 13.3% | RF |
 | Arizona porphyry-Cu (OOF) | Cu | 191 | **23.0%** | 8.9% | RF |
 | Lawley continental MVT (2-D blocked OOF) | Zn-Pb | 2,027 | **28.4%** | 0.0% | GBM |
+:::
 
 The numbers are out-of-fold capture rates: fraction of held-out
 positive cells in the top 1% of cells the model ranks most

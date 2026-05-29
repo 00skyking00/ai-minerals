@@ -1,0 +1,10 @@
+/*-- scss:rules --*/
+
+// Zebra striping for any table inside a div with class .striped-table.
+// Currently used on the five-region scorecard in cross_region.qmd.
+.striped-table table tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.035);
+}
+.striped-table table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
