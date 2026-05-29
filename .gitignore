@@ -38,9 +38,22 @@ data/derived/**
 !data/raw/README.md
 !data/derived/README.md
 
+# gldbg — embedded mining-claim recon tool. The Python source under gldbg/
+# is tracked; runtime artifacts and the FTP env are not. data/ml/ (~16 MB
+# of ML rasters + rationale parquet) IS tracked because it's the deployable
+# artifact, even though it's regenerable from the ai-minerals motherlode
+# scripts.
+gldbg/.venv/
+gldbg/.cache/
+gldbg/output/
+gldbg/.env
+gldbg/goldbug.egg-info/
+
 # OS
 .DS_Store
 Thumbs.db
+# Windows ADS metadata that WSL exposes as a separate file
+*:Zone.Identifier
 
 # Editors
 .vscode/
