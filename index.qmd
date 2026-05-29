@@ -35,9 +35,13 @@ goldbug looks at machine learning through the lens of public land
 law, showing you not just where the most gold might be, but where
 the most gold that you can legally claim as your own might be.
 
-KoBold Metals does this kind of modeling at continental scale;
-I've been playing with what it looks like at the scale of an
-individual prospector or a family-owned claim.
+KoBold Metals works in this part of the field commercially,
+across four continents, with a stack that goes well beyond what
+I'm doing here (full-physics inversions, Bayesian drill planning,
+proprietary sensor data on top of the public layers). I've been
+playing with what the public-data, tree-ensemble branch of it
+looks like at the scale of an individual prospector or a
+family-owned claim.
 
 ## Chapters
 
