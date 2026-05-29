@@ -18,7 +18,7 @@ bootstrap confidence intervals on AUC and top-k% capture rates. Each
 region is its own geologically distinct problem and tests whether
 the approach holds up.
 
-![California Mother Lode (v3.1) per-cell gold prospectivity, postprocessed for visualization. Warmer colors mark the highest-ranked cells; spatial-block out-of-fold AUC 0.85 [0.79, 0.90].](data/derived/motherlode/fig_prospectivity_motherlode_cleaned.png)
+![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 ARDF porphyry positives held out for evaluation.](data/derived/eastak/fig_prospectivity_tanacross.png)
 
 ## Headline results
 
