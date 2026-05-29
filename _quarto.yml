@@ -5,6 +5,7 @@ project:
     - index.qmd
     - bear_cub.qmd
     - regional.qmd
+    - goldbug.qmd
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
@@ -26,12 +27,14 @@ website:
         text: "1. Bear Cub"
       - href: regional.qmd
         text: "2. Regional MPM"
+      - href: goldbug.qmd
+        text: "3. goldbug"
       - href: reproductions.qmd
-        text: "3. Reproductions + audits"
+        text: "4. Reproductions + audits"
       - href: cross_region.qmd
-        text: "4. Cross-region"
+        text: "5. Cross-region"
       - href: drill_planning.qmd
-        text: "5. Drill planning"
+        text: "6. Drill planning"
       - href: posts.qmd
         text: "Notes"
 
