@@ -46,7 +46,9 @@ website:
 
 format:
   html:
-    theme: sandstone
+    theme:
+      - sandstone
+      - custom.scss
     toc: true
     code-fold: false
     code-tools: true
