@@ -1,6 +1,6 @@
 ---
 title: "Chapter 6: Drill planning under uncertainty"
-subtitle: "Where should the next hole go? POMDP at regional scale + Gaussian process at property scale"
+subtitle: "POMDP planning with Monte Carlo Tree Search on the BC Golden Triangle regional prospectivity prior"
 ---
 
 [← back to portfolio map](index.qmd)
@@ -14,12 +14,14 @@ exploration campaigns are sequential: each hole costs money,
 returns information, and that information should update the
 next-hole decision.
 
-This chapter has two pieces. The first is a POMDP planner with
-Monte Carlo Tree Search (POMCP) on the BC Golden Triangle regional
-prospectivity prior, asking where to sequentially drill within a
-fixed budget. The second is a Gaussian-process drill-site
-recommender on the Bear Cub placer property, asking where the next
-hole should go given a sparse grid of 24 historical drill holes.
+This chapter ports the methodology of *Intelligent Prospector*
+(Mern et al., *Geosci. Model Dev.* 16:289, 2023) onto the BC
+Golden Triangle regional prospectivity prior from Chapter 2: a
+POMDP planner with Monte Carlo Tree Search (POMCP), asked to
+sequentially drill within a fixed budget against three baseline
+policies. The Bear Cub property-scale GP drill-site recommender
+that uses the same general idea at single-claim scale lives in
+[Chapter 1](bear_cub.qmd).
 
 ![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](data/derived/bcgt/fig_pomcp_discovery_curves.png)
 
@@ -52,66 +54,19 @@ MCTS rollouts can improve over a one-step-lookahead greedy. The
 v2.0 version (correlated draws and noisy sensors) would widen the
 gap.
 
-## Bear Cub Gaussian-process drill-site recommender
-
-The family's Bear Cub placer property has 24 historical drill
-holes over a 597,000 ft² patent (see
-[Chapter 1](bear_cub.qmd)). Given that sparse grid, where should
-hole #25 go?
-
-The model is a Gaussian-process regressor with an anisotropic RBF
-kernel on (x, y) → predicted pay-zone grade. Two acquisition
-functions:
-
-- **Maximum predictive variance** picks the location maximizing
-  the GP's posterior variance. The idea is to drill where the
-  model is most uncertain, because that's where a new
-  measurement teaches the model the most.
-- **Expected improvement** picks the location maximizing
-  E[max(grade(x) − target, 0)] under the GP posterior with
-  target = 0.05 oz/yd³. The idea is to drill where the model
-  thinks there might be a hit *and* it's not sure.
-
-Both criteria exclude points within 80 ft of an existing hole.
-
-![Recommended next-drill locations on the GP-predicted grade surface. Cyan triangles maximize predictive variance (info gain). Magenta stars maximize expected improvement against a 0.05 oz/yd³ target.](data/derived/bear_cub_resource/fig_gp_drill_recommender.png)
-
-The two criteria recommend different locations: max-variance
-picks the gaps in the existing drill grid (largest empty spaces
-between holes), while expected-improvement picks gaps that are
-also near already-known high-grade holes. For an exploration
-program with a budget for one more hole, the EI criterion is what
-most planners would use; for a research campaign focused on
-understanding the deposit's overall shape, max-variance is more
-informative.
-
-**Limit.** The spatial-only GP doesn't predict pay-zone grade
-accurately on n=24 holes. The leave-one-out R² is negative; the
-model performs worse than just predicting the dataset mean. The
-geological reason is that pay-zone grade has a sharp gradient at
-the Third Beach Line crossing the property, and 24 spatial
-samples can't constrain a gradient that steep. The recommender
-output is **still meaningful even with a weak predictive model**:
-it uses the GP's *uncertainty structure* (which is a faithful map
-of where training data is sparse) rather than the GP's point
-predictions. Max-variance picks remain the gaps in the grid;
-EI picks remain gaps near known high-grade holes. The next hole
-would help the GP fit the gradient.
-
 ## Where this goes from here
 
-Both pieces here are early experiments at converting a probability
+This is an early experiment at converting a regional probability
 surface into a hole-location decision. The BCGT POMDP runs on a
-regional prospectivity prior covering thousands of square
-kilometers. The Bear Cub GP runs on 24 drill holes over a single
-597,000 ft² patent. The underlying notebooks document the v1.0
-simplifications I made, and the v2.0 extensions in the published
-literature (Mern et al. 2023 for the POMDP) would tighten both.
+prior covering thousands of square kilometers. The underlying
+notebook documents the v1.0 simplifications I made; the v2.0
+extensions in Mern et al. 2023 (correlated draws, noisy sensors)
+would widen the POMCP-vs-greedy gap. The property-scale
+counterpart of this idea, a GP drill-site recommender on the 24
+Bear Cub holes, sits in [Chapter 1](bear_cub.qmd).
 
 ## Deeper notebooks
 
-- [Drill-planning chapter overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html): frames both pieces together.
 - [BCGT POMDP decision planning](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
-- [Bear Cub GP drill-site recommender](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html): full notebook with both acquisition functions and the limits discussion.
 
 [← back to portfolio map](index.qmd)
