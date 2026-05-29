@@ -6,7 +6,8 @@ title: "ai-minerals"
 
 I have nearly thirty years of programming experience developing
 anti-malware solutions on Windows, mostly low-level work on kernel
-drivers and Windows internals.
+drivers and Windows internals. None of that has anything to do with
+mining; this site is what I've been playing with in my off-hours.
 
 Disclaimer: I'm not a geologist or a data scientist. But I
 have a deep passion for mining.
