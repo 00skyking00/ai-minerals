@@ -1,5 +1,5 @@
 ---
-title: "Chapter 5: Drill planning under uncertainty"
+title: "Chapter 6: Drill planning under uncertainty"
 subtitle: "Where should the next hole go? POMDP at regional scale + Gaussian process at property scale"
 ---
 
@@ -7,7 +7,7 @@ subtitle: "Where should the next hole go? POMDP at regional scale + Gaussian pro
 
 ## What this chapter is about
 
-The first four chapters build prospectivity maps. A prospectivity
+The earlier chapters build prospectivity maps. A prospectivity
 map is a per-cell probability surface, and it doesn't tell you
 where to drill *next* given what you've already drilled. Real
 exploration campaigns are sequential: each hole costs money,
@@ -20,6 +20,8 @@ prospectivity prior, asking where to sequentially drill within a
 fixed budget. The second is a Gaussian-process drill-site
 recommender on the Bear Cub placer property, asking where the next
 hole should go given a sparse grid of 24 historical drill holes.
+
+![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](data/derived/bcgt/fig_pomcp_discovery_curves.png)
 
 ## BCGT POMDP decision planning
 

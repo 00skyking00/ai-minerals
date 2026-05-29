@@ -38,6 +38,8 @@ individual prospector or a family-owned claim.
 
 ## Chapters
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [1. Bear Cub (Cape Nome placer Au)](bear_cub.qmd)
 
 After learning we still owned these claims, I had to figure out
@@ -63,6 +65,11 @@ matched two mining engineers' independent analyses within 6%. I'm
 using the results to feed the damages calculation in our active
 litigation, and to develop a plan to mine the deeper gold that's
 still there.
+:::
+::: {.g-col-12 .g-col-md-3}
+[![Bear Cub aerial photo with pay-zone grade overlay](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](bear_cub.qmd)
+:::
+::::
 
 ## Machine learning on public geological data
 
@@ -75,6 +82,8 @@ were the natural draw. The Arizona copper porphyry belt held no
 personal interest for me, but the data and the geology looked right
 for the methodology to work.
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [2. Regional MPM pipelines](regional.qmd)
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
@@ -85,7 +94,14 @@ Forest, and hold out spatial blocks during validation so the model
 can't cheat by memorizing neighbors. The chapter walks through each
 region's data, the model output, and which features it leaned on
 most.
+:::
+::: {.g-col-12 .g-col-md-3}
+[![California Mother Lode prospectivity map](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
+:::
+::::
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [3. goldbug (live tool, CA Mother Lode)](goldbug.qmd)
 
 The Mother Lode model from Chapter 2 is interesting on its own,
@@ -100,7 +116,14 @@ has the live map embedded plus a writeup of what the tool does,
 how the open-land calculation is built, and what it still doesn't
 catch (historic mineral patents, split estate, placer-specific
 modeling).
+:::
+::: {.g-col-12 .g-col-md-3}
+[![goldbug live map showing a ranked open parcel](data/derived/portfolio_charts/thumbs/ch3_goldbug.png)](goldbug.qmd)
+:::
+::::
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [4. Reproducing + auditing two published methods](reproductions.qmd)
 
 I cloned the official code for two well-known mineral-prospectivity
@@ -117,7 +140,14 @@ measured under a 0-D random split with no spatial blocking at all,
 and the implementation diverges from the paper text in two places. I
 tried to find a charitable read of each and report what I actually
 saw.
+:::
+::: {.g-col-12 .g-col-md-3}
+[![Waterfall chart of Lawley 2022 AUC stages](data/derived/portfolio_charts/thumbs/ch4_reproductions.png)](reproductions.qmd)
+:::
+::::
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [5. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
@@ -130,7 +160,14 @@ other three regions (Tanacross porphyry-Cu, Arizona porphyry-Cu,
 Lawley continental MVT under 2-D blocked CV), the gap widens to 7-37
 percentage points in favor of tree-based methods. Useful negative
 result.
+:::
+::: {.g-col-12 .g-col-md-3}
+[![DEEP-SEAM vs Random Forest across 5 regions](data/derived/portfolio_charts/thumbs/ch5_cross_region.png)](cross_region.qmd)
+:::
+::::
 
+:::: {.grid}
+::: {.g-col-12 .g-col-md-9}
 ### [6. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
@@ -146,6 +183,11 @@ Cub drill holes were too few for the Gaussian process to do anything
 too predictive with, but the variance structure still gives a
 sensible answer to where the next hole would teach the model the
 most.
+:::
+::: {.g-col-12 .g-col-md-3}
+[![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch6_drill_planning.png)](drill_planning.qmd)
+:::
+::::
 
 ## Methodology
 

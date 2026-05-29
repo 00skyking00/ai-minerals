@@ -1,5 +1,5 @@
 ---
-title: "Chapter 4: Cross-region experiments"
+title: "Chapter 5: Cross-region experiments"
 subtitle: "Five-region transferability test for the DEEP-SEAM deviation-network architecture"
 ---
 
@@ -19,6 +19,8 @@ continents. The deviation-network architecture wins on exactly one:
 its tuning dataset. Classical tree-based methods (Random Forest or
 gradient boosting) win on the other four by 7 to 37 percentage
 points of top-1% capture.
+
+![Top-1% capture rate by region: tree-based methods (green) win four of five regions; DEEP-SEAM (red) wins only its tuning dataset.](data/derived/portfolio_charts/cross_region_top1.png)
 
 ## The five-region scorecard
 
@@ -68,7 +70,7 @@ RF can learn the recipe via multivariate conditional splits;
 DevNet can't.
 
 This is also strictly consistent with the
-[Chapter 3 audits](reproductions.qmd): the published Curnamona 86%
+[Chapter 4 audits](reproductions.qmd): the published Curnamona 86%
 top-2% capture is measured under 0-D spatial blocking (no spatial
 isolation at all). When the same architecture is evaluated under
 any form of spatial isolation (LOO on a different REE province,

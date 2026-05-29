@@ -18,6 +18,8 @@ bootstrap confidence intervals on AUC and top-k% capture rates. Each
 region is its own geologically distinct problem and tests whether
 the approach holds up.
 
+![California Mother Lode (v3.1) per-cell gold prospectivity, postprocessed for visualization. Warmer colors mark the highest-ranked cells; spatial-block out-of-fold AUC 0.85 [0.79, 0.90].](data/derived/motherlode/fig_prospectivity_motherlode_cleaned.png)
+
 ## Headline results
 
 | Region | Commodity | Positives | Top-1% capture | Top-5% capture | Spatial-block CV AUC |
@@ -107,7 +109,7 @@ percentile of the model's prospectivity ranking; the diagnostic
 traced this to exploration bias in the training labels. Four
 documented remediations did not rescue the blind test. The fix
 needs methodology-level changes. See
-[Chapter 3 audits](reproductions.qmd) for how the published
+[Chapter 4 audits](reproductions.qmd) for how the published
 literature deals with the same problem (it mostly doesn't).
 
 **SHAP feature attribution matches geology.** On Mother Lode the
