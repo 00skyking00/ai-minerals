@@ -6,13 +6,13 @@ subtitle: "A live web map: ML prospectivity on federal land in the Mother Lode, 
 [← back to portfolio map](index.qmd)
 
 ::: {.d-none .d-lg-block}
-<iframe src="https://www.johnsondevco.com/goldbug/goldbug_map.html"
+<iframe src="https://www.johnsondevco.com/goldbug/"
         style="width:100%;height:75vh;border:1px solid #ccc;border-radius:6px"
         loading="lazy"></iframe>
 :::
 
 ::: {.d-lg-none .my-3}
-[Open the live tool →](https://www.johnsondevco.com/goldbug/goldbug_map.html){.btn .btn-primary .btn-lg target="_blank"}
+[Open the live tool →](https://www.johnsondevco.com/goldbug/){.btn .btn-primary .btn-lg target="_blank"}
 
 The map works best on a wider screen. Tap the button to open it in
 a new tab.
@@ -126,7 +126,7 @@ A few categories the tool still doesn't catch:
 
 ## Where to look
 
-- **Live tool:** [johnsondevco.com/goldbug](https://www.johnsondevco.com/goldbug/goldbug_map.html)
+- **Live tool:** [johnsondevco.com/goldbug](https://www.johnsondevco.com/goldbug/)
 - **Stack:** Python 3.13, FastAPI on Cloud Run for the
   polygon-scoring API, Folium + Leaflet for the map, GeoPandas +
   Rasterio for the data work, scikit-learn for the model.

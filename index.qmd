@@ -122,7 +122,7 @@ catch (historic mineral patents, split estate, placer-specific
 modeling).
 :::
 ::: {.g-col-12 .g-col-md-3}
-[![goldbug live map showing a ranked open parcel](data/derived/portfolio_charts/thumbs/ch3_goldbug.png)](goldbug.qmd)
+[![goldbug live map: topo basemap, federal gap parcels (yellow), active mining claims (red), with a parcel popup showing the score breakdown and the layer-toggle panel on the right](data/derived/portfolio_charts/thumbs/ch3_goldbug.png)](goldbug.qmd)
 :::
 ::::
 
@@ -231,7 +231,7 @@ visualization, Quarto for the site itself.
 |---|---|
 | [1. Bear Cub](bear_cub.qmd) | [main](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bear_cub/mining_review.html) |
 | [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/arizona/main.html) |
-| [3. goldbug](goldbug.qmd) | [live tool](https://www.johnsondevco.com/goldbug/goldbug_map.html) |
+| [3. goldbug](goldbug.qmd) | [live tool](https://www.johnsondevco.com/goldbug/) |
 | [4. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html) |
 | [5. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/us_carbonatite_ree.html) |
 | [6. Drill planning](drill_planning.qmd) | [overview](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/index.html), [BCGT POMDP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html), [Bear Cub GP](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/drill_planning/bear_cub_gp_recommender.html) |
