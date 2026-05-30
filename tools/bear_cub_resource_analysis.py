@@ -428,7 +428,7 @@ def main() -> None:
         ax.axvline(ci_high, color="green", linestyle="--", linewidth=1.5,
                    label=f"95%: {ci_high:.0f}")
         ax.axvline(10056, color="gray", linestyle=":", linewidth=2,
-                   label="Tweet (published): 10,056")
+                   label="Independent (published): 10,056")
         ax.set_xlabel("Pay-zone fine oz")
         ax.set_ylabel("Frequency (1000 MC samples)")
         ax.set_title(
@@ -463,7 +463,7 @@ def main() -> None:
     ax.set_aspect("equal")
     ax.set_xlabel("East (ft from cluster center)")
     ax.set_ylabel("North (ft from cluster center)")
-    ax.set_title("Plan map: holes colored by surface-to-BR grade (Tweet scheme)")
+    ax.set_title("Plan map: holes colored by surface-to-BR grade (polygon-block scheme)")
     ax.grid(True, alpha=0.3)
     legend_patches = [
         mpatches.Patch(color=color, label=label)

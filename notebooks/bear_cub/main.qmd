@@ -19,7 +19,7 @@ Bear Cub is a small placer-gold claim in the Cape Nome mining district of Alaska
 
 The key technical results:
 
-- **Pay-zone-only resource estimate of 6,251 fine ounces (90% MC CI 6,010–6,739).** That's 38% below the published 1936-vintage 10,056-ounce figure for the same property. The gap is *methodological*, not measurement-level — see [§Cross-validation](#cross-validation-shared-holes) and the [mining-engineer review notebook](mining_review.html). On the three holes where per-hole grades can be compared against Jesse Grady's and Tweet's published numbers, agreement is within 6–10% when the same pay-zone window is assumed; the property-wide gap comes from how each calculation defines the pay layer.
+- **Pay-zone-only resource estimate of 6,251 fine ounces (90% MC CI 6,010–6,739).** That's 38% below the published 10,056-ounce figure for the same property. The gap is *methodological*, not measurement-level — see [§Cross-validation](#cross-validation-shared-holes) and the [mining-engineer review notebook](mining_review.html). On the three holes where per-hole grades can be compared against two prior independent published analyses (2021 and 2024), agreement is within 6–10% when the same pay-zone window is assumed; the property-wide gap comes from how each calculation defines the pay layer.
 - **Cross-checks catch OCR errors and a 45° geomorphology trap.** The pipeline projects each transcribed hole onto a 1936 cartographer's property map. Five OCR errors the model self-rated as "high confidence" turned up only because the holes plotted in the wrong place — wrong by 800-2,000 ft. A separate corner-label trap (the dh-map's image-axis labels don't match the patent's compass corners — they're rotated by one step) was caught the same way and required a re-derivation of the local-feet → WGS84 affine; corner round-trip residuals dropped from ~25 m to ~0.3 m once the labels were corrected.
 - **The corpus reveals constants the operators never wrote down.** A single value — `282.6` — appears in 16 of the 24 logs, in the operator's hand-written conversion of milligrams to cents per cubic yard. It bundles the 1920s gold price, the drill bit's cross-section, and unit conversions into a single creek factor. Empirical derivation from the corpus, not stated explicitly on any individual log.
 - **Cost.** OCR via Claude Opus 4.7 on every page: about $14 across all 24 logs, roughly $0.50-$1.00 per multi-page log. Manageable for an archive of this size; a 10,000-log archive would benefit from a hybrid pipeline (purpose-built OCR for raw text, an LLM pass for form-specific schema mapping) at roughly an order of magnitude lower cost.
@@ -115,7 +115,7 @@ top
 
 ## Resource analysis
 
-Two prior analysts have estimated the gold resource on the broader Bear Cub / Dry Gulch property using the same drill-log archive: Jesse Grady (working for Dry Gulch LLC, 2021) used his own per-interval re-transcription; Darell Tweet (independent mining engineer, 2024) used a polygon-volumetric block model on the property scale. They had hundreds of holes; we have a 24-hole Murray subset. We reproduce their methodology end-to-end on our subset to validate the pipeline.
+Two prior independent analysts have estimated the gold resource on the broader Bear Cub / Dry Gulch property using the same drill-log archive: an earlier per-interval re-transcription (2021), and a polygon-volumetric block model on the property scale (2024). They had hundreds of holes; we have a 24-hole Murray subset. We reproduce their methodology end-to-end on our subset to validate the pipeline.
 
 ### Block-volumetric estimate
 
@@ -137,12 +137,12 @@ print(f"  Triangle, surface-to-bedrock: {res['method_triangle']['total_fine_oz']
       f"{res['method_triangle']['total_volume_cuyd']:>9,.0f} cu yd")
 print(f"  Polygon, PAY-ZONE-only:       {res['method_polygon_pay_zone']['total_fine_oz']:>6,.0f} oz at "
       f"{res['method_polygon_pay_zone']['weighted_avg_grade']:.4f} oz/yd³ over "
-      f"{res['method_polygon_pay_zone']['total_volume_cuyd']:>9,.0f} cu yd  <-- Tweet-comparable")
+      f"{res['method_polygon_pay_zone']['total_volume_cuyd']:>9,.0f} cu yd  <-- comparable to published method")
 print()
-print(f"  Tweet (2024) published:        10,056 oz at ~0.057 oz/yd³ over ~178,000 cu yd")
+print(f"  Independent (2024) published:  10,056 oz at ~0.057 oz/yd³ over ~178,000 cu yd")
 ```
 
-The pay-zone-only point estimate is the right Tweet-comparable number. Tweet's published 10,056 oz sits outside the parameter-noise credible interval, so the gap is methodological (sliding-window pay-zone definition vs Tweet's uniform-thickness assumption), not measurement noise.
+The pay-zone-only point estimate is the right number to compare against the published independent (2024) analysis. The published 10,056 oz sits outside the parameter-noise credible interval, so the gap is methodological (sliding-window pay-zone definition vs the published uniform-thickness assumption), not measurement noise.
 
 ### Uncertainty on the resource estimate
 
@@ -151,7 +151,7 @@ The point estimate hides several real sources of uncertainty: fineness (Bear Cub
 ```{python}
 #| label: mc-uncertainty
 #| code-fold: true
-#| fig-cap: "Distribution of the pay-zone-only resource estimate over 1,000 Monte Carlo samples. Fineness ∈ U(0.85, 0.92), per-mg multiplicative error ε ~ N(0, 5%), bit-area error ε ~ N(0, 5%). The 90% credible interval is narrow because errors average out across 24 holes. Tweet's published 10,056 oz sits well outside this interval — the gap is methodological (pay-zone definition), not measurement noise."
+#| fig-cap: "Distribution of the pay-zone-only resource estimate over 1,000 Monte Carlo samples. Fineness ∈ U(0.85, 0.92), per-mg multiplicative error ε ~ N(0, 5%), bit-area error ε ~ N(0, 5%). The 90% credible interval is narrow because errors average out across 24 holes. The published independent 10,056 oz sits well outside this interval — the gap is methodological (pay-zone definition), not measurement noise."
 from IPython.display import Image
 Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_mc_uncertainty.png'))
 ```
@@ -176,7 +176,7 @@ The 90% credible interval is narrow because per-hole errors average out across 2
 
 ### Cross-validation: shared holes
 
-Three of our holes have published per-hole grades from Jesse Grady (2021) or Darell Tweet (2024). The comparison surfaces the key methodological lever — *how each calculation defines the pay zone* — much more clearly than the property-wide totals do:
+Three of our holes have published per-hole grades from the two prior independent analyses (2021 and 2024). The comparison surfaces the key methodological lever — *how each calculation defines the pay zone* — much more clearly than the property-wide totals do:
 
 ```{python}
 #| label: cross-val
@@ -188,7 +188,7 @@ cv = pd.read_csv(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'cross_valida
 cv
 ```
 
-`L6700 H6760` is the only hole with a Tweet number to compare against: our sliding-window picks a tight 0.094 oz/cu yd over a 2 ft (40-42 ft) bedrock-contact band; Tweet's 0.050 is over an 18 ft (30-48 ft) wider window. The total recovered gold over Tweet's window is consistent with our depth-weighted reading on the same window — the difference is purely the assumed thickness over which to average. The two L7100 Convention C holes show the same pattern with Jesse's tighter pay-zone picks.
+`L6700 H6760` is the only hole with a 2024-published number to compare against: our sliding-window picks a tight 0.094 oz/cu yd over a 2 ft (40-42 ft) bedrock-contact band; the published 0.050 is over an 18 ft (30-48 ft) wider window. The total recovered gold over the published window is consistent with our depth-weighted reading on the same window — the difference is purely the assumed thickness over which to average. The two L7100 Convention C holes show the same pattern against the 2021 analyst's tighter pay-zone picks.
 
 The mining-engineer review notebook at [`mining_review.qmd`](mining_review.html) walks through the methodology in the depth a placer engineer would want.
 
@@ -209,7 +209,7 @@ Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_aerial_overlay.
 ```{python}
 #| label: aerial-pay-zone
 #| code-fold: true
-#| fig-cap: "Same view with the pay-zone Voronoi cells filled in (the Tweet-style grade map adjusted to bottom-of-pay)."
+#| fig-cap: "Same view with the pay-zone Voronoi cells filled in (polygon-block grade map adjusted to bottom-of-pay)."
 Image(str(REPO / 'data' / 'derived' / 'bear_cub_resource' / 'fig_aerial_pay_zone_grade.png'))
 ```
 

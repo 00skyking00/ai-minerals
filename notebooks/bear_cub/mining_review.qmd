@@ -94,7 +94,7 @@ For each scanned log:
 2. **Per-page cross-checks**:
    - *Geometric.* Each captured hole's local-grid coordinates project onto a 1936 cartographer's drill-hole plat. Five logs whose OCR rated the easting or northing as "high confidence" turned out to plot 800–2,000 ft from where the cartographer drew the hole; those were corrected after manual review of the original log.
    - *Arithmetic.* The sum of per-interval weights vs. the sum of back-page sample weights. Holes where the two disagreed by more than 5% were flagged for review (a "Convention C" mismatch usually meant per-interval values were underestimated and the back-page assay was authoritative).
-   - *Cross-operator.* Where Jesse Grady (a later analyst) or Darell Tweet's published estimate covered the same hole, per-hole pay-zone grades were compared.
+   - *Cross-operator.* Where a 2021 independent re-transcription or a 2024 independent mining-engineer estimate covered the same hole, per-hole pay-zone grades were compared.
 3. **Sample-anchored grade allocation** — for Convention C holes, the back-page assayed sample total is treated as authoritative. Per-interval grade is allocated within the sample range proportional to color count. For all other conventions, the per-interval weight stands as recorded.
 4. **Fineness, bit area, and grade.** Fineness 0.890 (corpus-mean from back-page yield calculations across multiple logs). Bit area is computed from the casing diameter recorded on each log's header. Grade per interval = `(mg × fineness × 27) / (31,103.5 × bit-area × interval)`, in fine oz per cubic yard.
 
@@ -149,7 +149,7 @@ The bedrock-contact pattern in the 3rd-beach-line holes is the defining geologic
 
 ### Drill-hole positions on the patent
 
-Holes color-coded by pay-zone average grade (Tweet color scheme).
+Holes color-coded by pay-zone average grade (polygon-block color scheme).
 
 ```{python}
 #| label: aerial-overlay
@@ -165,7 +165,7 @@ The Voronoi tessellation, clipped to the patent quadrilateral, with cells colore
 ```{python}
 #| label: voronoi-payzone
 #| code-fold: true
-#| fig-cap: "Voronoi pay-zone-grade map (Tweet-comparable). Cell color follows Tweet's grade-tier classification. Highest-grade cells along the southern boundary correspond to the 3rd-beach-line bedrock-contact pattern visible in the fence diagram."
+#| fig-cap: "Voronoi pay-zone-grade map (matches the published independent method). Cell color follows the polygon-block grade-tier classification. Highest-grade cells along the southern boundary correspond to the 3rd-beach-line bedrock-contact pattern visible in the fence diagram."
 Image(str(DERIVED / "fig_aerial_pay_zone_grade.png"))
 ```
 
@@ -180,7 +180,7 @@ Image(str(DERIVED / "fig_plan_map.png"))
 
 ### 3D drill-hole model
 
-A 3D view of the corpus: each hole is a vertical stick from surface (z=0) to its bedrock contact, segmented at every captured 2-ft interval and colored on the same Jesse classification scheme used in the fence diagram and 2D maps (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100 oz/cu yd). The shaded surface is the RBF-interpolated bedrock topography. **Vertical scale is exaggerated 8×** — the claim is ~600 × 1100 ft in plan and only ~80 ft deep, so at 1:1 the depth signature is invisible.
+A 3D view of the corpus: each hole is a vertical stick from surface (z=0) to its bedrock contact, segmented at every captured 2-ft interval and colored on the same standard placer grade-tier classification scheme used in the fence diagram and 2D maps (white < 0.005, light blue 0.005-0.010, yellow 0.010-0.020, orange 0.020-0.050, red 0.050-0.100, magenta > 0.100 oz/cu yd). The shaded surface is the RBF-interpolated bedrock topography. **Vertical scale is exaggerated 8×** — the claim is ~600 × 1100 ft in plan and only ~80 ft deep, so at 1:1 the depth signature is invisible.
 
 ```{python}
 #| label: model-3d-oblique
@@ -248,7 +248,7 @@ cv
 A few observations on these comparisons:
 
 - **L6700 H6760 (HV-6760).** Published pay-zone grade 0.050 oz/cu yd over a 30-48 ft window (18 ft thick). Our sliding-window pick is much tighter — 0.094 oz/cu yd over 40-42 ft (2 ft thick). The total recovered gold over the published 18 ft window is consistent with our depth-weighted reading; the difference is purely the assumed thickness over which to average. If we use the published 18 ft window, our depth-weighted grade lands very close to the published 0.050.
-- **L7100 H7156 + L7100 H7160 (HV-7156, HV-7160).** Both are Convention C "Hammon Prospect" holes where per-interval weights weren't recorded. Jesse Grady identified a tighter 12-14 ft pay zone (2 ft) at 0.053 and 0.034 oz/cu yd respectively. Our color-weighted distribution spreads each sample's mg across the full 0-14 ft sample range, giving 0.030 and 0.023. Both readings are math-consistent; the difference is whether the within-sample concentration estimate uses color counts (our default) or assigns all the mg to the bedrock-contact 2 ft (Jesse's choice).
+- **L7100 H7156 + L7100 H7160 (HV-7156, HV-7160).** Both are Convention C "Hammon Prospect" holes where per-interval weights weren't recorded. The 2021 prior analysis identified a tighter 12-14 ft pay zone (2 ft) at 0.053 and 0.034 oz/cu yd respectively. Our color-weighted distribution spreads each sample's mg across the full 0-14 ft sample range, giving 0.030 and 0.023. Both readings are math-consistent; the difference is whether the within-sample concentration estimate uses color counts (our default) or assigns all the mg to the bedrock-contact 2 ft (the 2021 analyst's choice).
 
 These per-hole disagreements are systematic across the corpus: when a third party has assigned a tighter pay zone than our default sliding window picks, our estimate over the published-zone is comparable; ours over the tighter sliding-window zone is higher. The total recovered gold per hole is the same.
 
