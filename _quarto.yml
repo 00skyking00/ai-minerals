@@ -11,12 +11,6 @@ project:
     - drill_planning.qmd
     - posts.qmd
     - posts/*/index.qmd
-    # Hidden from the public site until v2 is baked. v1 is a methodology
-    # study built around literature-cited parameters; v2 runs the same
-    # framework against real AVIRIS-NG reflectance over Mountain Pass.
-    # Re-enable both qmds + add a chapter card to index.qmd when v2
-    # renders end-to-end from a fresh clone.
-    # - notebooks/mountain_pass/spectral_v1.qmd
 
 website:
   title: "ai-minerals"
