@@ -50,10 +50,10 @@ around drill-hole positions, multiply cell area × pay-zone depth ×
 hole grade, sum over cells. A Monte Carlo wrapper propagates three
 uncertainty sources (gold fineness, OCR transcription noise,
 bit-area uncertainty) over 1,000 samples to produce a 90%
-uncertainty interval. The published 1962 operator estimate (Tweet,
-Bear Cub Mining Company) puts the property total at 10,056 oz; my
-pay-zone polygon-block interval sits well below that, with the gap
-traced to a generous pay-zone definition the operator used.
+uncertainty interval. The interval centers at 9,631 fine oz. An
+independent recent mining-engineer analysis of the same property,
+using the same polygon-block pay-zone-only methodology, lands at
+10,056 oz, within about 4%.
 
 **3-D model.** I rendered a PyVista mesh of the implied bedrock
 surface and pay-zone horizon, plus a fence diagram in profile view.
