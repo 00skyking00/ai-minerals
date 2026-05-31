@@ -27,9 +27,23 @@ fi
 echo "==> Ensuring ${REMOTE_DIR} exists"
 ssh "${REMOTE_HOST}" "mkdir -p ${REMOTE_DIR}"
 
+# IMPORTANT — private-data guard. Quarto's website render copies the WHOLE
+# project tree into _site_internal/ (everything not starting with . or _), which
+# pulls in data/raw/ (FAMILY-PRIVATE drill-log scans, SOURCE.md), src/, tools/,
+# scripts/, research/, design/, and the raw .qmd source. None of that may be
+# served publicly. The excludes below keep them out, and --delete-excluded
+# removes them from the server if a prior deploy ever pushed them. Only the
+# rendered notebooks + site_libs + data/derived go live.
 echo
-echo "==> Syncing ${LOCAL_SITE}/ -> ${REMOTE_HOST}:${REMOTE_DIR}/"
-rsync -avz --delete --progress \
+echo "==> Syncing ${LOCAL_SITE}/ -> ${REMOTE_HOST}:${REMOTE_DIR}/ (private dirs + source excluded)"
+rsync -avz --delete --delete-excluded --progress \
+  --exclude='/data/raw' \
+  --exclude='/tools' \
+  --exclude='/research' \
+  --exclude='/src' \
+  --exclude='/scripts' \
+  --exclude='/design' \
+  --exclude='*.qmd' \
   "${LOCAL_SITE}/" \
   "${REMOTE_HOST}:${REMOTE_DIR}/"
 
