@@ -3,7 +3,7 @@ title: "Chapter 6: Drill planning under uncertainty"
 subtitle: "POMDP planning with Monte Carlo Tree Search on the BC Golden Triangle regional prospectivity prior"
 ---
 
-[← back to portfolio map](index.qmd)
+[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
 
 ## What this chapter is about
 
@@ -21,9 +21,9 @@ POMDP planner with Monte Carlo Tree Search (POMCP), asked to
 sequentially drill within a fixed budget against three baseline
 policies. The Bear Cub property-scale GP drill-site recommender
 that uses the same general idea at single-claim scale lives in
-[Chapter 1](bear_cub.qmd).
+[Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
-![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](data/derived/bcgt/fig_pomcp_discovery_curves.png)
+![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](https://johnsondevco.com/ai-minerals/data/derived/bcgt/fig_pomcp_discovery_curves.png)
 
 ## BCGT POMDP decision planning
 
@@ -63,10 +63,10 @@ notebook documents the v1.0 simplifications I made; the v2.0
 extensions in Mern et al. 2023 (correlated draws, noisy sensors)
 would widen the POMCP-vs-greedy gap. The property-scale
 counterpart of this idea, a GP drill-site recommender on the 24
-Bear Cub holes, sits in [Chapter 1](bear_cub.qmd).
+Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
 ## Deeper notebooks
 
-- [BCGT POMDP decision planning](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
+- [BCGT POMDP decision planning](https://johnsondevco.com/ai-minerals-internal/notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
 
-[← back to portfolio map](index.qmd)
+[← back to portfolio map](https://johnsondevco.com/ai-minerals/)

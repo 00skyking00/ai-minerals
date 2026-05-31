@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Deploy _site_internal/ to johnsondevco.com/plans/ai-minerals-internal/.
-# Sibling path to the portfolio site at /plans/ai-minerals/.
+# Deploy _site_internal/ to johnsondevco.com/ai-minerals-internal/.
+# (Was /plans/ai-minerals-internal/ until the /plans/ namespace was deprecated;
+# the old path now 301-redirects here. The public face is the portfolio umbrella
+# at /ai-minerals/.)
 #
 # Usage: bash scripts/deploy_internal.sh
+#   Re-render first so the rendered site carries the new site-url:
+#   _quarto-internal.yml site-url = https://johnsondevco.com/ai-minerals-internal/
 #
 # Prerequisites: same SSH alias 'hostinger' as deploy_to_hostinger.sh.
 
 set -euo pipefail
 
 REMOTE_HOST="hostinger"
-SUBPATH="plans/ai-minerals-internal"
+SUBPATH="ai-minerals-internal"
+LEGACY_SUBPATH="plans/ai-minerals-internal"   # 301-redirects here after the move off /plans/
 REMOTE_BASE="public_html"
 REMOTE_DIR="${REMOTE_BASE}/${SUBPATH}"
 LOCAL_SITE="_site_internal"
@@ -29,5 +34,19 @@ rsync -avz --delete --progress \
   "${REMOTE_HOST}:${REMOTE_DIR}/"
 
 echo
+echo "==> Updating legacy-path 301 redirect (/plans/ai-minerals-internal/ -> /ai-minerals-internal/)"
+# /plans/ is deprecated: no new content there, only this redirect for any old
+# deep-notebook links already handed out. Mirrors the /plans/ai-minerals/ -> /ai-minerals/ rule.
+ssh "${REMOTE_HOST}" "
+  mkdir -p ${REMOTE_BASE}/${LEGACY_SUBPATH}
+  cat > ${REMOTE_BASE}/${LEGACY_SUBPATH}/.htaccess <<'EOF'
+# 301 redirect /plans/ai-minerals-internal/* -> /ai-minerals-internal/*  (moved off deprecated /plans/)
+RewriteEngine On
+RewriteRule ^(.*)\$ /ai-minerals-internal/\$1 [R=301,L]
+EOF
+"
+
+echo
 echo "==> Done."
 echo "    https://johnsondevco.com/${SUBPATH}/"
+echo "    Legacy URL  https://johnsondevco.com/${LEGACY_SUBPATH}/  -> 301 -> /${SUBPATH}/"

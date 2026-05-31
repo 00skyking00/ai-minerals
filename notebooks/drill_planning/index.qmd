@@ -35,7 +35,7 @@ drill-planning work in this portfolio, at very different scales:
    from the GP posterior variance. Two recommender criteria
    compared: maximum predictive variance (pure information gain) and
    expected improvement against a target grade. See
-   [Bear Cub GP recommender](bear_cub_gp_recommender.qmd).
+   [Bear Cub GP recommender](https://johnsondevco.com/bearcub/notebooks/bear_cub/gp_recommender.html).
 
 The two pieces use different mathematical machinery (POMDP / MCTS
 versus GP regression / acquisition functions) and target different
@@ -97,8 +97,8 @@ data is sparse, even when the GP mean is unreliable.
 ## Files
 
 - [BCGT POMDP decision planning](../bcgt/decision_planning.qmd) (full notebook)
-- [Bear Cub GP recommender](bear_cub_gp_recommender.qmd) (full notebook)
-- [Bear Cub dark-data ingestion pipeline](../bear_cub/main.qmd) (parent notebook the GP recommender was extracted from)
+- [Bear Cub GP recommender](https://johnsondevco.com/bearcub/notebooks/bear_cub/gp_recommender.html) (full notebook)
+- [Bear Cub dark-data ingestion pipeline](https://johnsondevco.com/bearcub/notebooks/bear_cub/main.html) (parent notebook the GP recommender was extracted from)
 - [BCGT regional pipeline](../bcgt/bcgt_porphyry_prospectivity.qmd) (the prior the POMDP runs on top of)
 
 ## Sources

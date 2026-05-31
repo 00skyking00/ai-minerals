@@ -11,9 +11,10 @@ Janin drill logs from the Huntington Library, the 3 sister claims, geology
 reports and proprietary writeups — they plug into this Region via canonical
 adapters.
 
-**Out of scope for the v1 sprint**: only the Bear Cub pilot notebook
-(`notebooks/bear_cub/main.qmd`) consumes this Region's slug. Feature
-pipeline / models / multi-claim spatial CV are deferred until additional
+**Out of scope for the v1 sprint**: no ai-minerals pipeline consumes this
+Region's slug yet. The Bear Cub pilot (OCR + 3-D model + GP recommender) now
+lives in the bearcub sibling repo (https://johnsondevco.com/bearcub/). Feature
+pipeline / models / multi-claim spatial CV here are deferred until additional
 nodes' data is ingested.
 """
 
@@ -30,12 +31,16 @@ NOME_PLACER_REGION = Region(
     working_crs="EPSG:3338",     # NAD83 Alaska Albers — same as EastAK
     data_prefix="nome_placer",
 
-    # Nothing wired in yet — the Bear Cub adapter is the first node.
+    # Nothing wired in yet. The Bear Cub drill-log archive (the first node) now
+    # lives in the bearcub sibling repo (~/src/learning/bearcub/). When Nome
+    # Placers MPM is built, wire bearcub in via a cross-repo path (bearcub
+    # already declares ai-minerals as a path dep for its drillhole adapter) or
+    # re-extract a thinned adapter into ai-minerals at that time.
     occurrences_source="",
     geochem_source="",
     geology_source="",
     geophysics_source="",
-    drillhole_source="bear_cub",   # only Bear Cub Murray archive so far
+    drillhole_source=None,   # Bear Cub Murray archive moved to ../bearcub
 
     # ARDF NM253 (Nome Offshore Placer) is the relevant USGS reference for
     # placer-Au; populate when the occurrences adapter is wired in.
@@ -50,7 +55,8 @@ NOME_PLACER_REGION = Region(
     pathfinder_elements=("Au", "As", "Sb", "Hg"),
 
     raw_paths={
-        "drillholes":  DATA_RAW / "bear_cub/bear_cub_collars.csv",
+        # Bear Cub collars moved to bearcub (data/raw/bear_cub/bear_cub_collars.csv
+        # there). Re-add a "drillholes" entry when a Nome Placers MPM wires bearcub in.
         # Future:
         #   - janin_drillholes:    Charles Janin field-notebook OCR (Huntington Library)
         #   - dark_data_archive:   property writeups, surveyor docs, court records

@@ -3,7 +3,7 @@ title: "Chapter 4: Reproducing + auditing two published methods"
 subtitle: "Cloned the official code for Lawley 2022 and DEEP-SEAM, ran end-to-end, found label leaks and evaluation-inflation issues in both"
 ---
 
-[← back to portfolio map](index.qmd)
+[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
 
 ## What this chapter is about
 
@@ -20,7 +20,7 @@ a published result seriously enough to reproduce it end-to-end, then
 took the reproduction seriously enough to ask where the published
 number came from.
 
-![Where Lawley 2022's published continental Zn-Pb AUC of 0.983 comes from. Removing a label leak takes it to 0.959; switching from 1-D to 2-D spatial-block cross-validation takes it to 0.868; training on Australia + Canada and testing on the US (a cross-continent transfer) takes it to 0.709.](data/derived/portfolio_charts/lawley_waterfall.png)
+![Where Lawley 2022's published continental Zn-Pb AUC of 0.983 comes from. Removing a label leak takes it to 0.959; switching from 1-D to 2-D spatial-block cross-validation takes it to 0.868; training on Australia + Canada and testing on the US (a cross-continent transfer) takes it to 0.709.](https://johnsondevco.com/ai-minerals/data/derived/portfolio_charts/lawley_waterfall.png)
 
 ## Lawley et al. 2022: continental Zn-Pb prospectivity
 
@@ -136,9 +136,9 @@ It doesn't.
 
 ## Deeper notebooks
 
-- [Lawley 2022 portfolio summary](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley.html): reproduction of the published AUC 0.983.
-- [Lawley 2022 code + methodology audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/lawley_audit.html): three sources of evaluation inflation, with numbers.
-- [DEEP-SEAM four-region transfer summary](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html): the cross-region experiment that motivated this work.
-- [DEEP-SEAM official-code audit](https://johnsondevco.com/plans/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html): comparison of EarthByte's TensorFlow implementation against the paper text plus my PyTorch port.
+- [Lawley 2022 portfolio summary](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/lawley.html): reproduction of the published AUC 0.983.
+- [Lawley 2022 code + methodology audit](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/lawley_audit.html): three sources of evaluation inflation, with numbers.
+- [DEEP-SEAM four-region transfer summary](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html): the cross-region experiment that motivated this work.
+- [DEEP-SEAM official-code audit](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html): comparison of EarthByte's TensorFlow implementation against the paper text plus my PyTorch port.
 
-[← back to portfolio map](index.qmd)
+[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
