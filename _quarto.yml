@@ -2,10 +2,13 @@ project:
   type: website
   output-dir: _site
   render:
-    - index.qmd
-    - bear_cub.qmd
+    # index.qmd, bear_cub.qmd, goldbug.qmd moved out (-> portfolio umbrella,
+    # bearcub, gldbg respectively). The public chapter site at /ai-minerals/ is
+    # superseded by the portfolio umbrella; the chapters below stay here as the
+    # source the umbrella {{< include >}}s, and render standalone for local preview.
+    # NOTE (cutover): decide whether ai-minerals still deploys this public site at
+    # all once the umbrella owns /ai-minerals/ — see deploy_to_hostinger.sh.
     - regional.qmd
-    - goldbug.qmd
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
@@ -20,14 +23,10 @@ website:
   repo-url: https://github.com/00skyking00/ai-minerals
   navbar:
     left:
-      - href: index.qmd
-        text: Portfolio
-      - href: bear_cub.qmd
-        text: "1. Bear Cub"
+      # Portfolio home (index.qmd) now lives in the portfolio umbrella.
+      # "1. Bear Cub" -> bearcub repo (/bearcub/); "3. goldbug" -> gldbg (/goldbug/).
       - href: regional.qmd
         text: "2. Regional MPM"
-      - href: goldbug.qmd
-        text: "3. goldbug"
       - href: reproductions.qmd
         text: "4. Reproductions + audits"
       - href: cross_region.qmd
