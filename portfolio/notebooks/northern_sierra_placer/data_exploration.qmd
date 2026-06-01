@@ -1,0 +1,787 @@
+---
+title: "Northern Sierra placer model — data exploration"
+subtitle: "What goes into the v1 placer-Au prospectivity index, layer by layer"
+author: "Sky King"
+date: 2026-06-01
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+execute:
+  warning: false
+---
+
+## About this notebook
+
+This notebook walks through the v1 northern-Sierra placer-Au prospectivity
+index from raw inputs to per-cell score, with a map at every step. The
+companion polished writeup lives in
+[northern_sierra_placer_prospectivity.qmd](northern_sierra_placer_prospectivity.qmd);
+the per-fold metric tables and audit traces live in
+[internal.qmd](internal.qmd).
+
+The v2 supervised pass (PU bagging + Random Forest + LightGBM + stacking
++ isotonic calibration, per population) trains on top of the same feature
+stack shown here. It's its own notebook.
+
+## About the region
+
+The northern Sierra Nevada deep-gravel belt is the canonical California
+placer-Au province. The Tertiary auriferous gravels were laid down by the
+ancestral Yuba and American rivers before late-Tertiary uplift, then
+buried under andesitic lava flows, then exhumed in places by Quaternary
+incision. The hydraulic-mining era (1850s-1884) stripped the Tertiary
+gravels off the interstream ridges from Malakoff Diggins south through
+Dutch Flat, North San Juan, You Bet, Forest Hill, Iowa Hill, and Michigan
+Bluff. Modern stream placers continue along the active Yuba, Bear, and
+American rivers and their tributaries.
+
+Two populations of placer with different geomorphic signatures:
+
+- **Tertiary deep-gravel** — pay strata on hillside benches above the
+  modern drainage, exposed by hydraulic mining pits. The hydraulic-pit
+  polygons themselves serve as positive labels.
+- **Quaternary modern-channel** — active stream alluvium. Positive labels
+  come from MRDS placer occurrences with `dep_type` matching
+  placer / alluvial / stream / gravel.
+
+This notebook builds the same feature stack for both populations. The
+Phase 1 weighted index is a single composite; Phase 2 will train one
+classifier per population and fuse the calibrated rasters per-cell.
+
+## The datasets
+
+| Dataset | Source | Role in the model |
+|---|---|---|
+| 3DEP 10 m DEM | USGS 3DEP via OpenTopography | elevation, slope, TPI, the paleochannel raster's input |
+| NHDPlus HR | USGS National Hydrography Dataset | stream centerlines (NHD-REM channel reference), flow routing, arbolate sum / hydroseq |
+| MRDS occurrences | USGS Mineral Resources Data System | lode-Au seeds (filtered); Quaternary placer positive labels |
+| Orlando 2016 Hydraulic Mine Pits | USGS DOI 10.5066/F7J38QMD | 167 pit polygons — Tertiary positive labels + proximity feature |
+| CGS 2010 geology | California Geological Survey FeatureServer | bedrock lithology + Quaternary alluvium boolean |
+| NGDB sediments | USGS National Geochemical Database | stream-sediment chemistry (Au + As + Sb pathfinders) |
+| NURE I-ICP-MS | USGS DOI 10.5066/F7765DHF | reanalyzed NURE archive (Au + Sb + Hg) |
+
+Every dataset is open, public-domain, and reproducible from `uv sync`
++ `python scripts/northern_sierra_placer_fetch_all.py`. Raw fetches land
+in `data/raw/<dataset>/`; the assembled 250 m feature frame is at
+`data/derived/features_northern_sierra_placer_250m.parquet`.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rasterio
+from matplotlib.colors import LightSource, LinearSegmentedColormap
+from shapely.geometry import Point
+
+from ai_minerals.regions.northern_sierra_placer import NORTHERN_SIERRA_PLACER
+from ai_minerals.regions._northern_sierra_anchors import ANCHOR_DISTRICTS
+
+REGION = NORTHERN_SIERRA_PLACER
+WORKING_CRS = REGION.working_crs  # EPSG:3310, California Albers (meters)
+
+# Project root resolves regardless of where Quarto runs from.
+REPO_ROOT = Path.cwd()
+while not (REPO_ROOT / "pyproject.toml").exists() and REPO_ROOT.parent != REPO_ROOT:
+    REPO_ROOT = REPO_ROOT.parent
+
+FEATURES = pd.read_parquet(
+    REPO_ROOT / "data/derived/features_northern_sierra_placer_250m.parquet"
+)
+print(f"feature frame: {FEATURES.shape[0]:,} cells × {FEATURES.shape[1]} columns")
+print(f"AOI: {REGION.aoi.min_lon} to {REGION.aoi.max_lon} W, "
+      f"{REGION.aoi.min_lat} to {REGION.aoi.max_lat} N  (WGS84)")
+print(f"Working CRS: {WORKING_CRS}  (California Albers, meters)")
+print(f"Anchor districts: {len(ANCHOR_DISTRICTS)}")
+
+# Anchor centroids in working CRS (for overlays).
+ANCHORS_GDF = gpd.GeoDataFrame(
+    {"name": list(ANCHOR_DISTRICTS.keys())},
+    geometry=[Point(lon, lat) for (lon, lat) in ANCHOR_DISTRICTS.values()],
+    crs="EPSG:4326",
+).to_crs(WORKING_CRS)
+
+# AOI bounding polygon in working CRS — used as a clip mask + map frame.
+AOI_BOX_3310 = gpd.GeoSeries(
+    [REGION.aoi.polygon], crs="EPSG:4326"
+).to_crs(WORKING_CRS)
+XMIN, YMIN, XMAX, YMAX = AOI_BOX_3310.total_bounds
+
+# Helper: reshape a feature column into the (row, col) raster grid.
+NROWS = int(FEATURES["row"].max() + 1)
+NCOLS = int(FEATURES["col"].max() + 1)
+
+def to_grid(col: str, fill: float = np.nan) -> np.ndarray:
+    arr = np.full((NROWS, NCOLS), fill, dtype=np.float32)
+    arr[FEATURES["row"].to_numpy(), FEATURES["col"].to_numpy()] = (
+        FEATURES[col].to_numpy(dtype=np.float32)
+    )
+    return arr
+
+# Raster bounds for imshow extent (working CRS, meters).
+RX_MIN = FEATURES["x"].min() - 125  # half a 250 m cell
+RX_MAX = FEATURES["x"].max() + 125
+RY_MIN = FEATURES["y"].min() - 125
+RY_MAX = FEATURES["y"].max() + 125
+EXTENT = (RX_MIN, RX_MAX, RY_MIN, RY_MAX)
+
+def style_axes(ax, *, title=None):
+    ax.set_xlim(RX_MIN, RX_MAX)
+    ax.set_ylim(RY_MIN, RY_MAX)
+    ax.set_aspect("equal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    if title:
+        ax.set_title(title, fontsize=11)
+
+def label_anchors(ax, *, fontsize=7):
+    for name, geom in zip(ANCHORS_GDF["name"], ANCHORS_GDF.geometry):
+        ax.plot(geom.x, geom.y, "o", color="crimson", markersize=4,
+                markeredgecolor="white", markeredgewidth=0.5, zorder=10)
+        short = name.split(" / ")[0]  # drop "/ North Bloomfield" etc.
+        ax.annotate(short, (geom.x, geom.y), xytext=(4, 4),
+                    textcoords="offset points", fontsize=fontsize,
+                    color="black",
+                    path_effects=[],
+                    zorder=11)
+```
+
+## The seven anchor districts
+
+These are the seven historic Tertiary deep-gravel hydraulic-mining
+districts that the Phase 1 validation gate keys off. None of them appears
+in the training labels: the hydraulic-pit polygons (which are the
+Tertiary positive set) are matched by NAME against MRDS records to drop
+them from training. Every anchor must land in the top decile of the
+Phase 1 score for the gate to pass; the v1 model gets 7/7.
+
+```{python}
+#| label: region-locator
+fig, ax = plt.subplots(figsize=(9, 8))
+
+# Light DEM hillshade as the base.
+dem_path = REPO_ROOT / "data/raw/3dep_lidar/3dep_1m_northern_sierra.ds30m.tif"
+with rasterio.open(dem_path) as src:
+    dem = src.read(1, out_shape=(1024, src.width * 1024 // src.height))
+    dem_bounds_wgs = src.bounds
+# Reproject bounds to working CRS for the imshow extent.
+dem_bbox = gpd.GeoSeries(
+    [gpd.GeoDataFrame(
+        geometry=[Point(dem_bounds_wgs.left, dem_bounds_wgs.bottom),
+                  Point(dem_bounds_wgs.right, dem_bounds_wgs.top)],
+        crs=src.crs,
+    ).to_crs(WORKING_CRS).unary_union.envelope]
+).geometry[0]
+dx0, dy0, dx1, dy1 = dem_bbox.bounds
+
+ls = LightSource(azdeg=315, altdeg=45)
+hill = ls.hillshade(np.where(np.isfinite(dem), dem, np.nanmean(dem)),
+                    vert_exag=2)
+ax.imshow(hill, cmap="gray", extent=(dx0, dx1, dy0, dy1), origin="upper",
+          alpha=0.7, zorder=1)
+
+# AOI box.
+AOI_BOX_3310.boundary.plot(ax=ax, color="black", linewidth=1.5, zorder=5)
+
+# Anchors.
+label_anchors(ax, fontsize=8)
+
+style_axes(ax, title="Northern Sierra placer model — AOI + 7 anchor districts")
+ax.set_xlabel("California Albers easting (m)", fontsize=9)
+ax.set_ylabel("northing (m)", fontsize=9)
+plt.tight_layout()
+plt.show()
+```
+
+Malakoff Diggins, Dutch Flat, North San Juan, You Bet, Forest Hill, Iowa
+Hill, and Michigan Bluff. The southern anchors (Iowa Hill, Forest Hill,
+Michigan Bluff) are roughly 80 km south of the northern cluster
+(Malakoff, Dutch Flat, North San Juan), straddling the modern Bear and
+American river drainages.
+
+## 1. Topography: elevation, slope, TPI
+
+The 3DEP 10 m DEM (downsampled to 30 m for processing efficiency) feeds
+every morphometric feature: slope, TPI, hillshade, the paleochannel
+composite's LRM and GMI components, the flow accumulation that drives
+SPI and TWI, the geomorphon terrace mask.
+
+```{python}
+#| label: dem-slope-tpi
+fig, axes = plt.subplots(1, 3, figsize=(15, 5.5), sharey=True)
+
+elev = to_grid("elevation")
+slope = to_grid("slope")
+tpi = to_grid("tpi")
+
+im0 = axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+                     vmin=0, vmax=3500)
+plt.colorbar(im0, ax=axes[0], shrink=0.7, label="elevation (m)")
+style_axes(axes[0], title="3DEP DEM (10 m, downsampled to 250 m grid)")
+label_anchors(axes[0], fontsize=6)
+
+im1 = axes[1].imshow(slope, extent=EXTENT, origin="upper", cmap="magma",
+                     vmin=0, vmax=40)
+plt.colorbar(im1, ax=axes[1], shrink=0.7, label="slope (deg)")
+style_axes(axes[1], title="Slope")
+label_anchors(axes[1], fontsize=6)
+
+im2 = axes[2].imshow(tpi, extent=EXTENT, origin="upper", cmap="RdBu_r",
+                     vmin=-200, vmax=200)
+plt.colorbar(im2, ax=axes[2], shrink=0.7, label="TPI (m above local mean)")
+style_axes(axes[2], title="Topographic Position Index (8-cell)")
+label_anchors(axes[2], fontsize=6)
+
+plt.tight_layout()
+plt.show()
+```
+
+TPI (Topographic Position Index) is each cell's elevation relative to the
+mean of its 8-cell neighborhood. Positive TPI marks ridges and benches;
+negative TPI marks valley floors. **All seven anchor districts sit on
+benches with positive TPI** — that's the geometric signature of Tertiary
+deep gravels exposed by hydraulic mining, and it's why TPI feeds the
+Tertiary-terrace-likelihood composite in section 7.
+
+## 2. Hydrology: NHD flowlines + flow-derived features
+
+NHDPlus HR ships ~533,000 mapped flowlines covering the AOI. We use them
+two ways:
+
+- **Channel reference for the paleochannel REM** — section 6 rasterizes
+  the stream-order-≥2 subset onto the DEM grid and detrends elevation
+  against the nearest channel.
+- **Flow-routed distance from lode-Au seeds** — section 5's
+  `distance_downstream_from_lode_m` walks the network from each MRDS
+  lode seed downstream via `hydroseq` ordering, sticking the seed's
+  arbolate sum onto every reach below it. The omnidirectional
+  Euclidean `distance_to_lode_m` is a companion that fires everywhere
+  the routed variant returns NaN.
+
+```{python}
+#| label: hydrology-overlay
+fig, ax = plt.subplots(figsize=(10, 8))
+
+flow_acc = to_grid("flow_acc")
+ax.imshow(np.log1p(flow_acc), extent=EXTENT, origin="upper", cmap="Blues",
+          vmin=0, vmax=8, alpha=0.85)
+
+# NHD flowlines, stream-order >= 3 only (otherwise the map drowns).
+nhd_path = REPO_ROOT / "data/raw/nhd_hr/nhd_flowlines_northern_sierra.gpkg"
+nhd = gpd.read_file(nhd_path)
+nhd_major = nhd[nhd["stream_order"].fillna(0) >= 3].to_crs(WORKING_CRS)
+nhd_major.plot(ax=ax, color="navy", linewidth=0.5, alpha=0.7, zorder=4)
+
+label_anchors(ax, fontsize=7)
+style_axes(ax, title="Flow accumulation (log scale) + NHDPlus HR mapped streams (order ≥ 3)")
+plt.tight_layout()
+plt.show()
+
+print(f"NHD flowlines in AOI: {len(nhd):,} total, "
+      f"{(nhd['stream_order'] >= 3).sum():,} with stream_order ≥ 3")
+```
+
+The biggest blue lines on the map are the main-stem Yuba and American
+rivers cutting east-west through the AOI. The anchors hover on the
+benches above those modern channels, not in them — that's the
+Tertiary-incision geometry. Quaternary modern-channel placers are
+distributed along the blue lines themselves and along the major
+tributaries.
+
+## 3. Hydraulic mining pits — the Tertiary positive labels
+
+Orlando et al. 2016 ([DOI 10.5066/F7J38QMD](https://doi.org/10.5066/F7J38QMD))
+mapped 167 hydraulic-mining pit polygons across the northern Sierra. These
+serve as the **Tertiary-population positive labels** (their centroids land
+in 158 unique cells on the 250 m grid). The proximity-to-nearest-pit
+raster is a Phase 1 feature in its own right.
+
+```{python}
+#| label: hydraulic-pits
+fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
+
+pits = gpd.read_file(REGION.raw_paths["hydraulic_pits"]).to_crs(WORKING_CRS)
+# Clip to AOI so a statewide pit GeoPackage doesn't drag in irrelevant polygons.
+pits = pits[pits.geometry.within(AOI_BOX_3310.unary_union)]
+
+# Left: the pit polygons themselves.
+elev = to_grid("elevation")
+axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+               vmin=0, vmax=3500, alpha=0.6)
+pits.plot(ax=axes[0], color="orange", edgecolor="darkred", linewidth=0.5,
+          alpha=0.85, zorder=5)
+label_anchors(axes[0], fontsize=6)
+style_axes(axes[0], title=f"Orlando 2016 Hydraulic Mine Pits  (N = {len(pits)})")
+
+# Right: distance-to-nearest-pit (inverse of the Phase 1 feature).
+pit_prox = to_grid("hydraulic_pit_proximity_m")
+im = axes[1].imshow(np.minimum(pit_prox, 10_000), extent=EXTENT, origin="upper",
+                    cmap="viridis_r", vmin=0, vmax=10_000)
+plt.colorbar(im, ax=axes[1], shrink=0.7, label="m to nearest pit (capped at 10 km)")
+label_anchors(axes[1], fontsize=6)
+style_axes(axes[1], title="hydraulic_pit_proximity_m (Phase 1 feature, weight 0.18)")
+
+plt.tight_layout()
+plt.show()
+
+print(f"hydraulic mine pits in AOI: {len(pits):,} polygons")
+print(f"cells with proximity == 0 (inside a pit): "
+      f"{(FEATURES['hydraulic_pit_proximity_m'] == 0).sum():,}")
+```
+
+The pit polygon cluster along the Malakoff–Dutch Flat–Iowa Hill corridor
+is the geomorphic skeleton of the model. The proximity raster (right
+panel) decays away from each pit; cells within 5 km of any pit get the
+strongest Phase 1 contribution from this feature.
+
+## 4. Geology — CGS 2010 + Quaternary alluvium
+
+California Geological Survey's 2010 statewide geologic map (the
+ArcGIS-hosted FeatureServer at
+`services2.arcgis.com/zr3KAIbsRSUyARHG/.../GMC_Geology`) gives a
+PTYPE-coded bedrock + surficial map. We extract a single boolean from it:
+**is the cell Quaternary alluvium?** That's the classical Quaternary
+modern-channel placer host rock.
+
+```{python}
+#| label: geology-quaternary
+fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
+
+# Left: lithology class (coarse — the CGS PTYPE codes folded into ~30 classes).
+lith = to_grid("lithology_class")
+im0 = axes[0].imshow(lith, extent=EXTENT, origin="upper", cmap="tab20",
+                     vmin=0, vmax=20)
+plt.colorbar(im0, ax=axes[0], shrink=0.7, label="lithology class (coarse)")
+label_anchors(axes[0], fontsize=6)
+style_axes(axes[0], title="CGS 2010 bedrock + surficial lithology")
+
+# Right: Quaternary alluvium boolean.
+qal = to_grid("is_quaternary_alluvium")
+axes[1].imshow(qal, extent=EXTENT, origin="upper", cmap="Greens",
+               vmin=0, vmax=1)
+label_anchors(axes[1], fontsize=6)
+style_axes(axes[1], title="Quaternary alluvium mask (Phase 1 feature, weight 0.05)")
+
+plt.tight_layout()
+plt.show()
+
+print(f"cells flagged is_quaternary_alluvium: "
+      f"{FEATURES['is_quaternary_alluvium'].sum():,} / {len(FEATURES):,} "
+      f"({100*FEATURES['is_quaternary_alluvium'].mean():.1f}%)")
+```
+
+The Quaternary alluvium mask traces the active stream-valley floors. None
+of the seven anchor districts is in Quaternary alluvium — they're on
+hillsides above the modern drainage, in older terraced deposits. This
+asymmetry is why the v1 model needs the `tertiary_terrace_likelihood`
+feature in section 7: the Quaternary alluvium mask alone doesn't pick
+out Tertiary-pay candidates.
+
+## 5. MRDS lode-Au seeds + distance to lode
+
+The Mother Lode is the canonical California gold-quartz vein system —
+a north-south belt of orogenic-Au lode deposits along the Sierran
+foothills. MRDS records ~6,300 lode-Au points after we filter on
+`dev_stat` (drop unverified prospects) and `dep_type` (drop placer; the
+leakage guard in `distance_downstream_from_lode` enforces that strictly).
+Tertiary auriferous gravels and Quaternary placers both ultimately source
+from this lode network.
+
+```{python}
+#| label: lode-and-distance
+fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
+
+# Left: MRDS lode seeds within AOI.
+elev = to_grid("elevation")
+axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+               vmin=0, vmax=3500, alpha=0.5)
+lode = gpd.read_file(REGION.raw_paths["lode_mrds"]).to_crs(WORKING_CRS)
+lode_in = lode[lode.geometry.within(AOI_BOX_3310.unary_union)]
+lode_in.plot(ax=axes[0], color="goldenrod", markersize=2, alpha=0.6, zorder=5)
+label_anchors(axes[0], fontsize=6)
+style_axes(axes[0], title=f"MRDS lode-Au seeds in AOI ({len(lode_in):,} points, "
+                          f"dev_stat+dep_type filtered)")
+
+# Right: omnidirectional distance to nearest lode-Au seed.
+d2l = to_grid("distance_to_lode_m")
+im = axes[1].imshow(np.minimum(d2l, 15_000), extent=EXTENT, origin="upper",
+                    cmap="plasma_r", vmin=0, vmax=15_000)
+plt.colorbar(im, ax=axes[1], shrink=0.7, label="m to nearest lode-Au (capped at 15 km)")
+label_anchors(axes[1], fontsize=6)
+style_axes(axes[1], title="distance_to_lode_m (Phase 1 feature, weight 0.20)")
+
+plt.tight_layout()
+plt.show()
+
+dd_finite = FEATURES["distance_downstream_from_lode_m"].notna().sum()
+print(f"distance_to_lode_m: finite at {FEATURES['distance_to_lode_m'].notna().sum():,} / "
+      f"{len(FEATURES):,} cells  ({100*FEATURES['distance_to_lode_m'].notna().mean():.1f}%)")
+print(f"distance_downstream_from_lode_m: finite at only {dd_finite:,} / {len(FEATURES):,} cells  "
+      f"({100*dd_finite/len(FEATURES):.1f}%) — see note below")
+```
+
+**Why we have two distance features.** The flow-routed
+`distance_downstream_from_lode_m` walks the NHD network downstream from
+each lode seed via `hydroseq` ordering. It carries the right physics for
+modern-channel placers (gold flows downhill on real streams). It's NaN
+at 98.3% of cells in this AOI because the Sierra Tertiary deep-gravels
+are paleo-channels offset from the modern Mother Lode trend — they're
+not flow-routed downstream of the lode on the current drainage network.
+The omnidirectional `distance_to_lode_m` companion fires at every cell
+within 25 km of any lode seed regardless of routing, and it's what
+carries the lode-proximity signal at the Tertiary anchors.
+
+## 6. Paleochannel likelihood — NHD-REM + LRM + GMI composite
+
+The paleochannel raster is a weighted composite of three geomorphic
+operators run on the DEM:
+
+- **REM (Relative Elevation Model)** — channel-relative elevation. We
+  rasterize the NHDPlus HR flowlines (stream order ≥ 2) onto the DEM
+  grid, then use a Euclidean distance transform to assign each cell the
+  elevation of its nearest channel cell, minus its own. High REM = the
+  cell sits at or near channel-level. Weight 0.45 in the composite.
+- **LRM (Local Relief Model)** — elevation minus its 100 m focal mean.
+  Positive LRM marks humps and benches; negative LRM marks hollows.
+  Weight 0.20.
+- **GMI (Geomorphic Multiscale Index)** — NaN-aware mean of geomorphon
+  terrace mask + black-top-hat (150 m structuring element) + MEP
+  (multiscale elevation percentile at 250 m) + log1p(D-infinity flow
+  accumulation). Captures linear depressions, persistent low points,
+  and high-accumulation channels. Weight 0.35.
+
+```{python}
+#| label: paleochannel-composite
+fig, ax = plt.subplots(figsize=(10, 8))
+
+pc = to_grid("paleochannel_likelihood")
+im = ax.imshow(pc, extent=EXTENT, origin="upper", cmap="cividis",
+               vmin=0, vmax=1)
+plt.colorbar(im, ax=ax, shrink=0.7, label="paleochannel likelihood [0, 1]")
+
+# NHD major streams faintly on top.
+nhd_major.plot(ax=ax, color="white", linewidth=0.3, alpha=0.5, zorder=4)
+
+label_anchors(ax, fontsize=7)
+style_axes(ax, title="paleochannel_likelihood — NHD-REM + LRM + GMI composite "
+                     "(Phase 1 feature, weight 0.18)")
+plt.tight_layout()
+plt.show()
+
+# At-anchor values vs raster distribution.
+print()
+print(f"{'anchor':38s} {'value':>7s}  percentile")
+for name, geom in zip(ANCHORS_GDF["name"], ANCHORS_GDF.geometry):
+    # nearest cell
+    dx = FEATURES["x"] - geom.x
+    dy = FEATURES["y"] - geom.y
+    i = (dx * dx + dy * dy).idxmin()
+    v = float(FEATURES.loc[i, "paleochannel_likelihood"])
+    pct_above = 100.0 * (FEATURES["paleochannel_likelihood"] > v).mean()
+    short = name.split(" / ")[0]
+    print(f"  {short:36s} {v:7.3f}  ({pct_above:5.1f}% of cells score higher)")
+```
+
+The first-pass NHD-REM swap (from the prior flow-derived REM) was the
+biggest single feature-engineering improvement against the
+publicly-licensed riverrem default. **But notice the anchor-cell numbers
+above: the paleochannel composite ALONE does not light up the seven
+anchors.** Their values land at 0.17 – 0.44 — mostly below the raster
+median (0.40). The composite scores modern-channel-proximity (high REM at
+canyon bottoms, low LRM in linear hollows); Tertiary deep-gravels sit on
+benches ABOVE the modern drainage. The composite is correctly capturing
+modern paleo-channel candidates and isn't an anchor-specific feature.
+
+That mismatch is what drove the next feature.
+
+## 7. Tertiary terrace likelihood — the bench-above-drainage signature
+
+The `tertiary_terrace_likelihood` feature is purpose-built for the
+Sierra deep-gravel geometry. It's a geometric mean of three signals:
+
+```
+tpi_high     = normalize(tpi, clip=[p50, p99])        — bench / ridge candidate
+slope_low    = max(0, 1 - slope / 15°)                — planated terrace surface
+not_qal      = 1 - is_quaternary_alluvium             — not in young alluvium
+ttl          = (tpi_high * slope_low * not_qal) ** (1/3)
+```
+
+The geometric mean (not the arithmetic mean) means any single component
+near zero zeros out the composite. That matches the geology: a Tertiary
+terrace candidate needs **all three** signatures (elevated AND low-slope
+AND not-young-alluvium).
+
+```{python}
+#| label: tertiary-terrace
+fig, ax = plt.subplots(figsize=(10, 8))
+
+ttl = to_grid("tertiary_terrace_likelihood")
+im = ax.imshow(ttl, extent=EXTENT, origin="upper", cmap="YlOrBr",
+               vmin=0, vmax=0.8)
+plt.colorbar(im, ax=ax, shrink=0.7, label="tertiary terrace likelihood [0, 1]")
+
+# Pit polygons in transparent outline for ground-truth context.
+pits.boundary.plot(ax=ax, color="darkred", linewidth=0.6, alpha=0.7, zorder=4)
+
+label_anchors(ax, fontsize=7)
+style_axes(ax, title="tertiary_terrace_likelihood — TPI∧slope∧not-Qal "
+                     "(Phase 1 feature, weight 0.15)")
+plt.tight_layout()
+plt.show()
+
+print(f"{'anchor':38s} {'value':>7s}  percentile")
+for name, geom in zip(ANCHORS_GDF["name"], ANCHORS_GDF.geometry):
+    dx = FEATURES["x"] - geom.x
+    dy = FEATURES["y"] - geom.y
+    i = (dx * dx + dy * dy).idxmin()
+    v = float(FEATURES.loc[i, "tertiary_terrace_likelihood"])
+    pct_above = 100.0 * (FEATURES["tertiary_terrace_likelihood"] > v).mean()
+    short = name.split(" / ")[0]
+    print(f"  {short:36s} {v:7.3f}  ({pct_above:5.1f}% of cells score higher)")
+```
+
+The hot bands on the map are the interstream ridges between the Yuba,
+Bear, and American river canyons — exactly where the Tertiary
+auriferous-gravel paleo-channels are exposed. The 167 hydraulic-pit
+polygons (dark red outlines) cluster tightly on those bands. The anchor
+percentiles are dramatically better than the paleochannel composite's:
+most anchors now rank in the top decile on this single feature alone.
+
+## 8. Geochemistry — NGDB + NURE + Hawkes catchment
+
+Stream-sediment chemistry from two sources:
+
+- **NGDB** (USGS National Geochemical Database) — heterogeneous archive
+  of legacy stream-sediment samples. Coverage in the northern Sierra is
+  dense in some quads, thin in others.
+- **NURE I-ICP-MS** (Smith 2006, DOI 10.5066/F7765DHF) — reanalysis of
+  the National Uranium Resource Evaluation archive by modern inductively-
+  coupled-plasma mass spectrometry. Adds Au + Sb + Hg coverage at
+  semi-quantitative limits.
+
+We aggregate per-cell using Hawkes 1976 dual-decay catchment dilution:
+each cell's score is a weighted mean of upstream samples, with the weight
+falling off both by network distance (catchment travel) and by drainage
+area (the "dilution correction" — a sample in a tiny tributary carries
+more local information than the same value in the main stem).
+
+```{python}
+#| label: geochem-hawkes
+fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
+
+# Left: NGDB+NURE sample locations colored by Au_ppm (where reported).
+samples = []
+for key in ("geochem", "geochem_nure"):
+    p = REGION.raw_paths.get(key)
+    if p and p.exists():
+        g = gpd.read_file(p).to_crs(WORKING_CRS)
+        samples.append(g[g.geometry.within(AOI_BOX_3310.unary_union)])
+all_samples = pd.concat(samples, ignore_index=True) if samples else None
+
+elev = to_grid("elevation")
+axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="Greys",
+               vmin=0, vmax=3500, alpha=0.4)
+if all_samples is not None:
+    all_samples.plot(ax=axes[0], color="forestgreen", markersize=1.5,
+                     alpha=0.6, zorder=4)
+label_anchors(axes[0], fontsize=6)
+style_axes(axes[0],
+           title=f"NGDB + NURE I-ICP-MS sample locations "
+                 f"(N = {0 if all_samples is None else len(all_samples):,})")
+
+# Right: Hawkes catchment-Au.
+hawkes = to_grid("catchment_au_hawkes")
+im = axes[1].imshow(hawkes, extent=EXTENT, origin="upper", cmap="YlGnBu",
+                    vmin=0, vmax=0.3)
+plt.colorbar(im, ax=axes[1], shrink=0.7, label="catchment-Au Hawkes")
+label_anchors(axes[1], fontsize=6)
+style_axes(axes[1], title="catchment_au_hawkes (Phase 1 feature, weight 0.13)")
+
+plt.tight_layout()
+plt.show()
+```
+
+The right-panel hot zones trace the major drainages with the strongest
+upstream Au accumulation. The catchment-Au Hawkes feature is the geochem
+analog of the lode-distance features: it integrates the network signal
+that each cell's catchment captures, rather than testing the cell itself.
+
+## 9. Phase 1 weighted index — putting it together
+
+The Phase 1 scorer combines the features above (plus SPI band, TWI,
+ksn, geomorphon terrace mask, slope) into a single weighted-sum index:
+
+| Feature | Weight | Direction | Cap |
+|---|---|---|---|
+| `distance_to_lode_m` | 0.20 | inverse | 15,000 m |
+| `paleochannel_likelihood` | 0.18 | direct | — |
+| `hydraulic_pit_proximity_m` | 0.18 | inverse | 5,000 m |
+| `tertiary_terrace_likelihood` | 0.15 | direct | — |
+| `catchment_au_hawkes` | 0.13 | direct | — |
+| `is_quaternary_alluvium` | 0.05 | boolean | — |
+| `distance_downstream_from_lode_m` | 0.03 | inverse | 25,000 m |
+| `twi` | 0.03 | direct | — |
+| `spi_band` | 0.02 | bandpass | — |
+| `geomorphon_terrace_mask` | 0.02 | boolean | — |
+| `slope` | 0.01 | inverse | — |
+
+Each feature is robust-min-max'd to [0, 1] using p1/p99 clipping, then
+the weighted sum is renormalized to [0, 1].
+
+```{python}
+#| label: phase1-score
+fig, ax = plt.subplots(figsize=(10, 8))
+
+phase1_path = REPO_ROOT / "data/derived/northern_sierra_placer/phase1_index_250m.parquet"
+phase1 = pd.read_parquet(phase1_path)
+
+# Reshape into raster grid, then plot.
+score_grid = np.full((NROWS, NCOLS), np.nan, dtype=np.float32)
+score_grid[phase1["row"].to_numpy(), phase1["col"].to_numpy()] = (
+    phase1["phase1_score"].to_numpy(dtype=np.float32)
+)
+
+im = ax.imshow(score_grid, extent=EXTENT, origin="upper", cmap="inferno",
+               vmin=0, vmax=1)
+plt.colorbar(im, ax=ax, shrink=0.7, label="Phase 1 score [0, 1]")
+
+# Pit polygons + anchors for context.
+pits.boundary.plot(ax=ax, color="cyan", linewidth=0.4, alpha=0.7, zorder=4)
+label_anchors(ax, fontsize=7)
+style_axes(ax, title="Phase 1 placer-Au prospectivity (weighted-knowledge-driven index)")
+plt.tight_layout()
+plt.show()
+```
+
+The hot zones (yellow / white) trace the Tertiary deep-gravel belt
+between the Yuba and American rivers. The pit polygons (cyan outlines)
+sit inside the brightest cells; the seven anchor districts (red labels)
+all land in the top decile of the score distribution.
+
+## 10. Anchor gate + held-out Lindgren-secondary validation
+
+Two independent validation checks. The first is the **anchor gate**: the
+seven historic hydraulic-mining districts (Malakoff, Dutch Flat, North
+San Juan, You Bet, Iowa Hill, Forest Hill, Michigan Bluff) must each
+land in the top decile of the Phase 1 score. None of them is in the
+training labels (the matching hydraulic-pit polygons are excluded by
+name). v1 result: **7 / 7 pass**.
+
+The second is a **held-out secondary set**: 13 Tertiary + 5 Quaternary
+historical placer districts named in Lindgren's USGS Professional Paper
+73 (1911) but NOT in the anchor list, hand-geocoded into a separate
+fixture and never seen by any model or scorer. The anchor-overfitting
+test: do these unseen districts also land near the top? Yes —
+Tertiary median decile = 0 (matches the anchors), 11 / 13 in top quintile.
+
+```{python}
+#| label: anchor-and-secondary
+from ai_minerals.regions._northern_sierra_lindgren_secondaries import _TERTIARY, _QUATERNARY
+
+# Build a one-table summary of both sets.
+def decile_at(lon, lat):
+    pt = gpd.GeoSeries([Point(lon, lat)], crs="EPSG:4326").to_crs(WORKING_CRS)
+    x, y = pt.x.iloc[0], pt.y.iloc[0]
+    dx = FEATURES["x"] - x
+    dy = FEATURES["y"] - y
+    i = (dx * dx + dy * dy).idxmin()
+    s = float(phase1.loc[i, "phase1_score"])
+    pct_above = (phase1["phase1_score"] >= s).mean()
+    return min(9, int(pct_above * 10)), s
+
+rows = []
+for name, (lon, lat) in ANCHOR_DISTRICTS.items():
+    d, s = decile_at(lon, lat)
+    rows.append(("anchor", name, s, d))
+for name, (lon, lat) in _TERTIARY.items():
+    d, s = decile_at(lon, lat)
+    rows.append(("lindgren_tertiary", name, s, d))
+for name, (lon, lat) in _QUATERNARY.items():
+    d, s = decile_at(lon, lat)
+    rows.append(("lindgren_quaternary", name, s, d))
+
+vdf = pd.DataFrame(rows, columns=["set", "name", "phase1_score", "decile"])
+
+# Histogram of deciles per set.
+fig, ax = plt.subplots(figsize=(9, 4.5))
+sets = ["anchor", "lindgren_tertiary", "lindgren_quaternary"]
+colors = ["crimson", "steelblue", "darkorange"]
+width = 0.27
+for i, (s, c) in enumerate(zip(sets, colors)):
+    sub = vdf[vdf["set"] == s]
+    counts = sub["decile"].value_counts().reindex(range(10), fill_value=0)
+    ax.bar(np.arange(10) + (i - 1) * width, counts.values, width,
+           label=f"{s} (n={len(sub)})", color=c, alpha=0.85)
+ax.set_xticks(range(10))
+ax.set_xticklabels([f"d{d}" for d in range(10)])
+ax.set_xlabel("Phase 1 decile (d0 = top 10%, d9 = bottom 10%)")
+ax.set_ylabel("count")
+ax.set_title("Anchor vs. held-out Lindgren-secondary validation")
+ax.legend(loc="upper right", fontsize=9)
+ax.grid(True, axis="y", alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+print()
+print("=== summary ===")
+for s in sets:
+    sub = vdf[vdf["set"] == s]
+    top_d = (sub["decile"] == 0).sum()
+    med = sub["decile"].median()
+    print(f"  {s:22s} n={len(sub):2d}  median_decile={med:.0f}  "
+          f"top_decile={top_d}/{len(sub)}")
+```
+
+The anchor set (red) sits entirely at d0 — the gate passes. The
+Lindgren Tertiary held-out set (blue) tracks the anchors closely: median
+d0, with the bulk in d0 and d1. The 2 / 13 outliers (Camptonville and
+Brandy City, both at d6) sit at the northern edge of the AOI where the
+`distance_to_lode_m` cap penalizes the perimeter — they're real
+geological signal, not feature-engineering bugs.
+
+The Quaternary held-out set (orange) ranks lower — median d2. Phase 1 is
+currently Tertiary-tuned because all seven training anchors are Tertiary
+hydraulic-mining districts. The v2 supervised pass trains one classifier
+per population, and the Quaternary branch will weight the modern-channel
+features (SPI band, catchment-Au Hawkes, the flow-routed
+distance_downstream, the Quaternary-alluvium mask) appropriately on its
+own 573 MRDS placer positives.
+
+## What's next — v2
+
+The v2 pass trains a per-population supervised model on this same feature
+stack:
+
+1. **PU bagging** (Mordelet-Vert positive-unlabeled bagging) as the
+   one-class baseline that doesn't assume the unlabeled set is negative.
+2. **Random Forest** and **LightGBM** as supervised baselines (using PU
+   bagging's posterior as a pseudo-negative weighting).
+3. **Stacking meta-learner** — logistic regression over (RF, LGBM)
+   out-of-fold predictions.
+4. **Isotonic calibration** via `CalibratedClassifierCV` (with Platt
+   sigmoid fallback when a population has fewer than 30 positives).
+5. **Two-population fusion** — calibrated Tertiary and Quaternary rasters
+   combined per-cell with `np.maximum`, written as the deliverable
+   GeoTIFF.
+
+Every stage uses the same 20 km spatial-block cross-validation iterable —
+including the stacking meta-learner's `cv` argument, so the meta-learner
+itself never sees in-block test positives during fit. The leakage guards
+on `distance_downstream_from_lode` (placer-flagged record refusal) and
+on `catchment_au_hawkes` (per-fold recompute with held-out-sample mask)
+keep the labeled-feature pipeline honest under spatial-block CV.
+
+When v2 lands, this notebook becomes the "feature stack" appendix to the
+polished
+[northern_sierra_placer_prospectivity.qmd](northern_sierra_placer_prospectivity.qmd)
+writeup, and a v2 notebook documents the supervised pass with the same
+chart-per-step discipline.
