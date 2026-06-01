@@ -76,6 +76,30 @@ rsync -avz --delete --delete-excluded --progress \
   "${LOCAL_SITE}/" \
   "${REMOTE_HOST}:${REMOTE_DIR}/"
 
+# Chapter qmds reference figures via absolute URLs of the form
+# https://johnsondevco.com/ai-minerals/data/derived/<region>/<fig>.png.
+# Quarto does not copy resources referenced by absolute URL into _site/, so
+# those URLs 404 after the _site/ sync above. Push the PNGs that prose
+# references separately, restricted to chart subdirectories and PNG files
+# only — data/derived/ also holds multi-GB feature parquets, SHAP .npz
+# blobs, and intermediate .tif rasters that are not for public release.
+echo
+echo "==> Syncing data/derived/{chart subdirs}/*.png -> ${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
+ssh "${REMOTE_HOST}" "mkdir -p ${REMOTE_DIR}/data/derived"
+rsync -avz --delete --delete-excluded --progress \
+  --include='*/' \
+  --include='*.png' \
+  --exclude='*' \
+  --prune-empty-dirs \
+  data/derived/arizona \
+  data/derived/bcgt \
+  data/derived/eastak \
+  data/derived/motherlode \
+  data/derived/portfolio_charts \
+  data/derived/northern_sierra_placer \
+  data/derived/us_carbonatite_ree \
+  "${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
+
 if [ "${SUBPATH}" = "ai-minerals" ]; then
   echo
   echo "==> Updating legacy-path 301 redirect (production only)"
