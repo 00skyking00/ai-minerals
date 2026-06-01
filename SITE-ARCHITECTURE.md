@@ -79,23 +79,44 @@ reload, or clear site data, or append `?v=1` to the URL.
 
 - **301s** for the old umbrella URLs (anyone who has them): in the `/ai-minerals/`
   `.htaccess` — `bear_cub.html` → `/bearcub/bear_cub.html`,
-  `goldbug.html` → `/goldbug/`.
-- **goldbug writeup**: the prose chapter (`goldbug.qmd` in gldbg) has no clean
-  public home — it only serves at `/goldbug-beta/goldbug.html`. `/goldbug/` is the
-  live tool. gldbg decides whether to give the writeup a permanent URL. A stray
-  `~/goldbug/goldbug.html` (a failed static-deploy attempt) sits unserved beside
-  the live map and can be removed.
-- The deep-notebook site-map links in `index.qmd` were repointed from the removed
-  `/ai-minerals-internal/` to `/ai-minerals/notebooks/`. Spot-check they 200 after
-  a full render (exact subdirs/filenames).
+  `goldbug.html` → `/goldbug/goldbug.html`.
+- The deep-notebook site-map links in `index.qmd` point at `/ai-minerals/notebooks/`.
+  Spot-check they 200 after a full render (exact subdirs/filenames).
 
-## How to tweak the front door safely
+## Resolved (2026-06-01)
 
-1. Edit `index.qmd` (cards, narrative, locator map).
-2. `bash scripts/deploy_to_hostinger.sh ai-minerals-beta` → check
-   `https://johnsondevco.com/ai-minerals-beta/` first.
-3. Run the leak-guard check (item 2 above) on the beta.
-4. Deploy production; hard-reload to see it past the 7-day cache.
+- **goldbug writeup is live** at `/goldbug/goldbug.html` (with its iframe to the
+  live tool). It's served from the NESTED `public_html/public_html/goldbug/` that
+  the root `.htaccess` `^goldbug/(.*)` rewrite targets — NOT `~/goldbug/`
+  (home-level, unserved). `gldbg/scripts/deploy_chapter_to_hostinger.sh MODE=final`
+  deploys it there additively (beside the map). goldbug card + navbar link to it.
+- Internal-site / `/plans/` 301s are written by `deploy_to_hostinger.sh` on
+  production deploys.
+
+## Pushing changes — the deploy routine (front door, chapters, OR notebooks)
+
+The go-forward "notebook push" workflow. The site rebuilds + deploys as one unit;
+you don't push a single notebook in isolation.
+
+1. Edit the source: `index.qmd`, a chapter qmd, or a deep notebook under
+   `notebooks/<region>/`.
+2. **Render.** Full site: `uv run quarto render` (the deep notebooks need the venv;
+   the `_freeze/` cache means only notebooks whose code changed re-execute, so it's
+   usually fast). For an index/prose-only change, `quarto render index.qmd` is enough.
+3. **Stage + look:** `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`, then
+   open `https://johnsondevco.com/ai-minerals-beta/`.
+4. **Leak check — never skip:**
+   `curl -s -o /dev/null -w '%{http_code}\n' https://johnsondevco.com/ai-minerals-beta/data/raw/bear_cub/SOURCE.md`
+   must be **404** (also `/src/...`, `/tools/...`). If any is 200, stop and fix the
+   rsync excludes before touching production.
+5. **Production:** `bash scripts/deploy_to_hostinger.sh`. HTML is served no-cache,
+   so changes appear immediately — no hard-reload needed.
+6. Deep notebooks land at `/ai-minerals/notebooks/<region>/<page>.html` — reachable
+   by direct URL, deliberately NOT surfaced in the navbar.
+
+**Commits:** the bearcub + ai-minerals work shares ONE working tree on this
+machine, so just `git commit` + `git push` normally — no rebase needed (that only
+matters if you ever clone ai-minerals into a separate directory).
 
 The `/ai-minerals-old/` directory on the server is a rollback snapshot of the
-pre-cutover site — leave it until you're sure everything's stable.
+pre-cutover site — leave it until everything's settled.
