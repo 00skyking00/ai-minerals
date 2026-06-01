@@ -1,0 +1,201 @@
+---
+title: "Northern Sierra placer: internal review"
+subtitle: "Decisions, fold metrics, leakage audits, TODOs"
+author: "Sky King"
+date: 2026-05-31
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+---
+
+## TL;DR for reviewers
+
+The polished chapter lives at [northern_sierra_placer_prospectivity.qmd](northern_sierra_placer_prospectivity.qmd). This page is the warts-and-all companion: decisions I would interrogate in a code review, per-fold metrics, the leakage audits I ran before I trusted the headline numbers, and the list of things I would build next if I had another week. Read it if you want to understand why the pipeline looks the way it does, or if you want to find the rough edges before they bite you.
+
+What was built: a 250 m prospectivity grid for placer Au across the northern Sierra Nevada, two populations (Tertiary deep-gravel and Quaternary modern-channel) trained independently and fused by per-cell max, validated against seven held-out historic hydraulic-mining districts. The pipeline ran from raw-data fetch (`scripts/northern_sierra_placer_fetch_all.py`) through Phase 1 knowledge-driven scoring (`scripts/northern_sierra_placer_phase1_index.py`) and Phase 2 PU-bagging baseline plus stacked RF + LightGBM with isotonic calibration (`scripts/northern_sierra_placer_train_predict_250m.py`, `scripts/northern_sierra_placer_calibrate_and_fuse.py`), with a spatial-block CV at 20 km blocks throughout, including the stacking meta-learner's `cv` argument.
+
+What is deferred: the Phase 3 hybrid-CNN-with-position-encoder model from Cauca-River 2025, an Attention-UNet for paleochannel segmentation (no tile labels exist for bedrock-confined Sierra Tertiary channels yet), the Transformer-GCN for global topology, the goldbug-side integration that samples the deliverable raster into the [goldbug claim-map UI](https://johnsondevco.com/goldbug/), and field validation against the MRDS placer drill-record subset that wasn't used as a training label.
+
+## Decision log
+
+The build made a handful of choices that aren't obvious from reading the code. Each one has a counter-argument I considered and a reason I went the way I went.
+
+- **Two populations fused via `np.maximum` rather than a single classifier with a population indicator feature.** Per-cell max preserves the strongest signal across two distinct genetic processes (Tertiary deep-gravel pay laid down in Eocene paleochannels, Quaternary modern-channel reconcentration in Holocene-active streams) without forcing one model to learn the population split and the feature-to-label relationship at the same time. With sparse positives (hydraulic-pit polygons + Lindgren PP73 + paleochannel-likelihood for the Tertiary side, MRDS placer points + NHD position for the Quaternary side), a single classifier would have to discover the population boundary from feature interactions alone, which the spatial-block CV makes harder, not easier.
+
+- **Stacking RF + LightGBM into a logistic-regression meta-learner, instead of just tuning the RF.** The two base learners disagree about feature interactions in useful ways: LightGBM gets the long-range Hawkes-aggregated geochem features right; RF handles the categorical-flavoured features (Quaternary alluvium mask, geomorphon terrace mask) more cleanly. The meta-learner picks the better signal per cell. Logistic regression as the meta keeps the output well-behaved for the downstream isotonic calibrator; a tree-based meta tends to flatten the calibration curve in ways isotonic can't fully recover.
+
+- **PU learning (Mordelet-Vert 30-bag) instead of SMOTE or GAN-based oversampling.** Synthetic samples leak across spatial blocks. SMOTE-NC at the feature level doesn't know that the original positives were spatially clustered; it generates new positives near the cluster centroids in feature space, which often map back to cells inside other folds. PU plus cost-sensitive weights respects the spatial structure, because the unlabeled negatives are always real cells in real positions. The trade-off is that PU bagging is slower and the per-bag classifier is less stable; the 30-bag ensemble averages out the variance. See `research/placer_handoff_start_here.md` "One caution" for the longer version.
+
+- **Distance-downstream-from-lode along NHD flow paths instead of Euclidean distance.** The geologic process is downstream transport along channels, not crow-flies proximity. A cell across a watershed divide is geologically distant from the lode source even if the Euclidean distance is 2 km; a cell 8 km down-channel is the obvious place to look for the eroded gold even though the Euclidean line crosses a ridge. Implementing along NHDPlus HR flow lines costs an upstream-search per cell but is correct. The Euclidean version, which the early prototype used, put high probabilities on cells in the wrong drainage.
+
+- **Dual-decay Hawkes weights at roughly 2 km and 15 km.** The short halo (~2 km) is for Au itself, which precipitates near its source and doesn't travel far in stream sediment without being trapped by the first riffle. The long halo (~15 km) is for the pathfinder suite (As, Sb, Hg, Bi) that travels further as oxide coatings on clastic grains. A single decay length undersells one or the other; the dual-decay form is parameter-cheap (two scalars) and captures the geochemistry correctly. The aggregation lives in `features/placer_geology.py::hawkes_dual_decay_catchment`.
+
+- **Hydraulic-pit polygons (DOI 10.5066/F7J38QMD) as the Tertiary positive seed rather than MRDS placer points.** MRDS `dep_type` tagging for placer deposits is explicit on only about 1.7% of records in the AOI; the rest are tagged generically or not at all. Using MRDS placer points as the Tertiary seed would have meant either a very small positive set or a noisy one (most MRDS placer points in the AOI are Quaternary, not Tertiary). The hydraulic-pit polygons are the literal physical evidence of where the deep-gravel pay was rich enough to justify mining, which is a much closer match to the prediction target.
+
+- **Anchor districts held out from training labels but kept in the prediction grid.** Holding the seven anchor districts out of every training fold, every PU bag, and every calibration fold (in `_northern_sierra_anchors.py::ANCHOR_DISTRICTS`) gives an unsupervised validation gate: every anchor must land in the top decile of the within-AOI score for Phase 1 to pass. Keeping them in the prediction grid means the deliverable raster has values at the anchor cells, so the polished chapter can compare Phase 1 vs Phase 2 at the anchor locations and we can see whether stacking moves the needle on the gate-cells specifically.
+
+- **Drop count features.** Lawley 2022 cross-region work showed that count-style features (number of MRDS occurrences within radius, number of intrusions within radius) encode sample density rather than geologic prospectivity. Sample density correlates with historic exploration intensity, which correlates with historic positive labels, which means count features look strong in-fold and collapse on transfer. The northern-Sierra build excludes them on the same grounds, even though the in-fold AUC would look better with them in.
+
+- **SPI band 3 to 6 as the prospective stream-power range, even though the calibration is from New Zealand.** Roy, Upton, and Craw (2018) showed that detachment-and-transport conditions for placer Au sit in the mid-range of stream-power index, not the extreme high. The Sierra Nevada has different lithology, different gradient distribution, and different climate from the South Island, so the NZ-derived band edges are a starting point rather than a final answer. A region-specific re-fit (binning SPI deciles against a placer-occurrence density curve from MRDS Quaternary placer points) is on the Phase 3 list. For now, the band is encoded in `features/hydrology.py::stream_power_index_band` and shows up in Phase 1 with a moderate positive weight.
+
+- **Paleochannel raster precomputed in Phase D, not computed inside the assemble loop.** The paleochannel-likelihood raster (`features/paleochannel.py::build_paleochannel_likelihood`) is a composite of RiverREM detrending, a local-relief-model bandpass, and a GeoMorphic Index that emphasises broad, low-gradient terraces. Run over the full AOI, this is a multi-minute operation. Precomputing once in `scripts/northern_sierra_placer_precompute_paleochannel.py` and sampling via raster lookup inside the assemble loop (`features/assemble.py`) is the right factoring; redoing it per fold or per population would multiply the runtime by ~20 with no change in output.
+
+## Per-fold metric tables
+
+After the first end-to-end run, this section shows per-fold ROC-AUC and PR-AUC for each model (PU-bagging baseline, Random Forest, LightGBM, Stacking) under 20 km spatial-block cross-validation, one table per population. The CSV that backs the tables is written by `scripts/northern_sierra_placer_train_predict_250m.py` to `data/derived/northern_sierra_placer/pop_fold_metrics_<pop>.csv`.
+
+```{python}
+#| eval: false
+#| code-fold: false
+import pandas as pd
+from pathlib import Path
+
+derived = Path("data/derived/northern_sierra_placer")
+
+for pop in ["tertiary", "quaternary"]:
+    csv = derived / f"pop_fold_metrics_{pop}.csv"
+    if not csv.exists():
+        print(f"({pop}) not yet written; run the training script first")
+        continue
+    df = pd.read_csv(csv)
+    pivot = df.pivot_table(
+        index="fold", columns="model", values=["roc_auc", "pr_auc"]
+    )
+    print(f"\n=== {pop} ===")
+    print(pivot.round(3).to_string())
+```
+
+The table to read carefully is the PR-AUC one; ROC-AUC is misleadingly high for prevalence-imbalanced rasters where most cells are correctly-rejected easy negatives. The PR-AUC gap between RF and LightGBM is the place where stacking has the most to add; if the two columns agree to two decimal places, the stack is mostly variance reduction rather than signal aggregation.
+
+## Leakage audit traces
+
+Two specific audits ran before I let the headline numbers stand. Each one is small and dull and the kind of thing a hurried build would skip. Both are the reason I have a 3-of-3 passing leakage unit test in `tests/test_distance_downstream_leakage.py`.
+
+### `distance_downstream_from_lode` seed audit
+
+The leakage failure mode here is the same one the Lawley audit found in the continental Zn-Pb benchmark: a feature that arithmetically encodes the target. If the lode-source seed for the distance-downstream feature includes placer occurrences, then the cell at the placer location is at distance zero from a "lode" source that is in fact the placer itself, and the model sees the answer in the feature. The MRDS adapter strips `dep_type` by default; the assemble script bypasses the canonical adapter for the lode-seed read and reads the raw GPKG directly so it can keep `dep_type` for the filter.
+
+```{python}
+#| eval: false
+#| code-fold: false
+import geopandas as gpd
+from ai_minerals.data.adapters.occurrences.mrds import _PLACER_DEP_TYPE_RE
+
+mrds = gpd.read_file("data/raw/mrds/mrds_motherlode.gpkg")
+
+is_producer = mrds["dev_stat"].str.contains(
+    "Past Producer|Producer", case=False, na=False
+)
+is_placer_dep = mrds["dep_type"].fillna("").str.contains(
+    _PLACER_DEP_TYPE_RE, regex=True, na=False
+)
+
+lode_seeds = mrds[is_producer & ~is_placer_dep]
+rejected_as_placer = mrds[is_producer & is_placer_dep]
+
+print(f"lode seeds kept: {len(lode_seeds)}")
+print(f"rejected as placer dep_type: {len(rejected_as_placer)}")
+```
+
+The check that matters is `len(rejected_as_placer) > 0`. If zero, the regex isn't matching anything and the filter is a no-op, which would mean the feature is leaking. The unit test at `tests/test_distance_downstream_leakage.py` enforces this with three synthetic-data cases: a placer-only input (must reject all), a lode-only input (must keep all), and a mixed input (must split correctly).
+
+### Hawkes fold-mask trace
+
+The Hawkes catchment-geochem aggregation in `features/placer_geology.py::hawkes_dual_decay_catchment` walks the NHDPlus HR flow network upstream from each cell, accumulating geochem samples weighted by the dual-decay kernel. If this is precomputed once over all geochem samples, then a fold's test cells see, in their Hawkes-aggregated value, the contribution of geochem samples that the fold's training data also saw. The leakage is small per-sample but compounds across folds.
+
+The fix is per-fold recomputation: for each of the K spatial-block folds, the Hawkes aggregation is rerun with only the train-fold geochem samples in scope, and the test-fold cells then see only train-fold samples in their catchments. This adds K-times the Hawkes runtime to the training pass; on the full AOI, that's a real cost.
+
+A `--no-hawkes-refold` flag exists on `scripts/northern_sierra_placer_train_predict_250m.py` for runtime triage during development. Using it pushes the deliverable's model card to "deliverable = Phase 1 only", per the plan's ship rule: if the leakage guard is off, the Phase 2 numbers don't ship as headline. The flag exists so I can iterate on feature engineering without paying the K-times cost on every run, not so I can quietly weaken the audit before publishing.
+
+## Full anchor-district decile table
+
+The polished chapter shows the anchor-district decile gate as a small table for Phase 1. This section shows the full version across all model columns (the Phase 1 knowledge-driven score, the fused Phase 2 probability, and the calibrated per-population probabilities). The CSV is written by `scripts/northern_sierra_placer_validation.py`.
+
+```{python}
+#| eval: false
+#| code-fold: false
+import pandas as pd
+
+df = pd.read_csv(
+    "data/derived/northern_sierra_placer/anchor_districts_decile_table.csv"
+)
+cols = ["district", "phase1_score", "p_fused",
+        "p_cal_placer_tertiary", "p_cal_placer_quaternary",
+        "phase1_decile", "p_fused_decile"]
+print(df[cols].round(3).to_string(index=False))
+```
+
+The pattern I expect (and will revise if the first end-to-end run says otherwise): the four northern districts on the San Juan Ridge and the Yuba-Bear divide (Malakoff Diggins / North Bloomfield, North San Juan, You Bet, Dutch Flat) land cleanly in the top decile under both Phase 1 and Phase 2, because they sit on dense hydraulic-pit polygons that anchor the Tertiary positive set. The three southern districts on the American River divide (Iowa Hill, Forest Hill, Michigan Bluff) are harder: the pit-polygon density is lower (smaller historic operations, more bedrock-confined pay), so the Tertiary positive proxy is thinner there, and the Phase 2 model has to lean on the paleochannel-likelihood raster and the geomorphon terrace mask to recover the signal. If Forest Hill or Michigan Bluff comes in outside the top decile, the diagnostic is to look at the paleochannel raster at those locations: if the raster is weak there, the LRM bandpass parameters need a retune; if the raster is strong but the model still misses, the calibration is the suspect.
+
+The Phase 1 vs Phase 2 column comparison is the most useful diagnostic. If Phase 2 moves an anchor up the decile list relative to Phase 1, the model is learning useful structure that the knowledge-driven scorer misses. If Phase 2 moves an anchor down, that anchor is in a feature regime where the model is overfitting to in-fold positives, and the Phase 2 weight in the eventual fusion may want to be lower for that sub-region.
+
+## TODOs, caveats, and improvements
+
+### Phase 3 candidates
+
+- Attention-UNet for paleochannel segmentation, trained on hand-labeled tiles. No tile labels currently exist for bedrock-confined Sierra Tertiary channels; the closest published labeled data is for agricultural-plain meander belts (very different morphology). Options are to hand-label tiles from the highest-confidence pit-polygon clusters (which gives you ~50-100 tiles, probably enough for a small UNet with heavy augmentation), or to transfer from agricultural-plain training data and accept a substantial domain gap. Either way, the Phase D paleochannel raster becomes the segmentation target, not just a hand-engineered composite.
+- Hybrid CNN with position encoder per Suarez-Burgoa et al. 2025 (Cauca River). The CNN sees a multi-channel patch around each cell (DEM, slope, paleochannel raster, geochem composites); the position encoder sees the lat/lon and the distance-downstream-from-lode. The two branches concatenate before the final dense layer. This is the kind of architecture where the inductive bias matches the geology: spatial context for the morphology features, position for the regional gradients.
+- Transformer-GCN for global topological relationships. The Quaternary placer story has a graph structure that flat-grid models can't see: connected drainage networks reconcentrate gold from many upstream sources into a few downstream depocenters. A GCN over the NHDPlus HR network, with cells as nodes and downstream-edges as edges, would let the model reason about catchment-scale provenance directly.
+
+### Coverage gaps to fill before regional rollout
+
+- 3DEP 1 m LiDAR coverage map per sub-area. Some northern-Sierra blocks have flown coverage (Yuba River corridor, most of Nevada and Placer counties); some have only the 10 m fallback. The Phase D paleochannel composite is much stronger where the 1 m LiDAR is available, because the LRM bandpass can resolve channel-scale features. A coverage map per sub-area would let the model card report which districts the model has high-resolution morphology for and which it doesn't.
+- CGS 2010 surficial geology PTYPE coverage for Quaternary alluvium. The Quaternary positive proxy depends on the `is_quaternary_alluvium` feature, which is built from CGS PTYPE codes. Some sub-codes (the beach-sand variants like "Qbs", a handful of fine-grained overbank variants) currently fall through the regex in `features/placer_geology.py::is_quaternary_alluvium` and get coded as non-alluvium. The list of fall-throughs is short but worth a sweep before the next regional rollout.
+- NHDPlus HR caching strategy. The current `hydrology/nhdplus_hr` adapter downloads 4-6 GB of HUC4 packages in `scripts/northern_sierra_placer_fetch_all.py`. For an AOI that only needs part of one HUC4, this is wasteful. A HUC4-by-HUC4 lazy fetch (download the package only when a tile in that HUC4 is touched) would cut the first-run cost for narrow AOIs by a factor of 2-3.
+
+### Transfer to Calaveras (next region)
+
+- Reuse the same Region module template: a new `regions/calaveras_placer.py` mirroring `northern_sierra_placer.py`, the same way `motherlode_v3` mirrored `motherlode_v2`. The AOI bbox needs to be inside the motherlode lode-raster extent so the placer 250 m grid registers cell-for-cell with the lode raster; check this before anything else.
+- Re-fit Phase 1 weights against Calaveras anchor districts (Mokelumne Hill, San Andreas, Murphys, Angels Camp). The northern-Sierra weights were tuned against the seven hydraulic-mining districts on the Yuba-American divide; Calaveras is more lode-derived placer than deep-gravel paleochannel, so the population weighting in the fusion step will shift toward Quaternary.
+- The NZ-derived SPI band is the most likely Phase 1 weight to need re-tuning per region. Calaveras has different gradient distributions (smaller catchments, steeper headwater channels) than the Yuba-Bear-American belt; the mid-range SPI threshold for detachment is probably lower there. Re-bin SPI deciles against MRDS Quaternary placer density on a Calaveras-only training set before reusing the band edges.
+
+## Reproduction commands
+
+These are the commands the polished chapter glosses over. They include the optional flags you would use for development iteration and the smoke-test recipe.
+
+```bash
+# environment
+uv sync
+uv sync --extra paleochannel   # adds the RiverREM/LRM dependencies
+
+# leakage unit test (must pass before any model run)
+uv run pytest tests/test_distance_downstream_leakage.py -v
+
+# fetch raw data (4-8 GB depending on NHDPlus HR HUC4 coverage)
+uv run python scripts/northern_sierra_placer_fetch_all.py
+
+# Phase D: precompute the paleochannel-likelihood raster
+uv run python scripts/northern_sierra_placer_precompute_paleochannel.py
+
+# Phase 1: knowledge-driven scorer + anchor-decile validation gate
+uv run python scripts/northern_sierra_placer_phase1_index.py
+
+# Phase 2: per-population training and prediction
+uv run python scripts/northern_sierra_placer_train_predict_250m.py \
+    --population tertiary
+uv run python scripts/northern_sierra_placer_train_predict_250m.py \
+    --population quaternary
+
+# fusion + isotonic calibration
+uv run python scripts/northern_sierra_placer_calibrate_and_fuse.py
+
+# validation report (anchor decile table + success-rate curve PNG)
+uv run python scripts/northern_sierra_placer_validation.py
+```
+
+Development-only flags:
+
+- `--population tertiary|quaternary` on the training script lets you iterate on one population at a time.
+- `--no-hawkes-refold` on the training script skips the per-fold Hawkes recomputation. Use only for runtime triage; the model card downgrades to "Phase 1 deliverable" if this flag is on for the run that ships.
+- `--resolution-m 1000` on the assemble script runs at 1 km grid for fast feature-engineering iteration. The deliverable is always at 250 m.
+
+## Sharp edges from build
+
+Things that came up during the build that future me (or a reviewer) should know about.
+
+- `StackingClassifier` passes the same `X` matrix to both base learners. The RF was configured with NaN-as-sentinel (-9999) because scikit-learn's RF doesn't natively handle NaN; LightGBM has native NaN handling and is happy with the raw NaNs. The -9999 sentinel sits safely outside the placer features' value ranges (the smallest legitimate value across all features is positive, mostly distances and indices), so the RF treats it as a distinct extreme bin and LightGBM treats it as just another finite value, which doesn't hurt performance. If a future feature added negative-valued inputs (a signed elevation residual, say), the sentinel choice would need to change.
+- The geomorphon terrace mask is computed at the input DEM's resolution (1 m or 10 m depending on 3DEP coverage), then resampled to the 250 m grid via `sample_raster` with bilinear interpolation, rounded back to binary. Rounding-after-bilinear is a small abuse of the binary-mask semantics; a nearest-neighbour resample would be more correct but loses the sub-grid prevalence information. If the rounding causes drift at the grid boundaries between high-resolution and 10 m fallback tiles, switching to nearest-neighbour is a one-line change in `features/hydrology.py::geomorphon_terrace_mask`.
+- The MRDS canonical adapter (`data/adapters/occurrences/mrds.py`) strips `dep_type` and `dev_stat` from its output schema. The assemble script bypasses the canonical adapter for the lode-seed read and reads the raw GPKG directly to keep `dep_type` available for the placer-vs-lode filter that prevents the distance-downstream leakage. This is a known leak in the adapter abstraction: a future cleanup should let the canonical adapter optionally pass `dep_type` through, with the leakage filter living adapter-side, so the assemble script doesn't have to know about the raw schema.
