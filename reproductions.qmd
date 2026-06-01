@@ -134,11 +134,4 @@ extends this finding by testing whether DEEP-SEAM's published
 advantage transfers to other deposit types and other REE provinces.
 It doesn't.
 
-## Deeper notebooks
-
-- [Lawley 2022 portfolio summary](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/lawley.html): reproduction of the published AUC 0.983.
-- [Lawley 2022 code + methodology audit](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/lawley_audit.html): three sources of evaluation inflation, with numbers.
-- [DEEP-SEAM four-region transfer summary](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/deep_seam_cross_region.html): the cross-region experiment that motivated this work.
-- [DEEP-SEAM official-code audit](https://johnsondevco.com/ai-minerals-internal/notebooks/prospectus/deep_seam_audit.html): comparison of EarthByte's TensorFlow implementation against the paper text plus my PyTorch port.
-
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)
