@@ -89,6 +89,32 @@ RewriteEngine On
 RewriteRule ^(.*)\$ /ai-minerals/\$1 [R=301,L]
 EOF
   "
+
+  # Legacy deep-notebook URLs handed to recruiters previously lived under
+  # /ai-minerals-internal/ (commit 629f010) and /plans/ai-minerals-internal/
+  # (commit ad2ffcc). Both are now decommissioned; the deep notebooks render
+  # under /ai-minerals/notebooks/<region>/<page>.html. A site-wide .htaccess
+  # at the public_html root catches either prefix and 301s to the new path,
+  # preserving the rest of the URL. Order matters: the /plans/ variant must
+  # match before the bare variant, since /ai-minerals-internal/ is a suffix
+  # of /plans/ai-minerals-internal/.
+  echo
+  echo "==> Writing site-wide 301s for legacy /ai-minerals-internal/ URLs"
+  ssh "${REMOTE_HOST}" "
+    # Append our two RedirectMatch rules to public_html/.htaccess if missing
+    # (idempotent — skip if already present from a prior deploy).
+    grep -q 'plans/ai-minerals-internal' ${REMOTE_BASE}/.htaccess 2>/dev/null || {
+      mkdir -p ${REMOTE_BASE}
+      cat >> ${REMOTE_BASE}/.htaccess <<'EOF'
+
+# 301 redirects for decommissioned internal-site URLs handed to recruiters.
+# Source commits: ad2ffcc (/plans/ai-minerals-internal/), 629f010 (/ai-minerals-internal/).
+# Deep notebooks now render under /ai-minerals/notebooks/<region>/<page>.html.
+RedirectMatch 301 ^/plans/ai-minerals-internal/(.*)\$ /ai-minerals/\$1
+RedirectMatch 301 ^/ai-minerals-internal/(.*)\$ /ai-minerals/\$1
+EOF
+    }
+  "
 fi
 
 echo
