@@ -263,32 +263,33 @@ SPI and TWI, the geomorphon terrace mask.
 
 ```{python}
 #| label: dem-slope-tpi
-fig, axes = plt.subplots(1, 3, figsize=(15, 5.5), sharey=True)
-
 elev = to_grid("elevation")
 slope = to_grid("slope")
 tpi = to_grid("tpi")
 
-im0 = axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
-                     vmin=0, vmax=3500)
-plt.colorbar(im0, ax=axes[0], shrink=0.7, label="elevation (m)")
-style_axes(axes[0], title="3DEP DEM (10 m, downsampled to 250 m grid)")
-label_anchors(axes[0], fontsize=6)
+fig, ax = plt.subplots(figsize=(9, 8))
+im = ax.imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+               vmin=0, vmax=3500)
+plt.colorbar(im, ax=ax, shrink=0.7, label="elevation (m)")
+label_anchors(ax)
+style_axes(ax, title="3DEP DEM (10 m, downsampled to 250 m grid)")
+plt.tight_layout(); plt.show()
 
-im1 = axes[1].imshow(slope, extent=EXTENT, origin="upper", cmap="magma",
-                     vmin=0, vmax=40)
-plt.colorbar(im1, ax=axes[1], shrink=0.7, label="slope (deg)")
-style_axes(axes[1], title="Slope")
-label_anchors(axes[1], fontsize=6)
+fig, ax = plt.subplots(figsize=(9, 8))
+im = ax.imshow(slope, extent=EXTENT, origin="upper", cmap="magma",
+               vmin=0, vmax=40)
+plt.colorbar(im, ax=ax, shrink=0.7, label="slope (deg)")
+label_anchors(ax)
+style_axes(ax, title="Slope")
+plt.tight_layout(); plt.show()
 
-im2 = axes[2].imshow(tpi, extent=EXTENT, origin="upper", cmap="RdBu_r",
-                     vmin=-200, vmax=200)
-plt.colorbar(im2, ax=axes[2], shrink=0.7, label="TPI (m above local mean)")
-style_axes(axes[2], title="Topographic Position Index (8-cell)")
-label_anchors(axes[2], fontsize=6)
-
-plt.tight_layout()
-plt.show()
+fig, ax = plt.subplots(figsize=(9, 8))
+im = ax.imshow(tpi, extent=EXTENT, origin="upper", cmap="RdBu_r",
+               vmin=-200, vmax=200)
+plt.colorbar(im, ax=ax, shrink=0.7, label="TPI (m above local mean)")
+label_anchors(ax)
+style_axes(ax, title="Topographic Position Index (8-cell)")
+plt.tight_layout(); plt.show()
 ```
 
 TPI (Topographic Position Index) is each cell's elevation relative to the
@@ -353,31 +354,30 @@ raster is a Phase 1 feature in its own right.
 
 ```{python}
 #| label: hydraulic-pits
-fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
-
 pits = gpd.read_file(REGION.raw_paths["hydraulic_pits"]).to_crs(WORKING_CRS)
 # Clip to AOI so a statewide pit GeoPackage doesn't drag in irrelevant polygons.
 pits = pits[pits.geometry.within(AOI_BOX_3310.unary_union)]
 
-# Left: the pit polygons themselves.
+# The pit polygons themselves.
+fig, ax = plt.subplots(figsize=(9, 8))
 elev = to_grid("elevation")
-axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
-               vmin=0, vmax=3500, alpha=0.6)
-pits.plot(ax=axes[0], color="orange", edgecolor="darkred", linewidth=0.5,
+ax.imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+          vmin=0, vmax=3500, alpha=0.6)
+pits.plot(ax=ax, color="orange", edgecolor="darkred", linewidth=0.5,
           alpha=0.85, zorder=5)
-label_anchors(axes[0], fontsize=6)
-style_axes(axes[0], title=f"Orlando 2016 Hydraulic Mine Pits  (N = {len(pits)})")
+label_anchors(ax)
+style_axes(ax, title=f"Orlando 2016 Hydraulic Mine Pits  (N = {len(pits)})")
+plt.tight_layout(); plt.show()
 
-# Right: distance-to-nearest-pit (inverse of the Phase 1 feature).
+# Distance-to-nearest-pit (inverse of the Phase 1 feature).
+fig, ax = plt.subplots(figsize=(9, 8))
 pit_prox = to_grid("hydraulic_pit_proximity_m")
-im = axes[1].imshow(np.minimum(pit_prox, 10_000), extent=EXTENT, origin="upper",
-                    cmap="viridis_r", vmin=0, vmax=10_000)
-plt.colorbar(im, ax=axes[1], shrink=0.7, label="m to nearest pit (capped at 10 km)")
-label_anchors(axes[1], fontsize=6)
-style_axes(axes[1], title="hydraulic_pit_proximity_m (Phase 1 feature, weight 0.18)")
-
-plt.tight_layout()
-plt.show()
+im = ax.imshow(np.minimum(pit_prox, 10_000), extent=EXTENT, origin="upper",
+               cmap="viridis_r", vmin=0, vmax=10_000)
+plt.colorbar(im, ax=ax, shrink=0.7, label="m to nearest pit (capped at 10 km)")
+label_anchors(ax)
+style_axes(ax, title="hydraulic_pit_proximity_m (Phase 1 feature, weight 0.18)")
+plt.tight_layout(); plt.show()
 
 print(f"hydraulic mine pits in AOI: {len(pits):,} polygons")
 print(f"cells with proximity == 0 (inside a pit): "
@@ -400,25 +400,23 @@ modern-channel placer host rock.
 
 ```{python}
 #| label: geology-quaternary
-fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
-
-# Left: lithology class (coarse — the CGS PTYPE codes folded into ~30 classes).
+# Lithology class (coarse — the CGS PTYPE codes folded into ~30 classes).
+fig, ax = plt.subplots(figsize=(9, 8))
 lith = to_grid("lithology_class")
-im0 = axes[0].imshow(lith, extent=EXTENT, origin="upper", cmap="tab20",
-                     vmin=0, vmax=20)
-plt.colorbar(im0, ax=axes[0], shrink=0.7, label="lithology class (coarse)")
-label_anchors(axes[0], fontsize=6)
-style_axes(axes[0], title="CGS 2010 bedrock + surficial lithology")
+im = ax.imshow(lith, extent=EXTENT, origin="upper", cmap="tab20",
+               vmin=0, vmax=20)
+plt.colorbar(im, ax=ax, shrink=0.7, label="lithology class (coarse)")
+label_anchors(ax)
+style_axes(ax, title="CGS 2010 bedrock + surficial lithology")
+plt.tight_layout(); plt.show()
 
-# Right: Quaternary alluvium boolean.
+# Quaternary alluvium boolean.
+fig, ax = plt.subplots(figsize=(9, 8))
 qal = to_grid("is_quaternary_alluvium")
-axes[1].imshow(qal, extent=EXTENT, origin="upper", cmap="Greens",
-               vmin=0, vmax=1)
-label_anchors(axes[1], fontsize=6)
-style_axes(axes[1], title="Quaternary alluvium mask (Phase 1 feature, weight 0.05)")
-
-plt.tight_layout()
-plt.show()
+ax.imshow(qal, extent=EXTENT, origin="upper", cmap="Greens", vmin=0, vmax=1)
+label_anchors(ax)
+style_axes(ax, title="Quaternary alluvium mask (Phase 1 feature, weight 0.05)")
+plt.tight_layout(); plt.show()
 
 print(f"cells flagged is_quaternary_alluvium: "
       f"{FEATURES['is_quaternary_alluvium'].sum():,} / {len(FEATURES):,} "
@@ -444,29 +442,28 @@ from this lode network.
 
 ```{python}
 #| label: lode-and-distance
-fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
-
-# Left: MRDS lode seeds within AOI.
+# MRDS lode seeds within AOI.
+fig, ax = plt.subplots(figsize=(9, 8))
 elev = to_grid("elevation")
-axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
-               vmin=0, vmax=3500, alpha=0.5)
+ax.imshow(elev, extent=EXTENT, origin="upper", cmap="terrain",
+          vmin=0, vmax=3500, alpha=0.5)
 lode = gpd.read_file(REGION.raw_paths["lode_mrds"]).to_crs(WORKING_CRS)
 lode_in = lode[lode.geometry.within(AOI_BOX_3310.unary_union)]
-lode_in.plot(ax=axes[0], color="goldenrod", markersize=2, alpha=0.6, zorder=5)
-label_anchors(axes[0], fontsize=6)
-style_axes(axes[0], title=f"MRDS lode-Au seeds in AOI ({len(lode_in):,} points, "
-                          f"dev_stat+dep_type filtered)")
+lode_in.plot(ax=ax, color="goldenrod", markersize=2, alpha=0.6, zorder=5)
+label_anchors(ax)
+style_axes(ax, title=f"MRDS lode-Au seeds in AOI ({len(lode_in):,} points, "
+                     f"dev_stat+dep_type filtered)")
+plt.tight_layout(); plt.show()
 
-# Right: omnidirectional distance to nearest lode-Au seed.
+# Omnidirectional distance to nearest lode-Au seed.
+fig, ax = plt.subplots(figsize=(9, 8))
 d2l = to_grid("distance_to_lode_m")
-im = axes[1].imshow(np.minimum(d2l, 15_000), extent=EXTENT, origin="upper",
-                    cmap="plasma_r", vmin=0, vmax=15_000)
-plt.colorbar(im, ax=axes[1], shrink=0.7, label="m to nearest lode-Au (capped at 15 km)")
-label_anchors(axes[1], fontsize=6)
-style_axes(axes[1], title="distance_to_lode_m (Phase 1 feature, weight 0.20)")
-
-plt.tight_layout()
-plt.show()
+im = ax.imshow(np.minimum(d2l, 15_000), extent=EXTENT, origin="upper",
+               cmap="plasma_r", vmin=0, vmax=15_000)
+plt.colorbar(im, ax=ax, shrink=0.7, label="m to nearest lode-Au (capped at 15 km)")
+label_anchors(ax)
+style_axes(ax, title="distance_to_lode_m (Phase 1 feature, weight 0.20)")
+plt.tight_layout(); plt.show()
 
 dd_finite = FEATURES["distance_downstream_from_lode_m"].notna().sum()
 print(f"distance_to_lode_m: finite at {FEATURES['distance_to_lode_m'].notna().sum():,} / "
@@ -622,9 +619,7 @@ more local information than the same value in the main stem).
 
 ```{python}
 #| label: geochem-hawkes
-fig, axes = plt.subplots(1, 2, figsize=(13, 6), sharey=True)
-
-# Left: NGDB+NURE sample locations colored by Au_ppm (where reported).
+# NGDB + NURE sample locations.
 samples = []
 for key in ("geochem", "geochem_nure"):
     p = REGION.raw_paths.get(key)
@@ -633,27 +628,28 @@ for key in ("geochem", "geochem_nure"):
         samples.append(g[g.geometry.within(AOI_BOX_3310.unary_union)])
 all_samples = pd.concat(samples, ignore_index=True) if samples else None
 
+fig, ax = plt.subplots(figsize=(9, 8))
 elev = to_grid("elevation")
-axes[0].imshow(elev, extent=EXTENT, origin="upper", cmap="Greys",
-               vmin=0, vmax=3500, alpha=0.4)
+ax.imshow(elev, extent=EXTENT, origin="upper", cmap="Greys",
+          vmin=0, vmax=3500, alpha=0.4)
 if all_samples is not None:
-    all_samples.plot(ax=axes[0], color="forestgreen", markersize=1.5,
+    all_samples.plot(ax=ax, color="forestgreen", markersize=1.5,
                      alpha=0.6, zorder=4)
-label_anchors(axes[0], fontsize=6)
-style_axes(axes[0],
+label_anchors(ax)
+style_axes(ax,
            title=f"NGDB + NURE I-ICP-MS sample locations "
                  f"(N = {0 if all_samples is None else len(all_samples):,})")
+plt.tight_layout(); plt.show()
 
-# Right: Hawkes catchment-Au.
+# Hawkes catchment-Au.
+fig, ax = plt.subplots(figsize=(9, 8))
 hawkes = to_grid("catchment_au_hawkes")
-im = axes[1].imshow(hawkes, extent=EXTENT, origin="upper", cmap="YlGnBu",
-                    vmin=0, vmax=0.3)
-plt.colorbar(im, ax=axes[1], shrink=0.7, label="catchment-Au Hawkes")
-label_anchors(axes[1], fontsize=6)
-style_axes(axes[1], title="catchment_au_hawkes (Phase 1 feature, weight 0.13)")
-
-plt.tight_layout()
-plt.show()
+im = ax.imshow(hawkes, extent=EXTENT, origin="upper", cmap="YlGnBu",
+               vmin=0, vmax=0.3)
+plt.colorbar(im, ax=ax, shrink=0.7, label="catchment-Au Hawkes")
+label_anchors(ax)
+style_axes(ax, title="catchment_au_hawkes (Phase 1 feature, weight 0.13)")
+plt.tight_layout(); plt.show()
 ```
 
 The right-panel hot zones trace the major drainages with the strongest
