@@ -57,6 +57,18 @@ DRILLHOLE_OPTIONAL = ("drill_date", "total_depth_m", "intersected",
                      "max_cu_pct", "max_mo_pct", "max_au_gpt", "max_ag_gpt")
 
 
+# --- Hydrology network ---
+# Stream/river flowlines from NHDPlus HR or equivalent. `comid` is the
+# NHDPlusID (or COMID on older snapshots) and is the join key for the
+# Value-Added Attribute (VAA) table. `arbolate_sum` is the cumulative
+# upstream channel length in km (NHDPlus calls this `ArbolateSum`) — a
+# proxy for drainage size used by the placer model. `stream_order` is the
+# Strahler order from the VAA. Downstream-traversal code uses `hydroseq`
+# (NHDPlus's deterministic downstream-walk key) when present.
+HYDROLOGY_NET_REQUIRED = ("geometry", "comid", "arbolate_sum", "stream_order", "source")
+HYDROLOGY_NET_OPTIONAL = ("fcode", "hydroseq")
+
+
 # Geophysics is an xarray DataArray (not a GeoDataFrame), so no column
 # validator here. Adapter contract: returns 2-D DataArray with NaN in
 # nodata cells; attrs include `units`, `field_name`, `source`.
@@ -93,4 +105,9 @@ def validate_fault_lines(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 def validate_drillholes(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     _validate(df, DRILLHOLE_REQUIRED, "DrillHole")
+    return df
+
+
+def validate_hydrology_network(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    _validate(df, HYDROLOGY_NET_REQUIRED, "HydrologyNetwork")
     return df

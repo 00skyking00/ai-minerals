@@ -83,3 +83,41 @@ Bounds the lowland coastal placer benches (Bear Cub area, near 64.531°N
 properties span both zones: 1 lowland near Bear Cub, 1 lowland adjacent
 (non-Murray-drilled), 2 upland Anvil-area.
 """
+
+
+NORTHERN_SIERRA = AOI(
+    name="NorthernSierra",
+    min_lon=-121.55,
+    min_lat=37.49,
+    max_lon=-119.48,
+    max_lat=40.01,
+)
+"""Northern Sierra deep-gravel placer AOI — California.
+
+Matches the existing motherlode lode-raster extent (37.49–40.01°N,
+121.55–119.48°W) so the placer 250 m grid registers cell-for-cell with
+the lode raster. The classic deep-gravel districts (Malakoff Diggins,
+Dutch Flat, North San Juan, You Bet, Forest Hill, Iowa Hill,
+Michigan Bluff) all sit between 39.0°N and 39.4°N inside this bbox.
+"""
+
+
+CALAVERAS_PLACER = AOI(
+    name="CalaverasPlacer",
+    min_lon=-120.70,
+    min_lat=38.00,
+    max_lon=-120.30,
+    max_lat=38.40,
+)
+"""Calaveras placer AOI — central Sierra, California.
+
+Covers the Mokelumne Hill / San Andreas / Murphys / Angels Camp /
+Carson Hill districts. The Calaveras-area placers lean more on modern
+drainage than the northern-Sierra Tertiary deep-gravel pattern, so the
+two-population framing exercised in the northern-Sierra build should
+expect a sparser Tertiary positive set here.
+
+Sits entirely inside the existing motherlode lode-raster extent, which
+means the motherlode geophysics grids (magnetic_motherlode.tif,
+gravity_motherlode.tif) cover this AOI without re-fetching.
+"""

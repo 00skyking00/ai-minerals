@@ -26,6 +26,13 @@ _site_internal/
 .quarto/
 _freeze/
 
+# Quarto per-notebook render artifacts (regenerated on `quarto render`)
+**/*_files/
+/index_files/
+
+# osmnx working cache (regeneratable from Overpass; not source)
+/.osm_cache/
+
 # Third-party repositories cloned for reference / reproduction work
 third_party/
 
