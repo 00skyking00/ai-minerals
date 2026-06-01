@@ -20,14 +20,19 @@ An earlier "portfolio umbrella" repo tried to pull all chapters into one site vi
 
 ## How `/ai-minerals/` is built
 
-- One Quarto site, `_quarto.yml`. Render list = `index.qmd` (front door, FIRST) +
-  the chapter qmds (`regional`, `reproductions`, `cross_region`, `drill_planning`,
-  `posts`) + the deep notebooks (`notebooks/<region>/*.qmd`, which land at
+- The Quarto site lives under `portfolio/` (was at the repo root until 2026-06-01;
+  moved to keep the root tidy). `portfolio/_quarto.yml` is the project config.
+  Render list: `index.qmd` (front door, FIRST) + the chapter qmds (`regional`,
+  `reproductions`, `cross_region`, `drill_planning`, `posts`) + the deep notebooks
+  under `portfolio/notebooks/<region>/*.qmd` (land at
   `/ai-minerals/notebooks/<region>/<page>.html`).
-- `index.qmd` is the intro page: locator map + narrative + chapter cards. It was
-  moved here from the decommissioned portfolio repo on 2026-06-01.
+- `portfolio/index.qmd` is the intro page: locator map + narrative + chapter cards.
+- `portfolio/data` is a SYMLINK to `../data` so notebook qmds with relative
+  `../../data/derived/<region>/...` refs still resolve correctly inside the
+  project tree. The symlink is `.gitignore`d; it's a local convenience, not source.
 - Deploy: `bash scripts/deploy_to_hostinger.sh` (production `/ai-minerals/`) or
-  `bash scripts/deploy_to_hostinger.sh ai-minerals-beta` (staging).
+  `bash scripts/deploy_to_hostinger.sh ai-minerals-beta` (staging). The deploy
+  script rsyncs `portfolio/_site/` to the server.
 
 ## DO NOT BREAK THESE
 
@@ -98,11 +103,12 @@ reload, or clear site data, or append `?v=1` to the URL.
 The go-forward "notebook push" workflow. The site rebuilds + deploys as one unit;
 you don't push a single notebook in isolation.
 
-1. Edit the source: `index.qmd`, a chapter qmd, or a deep notebook under
-   `notebooks/<region>/`.
-2. **Render.** Full site: `uv run quarto render` (the deep notebooks need the venv;
-   the `_freeze/` cache means only notebooks whose code changed re-execute, so it's
-   usually fast). For an index/prose-only change, `quarto render index.qmd` is enough.
+1. Edit the source under `portfolio/`: `index.qmd`, a chapter qmd, or a deep
+   notebook under `portfolio/notebooks/<region>/`.
+2. **Render.** Full site: `uv run quarto render portfolio` (the deep notebooks need
+   the venv; the `portfolio/_freeze/` cache means only notebooks whose code
+   changed re-execute, so it's usually fast). For an index/prose-only change,
+   `uv run quarto render portfolio/index.qmd` is enough.
 3. **Stage + look:** `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`, then
    open `https://johnsondevco.com/ai-minerals-beta/`.
 4. **Leak check — never skip:**

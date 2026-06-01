@@ -33,6 +33,11 @@ _freeze/
 # osmnx working cache (regeneratable from Overpass; not source)
 /.osm_cache/
 
+# portfolio/data is a symlink to ../data so the Quarto site at portfolio/
+# can resolve notebook qmds' relative ../../data/... refs without pulling
+# data/ into the project tree. Not source — don't track the symlink.
+/portfolio/data
+
 # Third-party repositories cloned for reference / reproduction work
 third_party/
 

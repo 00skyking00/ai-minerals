@@ -39,10 +39,10 @@ LEGACY_SUBPATH="plans/ai-minerals"   # 301 redirect target (production only)
 REMOTE_BASE="public_html"
 REMOTE_DIR="${REMOTE_BASE}/${SUBPATH}"
 
-LOCAL_SITE="_site"
+LOCAL_SITE="portfolio/_site"
 
 if [ ! -d "${LOCAL_SITE}" ]; then
-  echo "ERROR: ${LOCAL_SITE}/ not found. Run 'quarto render --no-execute' first."
+  echo "ERROR: ${LOCAL_SITE}/ not found. Run 'uv run quarto render portfolio' first."
   exit 1
 fi
 
@@ -56,17 +56,22 @@ echo "==> Ensuring ${REMOTE_DIR} exists"
 ssh "${REMOTE_HOST}" "mkdir -p ${REMOTE_DIR}"
 
 # IMPORTANT — private-data guard. Quarto's website render copies everything
-# in the project tree that doesn't start with `.` or `_` into _site/, which
-# pulls in data/raw/ (FAMILY-PRIVATE drill-log scans, raw geochem samples,
-# unredacted shapefiles), plus src/, tools/, scripts/, research/, design/,
-# and the raw .qmd source. None of that may be served publicly. The excludes
-# below keep them out, and --delete-excluded removes them from the server if
-# a prior deploy ever pushed them. Only the rendered chapter HTML +
-# site_libs + data/derived (the public per-cell rasters and figures) go live.
+# in the project tree that doesn't start with `.` or `_` into _site/. With
+# the Quarto project at portfolio/ (since 2026-06-01) plus the data/ symlink
+# Quarto follows that symlink and pulls in the WHOLE data/derived/ tree —
+# multi-GB feature parquets, SHAP .npz blobs, intermediate .tif rasters,
+# experiment-result JSON. None of that goes public. /data is excluded
+# wholesale here; the public per-region chart PNGs are pushed via the
+# explicit `data/derived/<chart subdirs>/*.png` rsync below.
+#
+# data/raw/ (FAMILY-PRIVATE drill-log scans) isn't currently followed by
+# Quarto (no notebook references reach it through the symlink), but we
+# keep belt-and-suspenders: the `/data` exclude here covers both data/raw
+# AND any accidental data/derived inclusion in a future render.
 echo
 echo "==> Syncing ${LOCAL_SITE}/ -> ${REMOTE_HOST}:${REMOTE_DIR}/ (private dirs + source excluded)"
 rsync -avz --delete --delete-excluded --progress \
-  --exclude='/data/raw' \
+  --exclude='/data' \
   --exclude='/tools' \
   --exclude='/research' \
   --exclude='/src' \
