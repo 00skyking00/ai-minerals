@@ -10,6 +10,7 @@ project:
     # 2026-05-31; the internal site was decommissioned and folded back here
     # for a single-deploy story. Beta deploys go to /ai-minerals-beta/ via
     # `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`.)
+    - index.qmd
     - regional.qmd
     - reproductions.qmd
     - cross_region.qmd
@@ -36,6 +37,8 @@ website:
     left:
       # Portfolio home (index.qmd) now lives in the portfolio umbrella.
       # "1. Bear Cub" -> bearcub repo (/bearcub/); "3. goldbug" -> gldbg (/goldbug/).
+      - href: index.qmd
+        text: Portfolio
       - href: regional.qmd
         text: "2. Regional MPM"
       - href: reproductions.qmd
