@@ -42,7 +42,7 @@ website:
         text: "1. Bear Cub"
       - href: regional.qmd
         text: "2. Regional MPM"
-      - href: https://johnsondevco.com/goldbug/
+      - href: https://johnsondevco.com/goldbug/goldbug.html
         text: "3. goldbug"
       - href: reproductions.qmd
         text: "4. Reproductions + audits"
