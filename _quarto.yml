@@ -35,12 +35,15 @@ website:
   repo-url: https://github.com/00skyking00/ai-minerals
   navbar:
     left:
-      # Portfolio home (index.qmd) now lives in the portfolio umbrella.
-      # "1. Bear Cub" -> bearcub repo (/bearcub/); "3. goldbug" -> gldbg (/goldbug/).
+      # Bear Cub + goldbug are cross-site links (their own repos own /bearcub/ + /goldbug/).
       - href: index.qmd
         text: Portfolio
+      - href: https://johnsondevco.com/bearcub/bear_cub.html
+        text: "1. Bear Cub"
       - href: regional.qmd
         text: "2. Regional MPM"
+      - href: https://johnsondevco.com/goldbug/
+        text: "3. goldbug"
       - href: reproductions.qmd
         text: "4. Reproductions + audits"
       - href: cross_region.qmd
