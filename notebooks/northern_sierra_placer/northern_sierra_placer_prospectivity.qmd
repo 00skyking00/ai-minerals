@@ -1,0 +1,290 @@
+---
+title: "Northern Sierra placer Au (v6, deep-gravel + modern-channel)"
+subtitle: "Two-population prospectivity for the California deep-gravel belt"
+author: "Sky King"
+date: 2026-05-31
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+execute:
+  warning: false
+---
+
+## TL;DR
+
+1. This chapter builds a 250 m placer-Au prospectivity map over the northern Sierra Nevada deep-gravel belt (37.49 to 40.01°N, 121.55 to 119.48°W), the canonical California Tertiary placer province, and hands the calibrated raster off to the [gldbg sibling repo](https://johnsondevco.com/goldbug/) for per-claim sampling.
+2. Placer mineralization splits into two populations with different geomorphic signatures (Tertiary deep-gravel paleochannels exposed by hydraulic mining, vs. Quaternary modern-channel alluvial placers), so the pipeline trains one classifier per population and fuses the two calibrated rasters per-cell with `np.maximum`.
+3. Phase 1 is a USGS-Alaska-style weighted knowledge-driven index with an anchor-district validation gate; all seven historic hydraulic-mining districts (Malakoff Diggins / North Bloomfield, Dutch Flat, You Bet, Forest Hill, Michigan Bluff, Iowa Hill, North San Juan) must land in the top decile, and none of the seven appears in the training labels (numerical gate result reported after first end-to-end run).
+4. Phase 2 is a per-population pipeline of PU bagging baseline, Random Forest, LightGBM, a stacking meta-learner (RF + LGBM into logistic regression), and isotonic calibration via CalibratedClassifierCV with Platt sigmoid fallback when a population has fewer than 30 positives. Every estimator, including the stacking meta-learner's `cv` argument, uses the same 20 km spatial-block CV iterable.
+5. Deliverable: `data/derived/northern_sierra_placer/prospectivity_placer_northern_sierra_250m_calibrated_4326.tif`, produced by `scripts/northern_sierra_placer_calibrate_and_fuse.py` and consumed by gldbg's existing zonal-mean machinery (no API contract beyond the GeoTIFF).
+
+## Why placer, and why northern Sierra
+
+Placer mineral-prospectivity modeling is roughly a decade behind lode in the published literature. The lode-Au and porphyry-Cu sides have stacked supervised pipelines with spatial-block CV, leakage audits, and external blind tests as standard practice; the placer side mostly does not, because the data is messier (point occurrences with inconsistent `dep_type` labels), the positives are concentrated in a few well-known districts, and the geomorphic chain that delivers gold from lode source to placer trap involves transport mechanics that don't show up in a static feature stack. The one production-grade transferable model that survives in the published record is the USGS Alaska watershed scorer used in the Cross, Frost, and Karl assessments (Cross et al., *Statewide Placer Gold Assessment*, USGS Open-File Report series); it is a weighted-sum knowledge-driven index, not a supervised classifier, and it works because Alaskan placer-bearing watersheds are big and the scoring features are tractable per-watershed averages. The northern-Sierra adaptation here reuses the weighted-sum framing for Phase 1, swaps in a Sierra-specific feature stack at 250 m grid resolution, and then runs a Phase 2 supervised pass with the discipline the lode side already practices.
+
+The northern Sierra is the canonical place to try this. The hydraulic-mining era of 1850s to 1884 stripped the Tertiary deep gravels off the interstream ridges from Malakoff Diggins south through North San Juan, You Bet, Dutch Flat, Iowa Hill, Forest Hill, and Michigan Bluff, exposing the buried paleochannel system that the ancestral Yuba and American rivers had carved before late-Tertiary uplift and the Quaternary drainage reorganization. Lindgren's USGS Professional Paper 73 ([*The Tertiary Gravels of the Sierra Nevada of California*](https://doi.org/10.3133/pp73), 1911) is the canonical paleochannel reference and the source of the channel-trace plates that the Phase 2 paleochannel-likelihood raster is trained to approximate. The hydraulic-pit polygon set (Orlando et al., 2016, [DOI 10.5066/F7J38QMD](https://doi.org/10.5066/F7J38QMD)) gives 167 georeferenced pit footprints that serve as the Tertiary-population positive labels. The seven district names above are exactly the anchor districts in the Phase 1 validation gate.
+
+## The two populations
+
+Roy, Upton, and Craw 2018 ([*Gold mineralisation in the placer-source-to-sink system*](https://doi.org/10.1007/s00126-017-0789-6)) is the recent reference for the detachment and transport thresholds that separate placer populations; Yeend, Shawe, and Wier 1989 (USGS Bulletin 1857-G, [DOI 10.3133/b1857G](https://doi.org/10.3133/b1857G)) laid out the release-transport-concentration chain that splits the genetic model. In the northern Sierra the practical split is Tertiary-paleochannel vs. Quaternary-modern-channel: the Tertiary population sits on interstream ridges and high terraces, often hundreds of meters above the modern drainage, and its diagnostic features are paleochannel proximity, hydraulic-pit proximity, and the geomorphon terrace mask; the Quaternary population sits in the active stream network and keys off flow accumulation, stream-power-index bandpass membership, knickpoint ksn, and distance downstream from a lode source. The model treats them as two populations because the geomorphic signature differs; the two calibrated rasters fuse via per-cell maximum into the deliverable.
+
+## Data sources
+
+| Dataset | DOI / endpoint | License | Role |
+|---|---|---|---|
+| MRDS placer points | [mrdata.usgs.gov/mrds/](https://mrdata.usgs.gov/mrds/) | public domain | Quaternary-population positive labels (`dep_type` placer/alluvial/stream/gravel) |
+| Hydraulic Mine Pits of California | [DOI 10.5066/F7J38QMD](https://doi.org/10.5066/F7J38QMD) | public domain | Tertiary-population positive polygons (167) and centroids |
+| Lindgren PP73 paleochannel plates | [DOI 10.3133/pp73](https://doi.org/10.3133/pp73) | public domain | Tertiary positive supplement + Phase 1 paleochannel prior |
+| CGS 2010 geologic map | [conservation.ca.gov/cgs](https://www.conservation.ca.gov/cgs/) FeatureServer | open data | bedrock geology, Quaternary alluvium mask, fault arcs |
+| NHDPlus High Resolution | [USGS NHDPlus HR](https://www.usgs.gov/national-hydrography/nhdplus-high-resolution) | public domain | flowline network for distance-downstream-from-lode and SPI |
+| NURE I-ICP-MS stream sediments | [DOI 10.5066/F7765DHF](https://doi.org/10.5066/F7765DHF) | public domain | semi-quantitative Au (`Au_sq_ppm`) + As, Sb, Hg pathfinders |
+| NGDB sediment geochemistry | [USGS NGDB](https://mrdata.usgs.gov/ngdb/sediment/) | public domain | secondary geochem layer (overlaps NURE in coverage) |
+| USGS 3DEP LiDAR (1 m where flown) | USGS 3DEP S3 + [OpenTopography](https://opentopography.org/) | public domain | DEM source for paleochannel raster, terrace mask, knickpoint ksn |
+| USGS 3DEP 10 m fallback | USGS 3DEP S3 | public domain | DEM outside the 1 m LiDAR footprint |
+| Motherlode lode raster (reuse) | this repo, `data/derived/motherlode/` | reuse | upstream-source set for distance-downstream-from-lode |
+
+The five new data adapters introduced for this region are `data/adapters/geology/hydraulic_pits` (Orlando 2016), `data/adapters/geology/cgs_2010` (California Geological Survey FeatureServer), `data/adapters/hydrology/nhdplus_hr` (NHDPlus HR file-geodatabase fetch), `data/adapters/geochem/nure_iicpms` (Smith 2006 I-ICP-MS reanalysis of the NURE archive, DOI 10.5066/F7765DHF), and `data/adapters/elevation/3dep` (USGS 3DEP S3 + OpenTopography 1 m). The gldbg sibling repo coordinates the placer-prospectivity SOTA tracking in `research/placer_prospectivity_sota.md` and the per-region handoff notes in `PLACER-NOTES.md`; both are read at the start of each fetch cycle so the adapter list stays in sync with what gldbg's claim-level sampler expects.
+
+The hydraulic-pits adapter ingests Orlando's 167 polygons as a single GeoPackage, reprojects to EPSG:3310, and writes both the polygon set (for the Tertiary positive labels) and a per-polygon centroid set (for the anchor-district decile check; the Malakoff / North Bloomfield consolidation in `ANCHOR_DISTRICTS` overrides the centroid for that one district). The CGS 2010 adapter pulls from the California Geological Survey FeatureServer in WGS84 tiles, reprojects, and dissolves to the Quaternary-alluvium binary mask and a fault-arc layer the rest of the pipeline consumes through `features/geology.py`. The NHDPlus HR adapter pulls the HU-4 hydrologic-unit tiles that cover the AOI (1802, 1803, 1804), unions the flowlines, attaches the `ReachCode` and `StreamLeve` attributes the network-distance code needs, and writes to a single GeoPackage; the adapter does not currently dissolve duplicate flowlines on HU-4 boundaries, so the network-distance code applies a 50 m tolerance to merge them at use time. The NURE I-ICP-MS adapter unpacks the Smith 2006 ScienceBase ZIP, parses the per-sample CSVs to a single GeoDataFrame, and renames the Au column to `Au_sq_ppm` to flag the semi-quantitative provenance through to the model card. The 3DEP adapter prefers the OpenTopography 1 m service where the LiDAR is flown and falls back to the USGS 3DEP S3 10 m bucket where it isn't; the fallback flag is recorded per cell in the paleochannel-likelihood raster's companion `paleochannel_likelihood_source` band.
+
+## Feature stack at 250 m
+
+The features split into three groups by data source: terrain derivatives off the 3DEP DEM, network features off the NHDPlus flowlines, and evidence layers off the hydraulic-pit polygons, the paleochannel-likelihood raster, and the Quaternary alluvium mask.
+
+The terrain group comes out of `src/ai_minerals/features/hydrology.py`. Slope and TPI are standard. Flow accumulation is D8 via the MIT-licensed `whitebox-workflows` Python frontend, which writes the DEM to a tempfile, runs WhiteboxTools `D8FlowAccumulation`, and reads the result back. Stream Power Index is computed as a trapezoidal-bandpass membership in `stream_power_index_band`; the band tuned for New Zealand orogenic placers in the original published version (bands 3-6) is reused here as a defaulted parameter, with a known transferability caveat that we'll return to in the limitations section. The Topographic Wetness Index is the standard `ln(a / tan(slope))`. Channel-steepness ksn uses Wobus et al. 2006's normalized-steepness with a reference concavity of 0.45 and a per-pixel minimum-drainage threshold. TPI is computed at a 500 m kernel for terrace identification. The geomorphon terrace mask shells out to GRASS `r.geomorphon` and keeps only the flat-terrace classes; it's the one feature in the stack that requires a system tool outside the Python environment.
+
+The network group is the headline placer-specific feature. `distance_downstream_from_lode` traces along NHD flowlines from a set of upstream lode-Au seeds (MRDS lode-Au past producers and producers from the motherlode region, filtered to remove anything whose `dep_type` matches the placer regex `placer|alluvial|stream.?placer|paleo.?placer|black.?sand|residual|eluvial`) and accumulates downstream distance per cell. The dilution-corrected catchment-geochem aggregation in `features/placer_geology.py::hawkes_dual_decay_catchment` implements Hawkes 1976 (J. Geochem. Explor. 6:345 to 358), which models the dilution of a downstream geochemical signal as a dual exponential decay with two characteristic lengths (a short one for the immediate-tributary mixing and a long one for the regional baseline). The Yousefi, Carranza, and Kamkar-Rouhani 2013 framework (J. Geochem. Explor. 128:88 to 96) on geochemical-evidence prediction-area curves is the validation reference for whether the catchment-aggregated layer is actually adding signal over the raw per-sample values.
+
+The evidence-layer group comes out of `features/placer_geology.py` and `features/paleochannel.py`. `hydraulic_pit_proximity_m` is straight Euclidean distance to the nearest Orlando 2016 pit polygon, clipped at 5 km. `is_quaternary_alluvium` is a boolean derived from CGS 2010 polygon classes matching the Quaternary-alluvium descriptors. `build_paleochannel_likelihood` produces the Tertiary-specific evidence raster from a composite of three terrain proxies: Relative Elevation Model (REM) detrending of the DEM against the modern drainage, a Local Relief Model (LRM) at a 1 km kernel, and a Geomorphic Markup Index (GMI) that approximates the residual ridge-channel geometry of buried paleochannels. The composite is normalized to `[0, 1]` and feeds the Phase 2 `paleochannel_likelihood` column; in Phase 1 it's substituted by `hydraulic_pit_proximity_m` (see the scorer note).
+
+We deliberately drop count-style features (`*_count_5km` and friends) per the Lawley audit discipline carried over from the [Lawley 2022 reproduction chapter](https://johnsondevco.com/ai-minerals/reproductions.html#lawley-et-al-2022-continental-zn-pb-prospectivity); count features encode exploration intensity (where the surveyors looked, not where the gold is) and dominate cross-region transfer in unhelpful ways. Magnitude features (`*_max_5km`, `*_mean_5km`) we keep because the residual exploration-bias channel they carry is weaker and the geochemical signal they carry is real.
+
+The assembled feature frame is one row per 250 m cell in EPSG:3310. The AOI is roughly 282 km north-south by 188 km east-west, which gives on the order of 850,000 cells before the within-Sierra-Nevada masking that drops cells west of the foothill front and east of the Sierra crest. The actual cell count after masking lands in the 400,000 to 500,000 range, depending on whether the Quaternary alluvium mask trims the foothill apron tightly or loosely; the feature frame is written to `data/derived/northern_sierra_placer/features_northern_sierra_placer_250m.parquet` and is the single input to both the Phase 1 scorer and the Phase 2 train-predict driver.
+
+```{python}
+#| label: feature-frame-summary
+#| eval: false
+import pandas as pd
+
+from ai_minerals.data._common import DATA_DERIVED
+
+features = pd.read_parquet(
+    DATA_DERIVED / "northern_sierra_placer" / "features_northern_sierra_placer_250m.parquet"
+)
+print(f"cells: {len(features):,}")
+print(f"columns: {len(features.columns)}")
+print(
+    features.isna().mean().sort_values(ascending=False).head(20).to_string(
+        float_format=lambda x: f"{x:.1%}"
+    )
+)
+```
+
+## Phase 1 knowledge-driven index
+
+`src/ai_minerals/scorers/usgs_alaska_placer.py` is the Phase 1 scorer. It descends from the USGS Alaska watershed scorer that Cross, Frost, and Karl applied at the watershed scale across the Alaska statewide placer assessment series; the adaptation flattens the watershed unit to a 250 m grid cell and substitutes Sierra-specific features for the Alaskan ones. Each feature is quantile-clipped at the within-AOI p1 / p99 endpoints and then min-max scaled to `[0, 1]`, the contributions are weighted-summed, and the raw score is renormalized to `[0, 1]` over the within-AOI distribution.
+
+| Feature | Weight | Direction | Cap |
+|---|---:|---|---:|
+| `distance_downstream_from_lode_m` | 0.25 | inverse | 25 km |
+| `paleochannel_likelihood` | 0.20 | direct | n/a |
+| `hydraulic_pit_proximity_m` | 0.15 | inverse | 5 km |
+| `spi_band` | 0.10 | bandpass | n/a |
+| `catchment_au_hawkes` | 0.10 | direct | n/a |
+| `is_quaternary_alluvium` | 0.07 | boolean | n/a |
+| `twi` | 0.05 | direct | n/a |
+| `geomorphon_terrace_mask` | 0.05 | boolean | n/a |
+| `slope` | 0.03 | inverse | n/a |
+
+`paleochannel_likelihood` is a Phase 2 raster (Phase D precompute in the build plan), so Phase 1 substitutes `hydraulic_pit_proximity_m` for it with an inverse direction and a 5 km cap. The substitution is a coarse Tertiary-deep-gravel proxy: cells near a known hydraulic pit are likely on or near the paleochannel system the pit exposed, and cells more than 5 km from any pit get a zero contribution from that term. The substitution is applied inside `usgs_alaska_placer_index` itself when the `paleochannel_likelihood` column is absent from the feature frame, so the same call signature drives both phases.
+
+The validation gate is in `scripts/northern_sierra_placer_validation.py`: every one of the seven anchor districts (Malakoff Diggins / North Bloomfield, North San Juan, Dutch Flat, You Bet, Iowa Hill, Forest Hill, Michigan Bluff, centroids in `regions/_northern_sierra_anchors.py::ANCHOR_DISTRICTS`) must land in the top decile of the within-AOI score. None of the seven appears in the training labels (Phase 1 has no training labels, but the same exclusion applies to Phase 2, and the validation script reuses the same anchor set). If the gate doesn't pass, iterate weights before Phase 2 wires up; the failure mode to watch is the `distance_downstream_from_lode_m` term either being too aggressive (pushing all the high scores into a thin band immediately below the lode-source set) or too weak (failing to distinguish ridge-top Tertiary cells from random terrain). The decile table is at `data/derived/northern_sierra_placer/anchor_districts_decile_table.csv`.
+
+```{python}
+#| label: anchor-decile-table
+#| eval: false
+import pandas as pd
+
+from ai_minerals.data._common import DATA_DERIVED
+
+table = pd.read_csv(
+    DATA_DERIVED / "northern_sierra_placer" / "anchor_districts_decile_table.csv"
+)
+print(table.to_string(index=False))
+print()
+print(f"in_top_decile: {table['in_top_decile'].sum()} / {len(table)}")
+```
+
+```{python}
+#| label: phase1-scorer-call
+#| eval: false
+import pandas as pd
+
+from ai_minerals.data._common import DATA_DERIVED
+from ai_minerals.regions._northern_sierra_anchors import ANCHOR_DISTRICTS
+from ai_minerals.scorers.usgs_alaska_placer import (
+    DEFAULT_WEIGHTS, anchor_decile_check, usgs_alaska_placer_index,
+)
+
+features = pd.read_parquet(
+    DATA_DERIVED / "northern_sierra_placer" / "features_northern_sierra_placer_250m.parquet"
+)
+score = usgs_alaska_placer_index(features, weights=DEFAULT_WEIGHTS)
+
+# Resolve each anchor district's (lon, lat) to a row index in `features`.
+# In the real pipeline this is done by the validation script via the grid's
+# inverse transform; here it's stubbed for documentation.
+anchor_cells = pd.Series(
+    {name: features.index[0] for name in ANCHOR_DISTRICTS}  # stub
+)
+report = anchor_decile_check(score, anchor_cells)
+print(report.to_string(index=False))
+```
+
+## Phase 2 supervised
+
+Each population gets its own classifier pipeline: PU bagging baseline (Mordelet & Vert 2014, [*A bagging SVM to learn from positive and unlabeled examples*](https://doi.org/10.1016/j.patrec.2013.06.010), 30 bags), Random Forest, LightGBM, a stacking meta-learner that takes RF and LGBM out-of-fold probabilities as inputs to a logistic-regression head, and isotonic calibration via `CalibratedClassifierCV`. The Phase 3 target (deferred) is the Bertaiola et al. 2025 hybrid CNN with a position encoder, validated on the Cauca River in Colombia ([DOI 10.1007/s00024-025-03830-y](https://doi.org/10.1007/s00024-025-03830-y)); the architecture transfers cleanly to the Quaternary modern-channel population but needs the paleochannel-segmentation labels we don't have for the Tertiary side.
+
+The training discipline is where most stacking implementations leak. Spatial-block CV uses 20 km blocks in EPSG:3310 (California Albers Equal Area, NAD83), which is wider than the largest anchor district and wider than the dominant short-decay length in the Hawkes catchment aggregation. The 20 km figure was picked to be at least twice the per-cell Hawkes long-decay characteristic length (8 km in the calibration that matched the Sierra catchment-area distribution) so a test-fold cell never sits inside the train-fold cells' aggregation kernel. The block grid is rotated to align with EPSG:3310's principal axes rather than to the AOI's latitude-longitude rectangle, so blocks are square in projected coordinates and the fold sizes are balanced across folds within roughly 15%. The same `SpatialBlockCV` iterable feeds every estimator: the PU bag-level fold assignments, the RF and LGBM grid searches, the stacking estimator's `cv` argument (this is the trap; `StackingClassifier(cv=5)` would silently default to random KFold and leak the meta-learner's training against the base estimators' out-of-fold predictions), and the `CalibratedClassifierCV`'s internal CV. The seven anchor districts are excluded from every training fold, every PU bag, and every calibration fold; they only show up as an external held-out test set in `scripts/northern_sierra_placer_validation.py`. The Hawkes catchment-geochem feature is re-computed per fold using only the train-fold samples (`hawkes_dual_decay_catchment(fold_mask=...)`); this is the most expensive single thing in the per-fold wall-clock and is the one place where a leakage shortcut would be most tempting.
+
+The per-population pipeline runs both populations in parallel as two independent `Pipeline` objects, not as a single multi-class model: the Tertiary classifier sees Tertiary positives plus a stratified unlabeled draw, the Quaternary classifier sees Quaternary positives plus its own stratified unlabeled draw, and the two never share training rows. Treating the populations as separate problems means each gets a fitted hyperparameter set sized to its own positive count (the LightGBM `num_leaves` ends up smaller for the Quaternary classifier because the positive count is lower and the leaf-count grid search penalizes overfit), and it means the calibration curves are estimated separately so the two probability surfaces are commensurable before the per-cell maximum fuses them.
+
+Calibration uses isotonic via `CalibratedClassifierCV(method='isotonic', cv=spatial_block_cv)`. Isotonic needs roughly 30 positives per fold to fit a stable monotone-regression curve; below that threshold the pipeline falls back to Platt sigmoid (`method='sigmoid'`). The Tertiary population has 167 hydraulic-pit polygons (centroids plus a per-polygon point-sampling that brings the positive count above the threshold for every block-fold the AOI produces); the Quaternary population is closer to the threshold and triggers the sigmoid fallback on roughly a quarter of folds in early experiments. Calibration measures probability quality (does a 0.8 mean an 80% positive rate?), not ranking quality (does a 0.8 beat a 0.7 on the success-rate curve?); the ranking metric the deliverable is judged on is the success-rate / prediction-area curve, not Brier score.
+
+```{python}
+#| label: phase2-spatial-block-cv
+#| eval: false
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier, StackingClassifier
+from sklearn.linear_model import LogisticRegression
+import lightgbm as lgb
+
+from ai_minerals.cv import SpatialBlockCV
+from ai_minerals.model_pu import fit_pu_bagging
+
+cv = SpatialBlockCV(block_km=20, n_splits=5, crs="EPSG:3310", random_state=0)
+
+rf  = RandomForestClassifier(n_estimators=500, max_depth=None, n_jobs=-1, random_state=0)
+gbm = lgb.LGBMClassifier(n_estimators=500, num_leaves=31, learning_rate=0.05, random_state=0)
+
+stack = StackingClassifier(
+    estimators=[("rf", rf), ("lgbm", gbm)],
+    final_estimator=LogisticRegression(max_iter=1000),
+    cv=cv,                # the trap is defaulting this to 5 (random KFold)
+    n_jobs=-1,
+)
+
+calibrated = CalibratedClassifierCV(stack, method="isotonic", cv=cv)
+```
+
+![Success-rate / Prediction-Area curve over anchor districts. Phase 1 (blue), Phase 2 fused (orange), per-population calibrated curves (dashed).](/ai-minerals/data/derived/northern_sierra_placer/success_rate_curve_phase1_vs_phase2.png)
+
+## Two-population fusion
+
+`scripts/northern_sierra_placer_calibrate_and_fuse.py` produces the deliverable as `np.maximum(p_tertiary, p_quaternary)` per cell, after both populations have been independently calibrated. The per-cell maximum is the geologically appropriate operator: a cell can be a strong placer either via the Tertiary deep-gravel signal (paleochannel proximity, hydraulic-pit proximity, terrace-mask membership) or via the Quaternary modern-channel signal (distance downstream from lode, SPI bandpass, flow accumulation), and the two populations almost never co-occur in the same 250 m cell because the Tertiary gravels sit on interstream ridges where the Quaternary drainage has incised away from. Taking the maximum keeps whichever signal is stronger in the deliverable; taking the sum or the product would double-count the rare boundary cells and damp out the genuine single-population cells.
+
+The companion `_provenance` band records which population won per cell so a downstream consumer can split the deliverable back into its two layers. The 2-bit code is 0 for Tertiary-dominant (the Tertiary calibrated probability is at least 0.05 higher than the Quaternary), 1 for Quaternary-dominant (the inverse), 2 for both-within-0.05 (the boundary case, which is rare and concentrated near the foothill apron), and 3 for no-data (either both populations returned NaN, or the cell is masked outside the AOI). Mapping the provenance band gives a quick visual diagnostic for whether the two populations are separating cleanly or whether the boundary zone is wider than the geology predicts.
+
+```{python}
+#| label: fusion-call
+#| eval: false
+import numpy as np
+import rasterio
+
+with rasterio.open(
+    "data/derived/northern_sierra_placer/p_tertiary_calibrated_3310.tif"
+) as src_t, rasterio.open(
+    "data/derived/northern_sierra_placer/p_quaternary_calibrated_3310.tif"
+) as src_q:
+    p_t = src_t.read(1, masked=True).filled(np.nan)
+    p_q = src_q.read(1, masked=True).filled(np.nan)
+
+fused = np.fmax(p_t, p_q)            # np.fmax ignores NaN; np.maximum propagates
+provenance = np.where(
+    np.isnan(fused), 3,
+    np.where(np.abs(p_t - p_q) < 0.05, 2,
+    np.where(p_t > p_q, 0, 1))
+).astype("uint8")
+```
+
+## Leakage discipline
+
+The two places this pipeline could quietly leak are the lode-source seeds for `distance_downstream_from_lode_m` and the per-fold recomputation of the Hawkes catchment-geochem aggregation.
+
+For the lode seeds, `features/hydrology.py::distance_downstream_from_lode` takes the motherlode MRDS pull (filtered to past-producer and producer dev-stat) and asserts that no record whose `dep_type` matches the placer regex `placer|alluvial|stream.?placer|paleo.?placer|black.?sand|residual|eluvial` appears in the seed set; the same regex is the one the orogenic-Au pipeline uses to filter placer records out of its own labels, kept as a local copy in `features/hydrology.py` rather than imported so the guard is self-contained. The leakage unit test at `tests/test_distance_downstream_leakage.py` verifies both that the guard fires when a placer record is present in the seed set (the positive test) and that the guard does not fire when only lode records are present (the negative test); the test suite is 3/3 passing on a representative placer/lode MRDS mix from this region.
+
+For the Hawkes catchment aggregation, the `fold_mask` argument on `features/placer_geology.py::hawkes_dual_decay_catchment` re-runs the dual-decay aggregation per fold using only the train-fold samples; this prevents a test-fold geochemical sample from contributing to its own cell's aggregated value through the short-decay term. The per-fold recomputation is enabled by default and is the dominant per-fold wall-clock cost; it can be disabled with `--no-hawkes-refold` if Phase 2 blows past the budget, in which case the model card at `data/derived/northern_sierra_placer/model_card_northern_sierra_placer.md` declares the deliverable as Phase 1 only and the Hawkes-aggregated layer is dropped from the Phase 2 feature set so the leak path doesn't exist.
+
+A third leakage vector worth flagging is the paleochannel-likelihood raster itself. The raster is computed once over the whole AOI (the REM, LRM, and GMI composite is expensive enough that per-fold recomputation would push the wall-clock past a weekend's run), so a Phase 2 model that trains on the Tertiary positives can in principle pick up signal from the test-fold cells through the smoothed neighborhood of the LRM kernel. The mitigation here is structural: the paleochannel raster is derived from terrain only, with no input from the hydraulic-pit polygons or the MRDS placer points, so its values at any cell are a deterministic function of the DEM and not of the labels. The unit test that would lock this in (proving the raster's per-cell value is invariant to permuting the positive-label set) is in the deferred-work list; it isn't expensive to write and is a reasonable thing for a reviewer to ask for.
+
+## External validation against anchor districts
+
+The seven anchor districts function as a held-out test set in addition to their Phase 1 gating role. The Phase 1 gate is "every anchor district in the top decile of the within-AOI score"; the Phase 2 evaluation reports, for each anchor, the decile rank under three scores: (a) the Phase 1 weighted-sum index, (b) the Phase 2 per-population calibrated probability (whichever population the anchor cell falls into; all seven are Tertiary), and (c) the Phase 2 fused score `np.maximum(p_tertiary, p_quaternary)`. The expectation is that Phase 2 fused beats Phase 1 on the median decile rank and ties or beats it on the worst-case rank; if Phase 2 fused fails to beat Phase 1 on either, the deliverable raster falls back to Phase 1 and the model card records the regression with the specific anchor and decile that triggered it. The decile table is written to `data/derived/northern_sierra_placer/anchor_districts_decile_table.csv` by `scripts/northern_sierra_placer_validation.py`.
+
+The fallback decision is automatic, not advisory. The validation script checks the three success-rate-curve area-under-the-curve values (the integrated success rate against the prediction-area fraction over the anchor set) and writes the winning score's GeoTIFF to the deliverable filename. If Phase 1 wins, the deliverable is the Phase 1 raster reprojected from EPSG:3310 to EPSG:4326; if Phase 2 fused wins, the deliverable is the fused calibrated probability. The model card carries the winner, the three AUCs, the per-anchor decile ranks under all three scores, and the SHA of the source commit so the gldbg consumer can verify which raster it's sampling.
+
+```{python}
+#| label: anchor-validation-summary
+#| eval: false
+import pandas as pd
+
+from ai_minerals.data._common import DATA_DERIVED
+
+table = pd.read_csv(
+    DATA_DERIVED / "northern_sierra_placer" / "anchor_districts_decile_table.csv"
+)
+summary = table.pivot_table(
+    index="district",
+    columns="score",
+    values="decile",
+    aggfunc="first",
+)
+print(summary.to_string())
+```
+
+## What this doesn't prove
+
+The hydraulic-pit polygon coverage is dense across the seven anchor districts but thins out in the central Sierra below Forest Hill; cells in the southern third of the AOI get Phase 1 scores that lean harder on `distance_downstream_from_lode_m` and `catchment_au_hawkes` than on the pit-proximity term, and the Phase 2 Tertiary classifier sees fewer positives per spatial-block-fold there. A central-Sierra prediction is doing more extrapolation than a Yuba-watershed prediction.
+
+The Stream Power Index bandpass parameters (bands 3-6) come from a New Zealand orogenic-placer calibration in the original published version of the SPI-band feature; transferring them to a hydraulic-pit-dominated Sierra deep-gravel system is a defaulted choice, not a fitted one. The right thing to do is re-tune the band against a held-out subset of the Quaternary positives, but with the per-population positive counts the pipeline has, a 30 km block-CV cross-validated re-tune isn't differentiable from noise.
+
+DEM and LiDAR coverage drives the paleochannel raster quality. 3DEP 1 m LiDAR is flown across most of the Yuba and American watersheds but has coverage gaps in the central Sierra and along the eastern margin of the AOI; the 10 m fallback DEM degrades the paleochannel raster substantially in those gaps because the REM detrending and LRM signals depend on sub-meter terrain texture. The paleochannel-likelihood column in the feature frame carries a per-cell `paleochannel_likelihood_source` companion flag that the model can split on, but a model that learns to depress the Tertiary probability in the 10 m fallback zones is doing the right thing for the wrong reason.
+
+Residual label-leakage risk in `distance_downstream_from_lode_m` and the Hawkes catchment aggregation: the unit test covers the seed-set placer-record assertion, but it does not cover the geometric edge case where a lode seed sits on a flowline reach that a placer positive also sits on (this would be a real geological co-occurrence, not a leak, but the network-distance feature would still couple the placer's label to the lode seed's distance). The mitigation is the spatial-block CV, which puts the lode seed and its downstream placer cells in the same fold the vast majority of the time. A tighter mitigation would be to drop any lode seed within 1 km of a placer positive, at the cost of removing some genuinely useful upstream sources.
+
+NURE I-ICP-MS Au is semi-quantitative (`Au_sq_ppm`), not four-acid leach; the absolute concentration is uncertain to roughly a factor of two and the detection limit is around 5 ppb. The model uses it as a relative-ranking feature inside the catchment aggregation, which is the use case the semi-quantitative measurement actually supports, but a downstream consumer who wants absolute predicted Au grade from this raster is asking for something the input data can't provide.
+
+Phase 3 deep learning is deferred. The Bertaiola 2025 hybrid CNN with a position encoder is the Cauca-River reference architecture; on the Quaternary population it transfers reasonably (modern-channel placers have the same geomorphic signature in California as in Colombia, and the position encoder handles the regional gradient), but on the Tertiary population the published architecture assumes a labeled paleochannel-segmentation training set, which doesn't exist for the bedrock-confined Sierra Tertiary channels. The Attention-UNet variant for paleochannel segmentation needs labeled tiles, and the Lindgren PP73 plates are at a scale that gives a few hundred tiles in the whole AOI, not the tens of thousands the architecture wants. A semi-supervised approach over the unlabeled 3DEP LiDAR is the natural next step and is the third Phase 3 item in the build plan, alongside the Transformer-GCN for the network features.
+
+## Hand-off to gldbg
+
+The deliverable is `data/derived/northern_sierra_placer/prospectivity_placer_northern_sierra_250m_calibrated_4326.tif`, a 250 m EPSG:4326 GeoTIFF carrying per-cell calibrated placer probability with the per-cell maximum of the two population probabilities and a companion `_provenance` band carrying a 2-bit code (0 = Tertiary-dominant, 1 = Quaternary-dominant, 2 = both populations within 0.05, 3 = no-data). The [gldbg sibling repo](https://johnsondevco.com/goldbug/) consumes the raster through its existing zonal-mean machinery, the same code path that already samples the motherlode lode raster; per-claim sampling uses the claim polygon as the zonal-mean window and reports the median, max, and area-above-threshold per claim. The lode-vs-placer toggle in the gldbg claim-detail UI is deferred until both rasters ship; until then gldbg will sample the lode raster only and the placer raster will be exposed as a separate research-view layer.
+
+## Reproduction commands
+
+```bash
+# 1. Fetch raw inputs (MRDS, hydraulic pits, CGS, NHDPlus HR, NURE I-ICPMS, 3DEP).
+python scripts/northern_sierra_placer_fetch_all.py
+
+# 2. Precompute paleochannel-likelihood raster (REM + LRM + GMI composite).
+python scripts/northern_sierra_placer_precompute_paleochannel.py
+
+# 3. Assemble 250 m feature frame.
+python scripts/northern_sierra_placer_assemble_250m.py
+
+# 4. Phase 1 knowledge-driven index + anchor-district gate.
+python scripts/northern_sierra_placer_phase1_index.py
+
+# 5. Phase 2 per-population train + predict (PU bagging, RF, LGBM, stacking).
+python scripts/northern_sierra_placer_train_predict_250m.py --population tertiary
+python scripts/northern_sierra_placer_train_predict_250m.py --population quaternary
+
+# 6. Isotonic calibration + per-cell maximum fusion, write deliverable GeoTIFF.
+python scripts/northern_sierra_placer_calibrate_and_fuse.py
+
+# 7. Anchor-district validation report (Phase 1 vs. Phase 2 vs. fused).
+python scripts/northern_sierra_placer_validation.py
+```
