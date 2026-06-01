@@ -61,12 +61,19 @@ An earlier "portfolio umbrella" repo tried to pull all chapters into one site vi
 - Deep notebooks: `/ai-minerals/notebooks/<region>/...` (ours),
   `/bearcub/notebooks/bear_cub/...` (Bear Cub's).
 
-## Caching gotcha
+## Caching
 
-Hostinger serves these static pages with `cache-control: public, max-age=604800`
-(7 days). After a deploy, returning visitors keep the OLD page for up to a week
-unless they hard-reload. If you iterate often, set a shorter `max-age` for HTML
-(server `.htaccess`) or accept the hard-reload.
+HTML under `/ai-minerals/` is served `no-cache, must-revalidate, max-age=0` via a
+`.htaccess` that **`deploy_to_hostinger.sh` (re)writes after each rsync** — the
+`--delete` sync would otherwise wipe it, so don't remove that block. Effect: a
+deploy is visible immediately, no hard-reload needed. Static assets (site_libs,
+images, data) keep Hostinger's long default cache (they're stable).
+
+Caveat: a page a browser cached BEFORE this change (e.g. the old redirect-index,
+which Hostinger had served with `max-age=604800`) stays in that browser until the
+copy expires or is cleared — the server cannot un-cache a copy a client already
+holds. One-time fixes for a stuck page: DevTools → Network → "Disable cache" then
+reload, or clear site data, or append `?v=1` to the URL.
 
 ## Open TODOs (safe to do later; site works without them)
 
