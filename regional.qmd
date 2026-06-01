@@ -156,4 +156,12 @@ the model and ships the calibrated raster back. The handoff brief lives
 at `research/placer_handoff_start_here.md` (and is the right entry point
 for anyone resuming this work).
 
+## Deeper notebooks
+
+- [Eastern Alaska v1 integrated report](https://johnsondevco.com/ai-minerals/notebooks/eastak/eastak_porphyry_prospectivity.html): full pipeline plus Kenorland blind test diagnostic.
+- [BC Golden Triangle v2 integrated report](https://johnsondevco.com/ai-minerals/notebooks/bcgt/bcgt_porphyry_prospectivity.html): 154-positive blind-drill validation against post-2015 holes.
+- [Mother Lode v3 portfolio summary](https://johnsondevco.com/ai-minerals/notebooks/prospectus/motherlode.html), [v3.1 improvements (8 experiments)](https://johnsondevco.com/ai-minerals/notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](https://johnsondevco.com/ai-minerals/notebooks/motherlode/data_exploration.html).
+- [Arizona v4 integrated report](https://johnsondevco.com/ai-minerals/notebooks/arizona/main.html): Cox-Singer-cleaned 191-positive porphyry-Cu set with 4-cell DEEP-SEAM-style methodology comparison.
+- [Northern Sierra placer v6 integrated report](https://johnsondevco.com/ai-minerals/notebooks/northern_sierra_placer/northern_sierra_placer_prospectivity.html), [internal review notes](https://johnsondevco.com/ai-minerals/notebooks/northern_sierra_placer/internal.html): two-population PU + RF + LightGBM + stacking + isotonic, anchor-district validation, gldbg-handoff raster.
+
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)

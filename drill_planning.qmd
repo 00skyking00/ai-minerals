@@ -65,4 +65,8 @@ would widen the POMCP-vs-greedy gap. The property-scale
 counterpart of this idea, a GP drill-site recommender on the 24
 Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
+## Deeper notebooks
+
+- [BCGT POMDP decision planning](https://johnsondevco.com/ai-minerals/notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
+
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)

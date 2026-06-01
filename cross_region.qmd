@@ -96,4 +96,9 @@ shape for general regional MPM. Knowing where it works and where
 it doesn't is more useful for an exploration team than a blanket
 claim that the new method is better.
 
+## Deeper notebooks
+
+- [Cross-region four-cell deep dive](https://johnsondevco.com/ai-minerals/notebooks/cross_region/four_cell.html): the 2×2 controlled experiment design (DevNet/RF × DEEP-SEAM-style features / my raw features) across Curnamona / Tanacross / Arizona.
+- [US Carbonatite REE within-niche transfer test](https://johnsondevco.com/ai-minerals/notebooks/prospectus/us_carbonatite_ree.html): full writeup of the row-2 within-niche falsification.
+
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)
