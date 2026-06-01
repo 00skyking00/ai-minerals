@@ -2,18 +2,29 @@ project:
   type: website
   output-dir: _site
   render:
-    # index.qmd, bear_cub.qmd, goldbug.qmd moved out (-> portfolio umbrella,
-    # bearcub, gldbg respectively). The public chapter site at /ai-minerals/ is
-    # superseded by the portfolio umbrella; the chapters below stay here as the
-    # source the umbrella {{< include >}}s, and render standalone for local preview.
-    # NOTE (cutover): decide whether ai-minerals still deploys this public site at
-    # all once the umbrella owns /ai-minerals/ — see deploy_to_hostinger.sh.
+    # ai-minerals deploys a single site at /ai-minerals/. The chapter pages
+    # are the front door; the deep-review notebooks (per-region notebooks/
+    # subdirs) render under /ai-minerals/notebooks/<region>/<page>.html and
+    # are reachable by direct URL even though they aren't surfaced in the
+    # chapter-level navbar. (Was split into _quarto-internal.yml until
+    # 2026-05-31; the internal site was decommissioned and folded back here
+    # for a single-deploy story. Beta deploys go to /ai-minerals-beta/ via
+    # `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`.)
     - regional.qmd
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
     - posts.qmd
     - posts/*/index.qmd
+    # Deep-review notebooks (one folder per region).
+    - notebooks/eastak/*.qmd
+    - notebooks/bcgt/*.qmd
+    - notebooks/motherlode/*.qmd
+    - notebooks/arizona/*.qmd
+    - notebooks/northern_sierra_placer/*.qmd
+    - notebooks/cross_region/*.qmd
+    - notebooks/drill_planning/*.qmd
+    - notebooks/prospectus/*.qmd
 
 website:
   title: "ai-minerals"
