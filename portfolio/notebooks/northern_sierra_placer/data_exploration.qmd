@@ -134,25 +134,59 @@ RY_MIN = FEATURES["y"].min() - 125
 RY_MAX = FEATURES["y"].max() + 125
 EXTENT = (RX_MIN, RX_MAX, RY_MIN, RY_MAX)
 
-def style_axes(ax, *, title=None):
-    ax.set_xlim(RX_MIN, RX_MAX)
-    ax.set_ylim(RY_MIN, RY_MAX)
+# Zoomed view centered on the 7 anchor districts. The full AOI is ~220 km
+# E-W by ~280 km N-S; zooming to a tight bbox around the anchor cluster
+# (with a 25 km buffer for context) keeps geomorphic detail visible that
+# would disappear at full-AOI extent. imshow `extent` still uses the
+# full raster bounds; the xlim/ylim in style_axes crops the display.
+_ax_xmin, _ax_ymin, _ax_xmax, _ax_ymax = ANCHORS_GDF.total_bounds
+ZOOM_PAD_M = 25_000
+ZOOM_X = (_ax_xmin - ZOOM_PAD_M, _ax_xmax + ZOOM_PAD_M)
+ZOOM_Y = (_ax_ymin - ZOOM_PAD_M, _ax_ymax + ZOOM_PAD_M)
+
+def style_axes(ax, *, title=None, full_aoi: bool = False):
+    """Default crops to the anchor-district zoom; pass full_aoi=True to
+    show the entire AOI (used by the region-locator map for context)."""
+    if full_aoi:
+        ax.set_xlim(RX_MIN, RX_MAX)
+        ax.set_ylim(RY_MIN, RY_MAX)
+    else:
+        ax.set_xlim(ZOOM_X)
+        ax.set_ylim(ZOOM_Y)
     ax.set_aspect("equal")
     ax.set_xticks([])
     ax.set_yticks([])
     if title:
         ax.set_title(title, fontsize=11)
 
-def label_anchors(ax, *, fontsize=7):
+# Offset table so labels don't pile up on top of each other in the dense
+# northern cluster (Malakoff / North San Juan / Dutch Flat / You Bet are
+# all within ~10 km). Manual offsets are simpler than adjustText for a
+# fixed 7-point set.
+_ANCHOR_OFFSETS = {
+    "Malakoff Diggins / North Bloomfield": (6, 8),
+    "North San Juan":                      (-90, 4),
+    "Dutch Flat":                          (6, -10),
+    "You Bet":                             (-50, 10),
+    "Iowa Hill":                           (-65, 0),
+    "Forest Hill":                         (6, -12),
+    "Michigan Bluff":                      (6, 6),
+}
+
+def label_anchors(ax, *, fontsize=8):
+    import matplotlib.patheffects as pe
     for name, geom in zip(ANCHORS_GDF["name"], ANCHORS_GDF.geometry):
-        ax.plot(geom.x, geom.y, "o", color="crimson", markersize=4,
-                markeredgecolor="white", markeredgewidth=0.5, zorder=10)
-        short = name.split(" / ")[0]  # drop "/ North Bloomfield" etc.
-        ax.annotate(short, (geom.x, geom.y), xytext=(4, 4),
-                    textcoords="offset points", fontsize=fontsize,
-                    color="black",
-                    path_effects=[],
-                    zorder=11)
+        ax.plot(geom.x, geom.y, "o", color="crimson", markersize=5,
+                markeredgecolor="white", markeredgewidth=0.8, zorder=10)
+        short = name.split(" / ")[0]
+        dx, dy = _ANCHOR_OFFSETS.get(name, (6, 6))
+        ax.annotate(
+            short, (geom.x, geom.y), xytext=(dx, dy),
+            textcoords="offset points", fontsize=fontsize,
+            color="black", fontweight="semibold",
+            path_effects=[pe.withStroke(linewidth=2.4, foreground="white")],
+            zorder=11,
+        )
 ```
 
 ## The seven anchor districts
@@ -195,9 +229,19 @@ AOI_BOX_3310.boundary.plot(ax=ax, color="black", linewidth=1.5, zorder=5)
 # Anchors.
 label_anchors(ax, fontsize=8)
 
-style_axes(ax, title="Northern Sierra placer model — AOI + 7 anchor districts")
+style_axes(ax, title="Northern Sierra placer model — AOI + 7 anchor districts",
+           full_aoi=True)
 ax.set_xlabel("California Albers easting (m)", fontsize=9)
 ax.set_ylabel("northing (m)", fontsize=9)
+# Box showing the zoom extent used by every subsequent map.
+from matplotlib.patches import Rectangle
+ax.add_patch(Rectangle(
+    (ZOOM_X[0], ZOOM_Y[0]), ZOOM_X[1] - ZOOM_X[0], ZOOM_Y[1] - ZOOM_Y[0],
+    fill=False, edgecolor="crimson", linewidth=1.2, linestyle="--", zorder=6,
+))
+ax.annotate("zoom extent\nfor maps below", (ZOOM_X[1], ZOOM_Y[1]),
+            xytext=(-6, -14), textcoords="offset points", fontsize=8,
+            color="crimson", ha="right")
 plt.tight_layout()
 plt.show()
 ```
@@ -206,7 +250,9 @@ Malakoff Diggins, Dutch Flat, North San Juan, You Bet, Forest Hill, Iowa
 Hill, and Michigan Bluff. The southern anchors (Iowa Hill, Forest Hill,
 Michigan Bluff) are roughly 80 km south of the northern cluster
 (Malakoff, Dutch Flat, North San Juan), straddling the modern Bear and
-American river drainages.
+American river drainages. The dashed red rectangle on the locator map
+marks the zoom extent every subsequent map crops to: a ~80 km square
+around the anchor cluster, where the geomorphic detail lives.
 
 ## 1. Topography: elevation, slope, TPI
 
