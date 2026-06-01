@@ -100,6 +100,23 @@ rsync -avz --delete --delete-excluded --progress \
   data/derived/us_carbonatite_ree \
   "${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
 
+# Make HTML revalidate so a deploy is visible immediately instead of being masked
+# by Hostinger's default ~7-day cache (this is why a stale redirect/page can stick
+# in the browser after a deploy). The rsync --delete above would wipe a
+# server-side .htaccess, so (re)write it here, after the sync. Static assets keep
+# the long cache. Requires mod_headers (no-op if the module is absent).
+echo
+echo "==> Writing no-cache .htaccess for HTML at ${REMOTE_DIR}/"
+ssh "${REMOTE_HOST}" "cat > ${REMOTE_DIR}/.htaccess <<'EOF'
+<IfModule mod_headers.c>
+  <FilesMatch \"\\.html\$\">
+    Header set Cache-Control \"no-cache, must-revalidate, max-age=0\"
+    Header unset Expires
+  </FilesMatch>
+</IfModule>
+EOF
+"
+
 if [ "${SUBPATH}" = "ai-minerals" ]; then
   echo
   echo "==> Updating legacy-path 301 redirect (production only)"
