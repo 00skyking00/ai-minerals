@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import geopandas as gpd
@@ -628,6 +629,11 @@ def train_one_population(
             X_meta_train[nan_oof, 1] = lgbm_full.predict_proba(
                 X_train_full[nan_oof]
             )[:, 1]
+        if y_train.sum() < 3 * min(CALIBRATION_CV, int(y_train.sum())):
+            warnings.warn(
+                f"sparse positives in calibration: {int(y_train.sum())} positives "
+                f"for {CALIBRATION_CV}-fold CV"
+            )
         cal.fit(X_meta_train, y_train)
         p_cal_grid = cal.predict_proba(
             np.column_stack([p_rf_grid, p_lgbm_grid])

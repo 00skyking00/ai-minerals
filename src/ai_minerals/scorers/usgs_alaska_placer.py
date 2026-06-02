@@ -202,6 +202,32 @@ def usgs_alaska_placer_index(
     # (e.g. distance-downstream-from-lode, which only resolves for cells
     # within max_km of a lode-Au seed along the NHD network) correctly
     # contribute 0 elsewhere instead of NaN'ing out the whole cell.
+    #
+    # KNOWN v2 QUIRK (preserved in v3 for backward compatibility, flagged
+    # for v3.5 reconsideration):
+    #   For "inverse" features (e.g. distance_to_lode_m, distance_downstream
+    #   _from_lode_m, hydraulic_pit_proximity_m), the per-feature normalize
+    #   step has already done `1 - normalized_distance`, so a small distance
+    #   maps to ~1 (high score) and a large distance maps to ~0 (low score).
+    #   A NaN distance means "no lode within the cap" — semantically the
+    #   WORST possible case for an inverse-distance feature; the documented
+    #   intent is that missing == worst case. But the .fillna(0.0) below
+    #   replaces NaN with 0.0 AFTER the inversion, which is the BEST score
+    #   for inverse features (0.0 normalized + 1 - 0 = 1.0... actually 0.0
+    #   here because contributions[col] already has the (1 - x) * weight
+    #   applied; .fillna(0.0) drops the weighted contribution to 0, which
+    #   then sums into the renormalized total without penalty).
+    #
+    #   Net effect: a cell with NaN distance-to-lode gets credited as if
+    #   that feature contributed nothing, not as if it failed the feature.
+    #   For sparse features this is the right call (otherwise everything
+    #   outside the lode network NaN's out). For features where missing
+    #   genuinely means "bad," the score is too generous.
+    #
+    #   v3 preserves the existing semantics so anchor-gate calibration is
+    #   stable across the v2 → v3 transition. Revisit in v3.5: split
+    #   "missing == sparse, score 0 contribution" from "missing == worst,
+    #   contribute full weight at 0" with a per-feature NaN policy.
     stacked = pd.concat(contributions.values(), axis=1).fillna(0.0)
     raw = stacked.sum(axis=1) / total_w
     # Renormalize raw to [0, 1] over the within-AOI distribution.
@@ -215,8 +241,11 @@ def anchor_decile_check(
     """Validation-gate helper.
 
     score: per-cell Phase 1 score (output of usgs_alaska_placer_index).
-    anchor_cells: pd.Series of integer row indices into `score` pointing
-                  at the anchor-district cells (one per district).
+    anchor_cells: pd.Series of POSITIONAL integer indices into `score`
+                  pointing at the anchor-district cells (one per district).
+                  Positional (iloc-style), not label-based, so this works
+                  regardless of whether score's underlying df.index is a
+                  RangeIndex(0, n).
 
     Returns a DataFrame with columns:
         district  (the Series index of anchor_cells)
@@ -230,9 +259,10 @@ def anchor_decile_check(
         q=10,
         labels=range(10),
     )
+    n = len(score)
     rows = []
     for district, cell_idx in anchor_cells.items():
-        if pd.isna(cell_idx) or int(cell_idx) not in score.index:
+        if pd.isna(cell_idx) or not (0 <= int(cell_idx) < n):
             rows.append({
                 "district": district,
                 "cell_idx": cell_idx,
@@ -245,8 +275,8 @@ def anchor_decile_check(
         rows.append({
             "district": district,
             "cell_idx": idx,
-            "score": float(score.loc[idx]),
-            "decile": int(deciles.loc[idx]),
-            "in_top_decile": int(deciles.loc[idx]) == 0,
+            "score": float(score.iloc[idx]),
+            "decile": int(deciles.iloc[idx]),
+            "in_top_decile": int(deciles.iloc[idx]) == 0,
         })
     return pd.DataFrame(rows)
