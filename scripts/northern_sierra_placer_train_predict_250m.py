@@ -235,14 +235,28 @@ def _recompute_hawkes_for_fold(
 
     Returns a Series indexed identically to df with NaN outside the test
     block's cells (caller pastes the result back into the per-fold X frame).
+
+    v3 Phase A.1 optimization: build a cell_mask covering only the AOI-clipped
+    cells in df (typically ~800k of grid.n_cells ~1.4M, since the full grid
+    bounding rectangle includes outside-AOI cells we'll never use). The hot
+    loop in hawkes_dual_decay_catchment skips the ~45% wasted cells. The
+    optimization is automatic and applies regardless of fold size; it doesn't
+    change per-cell math, only which cells the loop visits.
     """
     sample_mask = np.isin(sample_block_ids, list(train_block_ids))
+
+    # Map AOI-clipped df cells to grid-flat positions for the cell_mask.
+    flat_idx = (df["row"].to_numpy() * grid.shape[1]
+                + df["col"].to_numpy()).astype(np.int64)
+    cell_mask = np.zeros(grid.n_cells, dtype=bool)
+    cell_mask[flat_idx] = True
+
     full_grid_series = hawkes_dual_decay_catchment(
-        samples, nhd, grid, element=element, fold_mask=sample_mask,
+        samples, nhd, grid, element=element,
+        fold_mask=sample_mask, cell_mask=cell_mask,
     )
     # hawkes returns one entry per full-grid cell (grid.n_cells); df is
     # AOI-clipped. Map back via row-major (row, col) flat index.
-    flat_idx = (df["row"].to_numpy() * grid.shape[1] + df["col"].to_numpy()).astype(np.int64)
     return pd.Series(full_grid_series.to_numpy()[flat_idx], index=df.index, name=element_col)
 
 
