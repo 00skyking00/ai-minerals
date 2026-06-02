@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -61,8 +62,15 @@ def _anchor_cell_indices(df: pd.DataFrame) -> pd.Series:
         ax, ay = transformer.transform(lon, lat)
         d2 = (xs - ax) ** 2 + (ys - ay) ** 2
         cell = int(np.argmin(d2))
+        snap_dist_m = float(np.sqrt((xs[cell] - ax) ** 2 + (ys[cell] - ay) ** 2))
+        if snap_dist_m > 250:
+            warnings.warn(f"Anchor {name!r} snapped {snap_dist_m:.0f}m to nearest cell")
         names.append(name)
-        idxs.append(df.index[cell])
+        # Positional index into the score array (downstream anchor_decile_check
+        # treats this as a positional row into `score`, which assumes
+        # df.index is RangeIndex(0, n). Using `cell` directly is correct
+        # regardless of the underlying df.index.
+        idxs.append(cell)
     return pd.Series(idxs, index=names, name="cell_idx")
 
 

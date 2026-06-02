@@ -206,6 +206,7 @@ def _inject_placer_positives(df: pd.DataFrame, *, resolution_m: int) -> pd.DataF
     to its nearest grid cell (the one whose (x, y) centroid is closest in
     the working CRS).
     """
+    df = df.copy()
     from ai_minerals.data.adapters.occurrences.mrds import _PLACER_DEP_TYPE_RE
     from ai_minerals.grid import build_grid
 
@@ -286,6 +287,7 @@ def _build_placer_columns(
     grid = build_grid(REGION.aoi, resolution_m=resolution_m, working_crs=REGION.working_crs)
     n_cells_full = grid.n_cells
     flat_idx = _row_col_to_flat(df, ncols=grid.shape[1])
+    assert grid.n_cells == len(df), f"Grid mismatch: {grid.n_cells} != {len(df)}"
 
     # ---- DEM-derived hydrology (slope is already on df from build_feature_frame).
     print("[placer] DEM + hydrology derivatives")
