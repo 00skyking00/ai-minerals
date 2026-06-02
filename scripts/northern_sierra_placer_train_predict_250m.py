@@ -562,7 +562,6 @@ def train_one_population(
             "pr_auc": stack_pr,
         }]))
         print(f"[{pop}]   stacking OOF AUC={stack_roc:.3f}  PR-AUC={stack_pr:.3f}", flush=True)
-    print(f"[{pop}]   stacking done in {(time.time()-t0)/60:.1f} min", flush=True)
 
     # --- Full-data refits for whole-grid predictions ---
     def _fullfit():
