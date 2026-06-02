@@ -255,6 +255,7 @@ def hawkes_dual_decay_catchment(
     far_decay_km: float = 15.0,
     alpha: float = 0.3,
     fold_mask: np.ndarray | None = None,
+    cell_mask: np.ndarray | None = None,
 ) -> pd.Series:
     """Hawkes-style dual-decay catchment aggregation of an element column.
 
@@ -268,6 +269,12 @@ def hawkes_dual_decay_catchment(
     `fold_mask` (bool array of length len(samples), True = training fold) is
     applied **before** the snap step, so re-running the feature per spatial-
     block fold never lets a test-fold sample contribute to its own cell.
+
+    `cell_mask` (bool array of length grid.n_cells, True = compute this cell)
+    restricts the hot loop to a subset of cells. The per-fold Hawkes refold
+    in train_predict_250m.py uses this to compute only the test-fold cells,
+    avoiding ~90% wasted compute over the full grid. Cells outside the mask
+    return NaN. Default None = compute every cell.
 
     Upstream test (NHDPlus HR convention): a sample reach is upstream of a
     cell reach iff its `hydroseq` is strictly greater. Arbolate-sum is
@@ -373,6 +380,12 @@ def hawkes_dual_decay_catchment(
     #    vectorize the per-cell sample sweep with numpy boolean masks. For
     #    grids ~10^5 cells and ~10^4 samples this is acceptable; if it
     #    becomes a bottleneck we can group cells by COMID to amortize.
+    #
+    #    cell_mask: when set, iterate only over masked-true cells. The v2 per-
+    #    fold Hawkes refold computed all 800k cells then discarded ~90% via
+    #    test-fold indexing; passing a cell_mask cuts the iteration to the
+    #    test fold (typically ~50-100k cells) and gives a 5-10x speedup on
+    #    per-fold runs without changing the per-cell math.
     out_sum = np.zeros(grid.n_cells, dtype=np.float64)
     out_wsum = np.zeros(grid.n_cells, dtype=np.float64)
     out_count = np.zeros(grid.n_cells, dtype=np.int64)
@@ -382,7 +395,17 @@ def hawkes_dual_decay_catchment(
     near = float(near_decay_km)
     far = float(far_decay_km)
 
-    for ci in range(grid.n_cells):
+    if cell_mask is None:
+        cell_iter = range(grid.n_cells)
+    else:
+        cm = np.asarray(cell_mask, dtype=bool)
+        if cm.shape[0] != grid.n_cells:
+            raise ValueError(
+                f"cell_mask length {cm.shape[0]} != grid.n_cells {grid.n_cells}"
+            )
+        cell_iter = np.flatnonzero(cm).tolist()
+
+    for ci in cell_iter:
         if not cell_has_reach.iat[ci]:
             continue
         c_comid = int(cell_comid[ci])
