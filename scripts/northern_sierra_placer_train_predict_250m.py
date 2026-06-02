@@ -77,6 +77,73 @@ POPULATIONS = ("placer_tertiary", "placer_quaternary")
 DATA_DERIVED = Path(__file__).resolve().parents[1] / "data" / "derived"
 IN_FEATURES = DATA_DERIVED / f"features_{REGION.data_prefix}_250m.parquet"
 OUT_DIR = DATA_DERIVED / REGION.data_prefix
+CKPT_DIR = OUT_DIR / "_k5_checkpoints"
+
+
+# --- Checkpoint helpers --------------------------------------------------------
+#
+# K.5 runs for hours per population (~10 spatial-block folds x per-fold Hawkes
+# refold for RF and LGBM CV; another ~10 folds for the stacking OOF pass). If
+# the process dies anywhere in that pipeline, the next run picks up where the
+# last cached stage / fold left off. Two granularities:
+#
+#   - per-stage: the wrapper `_run_stage` in train_one_population caches the
+#     return value of each major stage (PU, RF CV, LGBM CV, stacking, full
+#     refits, calibration). One file per pop x stage.
+#   - per-fold: `_spatial_block_scores_with_refold` and
+#     `_stacking_oof_predictions` write each completed fold as a separate
+#     checkpoint, so a death mid-CV loses at most one fold's work.
+#
+# Checkpoints live under data/derived/<region>/_k5_checkpoints/ and use joblib
+# (numpy arrays, sklearn estimators, dataframes all serialize cleanly). To force
+# a fresh run, delete the directory:
+#
+#   rm -rf data/derived/northern_sierra_placer/_k5_checkpoints
+#
+# Checkpoints are tied to the population name and stage name only; if you
+# change feature columns or the labels parquet, clear them or you'll restore
+# stale results silently.
+
+def _ckpt_path(name: str) -> Path:
+    return CKPT_DIR / f"{name}.joblib"
+
+
+def _ckpt_save(name: str, obj) -> None:
+    import joblib
+    CKPT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = _ckpt_path(name).with_suffix(".joblib.tmp")
+    joblib.dump(obj, tmp, compress=3)
+    tmp.replace(_ckpt_path(name))
+
+
+def _ckpt_load(name: str):
+    """Return the cached object or None if no checkpoint exists."""
+    import joblib
+    p = _ckpt_path(name)
+    if not p.exists():
+        return None
+    try:
+        return joblib.load(p)
+    except Exception as exc:
+        # Corrupted checkpoint (e.g. partial write killed mid-rename) — drop it.
+        print(f"WARNING: dropping corrupt checkpoint {p.name} ({type(exc).__name__})",
+              flush=True)
+        p.unlink(missing_ok=True)
+        return None
+
+
+def _run_stage(stage_name: str, compute_fn):
+    """Cache-or-compute wrapper. `compute_fn` is a zero-arg callable that
+    returns the stage's result; the result is pickled to disk under
+    CKPT_DIR/{stage_name}.joblib and returned. On a subsequent run the cached
+    value is loaded and `compute_fn` is not called."""
+    cached = _ckpt_load(stage_name)
+    if cached is not None:
+        print(f"  [cache hit] {stage_name}", flush=True)
+        return cached
+    result = compute_fn()
+    _ckpt_save(stage_name, result)
+    return result
 
 
 # --- Hawkes per-fold recompute -------------------------------------------------
@@ -209,11 +276,17 @@ def _spatial_block_scores_with_refold(
     nhd: gpd.GeoDataFrame | None,
     grid,
     block_size_m: float = BLOCK_SIZE_M,
+    ckpt_prefix: str | None = None,
 ) -> pd.DataFrame:
     """Spatial-block CV with optional per-fold Hawkes refold.
 
     Returns a per-fold metrics frame: model, fold_id, n_train, n_test,
     roc_auc, pr_auc.
+
+    If `ckpt_prefix` is set, each completed fold's metric row is written to
+    `{ckpt_prefix}__fold_{block_id}.joblib` immediately after it finishes;
+    on rerun, folds whose checkpoint exists are loaded and not recomputed.
+    A death mid-CV loses at most one fold's work.
     """
     cv = SpatialBlockCV(block_size_m=block_size_m)
     cell_block_ids = _block_ids(df_train, block_size_m)
@@ -222,6 +295,14 @@ def _spatial_block_scores_with_refold(
 
     rows: list[dict] = []
     for train_idx, test_idx, block_id in cv.split(df_train):
+        fold_ckpt = f"{ckpt_prefix}__fold_{int(block_id)}" if ckpt_prefix else None
+        if fold_ckpt is not None:
+            cached_row = _ckpt_load(fold_ckpt)
+            if cached_row is not None:
+                rows.append(cached_row)
+                print(f"  [cache hit] {fold_ckpt}", flush=True)
+                continue
+
         y_train = y[train_idx]
         y_test = y[test_idx]
         if y_train.sum() == 0 or y_test.sum() == 0:
@@ -244,7 +325,7 @@ def _spatial_block_scores_with_refold(
         model = model_factory()
         proba = _fit_predict_tree(model, X_train, y_train, X_test)
         roc, pr = _score_proba(y_test, proba)
-        rows.append({
+        row = {
             "model": model_name,
             "fold_id": int(block_id),
             "n_train": int(len(train_idx)),
@@ -252,7 +333,10 @@ def _spatial_block_scores_with_refold(
             "n_test_pos": int(y_test.sum()),
             "roc_auc": roc,
             "pr_auc": pr,
-        })
+        }
+        rows.append(row)
+        if fold_ckpt is not None:
+            _ckpt_save(fold_ckpt, row)
     return pd.DataFrame(rows)
 
 
@@ -262,11 +346,16 @@ def _stacking_oof_predictions(
     label_col: str,
     *,
     block_size_m: float = BLOCK_SIZE_M,
+    ckpt_prefix: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Spatial-block OOF predictions for RF + LGBM. Returns (p_rf_oof, p_lgbm_oof, fold_seen).
 
     fold_seen is a bool array of cells that ever appeared in a test fold;
     cells not in any held-out block (rare edge case) stay NaN in the OOF arrays.
+
+    If `ckpt_prefix` is set, each completed fold's test-cell predictions are
+    cached as `{ckpt_prefix}__fold_{block_id}.joblib`. A death mid-stacking
+    loses at most one fold's RF + LGBM fit.
     """
     cv = SpatialBlockCV(block_size_m=block_size_m)
     y = df_train[label_col].to_numpy(dtype=np.int64)
@@ -276,17 +365,37 @@ def _stacking_oof_predictions(
     p_lgbm = np.full(len(df_train), np.nan, dtype=np.float64)
     seen = np.zeros(len(df_train), dtype=bool)
 
-    for train_idx, test_idx, _block_id in cv.split(df_train):
+    for train_idx, test_idx, block_id in cv.split(df_train):
+        fold_ckpt = f"{ckpt_prefix}__fold_{int(block_id)}" if ckpt_prefix else None
+        if fold_ckpt is not None:
+            cached = _ckpt_load(fold_ckpt)
+            if cached is not None:
+                # cached carries (test_idx, p_rf_test, p_lgbm_test).
+                cti, crf, clg = cached["test_idx"], cached["p_rf"], cached["p_lgbm"]
+                p_rf[cti] = crf
+                p_lgbm[cti] = clg
+                seen[cti] = True
+                print(f"  [cache hit] {fold_ckpt}", flush=True)
+                continue
+
         y_train = y[train_idx]
         if y_train.sum() == 0:
             continue
         rf = make_rf(random_state=42)
         rf.fit(X_base[train_idx], y_train)
-        p_rf[test_idx] = rf.predict_proba(X_base[test_idx])[:, 1]
+        p_rf_test = rf.predict_proba(X_base[test_idx])[:, 1]
+        p_rf[test_idx] = p_rf_test
         lgbm = make_lgbm(random_state=42)
         lgbm.fit(X_base[train_idx], y_train)
-        p_lgbm[test_idx] = lgbm.predict_proba(X_base[test_idx])[:, 1]
+        p_lgbm_test = lgbm.predict_proba(X_base[test_idx])[:, 1]
+        p_lgbm[test_idx] = p_lgbm_test
         seen[test_idx] = True
+        if fold_ckpt is not None:
+            _ckpt_save(fold_ckpt, {
+                "test_idx": np.asarray(test_idx),
+                "p_rf": p_rf_test,
+                "p_lgbm": p_lgbm_test,
+            })
     return p_rf, p_lgbm, seen
 
 
@@ -368,57 +477,73 @@ def train_one_population(
 
     fold_metrics: list[pd.DataFrame] = []
 
-    # --- PU baseline. fit_pu_bagging operates on its own feature selection
-    #     internally, so we pass df_oh_train directly and let it derive feats.
-    print(f"[{pop}] PU bagging (n_bags={N_PU_BAGS})...", flush=True)
-    t0 = time.time()
-    p_pu_train, _pu_feats = fit_pu_bagging(
-        df_oh_train, top_classes,
-        label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
-    )
-    print(f"[{pop}]   PU done in {(time.time()-t0)/60:.1f} min "
-          f"(n_finite={int(np.isfinite(p_pu_train).sum())})", flush=True)
-    # Re-score every cell (including anchors) via a fresh full-data PU fit so
-    # the deliverable raster has values everywhere. The training-set PU score
-    # stays unused except as a diagnostic.
-    p_pu_full, _ = fit_pu_bagging(
-        df_oh_full, top_classes,
-        label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
-    )
+    # --- PU baseline. Cached as a pair (training-set p_pu, full-grid p_pu) so a
+    # restart skips the ~2-3 min double-PU fit. ---
+    def _pu():
+        print(f"[{pop}] PU bagging (n_bags={N_PU_BAGS})...", flush=True)
+        t0 = time.time()
+        p_pu_train, _ = fit_pu_bagging(
+            df_oh_train, top_classes,
+            label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+        )
+        print(f"[{pop}]   PU train done in {(time.time()-t0)/60:.1f} min "
+              f"(n_finite={int(np.isfinite(p_pu_train).sum())})", flush=True)
+        p_pu_full, _ = fit_pu_bagging(
+            df_oh_full, top_classes,
+            label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+        )
+        return {"p_pu_train": p_pu_train, "p_pu_full": p_pu_full}
+    pu_result = _run_stage(f"{pop}__pu", _pu)
+    p_pu_full = pu_result["p_pu_full"]
 
-    # --- RF with spatial-block CV (+ per-fold Hawkes refold) ---
-    print(f"[{pop}] RF spatial-block CV "
-          f"(refold_hawkes={refold_hawkes})...", flush=True)
-    t0 = time.time()
-    rf_cv = _spatial_block_scores_with_refold(
-        df_oh_train, feat_cols, label_col,
-        model_factory=make_rf, model_name="rf",
-        refold_hawkes=refold_hawkes,
-        samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
-    )
+    # --- RF with spatial-block CV (+ per-fold Hawkes refold). Per-fold
+    # checkpoints under {pop}__rf_cv__fold_<block>.joblib so a mid-CV death
+    # loses one fold at most. ---
+    def _rf_cv():
+        print(f"[{pop}] RF spatial-block CV "
+              f"(refold_hawkes={refold_hawkes})...", flush=True)
+        t0 = time.time()
+        out = _spatial_block_scores_with_refold(
+            df_oh_train, feat_cols, label_col,
+            model_factory=make_rf, model_name="rf",
+            refold_hawkes=refold_hawkes,
+            samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
+            ckpt_prefix=f"{pop}__rf_cv",
+        )
+        print(f"[{pop}]   RF CV done in {(time.time()-t0)/60:.1f} min  "
+              f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
+        return out
+    rf_cv = _run_stage(f"{pop}__rf_cv", _rf_cv)
     fold_metrics.append(rf_cv)
-    print(f"[{pop}]   RF CV done in {(time.time()-t0)/60:.1f} min  "
-          f"folds={len(rf_cv)}  AUC mean={rf_cv['roc_auc'].mean():.3f}", flush=True)
 
-    # --- LGBM with spatial-block CV ---
-    print(f"[{pop}] LightGBM spatial-block CV...", flush=True)
-    t0 = time.time()
-    lgbm_cv = _spatial_block_scores_with_refold(
-        df_oh_train, feat_cols, label_col,
-        model_factory=make_lgbm, model_name="lgbm",
-        refold_hawkes=refold_hawkes,
-        samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
-    )
+    # --- LGBM with spatial-block CV. Same per-fold checkpointing. ---
+    def _lgbm_cv():
+        print(f"[{pop}] LightGBM spatial-block CV...", flush=True)
+        t0 = time.time()
+        out = _spatial_block_scores_with_refold(
+            df_oh_train, feat_cols, label_col,
+            model_factory=make_lgbm, model_name="lgbm",
+            refold_hawkes=refold_hawkes,
+            samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
+            ckpt_prefix=f"{pop}__lgbm_cv",
+        )
+        print(f"[{pop}]   LGBM CV done in {(time.time()-t0)/60:.1f} min  "
+              f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
+        return out
+    lgbm_cv = _run_stage(f"{pop}__lgbm_cv", _lgbm_cv)
     fold_metrics.append(lgbm_cv)
-    print(f"[{pop}]   LGBM CV done in {(time.time()-t0)/60:.1f} min  "
-          f"folds={len(lgbm_cv)}  AUC mean={lgbm_cv['roc_auc'].mean():.3f}", flush=True)
 
     # --- Stacking: spatial-block OOF base scores, logistic-regression meta ---
-    print(f"[{pop}] stacking: spatial-block OOF base scores...", flush=True)
-    t0 = time.time()
-    p_rf_oof, p_lgbm_oof, seen = _stacking_oof_predictions(
-        df_oh_train, feat_cols, label_col, block_size_m=BLOCK_SIZE_M,
-    )
+    def _stacking_oof():
+        print(f"[{pop}] stacking: spatial-block OOF base scores...", flush=True)
+        t0 = time.time()
+        out = _stacking_oof_predictions(
+            df_oh_train, feat_cols, label_col, block_size_m=BLOCK_SIZE_M,
+            ckpt_prefix=f"{pop}__stack_oof",
+        )
+        print(f"[{pop}]   stacking OOF done in {(time.time()-t0)/60:.1f} min", flush=True)
+        return out
+    p_rf_oof, p_lgbm_oof, seen = _run_stage(f"{pop}__stack_oof", _stacking_oof)
     y_train = df_oh_train[label_col].to_numpy(dtype=np.int64)
     meta = _fit_stacking_meta(p_rf_oof, p_lgbm_oof, y_train, seen)
     valid_meta = seen & np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof)
@@ -440,56 +565,80 @@ def train_one_population(
     print(f"[{pop}]   stacking done in {(time.time()-t0)/60:.1f} min", flush=True)
 
     # --- Full-data refits for whole-grid predictions ---
-    print(f"[{pop}] full-data refits + grid prediction...", flush=True)
-    t0 = time.time()
-    X_train_full = df_oh_train[feat_cols].fillna(-9999.0).to_numpy(dtype=np.float32)
-    X_grid = df_oh_full[feat_cols].fillna(-9999.0).to_numpy(dtype=np.float32)
+    def _fullfit():
+        print(f"[{pop}] full-data refits + grid prediction...", flush=True)
+        t0 = time.time()
+        X_train_full = df_oh_train[feat_cols].fillna(-9999.0).to_numpy(dtype=np.float32)
+        X_grid = df_oh_full[feat_cols].fillna(-9999.0).to_numpy(dtype=np.float32)
 
-    rf_full = make_rf(random_state=42)
-    rf_full.fit(X_train_full, y_train)
-    p_rf_grid = rf_full.predict_proba(X_grid)[:, 1]
+        rf_full = make_rf(random_state=42)
+        rf_full.fit(X_train_full, y_train)
+        p_rf_grid = rf_full.predict_proba(X_grid)[:, 1]
 
-    lgbm_full = make_lgbm(random_state=42)
-    lgbm_full.fit(X_train_full, y_train)
-    p_lgbm_grid = lgbm_full.predict_proba(X_grid)[:, 1]
+        lgbm_full = make_lgbm(random_state=42)
+        lgbm_full.fit(X_train_full, y_train)
+        p_lgbm_grid = lgbm_full.predict_proba(X_grid)[:, 1]
 
-    p_stack_grid = meta.predict_proba(
-        np.column_stack([p_rf_grid, p_lgbm_grid])
-    )[:, 1]
-    print(f"[{pop}]   refit + predict done in {(time.time()-t0)/60:.1f} min", flush=True)
+        p_stack_grid = meta.predict_proba(
+            np.column_stack([p_rf_grid, p_lgbm_grid])
+        )[:, 1]
+        print(f"[{pop}]   refit + predict done in {(time.time()-t0)/60:.1f} min",
+              flush=True)
+        return {
+            "rf_full": rf_full,
+            "lgbm_full": lgbm_full,
+            "p_rf_grid": p_rf_grid,
+            "p_lgbm_grid": p_lgbm_grid,
+            "p_stack_grid": p_stack_grid,
+            "X_train_full": X_train_full,
+        }
+    full = _run_stage(f"{pop}__fullfit", _fullfit)
+    rf_full = full["rf_full"]
+    lgbm_full = full["lgbm_full"]
+    p_rf_grid = full["p_rf_grid"]
+    p_lgbm_grid = full["p_lgbm_grid"]
+    p_stack_grid = full["p_stack_grid"]
+    X_train_full = full["X_train_full"]
 
     # --- Calibration: isotonic on the stacked score. Fall back to Platt
     # (sigmoid) when positives are too sparse for stable isotonic bins. ---
     cal_method = "isotonic" if y_train.sum() >= ISOTONIC_MIN_POSITIVES else "sigmoid"
-    print(f"[{pop}] calibration (method={cal_method}, cv={CALIBRATION_CV})...", flush=True)
-    t0 = time.time()
-
-    # CalibratedClassifierCV needs a base estimator. We feed it the stacked
-    # base scores as a 2-column matrix and let it wrap a fresh LogisticRegression
-    # so the calibration's CV folds are the same data we already meta-trained on.
-    # That re-fits the meta inside calibration, which is fine: it's the same
-    # estimator family.
-    base_meta = LogisticRegression(max_iter=1000)
-    # StratifiedKFold for stability on small-positive folds.
-    cv_obj = StratifiedKFold(n_splits=min(CALIBRATION_CV, max(2, int(y_train.sum()))),
-                             shuffle=True, random_state=42)
-    cal = CalibratedClassifierCV(base_meta, method=cal_method, cv=cv_obj)
-    X_meta_train = np.column_stack([p_rf_oof, p_lgbm_oof])
-    # Replace NaN OOF rows (cells that never landed in a held-out block) with
-    # the full-data refit prediction; calibration needs no NaN inputs.
-    nan_oof = ~(np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof))
-    if nan_oof.any():
-        X_meta_train[nan_oof, 0] = rf_full.predict_proba(
-            X_train_full[nan_oof]
+    def _calibrate():
+        print(f"[{pop}] calibration (method={cal_method}, cv={CALIBRATION_CV})...",
+              flush=True)
+        t0 = time.time()
+        # CalibratedClassifierCV needs a base estimator. We feed it the stacked
+        # base scores as a 2-column matrix and let it wrap a fresh LogisticRegression
+        # so the calibration's CV folds are the same data we already meta-trained on.
+        # That re-fits the meta inside calibration, which is fine: it's the same
+        # estimator family.
+        base_meta = LogisticRegression(max_iter=1000)
+        cv_obj = StratifiedKFold(
+            n_splits=min(CALIBRATION_CV, max(2, int(y_train.sum()))),
+            shuffle=True, random_state=42,
+        )
+        cal = CalibratedClassifierCV(base_meta, method=cal_method, cv=cv_obj)
+        X_meta_train = np.column_stack([p_rf_oof, p_lgbm_oof])
+        # Replace NaN OOF rows (cells that never landed in a held-out block) with
+        # the full-data refit prediction; calibration needs no NaN inputs.
+        nan_oof = ~(np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof))
+        if nan_oof.any():
+            X_meta_train[nan_oof, 0] = rf_full.predict_proba(
+                X_train_full[nan_oof]
+            )[:, 1]
+            X_meta_train[nan_oof, 1] = lgbm_full.predict_proba(
+                X_train_full[nan_oof]
+            )[:, 1]
+        cal.fit(X_meta_train, y_train)
+        p_cal_grid = cal.predict_proba(
+            np.column_stack([p_rf_grid, p_lgbm_grid])
         )[:, 1]
-        X_meta_train[nan_oof, 1] = lgbm_full.predict_proba(
-            X_train_full[nan_oof]
-        )[:, 1]
-    cal.fit(X_meta_train, y_train)
-    p_cal_grid = cal.predict_proba(
-        np.column_stack([p_rf_grid, p_lgbm_grid])
-    )[:, 1]
-    print(f"[{pop}]   calibration done in {(time.time()-t0)/60:.1f} min", flush=True)
+        print(f"[{pop}]   calibration done in {(time.time()-t0)/60:.1f} min",
+              flush=True)
+        return {"cal": cal, "p_cal_grid": p_cal_grid}
+    cal_result = _run_stage(f"{pop}__calibrate", _calibrate)
+    cal = cal_result["cal"]
+    p_cal_grid = cal_result["p_cal_grid"]
 
     fold_df = pd.concat(fold_metrics, ignore_index=True) if fold_metrics else pd.DataFrame()
 
