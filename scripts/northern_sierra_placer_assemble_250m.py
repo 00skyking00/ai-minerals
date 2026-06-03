@@ -409,7 +409,15 @@ def _build_placer_columns(
     grid = build_grid(REGION.aoi, resolution_m=resolution_m, working_crs=REGION.working_crs)
     n_cells_full = grid.n_cells
     flat_idx = _row_col_to_flat(df, ncols=grid.shape[1])
-    assert grid.n_cells == len(df), f"Grid mismatch: {grid.n_cells} != {len(df)}"
+    # df is AOI-clipped (build_feature_frame masks to AOI); grid is the bbox
+    # rectangle. We don't require len(df) == grid.n_cells, but every df cell's
+    # flat index MUST lie inside the grid (downstream scatter into grid-sized
+    # arrays assumes this). Silent misalignment from a shape mismatch would
+    # corrupt the downstream sampling.
+    assert flat_idx.max() < grid.n_cells, (
+        f"flat_idx out of range: max={int(flat_idx.max())} vs n_cells={grid.n_cells}"
+    )
+    assert flat_idx.min() >= 0, f"flat_idx negative: min={int(flat_idx.min())}"
 
     # ---- DEM-derived hydrology (slope is already on df from build_feature_frame).
     print("[placer] DEM + hydrology derivatives")
@@ -560,8 +568,15 @@ def _build_placer_columns(
     # relevant; Tertiary cells far from modern reaches get NaN.
     print("[placer] NHD VAA snap (stream_order, arbolate_sum, slope)")
     if nhd_path is not None and nhd_path.exists():
-        nhd_for_vaa = get_adapter("hydrology", "nhdplus_hr")(nhd_path, REGION.aoi)
-        centroids = grid.centroid_gdf().to_crs(nhd_for_vaa.crs)
+        # Reproject NHD into the grid's working CRS (meters) so sjoin_nearest's
+        # distance_col is in meters as the column name implies, and so the
+        # "nearest" reach is picked under an isotropic projected metric rather
+        # than a lat-lon-anisotropic degree metric.
+        nhd_for_vaa = (
+            get_adapter("hydrology", "nhdplus_hr")(nhd_path, REGION.aoi)
+            .to_crs(grid.crs)
+        )
+        centroids = grid.centroid_gdf()
         vaa_cols = [c for c in ["stream_order", "arbolate_sum", "slope", "hydroseq"]
                     if c in nhd_for_vaa.columns]
         joined = gpd.sjoin_nearest(
