@@ -129,6 +129,16 @@ SPI_BANDPASS_HI = 6.0
 #   - huc12_id categorical aggregation
 #   - depth_to_bedrock_cm (gSSURGO, Phase D.6 if fetched in time)
 #   - parent_material_code (gSSURGO)
+#
+# v3 Phase D.5 A/B DIAGNOSTIC FEATURE:
+#   - motherlode_prob: sampled from the motherlode v2 calibrated raster onto
+#     the placer grid. A transitive feature: the placer model consumes a
+#     prediction from a different model trained on a different label set.
+#     v3 trains both with and without this feature so the A/B answers
+#     whether it helps generalize or just adds noise. The proper hierarchical
+#     model (out-of-fold motherlode predictions per placer spatial-block
+#     fold, no train-time leakage) is v4 work; this v3 entry is the cheap
+#     diagnostic that informs whether v4 is worth building.
 TERTIARY_FEATURE_COLUMNS: tuple[str, ...] = (
     "elevation", "slope", "tri", "tpi",
     "flow_acc",
@@ -143,6 +153,8 @@ TERTIARY_FEATURE_COLUMNS: tuple[str, ...] = (
     # v3 B.6 new features (optional; if absent in the parquet, skipped gracefully)
     "plan_curvature", "profile_curvature",
     "distance_to_lithological_contact_m",
+    # v3 Phase D.5 A/B diagnostic; v4 hierarchical model will replace it.
+    "motherlode_prob",
 )
 
 
@@ -174,13 +186,29 @@ TERTIARY_FEATURE_COLUMNS: tuple[str, ...] = (
 #     Tertiary-relevance only; pit polygons are deep-gravel features.
 #   - geomorphon_terrace_mask: duplicate of TPI.
 #
+# v3 Phase D.2 NEW (landed):
+#   - nearest_reach_stream_order, nearest_reach_arbolate_sum_km,
+#     nearest_reach_slope, distance_to_nearest_reach_m: NHD VAA features
+#     snapped onto each cell from the nearest NHDPlus HR reach. Quaternary-
+#     only because Tertiary deep-gravel cells (hillside benches above
+#     modern drainage) sit far from modern reaches and these would be
+#     NaN-dominated for that population.
+#
 # HELD FOR FUTURE (v3.5 / v4):
 #   - paleochannel_likelihood_quaternary (per-population REM composite)
 #   - huc12_id categorical
-#   - nearest_reach_stream_order, nearest_reach_arbolate_sum_km,
-#     nearest_reach_slope, distance_to_nearest_reach_m (NHD VAA, Phase D.2)
 #   - distance_to_quaternary_fault_m (Jennings 2010, Phase D.3)
 #   - depth_to_bedrock_cm (gSSURGO)
+#
+# v3 Phase D.5 A/B DIAGNOSTIC FEATURE:
+#   - motherlode_prob: sampled from the motherlode v2 calibrated raster onto
+#     the placer grid. A transitive feature: the placer model consumes a
+#     prediction from a different model trained on a different label set.
+#     v3 trains both with and without this feature so the A/B answers
+#     whether it helps generalize or just adds noise. The proper hierarchical
+#     model (out-of-fold motherlode predictions per placer spatial-block
+#     fold, no train-time leakage) is v4 work; this v3 entry is the cheap
+#     diagnostic that informs whether v4 is worth building.
 QUATERNARY_FEATURE_COLUMNS: tuple[str, ...] = (
     "elevation", "slope", "tri", "tpi",
     "flow_acc",
@@ -192,4 +220,11 @@ QUATERNARY_FEATURE_COLUMNS: tuple[str, ...] = (
     "lithology_class",
     "magnetic", "gravity",
     "distance_to_lithological_contact_m",
+    # v3 Phase D.2: NHD VAA nearest-reach features. Quaternary-only.
+    "nearest_reach_stream_order",
+    "nearest_reach_arbolate_sum_km",
+    "nearest_reach_slope",
+    "distance_to_nearest_reach_m",
+    # v3 Phase D.5 A/B diagnostic; v4 hierarchical model will replace it.
+    "motherlode_prob",
 )

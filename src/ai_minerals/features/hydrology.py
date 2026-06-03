@@ -511,6 +511,42 @@ def distance_to_lode_m(
 
 
 # ---------------------------------------------------------------------------
+# Distance to nearest fault split by activity class (v3 Phase D.3)
+# ---------------------------------------------------------------------------
+
+def distance_to_fault_by_class(
+    faults: gpd.GeoDataFrame,
+    grid: "Grid",
+    *,
+    class_column: str = "activity_class",
+) -> dict[str, pd.Series]:
+    """Per-cell distance to nearest fault, split by activity class.
+
+    Returns a dict {class_value: distance_series}. Each Series has the same
+    length and index as grid.centroid_gdf(); cells with no fault of that
+    class in the AOI get np.inf.
+    """
+    out: dict[str, pd.Series] = {}
+    centroids = grid.centroid_gdf()
+    for cls in faults[class_column].dropna().unique():
+        sub = faults[faults[class_column] == cls]
+        if len(sub) == 0:
+            continue
+        joined = gpd.sjoin_nearest(
+            centroids[["geometry"]],
+            sub[["geometry"]],
+            how="left",
+            distance_col=f"_d_{cls}",
+        )
+        joined = joined.loc[~joined.index.duplicated(keep="first")]
+        d = joined[f"_d_{cls}"].fillna(np.inf).to_numpy(dtype=np.float32)
+        out[cls] = pd.Series(
+            d, index=centroids.index, name=f"distance_to_{cls}_fault_m"
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Distance downstream from lode-Au along NHD flowlines
 # ---------------------------------------------------------------------------
 

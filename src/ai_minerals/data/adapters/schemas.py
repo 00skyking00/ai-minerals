@@ -66,7 +66,7 @@ DRILLHOLE_OPTIONAL = ("drill_date", "total_depth_m", "intersected",
 # Strahler order from the VAA. Downstream-traversal code uses `hydroseq`
 # (NHDPlus's deterministic downstream-walk key) when present.
 HYDROLOGY_NET_REQUIRED = ("geometry", "comid", "arbolate_sum", "stream_order", "source")
-HYDROLOGY_NET_OPTIONAL = ("fcode", "hydroseq")
+HYDROLOGY_NET_OPTIONAL = ("fcode", "hydroseq", "slope")
 
 
 # Geophysics is an xarray DataArray (not a GeoDataFrame), so no column

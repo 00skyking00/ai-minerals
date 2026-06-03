@@ -21,6 +21,7 @@ from ai_minerals.data.adapters.geochem import nure_iicpms as _nure_iicpms_gc
 from ai_minerals.data.adapters.geology import usgs_sgmc as _sgmc_geo
 from ai_minerals.data.adapters.geology import bcgs_digital as _bcgs_digital_geo
 from ai_minerals.data.adapters.geology import cgs_2010 as _cgs_2010_geo
+from ai_minerals.data.adapters.geology import cgs_jennings as _cgs_jennings_geo
 from ai_minerals.data.adapters.geology import hydraulic_pits as _hydraulic_pits_geo
 from ai_minerals.data.adapters.geophysics import usgs as _usgs_geophys
 from ai_minerals.data.adapters.drillholes import kenorland as _kenorland_dh
@@ -52,6 +53,13 @@ ADAPTERS: dict[str, dict[str, object]] = {
         "usgs_sgmc": _sgmc_geo.load,
         "bcgs_digital": _bcgs_digital_geo.load,
         "cgs_2010": _cgs_2010_geo.load,
+        # CGS Jennings 2010 Fault Activity Map. Returns fault lines with an
+        # `activity_class` column split into {pre_quaternary, quaternary_active}
+        # so the v3 placer model can train two separate distance-to-fault
+        # features (lode-control vs drainage-tilt). Assemble-side wiring is a
+        # v3.5 follow-up — see `src/ai_minerals/features/hydrology.py`
+        # `distance_to_fault_by_class` for the per-class distance helper.
+        "cgs_jennings": _cgs_jennings_geo.load,
         "hydraulic_pits": _hydraulic_pits_geo.load_polygons,
     },
     "geophysics": {

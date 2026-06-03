@@ -1,5 +1,5 @@
 ---
-title: "Chapter 5: Cross-region experiments"
+title: "Chapter 6: Cross-region experiments"
 subtitle: "Five-region transferability test for the DEEP-SEAM deviation-network architecture"
 ---
 

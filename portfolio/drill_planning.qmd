@@ -1,5 +1,5 @@
 ---
-title: "Chapter 6: Drill planning under uncertainty"
+title: "Chapter 7: Drill planning under uncertainty"
 subtitle: "POMDP planning with Monte Carlo Tree Search on the BC Golden Triangle regional prospectivity prior"
 ---
 

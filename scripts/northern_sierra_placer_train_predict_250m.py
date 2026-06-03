@@ -470,6 +470,7 @@ def train_one_population(
     sample_block_ids: np.ndarray | None,
     nhd: gpd.GeoDataFrame | None,
     grid,
+    drop_motherlode_prob: bool = False,
 ) -> dict:
     """Run PU -> RF -> LGBM -> stacking -> calibration for one population.
 
@@ -543,6 +544,16 @@ def train_one_population(
                   flush=True)
         feat_cols = feat_cols_filtered
         print(f"[{pop}] v3 feature filter: {len(feat_cols)} features",
+              flush=True)
+
+    # v3 Phase D.5 A/B switch: drop motherlode_prob from the feature stack
+    # if requested. Default is to keep it; pass --no-motherlode-prob on the
+    # command line to drop. Enables the A/B comparison without re-assembling
+    # the feature parquet.
+    if drop_motherlode_prob and "motherlode_prob" in feat_cols:
+        feat_cols = [c for c in feat_cols if c != "motherlode_prob"]
+        print(f"[{pop}] Phase D.5 A/B: motherlode_prob dropped "
+              f"(--no-motherlode-prob); {len(feat_cols)} features remain",
               flush=True)
 
     # Assert the leakage guard from the assemble step actually fired.
@@ -891,6 +902,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip per-fold Hawkes recompute. Noted as a caveat in the fold-"
              "metrics CSV; use only when wallclock is the binding constraint.",
     )
+    parser.add_argument(
+        "--no-motherlode-prob",
+        action="store_true",
+        help="Drop motherlode_prob from the per-population feature stack "
+             "before fitting. Default is to include it. This is the v3 "
+             "Phase D.5 A/B switch: run once with and once without (no "
+             "re-assemble needed) and compare AUC, anchor gate, Lindgren "
+             "held-out, and SHAP top-features to decide whether the "
+             "transitive motherlode feature actually helps.",
+    )
     args = parser.parse_args(argv)
 
     if not args.features.exists():
@@ -947,6 +968,7 @@ def main(argv: list[str] | None = None) -> int:
             sample_block_ids=sample_block_ids,
             nhd=nhd,
             grid=grid,
+            drop_motherlode_prob=args.no_motherlode_prob,
         )
         _write_outputs(df, pop, result)
 

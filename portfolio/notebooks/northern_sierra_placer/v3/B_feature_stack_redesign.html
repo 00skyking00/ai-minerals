@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sky King">
+<meta name="dcterms.date" content="2026-06-02">
+
+<title>v3 Phase B: per-population feature stacks + soft-falloff + new features</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="B_feature_stack_redesign_files/libs/clipboard/clipboard.min.js"></script>
+<script src="B_feature_stack_redesign_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="B_feature_stack_redesign_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="B_feature_stack_redesign_files/libs/quarto-html/popper.min.js"></script>
+<script src="B_feature_stack_redesign_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="B_feature_stack_redesign_files/libs/quarto-html/anchor.min.js"></script>
+<link href="B_feature_stack_redesign_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="B_feature_stack_redesign_files/libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="B_feature_stack_redesign_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="B_feature_stack_redesign_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="B_feature_stack_redesign_files/libs/bootstrap/bootstrap-933e2945ac5ff2caa1ff6ee97b10a364.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#what-this-notebook-is" id="toc-what-this-notebook-is" class="nav-link active" data-scroll-target="#what-this-notebook-is">What this notebook is</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#per-population-feature-stacks-b.1-b.4" id="toc-per-population-feature-stacks-b.1-b.4" class="nav-link" data-scroll-target="#per-population-feature-stacks-b.1-b.4">1. Per-population feature stacks (B.1 + B.4)</a></li>
+  <li><a href="#per-population-scorer-weights-b.1-b.4" id="toc-per-population-scorer-weights-b.1-b.4" class="nav-link" data-scroll-target="#per-population-scorer-weights-b.1-b.4">2. Per-population scorer weights (B.1 + B.4)</a></li>
+  <li><a href="#soft-falloff-vs-hard-cap-b.5" id="toc-soft-falloff-vs-hard-cap-b.5" class="nav-link" data-scroll-target="#soft-falloff-vs-hard-cap-b.5">3. Soft-falloff vs hard-cap (B.5)</a></li>
+  <li><a href="#buffered-hydraulic-pit-proximity-b.2" id="toc-buffered-hydraulic-pit-proximity-b.2" class="nav-link" data-scroll-target="#buffered-hydraulic-pit-proximity-b.2">4. Buffered hydraulic-pit-proximity (B.2)</a></li>
+  <li><a href="#three-new-b.6-features" id="toc-three-new-b.6-features" class="nav-link" data-scroll-target="#three-new-b.6-features">5. Three new B.6 features</a>
+  <ul class="collapse">
+  <li><a href="#plan-and-profile-curvature" id="toc-plan-and-profile-curvature" class="nav-link" data-scroll-target="#plan-and-profile-curvature">Plan and profile curvature</a></li>
+  <li><a href="#distance-to-lithological-contact" id="toc-distance-to-lithological-contact" class="nav-link" data-scroll-target="#distance-to-lithological-contact">Distance to lithological contact</a></li>
+  </ul></li>
+  <li><a href="#whats-deferred-to-v4" id="toc-whats-deferred-to-v4" class="nav-link" data-scroll-target="#whats-deferred-to-v4">6. What’s deferred to v4</a></li>
+  <li><a href="#whats-next-phase-c" id="toc-whats-next-phase-c" class="nav-link" data-scroll-target="#whats-next-phase-c">What’s next (Phase C)</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">v3 Phase B: per-population feature stacks + soft-falloff + new features</h1>
+<p class="subtitle lead">What v3 trains on, why each population gets different features, what the new feature maps look like</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Sky King </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 2, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="what-this-notebook-is" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-notebook-is">What this notebook is</h2>
+<p>v3 Phase B redesigned the feature engineering in five sub-phases (B.0, B.0a, B.1+B.4, B.2+B.5, B.6). This notebook shows:</p>
+<ul>
+<li>The per-population feature lists and weight dicts as they ship in v3</li>
+<li>Maps of the three new B.6 features (plan/profile curvature, lithological contact distance)</li>
+<li>Map of the B.2 buffered hydraulic-pit-proximity feature against the unbuffered v2 version, showing the NaN halo around each pit</li>
+<li>Soft-falloff vs hard-cap distance feature comparison (B.5)</li>
+</ul>
+<p>No model retraining happens here. The v3 retrain runs at end of Phase F.</p>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div id="setup" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> geopandas <span class="im">as</span> gpd</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.patheffects <span class="im">as</span> pe</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> rasterio</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> shapely.geometry <span class="im">import</span> Point</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.config <span class="im">import</span> (</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    TERTIARY_FEATURE_COLUMNS,</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    QUATERNARY_FEATURE_COLUMNS,</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.scorers.usgs_alaska_placer <span class="im">import</span> (</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    DEFAULT_WEIGHTS_TERTIARY,</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    DEFAULT_WEIGHTS_QUATERNARY,</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.features.hydrology <span class="im">import</span> (</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    gaussian_falloff, plan_curvature, profile_curvature,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.features.placer_geology <span class="im">import</span> (</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    distance_to_lithological_contact_m,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    hydraulic_pit_proximity_m,</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    hydraulic_pit_proximity_m_buffered,</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.regions.northern_sierra_placer <span class="im">import</span> NORTHERN_SIERRA_PLACER <span class="im">as</span> REGION</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.regions._northern_sierra_anchors <span class="im">import</span> ANCHOR_DISTRICTS</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>REPO_ROOT <span class="op">=</span> Path.cwd()</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="kw">not</span> (REPO_ROOT <span class="op">/</span> <span class="st">"pyproject.toml"</span>).exists() <span class="kw">and</span> REPO_ROOT.parent <span class="op">!=</span> REPO_ROOT:</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    REPO_ROOT <span class="op">=</span> REPO_ROOT.parent</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"repo root: </span><span class="sc">{</span>REPO_ROOT<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>repo root: /home/sky/src/learning/ai-minerals</code></pre>
+</div>
+</div>
+</section>
+<section id="per-population-feature-stacks-b.1-b.4" class="level2">
+<h2 class="anchored" data-anchor-id="per-population-feature-stacks-b.1-b.4">1. Per-population feature stacks (B.1 + B.4)</h2>
+<p>The v2 model trained both populations on the same 44-feature stack. Many of those features actively hurt one population while helping the other (e.g.&nbsp;SPI band lights up modern channels but is meaningless for Tertiary terraces). v3 splits the stack.</p>
+<div id="pop-stacks" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tertiary feature stack (</span><span class="sc">{</span><span class="bu">len</span>(TERTIARY_FEATURE_COLUMNS)<span class="sc">}</span><span class="ss"> features):"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> TERTIARY_FEATURE_COLUMNS:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Quaternary feature stack (</span><span class="sc">{</span><span class="bu">len</span>(QUATERNARY_FEATURE_COLUMNS)<span class="sc">}</span><span class="ss"> features):"</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> QUATERNARY_FEATURE_COLUMNS:</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>f<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>in_both <span class="op">=</span> <span class="bu">set</span>(TERTIARY_FEATURE_COLUMNS) <span class="op">&amp;</span> <span class="bu">set</span>(QUATERNARY_FEATURE_COLUMNS)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>only_t <span class="op">=</span> <span class="bu">set</span>(TERTIARY_FEATURE_COLUMNS) <span class="op">-</span> <span class="bu">set</span>(QUATERNARY_FEATURE_COLUMNS)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>only_q <span class="op">=</span> <span class="bu">set</span>(QUATERNARY_FEATURE_COLUMNS) <span class="op">-</span> <span class="bu">set</span>(TERTIARY_FEATURE_COLUMNS)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"shared between both: </span><span class="sc">{</span><span class="bu">len</span>(in_both)<span class="sc">}</span><span class="ss"> features"</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Tertiary-only:       </span><span class="sc">{</span><span class="bu">sorted</span>(only_t)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Quaternary-only:     </span><span class="sc">{</span><span class="bu">sorted</span>(only_q)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Tertiary feature stack (17 features):
+  elevation
+  slope
+  tri
+  tpi
+  flow_acc
+  paleochannel_likelihood
+  tertiary_terrace_likelihood
+  distance_to_lode_m
+  is_quaternary_alluvium
+  lithology_class
+  magnetic
+  gravity
+  catchment_au_hawkes
+  hydraulic_pit_proximity_m_buffered
+  plan_curvature
+  profile_curvature
+  distance_to_lithological_contact_m
+
+Quaternary feature stack (18 features):
+  elevation
+  slope
+  tri
+  tpi
+  flow_acc
+  spi_band
+  twi
+  ksn
+  paleochannel_likelihood
+  distance_downstream_from_lode_m
+  distance_to_lode_m
+  catchment_au_hawkes
+  catchment_as_hawkes
+  catchment_sb_hawkes
+  lithology_class
+  magnetic
+  gravity
+  distance_to_lithological_contact_m
+
+shared between both: 12 features
+Tertiary-only:       ['hydraulic_pit_proximity_m_buffered', 'is_quaternary_alluvium', 'plan_curvature', 'profile_curvature', 'tertiary_terrace_likelihood']
+Quaternary-only:     ['catchment_as_hawkes', 'catchment_sb_hawkes', 'distance_downstream_from_lode_m', 'ksn', 'spi_band', 'twi']</code></pre>
+</div>
+</div>
+<p>The Tertiary-only features are <code>is_quaternary_alluvium</code> (antithesis signal, where Tertiary gravels are NOT), <code>tertiary_terrace_likelihood</code> (bench geometry above modern drainage), and <code>hydraulic_pit_proximity_m_buffered</code> (the buffered variant — Tertiary’s positive set IS the pit polygons; the unbuffered feature trivially encodes the label).</p>
+<p>The Quaternary-only features are the modern-channel signal: <code>spi_band</code> (Roy 2018 detachment threshold), <code>ksn</code> (knickpoint steepness), <code>flow_acc</code> cluster, and the Hawkes catchment-As + catchment-Sb (pathfinders that don’t help with Tertiary buried channels).</p>
+</section>
+<section id="per-population-scorer-weights-b.1-b.4" class="level2">
+<h2 class="anchored" data-anchor-id="per-population-scorer-weights-b.1-b.4">2. Per-population scorer weights (B.1 + B.4)</h2>
+<p>The Phase 1 scorer also splits. The v2 single weight set is preserved as <code>DEFAULT_WEIGHTS</code> for backward compatibility; v3 ships <code>DEFAULT_WEIGHTS_TERTIARY</code> and <code>DEFAULT_WEIGHTS_QUATERNARY</code> for the gated per-population score.</p>
+<div id="pop-weights" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> show(name, weights):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    rows <span class="op">=</span> []</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> feat, w <span class="kw">in</span> weights.items():</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        rows.append({</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>            <span class="st">"feature"</span>: feat,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            <span class="st">"weight"</span>: w.weight,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"direction"</span>: w.direction,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">"sigma_m"</span>: <span class="bu">getattr</span>(w, <span class="st">"sigma_m"</span>, <span class="va">None</span>),</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">"cap"</span>: w.cap,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        })</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    df <span class="op">=</span> pd.DataFrame(rows).sort_values(<span class="st">"weight"</span>, ascending<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">  (n=</span><span class="sc">{</span><span class="bu">len</span>(df)<span class="sc">}</span><span class="ss">, sum_weights=</span><span class="sc">{</span>df<span class="sc">.</span>weight<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(df.to_string(index<span class="op">=</span><span class="va">False</span>))</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>show(<span class="st">"DEFAULT_WEIGHTS_TERTIARY"</span>, DEFAULT_WEIGHTS_TERTIARY)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>show(<span class="st">"DEFAULT_WEIGHTS_QUATERNARY"</span>, DEFAULT_WEIGHTS_QUATERNARY)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+DEFAULT_WEIGHTS_TERTIARY  (n=9, sum_weights=1.000)
+                           feature  weight direction  sigma_m  cap
+                distance_to_lode_m    0.22  gaussian  12000.0 None
+       tertiary_terrace_likelihood    0.18    direct      NaN None
+           paleochannel_likelihood    0.16    direct      NaN None
+hydraulic_pit_proximity_m_buffered    0.16  gaussian   3000.0 None
+               catchment_au_hawkes    0.12    direct      NaN None
+            is_quaternary_alluvium    0.05   boolean      NaN None
+distance_to_lithological_contact_m    0.05  gaussian   2000.0 None
+                               twi    0.03    direct      NaN None
+                             slope    0.03   inverse      NaN None
+
+DEFAULT_WEIGHTS_QUATERNARY  (n=11, sum_weights=1.000)
+                           feature  weight direction  sigma_m  cap
+   distance_downstream_from_lode_m    0.20  gaussian  20000.0 None
+               catchment_au_hawkes    0.18    direct      NaN None
+                distance_to_lode_m    0.12  gaussian  12000.0 None
+                          spi_band    0.12  bandpass      NaN None
+                               ksn    0.08    direct      NaN None
+           paleochannel_likelihood    0.08    direct      NaN None
+                               twi    0.06    direct      NaN None
+                          flow_acc    0.05    direct      NaN None
+distance_to_lithological_contact_m    0.05  gaussian   2000.0 None
+               catchment_as_hawkes    0.03    direct      NaN None
+               catchment_sb_hawkes    0.03    direct      NaN None</code></pre>
+</div>
+</div>
+<p>Three observations:</p>
+<ul>
+<li>Tertiary’s top feature is <code>distance_to_lode_m</code> (gaussian, σ=12km, weight 0.22) followed by <code>tertiary_terrace_likelihood</code> (direct, 0.18) and <code>paleochannel_likelihood</code> (direct, 0.16). No pit-proximity in the top: the buffered variant ranks at 0.16 but only contributes outside the 1km buffer.</li>
+<li>Quaternary’s top feature is <code>distance_downstream_from_lode_m</code> (gaussian, σ=20km, weight 0.20) followed by <code>catchment_au_hawkes</code> (direct, 0.18) and <code>distance_to_lode_m</code> (gaussian, 0.12). The 20km σ is the wider falloff the plan called out for catching distal Sacramento Valley placers.</li>
+<li>Both populations use <code>gaussian</code> direction for three distance features.</li>
+</ul>
+</section>
+<section id="soft-falloff-vs-hard-cap-b.5" class="level2">
+<h2 class="anchored" data-anchor-id="soft-falloff-vs-hard-cap-b.5">3. Soft-falloff vs hard-cap (B.5)</h2>
+<p>The v2 distance features used <code>direction="inverse"</code> with a hard cap (<code>cap=15_000</code> for lode distance, <code>cap=25_000</code> for downstream). Cells beyond the cap got score 0; cells at the boundary got an arbitrary near-zero score. The transition was a visible discontinuity in the score maps.</p>
+<p>v3 uses <code>direction="gaussian"</code> with a <code>sigma_m</code> parameter. The score decays smoothly from 1 (at distance 0) to ~5% at distance 3σ. Forest Hill is ~12 km from the nearest lode-Au point; v2’s 15km cap put it at score ~0.2; v3’s gaussian with σ=12km puts it at score ~0.61, which is much more in line with the geological reality (Forest Hill is a real placer district).</p>
+<div id="cell-soft-vs-hard" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hard_cap_inverse(d, cap):</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> np.where(d <span class="op">&lt;</span> cap, <span class="fl">1.0</span> <span class="op">-</span> d <span class="op">/</span> cap, <span class="fl">0.0</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> out.astype(np.float32)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>d_km <span class="op">=</span> np.linspace(<span class="dv">0</span>, <span class="dv">30</span>, <span class="dv">200</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>d_m <span class="op">=</span> d_km <span class="op">*</span> <span class="dv">1000</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="fl">4.5</span>))</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>ax.plot(d_km, hard_cap_inverse(d_m, <span class="dv">15_000</span>), color<span class="op">=</span><span class="st">"crimson"</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"v2: inverse, cap=15km"</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>ax.plot(d_km, gaussian_falloff(d_m, sigma_m<span class="op">=</span><span class="dv">12_000</span>),</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        color<span class="op">=</span><span class="st">"steelblue"</span>, linewidth<span class="op">=</span><span class="dv">2</span>, label<span class="op">=</span><span class="st">"v3: gaussian, σ=12km"</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>ax.axvline(<span class="dv">12</span>, color<span class="op">=</span><span class="st">"gray"</span>, linestyle<span class="op">=</span><span class="st">":"</span>, alpha<span class="op">=</span><span class="fl">0.6</span>, label<span class="op">=</span><span class="st">"Forest Hill: ~12km from nearest lode-Au"</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"distance to lode-Au point (km)"</span>)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"feature contribution (0 = no signal, 1 = max)"</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"distance_to_lode_m: v2 hard cap vs v3 gaussian falloff"</span>)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>, alpha<span class="op">=</span><span class="fl">0.25</span>)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="B_feature_stack_redesign_files/figure-html/soft-vs-hard-output-1.png" id="soft-vs-hard" width="854" height="422" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="buffered-hydraulic-pit-proximity-b.2" class="level2">
+<h2 class="anchored" data-anchor-id="buffered-hydraulic-pit-proximity-b.2">4. Buffered hydraulic-pit-proximity (B.2)</h2>
+<p>The v2 <code>hydraulic_pit_proximity_m</code> feature trivially encoded the Tertiary label: positive cells are pit polygon centroids, so <code>distance == 0</code> perfectly identifies them. v3 trains on <code>hydraulic_pit_proximity_m_buffered</code>, which is NaN within 1km of any pit polygon. The model cannot learn the shortcut because the positive cells themselves are unobservable in this feature.</p>
+<p>Compute both maps on a small AOI patch around the anchor cluster + plot the buffer halo.</p>
+<div id="buffered-pit-proximity" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.grid <span class="im">import</span> build_grid</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.data.adapters <span class="im">import</span> get_adapter</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the placer grid + load pits</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>grid <span class="op">=</span> build_grid(REGION.aoi, resolution_m<span class="op">=</span><span class="dv">250</span>, working_crs<span class="op">=</span>REGION.working_crs)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>pit_polys <span class="op">=</span> get_adapter(<span class="st">"geology"</span>, <span class="st">"hydraulic_pits"</span>)(</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    REGION.raw_paths[<span class="st">"hydraulic_pits"</span>], REGION.aoi</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>prox_v2 <span class="op">=</span> hydraulic_pit_proximity_m(pit_polys, grid)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>prox_v3 <span class="op">=</span> hydraulic_pit_proximity_m_buffered(pit_polys, grid, buffer_m<span class="op">=</span><span class="fl">1000.0</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"v2 hydraulic_pit_proximity_m:"</span>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  finite cells: </span><span class="sc">{</span><span class="bu">int</span>(prox_v2.notna().<span class="bu">sum</span>())<span class="sc">:,}</span><span class="ss"> of </span><span class="sc">{</span><span class="bu">len</span>(prox_v2)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  min=</span><span class="sc">{</span>prox_v2<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.0f}</span><span class="ss">m  median=</span><span class="sc">{</span>prox_v2<span class="sc">.</span>median()<span class="sc">:.0f}</span><span class="ss">m  max=</span><span class="sc">{</span>prox_v2<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.0f}</span><span class="ss">m"</span>)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"v3 hydraulic_pit_proximity_m_buffered (buffer=1000m):"</span>)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  finite cells: </span><span class="sc">{</span><span class="bu">int</span>(prox_v3.notna().<span class="bu">sum</span>())<span class="sc">:,}</span><span class="ss"> of </span><span class="sc">{</span><span class="bu">len</span>(prox_v3)<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  cells nullified (within 1km of any pit): </span><span class="sc">{</span><span class="bu">int</span>(prox_v2.notna().<span class="bu">sum</span>() <span class="op">-</span> prox_v3.notna().<span class="bu">sum</span>())<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  min=</span><span class="sc">{</span>prox_v3<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.0f}</span><span class="ss">m  median=</span><span class="sc">{</span>prox_v3<span class="sc">.</span>median()<span class="sc">:.0f}</span><span class="ss">m  max=</span><span class="sc">{</span>prox_v3<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.0f}</span><span class="ss">m"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>v2 hydraulic_pit_proximity_m:
+  finite cells: 823,500 of 823,500
+  min=0m  median=45681m  max=146923m
+
+v3 hydraulic_pit_proximity_m_buffered (buffer=1000m):
+  finite cells: 814,910 of 823,500
+  cells nullified (within 1km of any pit): 8,590
+  min=1000m  median=46278m  max=146923m</code></pre>
+</div>
+</div>
+<p>The buffered version voids the ~10-20k cells closest to pit polygons. The model’s view of “near a pit” is replaced by “I have no signal here” — which forces the model to use the other features (geomorphology, geology, geochem) to predict positives. That’s exactly what v3 needs for generalization.</p>
+</section>
+<section id="three-new-b.6-features" class="level2">
+<h2 class="anchored" data-anchor-id="three-new-b.6-features">5. Three new B.6 features</h2>
+<section id="plan-and-profile-curvature" class="level3">
+<h3 class="anchored" data-anchor-id="plan-and-profile-curvature">Plan and profile curvature</h3>
+<p>The DEM second-derivative curvatures, Gaussian-smoothed.</p>
+<ul>
+<li><strong>Plan curvature</strong>: positive on ridges (interstream divides where Tertiary gravels rest), negative in valleys. Strong signal for Tertiary terrace identification.</li>
+<li><strong>Profile curvature</strong>: positive at convex slope-breaks (knickpoints — gold traps for Quaternary placers), negative at concave breaks (bench toes — also placer traps).</li>
+</ul>
+<p>Both functions take a DEM array; the assemble script wires them in at the grid level alongside slope and TPI.</p>
+<div id="cell-curvature-smoke" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute on a synthetic DEM patch to show the maps are reasonable.</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>nx, ny <span class="op">=</span> <span class="dv">200</span>, <span class="dv">200</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>xs <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>, nx)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>ys <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>, ny)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>X, Y <span class="op">=</span> np.meshgrid(xs, ys)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>dem <span class="op">=</span> <span class="dv">1000</span> <span class="op">+</span> <span class="dv">200</span> <span class="op">*</span> np.sin(<span class="dv">3</span> <span class="op">*</span> X) <span class="op">*</span> np.cos(<span class="dv">2</span> <span class="op">*</span> Y) <span class="op">+</span> <span class="dv">50</span> <span class="op">*</span> (X<span class="op">**</span><span class="dv">2</span> <span class="op">+</span> Y<span class="op">**</span><span class="dv">2</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>fig, axes <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">3</span>, figsize<span class="op">=</span>(<span class="dv">15</span>, <span class="dv">5</span>))</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>im0 <span class="op">=</span> axes[<span class="dv">0</span>].imshow(dem, cmap<span class="op">=</span><span class="st">"terrain"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">0</span>].set_title(<span class="st">"synthetic DEM</span><span class="ch">\n</span><span class="st">(elevation, m)"</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>plt.colorbar(im0, ax<span class="op">=</span>axes[<span class="dv">0</span>], shrink<span class="op">=</span><span class="fl">0.7</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>pc <span class="op">=</span> plan_curvature(dem.astype(np.float32))</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>im1 <span class="op">=</span> axes[<span class="dv">1</span>].imshow(pc, cmap<span class="op">=</span><span class="st">"RdBu_r"</span>, vmin<span class="op">=-</span>np.nanstd(pc)<span class="op">*</span><span class="dv">3</span>, vmax<span class="op">=</span>np.nanstd(pc)<span class="op">*</span><span class="dv">3</span>)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">1</span>].set_title(<span class="st">"plan_curvature</span><span class="ch">\n</span><span class="st">(positive=ridge, negative=valley)"</span>)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>plt.colorbar(im1, ax<span class="op">=</span>axes[<span class="dv">1</span>], shrink<span class="op">=</span><span class="fl">0.7</span>)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>prc <span class="op">=</span> profile_curvature(dem.astype(np.float32))</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>im2 <span class="op">=</span> axes[<span class="dv">2</span>].imshow(prc, cmap<span class="op">=</span><span class="st">"RdBu_r"</span>, vmin<span class="op">=-</span>np.nanstd(prc)<span class="op">*</span><span class="dv">3</span>, vmax<span class="op">=</span>np.nanstd(prc)<span class="op">*</span><span class="dv">3</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>axes[<span class="dv">2</span>].set_title(<span class="st">"profile_curvature</span><span class="ch">\n</span><span class="st">(positive=convex break, negative=concave)"</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>plt.colorbar(im2, ax<span class="op">=</span>axes[<span class="dv">2</span>], shrink<span class="op">=</span><span class="fl">0.7</span>)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ax <span class="kw">in</span> axes:</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    ax.set_xticks([])<span class="op">;</span> ax.set_yticks([])</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="B_feature_stack_redesign_files/figure-html/curvature-smoke-output-1.png" id="curvature-smoke" width="1416" height="410" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="distance-to-lithological-contact" class="level3">
+<h3 class="anchored" data-anchor-id="distance-to-lithological-contact">Distance to lithological contact</h3>
+<p>Per-cell distance to the nearest CGS 2010 polygon boundary. Contact zones favor lode → placer transport (fluids exit the source rock at the contact, metals concentrate there).</p>
+<div id="contact-distance" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ai_minerals.data.adapters <span class="im">import</span> get_adapter</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>geo <span class="op">=</span> get_adapter(<span class="st">"geology"</span>, REGION.geology_source)(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    REGION.raw_paths[<span class="st">"geology"</span>], REGION.aoi</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>contact_dist <span class="op">=</span> distance_to_lithological_contact_m(geo, grid)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"distance_to_lithological_contact_m on the placer grid:"</span>)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  finite cells: </span><span class="sc">{</span><span class="bu">int</span>(np.isfinite(contact_dist.to_numpy()).<span class="bu">sum</span>())<span class="sc">:,}</span><span class="ss">"</span>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  min=</span><span class="sc">{</span>np<span class="sc">.</span>nanmin(contact_dist)<span class="sc">:.0f}</span><span class="ss">m  median=</span><span class="sc">{</span>np<span class="sc">.</span>nanmedian(contact_dist)<span class="sc">:.0f}</span><span class="ss">m  "</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"max=</span><span class="sc">{</span>np<span class="sc">.</span>nanmax(contact_dist)<span class="sc">:.0f}</span><span class="ss">m"</span>)</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Soft-falloff scoring at σ=2km:"</span>)</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  cells with score &gt; 0.5 (within ~1.5km of a contact): "</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="bu">int</span>((gaussian_falloff(contact_dist.to_numpy(), sigma_m<span class="op">=</span><span class="fl">2000.0</span>) <span class="op">&gt;</span> <span class="fl">0.5</span>).<span class="bu">sum</span>())<span class="sc">:,}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>distance_to_lithological_contact_m on the placer grid:
+  finite cells: 823,500
+  min=0m  median=961m  max=46308m
+
+Soft-falloff scoring at σ=2km:
+  cells with score &gt; 0.5 (within ~1.5km of a contact): 596,369</code></pre>
+</div>
+</div>
+<p>The map of this feature is mostly low values (cells far from any boundary) with bright stripes hugging the major lithological contacts in the AOI: the Mother Lode trend, the major plutonic contacts in the western foothills, the faulted contact between Sierra batholith and Western Metamorphic Belt.</p>
+</section>
+</section>
+<section id="whats-deferred-to-v4" class="level2">
+<h2 class="anchored" data-anchor-id="whats-deferred-to-v4">6. What’s deferred to v4</h2>
+<ul>
+<li><strong>HUC12 categorical feature</strong> (planned in B.6): the NHDPlus HR GeoPackage ships flowlines but not WBD HUC12 polygons. v4 should add a separate WBD download adapter.</li>
+<li><strong>Per-population paleochannel composite</strong> (planned in B.3): v3 keeps the single composite. Per-population recompute would require an additional precompute pass and is deferred.</li>
+<li><strong>Paleochannel orientation feature</strong>: ~3 hours to build but uncertain marginal signal. v4 candidate.</li>
+</ul>
+</section>
+<section id="whats-next-phase-c" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next-phase-c">What’s next (Phase C)</h2>
+<p>Three model upgrades:</p>
+<ol type="1">
+<li><strong>XGBoost</strong> added to the stacking pool (RF + LightGBM + XGBoost).</li>
+<li><strong>nnPU</strong> for the Quaternary branch (modern positive-unlabeled method replacing the 2014 Mordelet-Vert PU bagging).</li>
+<li><strong>Calibrated logistic stacking</strong> for the two-population fusion, replacing the per-cell <code>np.maximum</code> operator.</li>
+</ol>
+<p>Then Phase D (data additions), Phase E (validation upgrades), Phase F (full retrain + audit + ship).</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -30,6 +30,7 @@ def load(path: Path, aoi: AOI) -> gpd.GeoDataFrame:
     - stream_order (int64, Strahler order)
     - fcode (int64, NHD feature classification)
     - hydroseq (int64, deterministic downstream-walk key)
+    - slope (float64, per-flowline longitudinal slope, dimensionless, NaN-preserving)
     - source ('NHDPlus_HR')
     """
     gdf = gpd.read_file(path)
@@ -50,6 +51,7 @@ def load(path: Path, aoi: AOI) -> gpd.GeoDataFrame:
         "StreamOrde": "stream_order",
         "FCode": "fcode",
         "Hydroseq": "hydroseq",
+        "Slope": "slope",
     }
     to_rename = {k: v for k, v in rename.items() if k in gdf.columns and v not in gdf.columns}
     if to_rename:

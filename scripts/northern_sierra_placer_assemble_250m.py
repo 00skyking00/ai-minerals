@@ -21,6 +21,15 @@ Output: `data/derived/features_northern_sierra_placer_250m.parquet`
 Usage:
     .venv/bin/python scripts/northern_sierra_placer_assemble_250m.py
     .venv/bin/python scripts/northern_sierra_placer_assemble_250m.py --resolution-m 500
+    .venv/bin/python scripts/northern_sierra_placer_assemble_250m.py --augment-osm-mining
+
+v3 Phase D.4: `--augment-osm-mining` adds OSM mining-tag points
+(historic=mine, man_made=mineshaft|adit, landuse=quarry) to
+`is_placer_quaternary` as supplementary positive labels (not features).
+The OSM data is OpenStreetMap, licensed ODbL 1.0; any downstream product
+that uses this augmentation MUST carry the attribution "(c) OpenStreetMap
+contributors" in the model card. See
+`scripts/northern_sierra_placer_fetch_osm_mining.py` for the fetcher.
 """
 
 from __future__ import annotations
@@ -37,6 +46,7 @@ import pandas as pd
 from rasterio.enums import Resampling
 from rasterio.transform import from_origin
 
+from ai_minerals.data._common import DATA_RAW
 from ai_minerals.data.adapters import get_adapter
 from ai_minerals.features.assemble import build_feature_frame
 from ai_minerals.features.hydrology import (
@@ -195,6 +205,7 @@ def _inject_placer_positives(
     *,
     resolution_m: int,
     reclassify_mrds: bool = True,
+    augment_osm_mining: bool = False,
 ) -> pd.DataFrame:
     """Overwrite is_placer_tertiary / is_placer_quaternary with real positives.
 
@@ -351,6 +362,40 @@ def _inject_placer_positives(
             print("[assemble]   is_placer_quaternary: MRDS has no dep_type column; left at 0")
     else:
         print("[assemble]   is_placer_quaternary: no MRDS file; left at 0")
+
+    # ---- v3 D.4: optional OSM mining-tag augmentation for Quaternary.
+    # The four Overpass tags (historic=mine, man_made=mineshaft/adit,
+    # landuse=quarry) are sparse but high-precision. We snap each feature
+    # geometry (points or polygon centroids) to the nearest grid cell and
+    # OR it into is_placer_quaternary. License: OpenStreetMap contributors,
+    # ODbL 1.0; model card MUST carry the attribution.
+    if augment_osm_mining:
+        osm_path = DATA_RAW / "osm_mining" / f"osm_mining_{REGION.data_prefix}.gpkg"
+        if osm_path.exists():
+            osm = gpd.read_file(osm_path)
+            osm = osm[osm.geometry.notna()].copy()
+            if osm.crs is not None and osm.crs.to_string() != REGION.working_crs:
+                osm = osm.to_crs(REGION.working_crs)
+            else:
+                osm = osm.set_crs(REGION.working_crs) if osm.crs is None else osm
+            # Reduce polygons to centroids so _snap_to_cells gets point geometry.
+            osm_pts = gpd.GeoDataFrame(
+                geometry=osm.geometry.centroid,
+                crs=REGION.working_crs,
+            )
+            before = int(df["is_placer_quaternary"].sum())
+            osm_idxs = _snap_to_cells(osm_pts)
+            if osm_idxs:
+                df.loc[osm_idxs, "is_placer_quaternary"] = 1
+            after = int(df["is_placer_quaternary"].sum())
+            print(f"[assemble]   OSM mining-tag augmentation: {len(osm_pts)} features, "
+                  f"+{after - before} new Quaternary cells "
+                  f"({after} total). License: ODbL; attribute (c) OpenStreetMap "
+                  f"contributors in the model card.")
+        else:
+            print(f"[assemble]   OSM mining augmentation requested but file not "
+                  f"present ({osm_path}); skipping. Run "
+                  f"scripts/northern_sierra_placer_fetch_osm_mining.py first.")
 
     return df
 
@@ -510,6 +555,50 @@ def _build_placer_columns(
         _maybe_attach(df, "distance_to_lode_m",
                       dist_eu.to_numpy(dtype=np.float32), flat_idx)
 
+    # ---- NHD VAA: per-cell reach attributes (v3 Phase D.2).
+    # Cell-level features derived from the nearest NHD reach. Quaternary-
+    # relevant; Tertiary cells far from modern reaches get NaN.
+    print("[placer] NHD VAA snap (stream_order, arbolate_sum, slope)")
+    if nhd_path is not None and nhd_path.exists():
+        nhd_for_vaa = get_adapter("hydrology", "nhdplus_hr")(nhd_path, REGION.aoi)
+        centroids = grid.centroid_gdf().to_crs(nhd_for_vaa.crs)
+        vaa_cols = [c for c in ["stream_order", "arbolate_sum", "slope", "hydroseq"]
+                    if c in nhd_for_vaa.columns]
+        joined = gpd.sjoin_nearest(
+            centroids[["row", "col", "geometry"]],
+            nhd_for_vaa[vaa_cols + ["geometry"]],
+            how="left",
+            distance_col="distance_to_nearest_reach_m",
+        )
+        joined = joined.loc[~joined.index.duplicated(keep="first")].sort_index()
+        if "stream_order" in joined.columns:
+            so = pd.to_numeric(joined["stream_order"], errors="coerce").to_numpy()
+            _maybe_attach(df, "nearest_reach_stream_order", so, flat_idx)
+        else:
+            _maybe_attach(df, "nearest_reach_stream_order", None, flat_idx)
+        if "arbolate_sum" in joined.columns:
+            ar = pd.to_numeric(joined["arbolate_sum"], errors="coerce").to_numpy()
+            _maybe_attach(df, "nearest_reach_arbolate_sum_km", ar, flat_idx)
+        else:
+            _maybe_attach(df, "nearest_reach_arbolate_sum_km", None, flat_idx)
+        if "slope" in joined.columns:
+            sl = pd.to_numeric(joined["slope"], errors="coerce").to_numpy()
+            _maybe_attach(df, "nearest_reach_slope", sl, flat_idx)
+        else:
+            _maybe_attach(df, "nearest_reach_slope", None, flat_idx)
+        dn = pd.to_numeric(
+            joined["distance_to_nearest_reach_m"], errors="coerce"
+        ).to_numpy()
+        _maybe_attach(df, "distance_to_nearest_reach_m", dn, flat_idx)
+        print(f"  cells with finite stream_order: "
+              f"{int(np.isfinite(df['nearest_reach_stream_order']).sum()):,}")
+    else:
+        warnings.warn(f"NHD flowlines missing at {nhd_path}; NHD VAA features NaN.")
+        _maybe_attach(df, "nearest_reach_stream_order", None, flat_idx)
+        _maybe_attach(df, "nearest_reach_arbolate_sum_km", None, flat_idx)
+        _maybe_attach(df, "nearest_reach_slope", None, flat_idx)
+        _maybe_attach(df, "distance_to_nearest_reach_m", None, flat_idx)
+
     # ---- Hydraulic-pit proximity.
     print("[placer] hydraulic-pit proximity")
     pit_path = REGION.raw_paths.get("hydraulic_pits")
@@ -556,6 +645,60 @@ def _build_placer_columns(
         _maybe_attach(df, "distance_to_lithological_contact_m",
                       contact_dist.to_numpy(dtype=np.float32), flat_idx)
 
+    # ---- v3 Phase D.3 (PENDING WIRING — v3.5 follow-up).
+    # CGS Jennings 2010 fault-activity classes are available as a separate
+    # dataset + adapter, but are not yet wired into this assemble step.
+    # The new modules:
+    #   - Fetcher:  src/ai_minerals/data/cgs_jennings.py
+    #               (fetch_cgs_jennings(aoi) -> Path to per-AOI GPKG)
+    #   - Adapter:  src/ai_minerals/data/adapters/geology/cgs_jennings.py
+    #               (registered as get_adapter("geology", "cgs_jennings"))
+    #   - Feature:  src/ai_minerals/features/hydrology.py
+    #               distance_to_fault_by_class(faults, grid)
+    #
+    # To add the split distance-to-fault features in v3.5:
+    #   1. Fetch the dataset:
+    #        from ai_minerals.data.cgs_jennings import fetch_cgs_jennings
+    #        fetch_cgs_jennings(REGION.aoi)
+    #      Writes to data/raw/cgs_jennings/cgs_jennings_<region>.gpkg.
+    #   2. Add the GPKG path to REGION.raw_paths under e.g. "fault_classes".
+    #   3. Load + split via the registered adapter:
+    #        faults = get_adapter("geology", "cgs_jennings")(
+    #            REGION.raw_paths["fault_classes"], REGION.aoi
+    #        )
+    #   4. Rasterize per-class distance:
+    #        from ai_minerals.features.hydrology import distance_to_fault_by_class
+    #        per_class = distance_to_fault_by_class(faults, grid)
+    #      Returns {"pre_quaternary": Series, "quaternary_active": Series}.
+    #   5. Attach as "distance_to_prequaternary_fault_m" (Tertiary stack) and
+    #      "distance_to_quaternary_fault_m" (Quaternary stack), then add the
+    #      column names to TERTIARY_FEATURE_COLUMNS / QUATERNARY_FEATURE_COLUMNS
+    #      in config.py.
+    # Plan-level rationale: ~/.claude/plans/hazy-humming-lynx.md, section
+    # "D.3 Replace SGMC fault arcs with CGS Jennings 2010".
+
+    # ---- Geophysics: magnetic + gravity (v3 Phase D.1).
+    # Not direct placer signals; they refine the lode-source-favorability
+    # context for the distance_to_lode_m feature. The base features land in
+    # the per-population feature stacks via TERTIARY_FEATURE_COLUMNS and
+    # QUATERNARY_FEATURE_COLUMNS in config.py.
+    #
+    # Wiring path: `build_feature_frame` in features/assemble.py already
+    # samples REGION.raw_paths["magnetic"] and REGION.raw_paths["gravity"]
+    # onto the grid and attaches them as columns on df before we get here
+    # (motherlode v2/v3.1 reuse the same rasters). No explicit sample_raster
+    # needed in this script; we only verify the columns survived so a
+    # regression upstream surfaces loudly instead of silently dropping the
+    # geophysics features from the placer stack.
+    print("[placer] geophysics: magnetic + gravity (verifying upstream wiring)")
+    for _col in ("magnetic", "gravity"):
+        if _col not in df.columns:
+            warnings.warn(
+                f"{_col} column missing from build_feature_frame output; "
+                f"placer feature stack will be missing the {_col} feature."
+            )
+            _maybe_attach(df, _col, None, flat_idx)
+
     # ---- Tertiary terrace likelihood (depends on tpi, slope, is_quaternary_alluvium).
     # The standard paleochannel composite scores modern-channel-proximity; Sierra
     # Tertiary deep-gravels sit on benches above the modern drainage. This
@@ -567,6 +710,26 @@ def _build_placer_columns(
     else:
         warnings.warn("tpi and/or slope missing; tertiary_terrace_likelihood NaN.")
         df["tertiary_terrace_likelihood"] = np.nan
+
+    # ---- v3 Phase D.5: motherlode_prob as A/B diagnostic feature.
+    # The motherlode v2 model's calibrated probability raster overlaps the
+    # placer AOI substantially. Sample it onto the placer grid as a single
+    # feature; v3 trains both with and without it to detect whether the
+    # transitive feature helps generalize or just adds noise. The proper
+    # out-of-fold hierarchical model (motherlode predictions per placer
+    # spatial-block fold) is v4 work.
+    print("[placer] motherlode probability (Phase D.5 A/B diagnostic feature)")
+    motherlode_raster = (REPO_ROOT / "data" / "derived" / "motherlode"
+                         / "prospectivity_motherlode_v2_250m_calibrated_4326.tif")
+    if motherlode_raster.exists():
+        ml_arr = sample_raster(motherlode_raster, grid, resampling=Resampling.bilinear)
+        _maybe_attach(df, "motherlode_prob", ml_arr.ravel(), flat_idx)
+        print(f"  motherlode_prob: cells with finite values: "
+              f"{int(np.isfinite(df['motherlode_prob']).sum()):,}")
+    else:
+        warnings.warn(f"motherlode calibrated raster missing at {motherlode_raster}; "
+                      f"motherlode_prob NaN.")
+        _maybe_attach(df, "motherlode_prob", None, flat_idx)
 
     # ---- Hawkes dual-decay catchment aggregates (Au, As, Sb).
     print("[placer] Hawkes dual-decay catchment (Au, As, Sb)")
@@ -622,7 +785,7 @@ def _build_placer_columns(
     return df
 
 
-def assemble(*, resolution_m: int) -> pd.DataFrame:
+def assemble(*, resolution_m: int, augment_osm_mining: bool = False) -> pd.DataFrame:
     """Build the per-cell placer feature frame and return it."""
     t0 = time.time()
     print(f"[assemble] base frame ({REGION.slug}, resolution={resolution_m} m)")
@@ -651,7 +814,11 @@ def assemble(*, resolution_m: int) -> pd.DataFrame:
     # all-zero. We inject the real positives here:
     #   Tertiary: hydraulic-pit polygon centroids (Hydraulic Mine Pits CA)
     #   Quaternary: MRDS records with dep_type matching the placer regex
-    df = _inject_placer_positives(df, resolution_m=resolution_m)
+    df = _inject_placer_positives(
+        df,
+        resolution_m=resolution_m,
+        augment_osm_mining=augment_osm_mining,
+    )
 
     df = _build_placer_columns(df, resolution_m=resolution_m)
 
@@ -671,6 +838,16 @@ def main(argv: list[str] | None = None) -> int:
         "--out", type=Path, default=None,
         help="Output parquet path (default: data/derived/features_<slug>_<res>m.parquet).",
     )
+    parser.add_argument(
+        "--augment-osm-mining", action="store_true",
+        help=(
+            "Augment is_placer_quaternary with OSM mining-tag features "
+            "(historic=mine, man_made=mineshaft|adit, landuse=quarry) from "
+            "data/raw/osm_mining/osm_mining_<region>.gpkg. Fetched by "
+            "scripts/northern_sierra_placer_fetch_osm_mining.py. License: "
+            "ODbL; model card must attribute (c) OpenStreetMap contributors."
+        ),
+    )
     args = parser.parse_args(argv)
 
     out_path = args.out or (
@@ -678,7 +855,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    df = assemble(resolution_m=args.resolution_m)
+    df = assemble(
+        resolution_m=args.resolution_m,
+        augment_osm_mining=args.augment_osm_mining,
+    )
     df.to_parquet(out_path, index=False)
     print(f"wrote {out_path} ({len(df):,} rows × {len(df.columns)} cols)")
     return 0

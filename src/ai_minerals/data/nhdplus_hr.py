@@ -288,6 +288,14 @@ def fetch(aoi: AOI, *, force: bool = False) -> Path:
             "hydroseq": pd.to_numeric(
                 _col(merged, "HydroSeq", "Hydroseq", "hydroseq"), errors="coerce"
             ).fillna(0).astype("int64"),
+            # NHDPlus HR ships a per-flowline longitudinal slope (dimensionless,
+            # rise/run) in the VAA table. Used as a cell-level Quaternary feature
+            # in v3 Phase D.2 (nearest-reach snap). Some reaches have NaN slope
+            # in the source; preserve NaN rather than zero-fill so downstream
+            # consumers can distinguish "unknown" from "flat".
+            "slope": pd.to_numeric(
+                _col(merged, "Slope", "slope"), errors="coerce"
+            ).astype("float64"),
         },
         crs="EPSG:4326",
     )
@@ -312,8 +320,9 @@ def fetch(aoi: AOI, *, force: bool = False) -> Path:
             f"(int64 NHDPlusID), arbolate_sum (float, cumulative upstream "
             f"channel length per NHDPlus HR), stream_order (int, Strahler "
             f"order), fcode (int, NHD feature classification), hydroseq "
-            f"(int, NHDPlus downstream-walk key). Cached GDBs remain on "
-            f"disk under data/raw/{NAME}/ for re-runs."
+            f"(int, NHDPlus downstream-walk key), slope (float, per-flowline "
+            f"longitudinal slope, dimensionless rise/run, NaN preserved). "
+            f"Cached GDBs remain on disk under data/raw/{NAME}/ for re-runs."
         ),
     )
     return out_path
