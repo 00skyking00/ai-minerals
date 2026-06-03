@@ -50,6 +50,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
+from ai_minerals.config import (
+    QUATERNARY_FEATURE_COLUMNS,
+    TERTIARY_FEATURE_COLUMNS,
+)
 from ai_minerals.data.adapters import get_adapter
 from ai_minerals.features.placer_geology import hawkes_dual_decay_catchment
 from ai_minerals.grid import build_grid
@@ -484,6 +488,34 @@ def train_one_population(
     drop = count_feature_columns(feat_cols)
     feat_cols = [c for c in feat_cols if c not in drop]
     print(f"[{pop}] feature columns: {len(feat_cols)}", flush=True)
+
+    # v3 per-population feature stack filtering. Each population trains on a
+    # subset of the assembled features matched to its geomorphic signature.
+    # Features in the per-population tuple that aren't in df_oh_train.columns
+    # are skipped (graceful for v3 features not yet assembled).
+    pop_features = {
+        "placer_tertiary": TERTIARY_FEATURE_COLUMNS,
+        "placer_quaternary": QUATERNARY_FEATURE_COLUMNS,
+    }.get(pop)
+    if pop_features is not None:
+        # Keep only the per-pop features, but allow one-hot lithology columns
+        # (named lithology_class_<N>) through because add_lithology_onehot
+        # expands the single lithology_class into per-class columns.
+        allowed_prefixes = ("lithology_class_", "major1_class_", "major2_class_", "major3_class_")
+        feat_cols_filtered = [
+            c for c in feat_cols
+            if c in pop_features
+            or any(c.startswith(p) for p in allowed_prefixes)
+        ]
+        missing = [c for c in pop_features
+                   if c not in df_oh_train.columns
+                   and not any(c.startswith(p.rstrip("_")) for p in allowed_prefixes)]
+        if missing:
+            print(f"[{pop}] v3 feature filter: skipping (not in parquet): {missing}",
+                  flush=True)
+        feat_cols = feat_cols_filtered
+        print(f"[{pop}] v3 feature filter: {len(feat_cols)} features",
+              flush=True)
 
     # Assert the leakage guard from the assemble step actually fired.
     if "distance_downstream_from_lode_m" not in df_oh_train.columns:

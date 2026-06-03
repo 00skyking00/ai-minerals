@@ -154,6 +154,21 @@ def hydraulic_pit_proximity_m(
     return pd.Series(dist, index=centroids.index, name="hydraulic_pit_proximity_m")
 
 
+def hydraulic_pit_proximity_m_buffered(
+    pit_polys: gpd.GeoDataFrame, grid: Grid, *, buffer_m: float = 1000.0,
+) -> pd.Series:
+    """Same as hydraulic_pit_proximity_m, but NaN within `buffer_m` of any
+    pit polygon. Tertiary v3 trains on this variant so the model cannot
+    learn the trivial 'pit centroid = positive = distance 0' shortcut.
+    The held-out Lindgren districts (500 m de-duped from any pit) are
+    unaffected."""
+    base = hydraulic_pit_proximity_m(pit_polys, grid)
+    mask = base < buffer_m
+    out = base.where(~mask, other=np.nan).astype(np.float32)
+    out.name = "hydraulic_pit_proximity_m_buffered"
+    return out
+
+
 def is_quaternary_alluvium(
     geo_poly: gpd.GeoDataFrame, grid: Grid
 ) -> pd.Series:
@@ -215,6 +230,30 @@ def is_quaternary_alluvium(
     return pd.Series(
         flag_per_centroid.to_numpy(), index=centroids.index, name="is_quaternary_alluvium"
     )
+
+
+def distance_to_lithological_contact_m(geo_poly: gpd.GeoDataFrame, grid: Grid) -> pd.Series:
+    """Per-cell distance to the nearest polygon boundary in the lithology
+    map (CGS 2010 in this codebase). Contact zones favor lode -> placer
+    transport; cells far from any boundary sit inside large homogeneous
+    units. Uses gpd.sjoin_nearest with distance_col."""
+    centroids = grid.centroid_gdf()
+    poly = geo_poly.to_crs(grid.crs)
+    # Convert polygon boundaries to a single (multi)linestring per row.
+    boundaries = gpd.GeoDataFrame(
+        {"_id": range(len(poly))},
+        geometry=poly.geometry.boundary,
+        crs=poly.crs,
+    )
+    joined = gpd.sjoin_nearest(
+        centroids[["geometry"]],
+        boundaries[["_id", "geometry"]],
+        how="left",
+        distance_col="_d",
+    )
+    joined = joined.loc[~joined.index.duplicated(keep="first")]
+    d = joined["_d"].fillna(np.inf).to_numpy(dtype=np.float32)
+    return pd.Series(d, index=centroids.index, name="distance_to_lithological_contact_m")
 
 
 def _build_hydroseq_index(
