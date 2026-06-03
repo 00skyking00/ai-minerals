@@ -6,7 +6,8 @@ Quaternary modern-channel). Each population goes through:
     PU baseline (Mordelet-Vert bagging)
     -> Random Forest (spatial-block CV + full-data refit)
     -> LightGBM   (spatial-block CV + full-data refit)
-    -> Stacking   (logistic-regression meta on (RF, LGBM) base scores)
+    -> XGBoost    (spatial-block CV + full-data refit; v3 Phase C.1)
+    -> Stacking   (logistic-regression meta on (RF, LGBM, XGB) base scores)
     -> Isotonic calibration (sigmoid fallback when positives are sparse)
 
 Anchor districts (Malakoff, Dutch Flat, etc.) are masked out of every
@@ -24,7 +25,7 @@ the Phase 1 ship-rule applies (per the plan).
 Outputs (per population pop) under data/derived/northern_sierra_placer/:
 
     pop_predictions_<pop>_250m.parquet
-        row, col, x, y, p_pu, p_rf, p_lgbm, p_stack
+        row, col, x, y, p_pu, p_rf, p_lgbm, p_xgb, p_stack
     pop_calibrated_<pop>_250m.parquet
         row, col, x, y, p_cal
     pop_fold_metrics_<pop>.csv
@@ -66,6 +67,7 @@ from ai_minerals.model import (
 from ai_minerals.model_lgbm import make_lgbm
 from ai_minerals.model_pu import fit_pu_bagging
 from ai_minerals.model_rf import count_feature_columns, make_rf
+from ai_minerals.model_xgb import make_xgb
 from ai_minerals.regions._northern_sierra_anchors import ANCHOR_DISTRICTS
 from ai_minerals.regions.northern_sierra_placer import NORTHERN_SIERRA_PLACER
 
@@ -366,15 +368,21 @@ def _stacking_oof_predictions(
     *,
     block_size_m: float = BLOCK_SIZE_M,
     ckpt_prefix: str | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Spatial-block OOF predictions for RF + LGBM. Returns (p_rf_oof, p_lgbm_oof, fold_seen).
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Spatial-block OOF predictions for RF + LGBM + XGBoost.
+
+    Returns (p_rf_oof, p_lgbm_oof, p_xgb_oof, fold_seen).
 
     fold_seen is a bool array of cells that ever appeared in a test fold;
     cells not in any held-out block (rare edge case) stay NaN in the OOF arrays.
 
+    v3 Phase C.1 adds XGBoost as a third base learner alongside RF and LightGBM;
+    each fold fits all three and the resulting OOF columns feed a 3-input
+    logistic-regression meta-learner.
+
     If `ckpt_prefix` is set, each completed fold's test-cell predictions are
     cached as `{ckpt_prefix}__fold_{block_id}.joblib`. A death mid-stacking
-    loses at most one fold's RF + LGBM fit.
+    loses at most one fold's RF + LGBM + XGB fit.
     """
     cv = SpatialBlockCV(block_size_m=block_size_m)
     y = df_train[label_col].to_numpy(dtype=np.int64)
@@ -382,6 +390,7 @@ def _stacking_oof_predictions(
 
     p_rf = np.full(len(df_train), np.nan, dtype=np.float64)
     p_lgbm = np.full(len(df_train), np.nan, dtype=np.float64)
+    p_xgb = np.full(len(df_train), np.nan, dtype=np.float64)
     seen = np.zeros(len(df_train), dtype=bool)
 
     for train_idx, test_idx, block_id in cv.split(df_train):
@@ -389,10 +398,11 @@ def _stacking_oof_predictions(
         if fold_ckpt is not None:
             cached = _ckpt_load(fold_ckpt)
             if cached is not None:
-                # cached carries (test_idx, p_rf_test, p_lgbm_test).
-                cti, crf, clg = cached["test_idx"], cached["p_rf"], cached["p_lgbm"]
-                p_rf[cti] = crf
-                p_lgbm[cti] = clg
+                # cached carries (test_idx, p_rf_test, p_lgbm_test, p_xgb_test).
+                cti = cached["test_idx"]
+                p_rf[cti] = cached["p_rf"]
+                p_lgbm[cti] = cached["p_lgbm"]
+                p_xgb[cti] = cached["p_xgb"]
                 seen[cti] = True
                 print(f"  [cache hit] {fold_ckpt}", flush=True)
                 continue
@@ -408,22 +418,40 @@ def _stacking_oof_predictions(
         lgbm.fit(X_base[train_idx], y_train)
         p_lgbm_test = lgbm.predict_proba(X_base[test_idx])[:, 1]
         p_lgbm[test_idx] = p_lgbm_test
+        xgb = make_xgb(random_state=42)
+        xgb.fit(X_base[train_idx], y_train)
+        p_xgb_test = xgb.predict_proba(X_base[test_idx])[:, 1]
+        p_xgb[test_idx] = p_xgb_test
         seen[test_idx] = True
         if fold_ckpt is not None:
             _ckpt_save(fold_ckpt, {
                 "test_idx": np.asarray(test_idx),
                 "p_rf": p_rf_test,
                 "p_lgbm": p_lgbm_test,
+                "p_xgb": p_xgb_test,
             })
-    return p_rf, p_lgbm, seen
+    return p_rf, p_lgbm, p_xgb, seen
 
 
 def _fit_stacking_meta(
-    p_rf_oof: np.ndarray, p_lgbm_oof: np.ndarray, y: np.ndarray, seen: np.ndarray
+    p_rf_oof: np.ndarray,
+    p_lgbm_oof: np.ndarray,
+    p_xgb_oof: np.ndarray,
+    y: np.ndarray,
+    seen: np.ndarray,
 ) -> LogisticRegression:
-    """Fit the logistic-regression meta-learner on OOF base scores."""
-    valid = seen & np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof)
-    X_meta = np.column_stack([p_rf_oof[valid], p_lgbm_oof[valid]])
+    """Fit the logistic-regression meta-learner on OOF base scores.
+
+    v3 Phase C.1: meta-learner is a 3-input logistic regression over the
+    RF, LightGBM, and XGBoost OOF predictions.
+    """
+    valid = (
+        seen
+        & np.isfinite(p_rf_oof)
+        & np.isfinite(p_lgbm_oof)
+        & np.isfinite(p_xgb_oof)
+    )
+    X_meta = np.column_stack([p_rf_oof[valid], p_lgbm_oof[valid], p_xgb_oof[valid]])
     y_meta = y[valid]
     meta = LogisticRegression(max_iter=1000)
     meta.fit(X_meta, y_meta)
@@ -525,22 +553,46 @@ def train_one_population(
     fold_metrics: list[pd.DataFrame] = []
 
     # --- PU baseline. Cached as a pair (training-set p_pu, full-grid p_pu) so a
-    # restart skips the ~2-3 min double-PU fit. ---
-    def _pu():
-        print(f"[{pop}] PU bagging (n_bags={N_PU_BAGS})...", flush=True)
-        t0 = time.time()
-        p_pu_train, _ = fit_pu_bagging(
-            df_oh_train, top_classes,
-            label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
-        )
-        print(f"[{pop}]   PU train done in {(time.time()-t0)/60:.1f} min "
-              f"(n_finite={int(np.isfinite(p_pu_train).sum())})", flush=True)
-        p_pu_full, _ = fit_pu_bagging(
-            df_oh_full, top_classes,
-            label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
-        )
-        return {"p_pu_train": p_pu_train, "p_pu_full": p_pu_full}
-    pu_result = _run_stage(f"{pop}__pu", _pu)
+    # restart skips the ~2-3 min double-PU fit.
+    # v3 Phase C.2: Quaternary uses nnPU (Kiryo 2017); Tertiary keeps
+    # Mordelet-Vert PU bagging (pit-polygon positives are effectively
+    # fully labeled). The stage checkpoint key is unchanged
+    # (`{pop}__pu`) so resumed runs pick up the right cached result. ---
+    if pop == "placer_quaternary":
+        def _nnpu():
+            print(f"[{pop}] nnPU training (Kiryo 2017, prior=0.0007)...", flush=True)
+            t0 = time.time()
+            from ai_minerals.model_nnpu import fit_nnpu_quaternary
+            p_train, _ = fit_nnpu_quaternary(
+                df_oh_train, label_col=label_col,
+                feature_cols=feat_cols, prior=0.0007,
+                random_state=42,
+            )
+            print(f"[{pop}]   nnPU train done in {(time.time()-t0)/60:.1f} min",
+                  flush=True)
+            p_full, _ = fit_nnpu_quaternary(
+                df_oh_full, label_col=label_col,
+                feature_cols=feat_cols, prior=0.0007,
+                random_state=42,
+            )
+            return {"p_pu_train": p_train, "p_pu_full": p_full}
+        pu_result = _run_stage(f"{pop}__pu", _nnpu)
+    else:
+        def _pu():
+            print(f"[{pop}] PU bagging (n_bags={N_PU_BAGS})...", flush=True)
+            t0 = time.time()
+            p_pu_train, _ = fit_pu_bagging(
+                df_oh_train, top_classes,
+                label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+            )
+            print(f"[{pop}]   PU train done in {(time.time()-t0)/60:.1f} min "
+                  f"(n_finite={int(np.isfinite(p_pu_train).sum())})", flush=True)
+            p_pu_full, _ = fit_pu_bagging(
+                df_oh_full, top_classes,
+                label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+            )
+            return {"p_pu_train": p_pu_train, "p_pu_full": p_pu_full}
+        pu_result = _run_stage(f"{pop}__pu", _pu)
     p_pu_full = pu_result["p_pu_full"]
 
     # --- RF with spatial-block CV (+ per-fold Hawkes refold). Per-fold
@@ -580,6 +632,24 @@ def train_one_population(
     lgbm_cv = _run_stage(f"{pop}__lgbm_cv", _lgbm_cv)
     fold_metrics.append(lgbm_cv)
 
+    # --- XGBoost with spatial-block CV. v3 Phase C.1 adds it as a third base
+    # learner alongside RF and LightGBM. Same per-fold checkpointing. ---
+    def _xgb_cv():
+        print(f"[{pop}] XGBoost spatial-block CV...", flush=True)
+        t0 = time.time()
+        out = _spatial_block_scores_with_refold(
+            df_oh_train, feat_cols, label_col,
+            model_factory=make_xgb, model_name="xgb",
+            refold_hawkes=refold_hawkes,
+            samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
+            ckpt_prefix=f"{pop}__xgb_cv",
+        )
+        print(f"[{pop}]   XGB CV done in {(time.time()-t0)/60:.1f} min  "
+              f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
+        return out
+    xgb_cv = _run_stage(f"{pop}__xgb_cv", _xgb_cv)
+    fold_metrics.append(xgb_cv)
+
     # --- Stacking: spatial-block OOF base scores, logistic-regression meta ---
     def _stacking_oof():
         print(f"[{pop}] stacking: spatial-block OOF base scores...", flush=True)
@@ -590,13 +660,22 @@ def train_one_population(
         )
         print(f"[{pop}]   stacking OOF done in {(time.time()-t0)/60:.1f} min", flush=True)
         return out
-    p_rf_oof, p_lgbm_oof, seen = _run_stage(f"{pop}__stack_oof", _stacking_oof)
+    p_rf_oof, p_lgbm_oof, p_xgb_oof, seen = _run_stage(f"{pop}__stack_oof", _stacking_oof)
     y_train = df_oh_train[label_col].to_numpy(dtype=np.int64)
-    meta = _fit_stacking_meta(p_rf_oof, p_lgbm_oof, y_train, seen)
-    valid_meta = seen & np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof)
+    meta = _fit_stacking_meta(p_rf_oof, p_lgbm_oof, p_xgb_oof, y_train, seen)
+    valid_meta = (
+        seen
+        & np.isfinite(p_rf_oof)
+        & np.isfinite(p_lgbm_oof)
+        & np.isfinite(p_xgb_oof)
+    )
     if valid_meta.sum() > 0 and y_train[valid_meta].sum() > 0:
         p_stack_oof_train = meta.predict_proba(
-            np.column_stack([p_rf_oof[valid_meta], p_lgbm_oof[valid_meta]])
+            np.column_stack([
+                p_rf_oof[valid_meta],
+                p_lgbm_oof[valid_meta],
+                p_xgb_oof[valid_meta],
+            ])
         )[:, 1]
         stack_roc, stack_pr = _score_proba(y_train[valid_meta], p_stack_oof_train)
         fold_metrics.append(pd.DataFrame([{
@@ -625,24 +704,32 @@ def train_one_population(
         lgbm_full.fit(X_train_full, y_train)
         p_lgbm_grid = lgbm_full.predict_proba(X_grid)[:, 1]
 
+        xgb_full = make_xgb(random_state=42)
+        xgb_full.fit(X_train_full, y_train)
+        p_xgb_grid = xgb_full.predict_proba(X_grid)[:, 1]
+
         p_stack_grid = meta.predict_proba(
-            np.column_stack([p_rf_grid, p_lgbm_grid])
+            np.column_stack([p_rf_grid, p_lgbm_grid, p_xgb_grid])
         )[:, 1]
         print(f"[{pop}]   refit + predict done in {(time.time()-t0)/60:.1f} min",
               flush=True)
         return {
             "rf_full": rf_full,
             "lgbm_full": lgbm_full,
+            "xgb_full": xgb_full,
             "p_rf_grid": p_rf_grid,
             "p_lgbm_grid": p_lgbm_grid,
+            "p_xgb_grid": p_xgb_grid,
             "p_stack_grid": p_stack_grid,
             "X_train_full": X_train_full,
         }
     full = _run_stage(f"{pop}__fullfit", _fullfit)
     rf_full = full["rf_full"]
     lgbm_full = full["lgbm_full"]
+    xgb_full = full["xgb_full"]
     p_rf_grid = full["p_rf_grid"]
     p_lgbm_grid = full["p_lgbm_grid"]
+    p_xgb_grid = full["p_xgb_grid"]
     p_stack_grid = full["p_stack_grid"]
     X_train_full = full["X_train_full"]
 
@@ -654,25 +741,32 @@ def train_one_population(
               flush=True)
         t0 = time.time()
         # CalibratedClassifierCV needs a base estimator. We feed it the stacked
-        # base scores as a 2-column matrix and let it wrap a fresh LogisticRegression
-        # so the calibration's CV folds are the same data we already meta-trained on.
-        # That re-fits the meta inside calibration, which is fine: it's the same
-        # estimator family.
+        # base scores as a 3-column matrix (RF, LGBM, XGB) and let it wrap a
+        # fresh LogisticRegression so the calibration's CV folds are the same
+        # data we already meta-trained on. That re-fits the meta inside
+        # calibration, which is fine: it's the same estimator family.
         base_meta = LogisticRegression(max_iter=1000)
         cv_obj = StratifiedKFold(
             n_splits=min(CALIBRATION_CV, max(2, int(y_train.sum()))),
             shuffle=True, random_state=42,
         )
         cal = CalibratedClassifierCV(base_meta, method=cal_method, cv=cv_obj)
-        X_meta_train = np.column_stack([p_rf_oof, p_lgbm_oof])
+        X_meta_train = np.column_stack([p_rf_oof, p_lgbm_oof, p_xgb_oof])
         # Replace NaN OOF rows (cells that never landed in a held-out block) with
         # the full-data refit prediction; calibration needs no NaN inputs.
-        nan_oof = ~(np.isfinite(p_rf_oof) & np.isfinite(p_lgbm_oof))
+        nan_oof = ~(
+            np.isfinite(p_rf_oof)
+            & np.isfinite(p_lgbm_oof)
+            & np.isfinite(p_xgb_oof)
+        )
         if nan_oof.any():
             X_meta_train[nan_oof, 0] = rf_full.predict_proba(
                 X_train_full[nan_oof]
             )[:, 1]
             X_meta_train[nan_oof, 1] = lgbm_full.predict_proba(
+                X_train_full[nan_oof]
+            )[:, 1]
+            X_meta_train[nan_oof, 2] = xgb_full.predict_proba(
                 X_train_full[nan_oof]
             )[:, 1]
         if y_train.sum() < 3 * min(CALIBRATION_CV, int(y_train.sum())):
@@ -682,7 +776,7 @@ def train_one_population(
             )
         cal.fit(X_meta_train, y_train)
         p_cal_grid = cal.predict_proba(
-            np.column_stack([p_rf_grid, p_lgbm_grid])
+            np.column_stack([p_rf_grid, p_lgbm_grid, p_xgb_grid])
         )[:, 1]
         print(f"[{pop}]   calibration done in {(time.time()-t0)/60:.1f} min",
               flush=True)
@@ -697,6 +791,7 @@ def train_one_population(
         "p_pu": p_pu_full,
         "p_rf": p_rf_grid,
         "p_lgbm": p_lgbm_grid,
+        "p_xgb": p_xgb_grid,
         "p_stack": p_stack_grid,
         "p_cal": p_cal_grid,
         "fold_metrics": fold_df,
@@ -706,6 +801,7 @@ def train_one_population(
         # Calaveras transfer (Phase J.3). Serialized in _write_outputs via joblib.
         "rf_full": rf_full,
         "lgbm_full": lgbm_full,
+        "xgb_full": xgb_full,
         "cal": cal,
         "feature_cols": list(feat_cols),
     }
@@ -722,6 +818,7 @@ def _write_outputs(df: pd.DataFrame, pop: str, result: dict) -> None:
     preds["p_pu"] = result["p_pu"].astype(np.float32)
     preds["p_rf"] = result["p_rf"].astype(np.float32)
     preds["p_lgbm"] = result["p_lgbm"].astype(np.float32)
+    preds["p_xgb"] = result["p_xgb"].astype(np.float32)
     preds["p_stack"] = result["p_stack"].astype(np.float32)
     preds_path = OUT_DIR / f"pop_predictions_{pop}_250m.parquet"
     preds.to_parquet(preds_path, index=False)
@@ -759,6 +856,7 @@ def _write_outputs(df: pd.DataFrame, pop: str, result: dict) -> None:
         {
             "rf_full": result["rf_full"],
             "lgbm_full": result["lgbm_full"],
+            "xgb_full": result["xgb_full"],
             "cal": result["cal"],
             "feature_cols": list(result["feature_cols"]),
             "population": pop,

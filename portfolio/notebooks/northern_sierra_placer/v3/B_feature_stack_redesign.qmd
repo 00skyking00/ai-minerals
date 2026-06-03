@@ -1,0 +1,320 @@
+---
+title: "v3 Phase B: per-population feature stacks + soft-falloff + new features"
+subtitle: "What v3 trains on, why each population gets different features, what the new feature maps look like"
+author: "Sky King"
+date: 2026-06-02
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+execute:
+  warning: false
+---
+
+## What this notebook is
+
+v3 Phase B redesigned the feature engineering in five sub-phases (B.0, B.0a,
+B.1+B.4, B.2+B.5, B.6). This notebook shows:
+
+- The per-population feature lists and weight dicts as they ship in v3
+- Maps of the three new B.6 features (plan/profile curvature, lithological
+  contact distance)
+- Map of the B.2 buffered hydraulic-pit-proximity feature against the
+  unbuffered v2 version, showing the NaN halo around each pit
+- Soft-falloff vs hard-cap distance feature comparison (B.5)
+
+No model retraining happens here. The v3 retrain runs at end of Phase F.
+
+## Setup
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
+import numpy as np
+import pandas as pd
+import rasterio
+from shapely.geometry import Point
+
+from ai_minerals.config import (
+    TERTIARY_FEATURE_COLUMNS,
+    QUATERNARY_FEATURE_COLUMNS,
+)
+from ai_minerals.scorers.usgs_alaska_placer import (
+    DEFAULT_WEIGHTS_TERTIARY,
+    DEFAULT_WEIGHTS_QUATERNARY,
+)
+from ai_minerals.features.hydrology import (
+    gaussian_falloff, plan_curvature, profile_curvature,
+)
+from ai_minerals.features.placer_geology import (
+    distance_to_lithological_contact_m,
+    hydraulic_pit_proximity_m,
+    hydraulic_pit_proximity_m_buffered,
+)
+from ai_minerals.regions.northern_sierra_placer import NORTHERN_SIERRA_PLACER as REGION
+from ai_minerals.regions._northern_sierra_anchors import ANCHOR_DISTRICTS
+
+REPO_ROOT = Path.cwd()
+while not (REPO_ROOT / "pyproject.toml").exists() and REPO_ROOT.parent != REPO_ROOT:
+    REPO_ROOT = REPO_ROOT.parent
+print(f"repo root: {REPO_ROOT}")
+```
+
+## 1. Per-population feature stacks (B.1 + B.4)
+
+The v2 model trained both populations on the same 44-feature stack. Many of
+those features actively hurt one population while helping the other (e.g. SPI
+band lights up modern channels but is meaningless for Tertiary terraces).
+v3 splits the stack.
+
+```{python}
+#| label: pop-stacks
+print(f"Tertiary feature stack ({len(TERTIARY_FEATURE_COLUMNS)} features):")
+for f in TERTIARY_FEATURE_COLUMNS:
+    print(f"  {f}")
+print()
+print(f"Quaternary feature stack ({len(QUATERNARY_FEATURE_COLUMNS)} features):")
+for f in QUATERNARY_FEATURE_COLUMNS:
+    print(f"  {f}")
+
+print()
+in_both = set(TERTIARY_FEATURE_COLUMNS) & set(QUATERNARY_FEATURE_COLUMNS)
+only_t = set(TERTIARY_FEATURE_COLUMNS) - set(QUATERNARY_FEATURE_COLUMNS)
+only_q = set(QUATERNARY_FEATURE_COLUMNS) - set(TERTIARY_FEATURE_COLUMNS)
+print(f"shared between both: {len(in_both)} features")
+print(f"Tertiary-only:       {sorted(only_t)}")
+print(f"Quaternary-only:     {sorted(only_q)}")
+```
+
+The Tertiary-only features are `is_quaternary_alluvium` (antithesis signal,
+where Tertiary gravels are NOT), `tertiary_terrace_likelihood` (bench
+geometry above modern drainage), and `hydraulic_pit_proximity_m_buffered`
+(the buffered variant — Tertiary's positive set IS the pit polygons; the
+unbuffered feature trivially encodes the label).
+
+The Quaternary-only features are the modern-channel signal: `spi_band` (Roy
+2018 detachment threshold), `ksn` (knickpoint steepness), `flow_acc` cluster,
+and the Hawkes catchment-As + catchment-Sb (pathfinders that don't help with
+Tertiary buried channels).
+
+## 2. Per-population scorer weights (B.1 + B.4)
+
+The Phase 1 scorer also splits. The v2 single weight set is preserved as
+`DEFAULT_WEIGHTS` for backward compatibility; v3 ships
+`DEFAULT_WEIGHTS_TERTIARY` and `DEFAULT_WEIGHTS_QUATERNARY` for the gated
+per-population score.
+
+```{python}
+#| label: pop-weights
+def show(name, weights):
+    rows = []
+    for feat, w in weights.items():
+        rows.append({
+            "feature": feat,
+            "weight": w.weight,
+            "direction": w.direction,
+            "sigma_m": getattr(w, "sigma_m", None),
+            "cap": w.cap,
+        })
+    df = pd.DataFrame(rows).sort_values("weight", ascending=False)
+    print(f"\n{name}  (n={len(df)}, sum_weights={df.weight.sum():.3f})")
+    print(df.to_string(index=False))
+
+show("DEFAULT_WEIGHTS_TERTIARY", DEFAULT_WEIGHTS_TERTIARY)
+show("DEFAULT_WEIGHTS_QUATERNARY", DEFAULT_WEIGHTS_QUATERNARY)
+```
+
+Three observations:
+
+- Tertiary's top feature is `distance_to_lode_m` (gaussian, σ=12km, weight 0.22)
+  followed by `tertiary_terrace_likelihood` (direct, 0.18) and
+  `paleochannel_likelihood` (direct, 0.16). No pit-proximity in the top: the
+  buffered variant ranks at 0.16 but only contributes outside the 1km buffer.
+- Quaternary's top feature is `distance_downstream_from_lode_m` (gaussian,
+  σ=20km, weight 0.20) followed by `catchment_au_hawkes` (direct, 0.18) and
+  `distance_to_lode_m` (gaussian, 0.12). The 20km σ is the wider falloff the
+  plan called out for catching distal Sacramento Valley placers.
+- Both populations use `gaussian` direction for three distance features.
+
+## 3. Soft-falloff vs hard-cap (B.5)
+
+The v2 distance features used `direction="inverse"` with a hard cap (`cap=15_000` for
+lode distance, `cap=25_000` for downstream). Cells beyond the cap got score 0;
+cells at the boundary got an arbitrary near-zero score. The transition was a
+visible discontinuity in the score maps.
+
+v3 uses `direction="gaussian"` with a `sigma_m` parameter. The score decays
+smoothly from 1 (at distance 0) to ~5% at distance 3σ. Forest Hill is ~12 km
+from the nearest lode-Au point; v2's 15km cap put it at score ~0.2; v3's
+gaussian with σ=12km puts it at score ~0.61, which is much more in line with
+the geological reality (Forest Hill is a real placer district).
+
+```{python}
+#| label: soft-vs-hard
+def hard_cap_inverse(d, cap):
+    out = np.where(d < cap, 1.0 - d / cap, 0.0)
+    return out.astype(np.float32)
+
+d_km = np.linspace(0, 30, 200)
+d_m = d_km * 1000
+
+fig, ax = plt.subplots(figsize=(9, 4.5))
+ax.plot(d_km, hard_cap_inverse(d_m, 15_000), color="crimson",
+        linewidth=2, label="v2: inverse, cap=15km")
+ax.plot(d_km, gaussian_falloff(d_m, sigma_m=12_000),
+        color="steelblue", linewidth=2, label="v3: gaussian, σ=12km")
+ax.axvline(12, color="gray", linestyle=":", alpha=0.6, label="Forest Hill: ~12km from nearest lode-Au")
+ax.set_xlabel("distance to lode-Au point (km)")
+ax.set_ylabel("feature contribution (0 = no signal, 1 = max)")
+ax.set_title("distance_to_lode_m: v2 hard cap vs v3 gaussian falloff")
+ax.legend()
+ax.grid(True, alpha=0.25)
+plt.tight_layout()
+plt.show()
+```
+
+## 4. Buffered hydraulic-pit-proximity (B.2)
+
+The v2 `hydraulic_pit_proximity_m` feature trivially encoded the Tertiary
+label: positive cells are pit polygon centroids, so `distance == 0` perfectly
+identifies them. v3 trains on `hydraulic_pit_proximity_m_buffered`, which is
+NaN within 1km of any pit polygon. The model cannot learn the shortcut
+because the positive cells themselves are unobservable in this feature.
+
+Compute both maps on a small AOI patch around the anchor cluster + plot the
+buffer halo.
+
+```{python}
+#| label: buffered-pit-proximity
+from ai_minerals.grid import build_grid
+from ai_minerals.data.adapters import get_adapter
+
+# Build the placer grid + load pits
+grid = build_grid(REGION.aoi, resolution_m=250, working_crs=REGION.working_crs)
+pit_polys = get_adapter("geology", "hydraulic_pits")(
+    REGION.raw_paths["hydraulic_pits"], REGION.aoi
+)
+
+prox_v2 = hydraulic_pit_proximity_m(pit_polys, grid)
+prox_v3 = hydraulic_pit_proximity_m_buffered(pit_polys, grid, buffer_m=1000.0)
+
+print(f"v2 hydraulic_pit_proximity_m:")
+print(f"  finite cells: {int(prox_v2.notna().sum()):,} of {len(prox_v2):,}")
+print(f"  min={prox_v2.min():.0f}m  median={prox_v2.median():.0f}m  max={prox_v2.max():.0f}m")
+print()
+print(f"v3 hydraulic_pit_proximity_m_buffered (buffer=1000m):")
+print(f"  finite cells: {int(prox_v3.notna().sum()):,} of {len(prox_v3):,}")
+print(f"  cells nullified (within 1km of any pit): {int(prox_v2.notna().sum() - prox_v3.notna().sum()):,}")
+print(f"  min={prox_v3.min():.0f}m  median={prox_v3.median():.0f}m  max={prox_v3.max():.0f}m")
+```
+
+The buffered version voids the ~10-20k cells closest to pit polygons. The
+model's view of "near a pit" is replaced by "I have no signal here" — which
+forces the model to use the other features (geomorphology, geology, geochem)
+to predict positives. That's exactly what v3 needs for generalization.
+
+## 5. Three new B.6 features
+
+### Plan and profile curvature
+
+The DEM second-derivative curvatures, Gaussian-smoothed.
+
+- **Plan curvature**: positive on ridges (interstream divides where Tertiary
+  gravels rest), negative in valleys. Strong signal for Tertiary terrace
+  identification.
+- **Profile curvature**: positive at convex slope-breaks (knickpoints — gold
+  traps for Quaternary placers), negative at concave breaks (bench toes —
+  also placer traps).
+
+Both functions take a DEM array; the assemble script wires them in at the
+grid level alongside slope and TPI.
+
+```{python}
+#| label: curvature-smoke
+# Compute on a synthetic DEM patch to show the maps are reasonable.
+nx, ny = 200, 200
+xs = np.linspace(-1, 1, nx)
+ys = np.linspace(-1, 1, ny)
+X, Y = np.meshgrid(xs, ys)
+dem = 1000 + 200 * np.sin(3 * X) * np.cos(2 * Y) + 50 * (X**2 + Y**2)
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+im0 = axes[0].imshow(dem, cmap="terrain")
+axes[0].set_title("synthetic DEM\n(elevation, m)")
+plt.colorbar(im0, ax=axes[0], shrink=0.7)
+
+pc = plan_curvature(dem.astype(np.float32))
+im1 = axes[1].imshow(pc, cmap="RdBu_r", vmin=-np.nanstd(pc)*3, vmax=np.nanstd(pc)*3)
+axes[1].set_title("plan_curvature\n(positive=ridge, negative=valley)")
+plt.colorbar(im1, ax=axes[1], shrink=0.7)
+
+prc = profile_curvature(dem.astype(np.float32))
+im2 = axes[2].imshow(prc, cmap="RdBu_r", vmin=-np.nanstd(prc)*3, vmax=np.nanstd(prc)*3)
+axes[2].set_title("profile_curvature\n(positive=convex break, negative=concave)")
+plt.colorbar(im2, ax=axes[2], shrink=0.7)
+for ax in axes:
+    ax.set_xticks([]); ax.set_yticks([])
+plt.tight_layout()
+plt.show()
+```
+
+### Distance to lithological contact
+
+Per-cell distance to the nearest CGS 2010 polygon boundary. Contact zones
+favor lode → placer transport (fluids exit the source rock at the contact,
+metals concentrate there).
+
+```{python}
+#| label: contact-distance
+from ai_minerals.data.adapters import get_adapter
+
+geo = get_adapter("geology", REGION.geology_source)(
+    REGION.raw_paths["geology"], REGION.aoi
+)
+contact_dist = distance_to_lithological_contact_m(geo, grid)
+print(f"distance_to_lithological_contact_m on the placer grid:")
+print(f"  finite cells: {int(np.isfinite(contact_dist.to_numpy()).sum()):,}")
+print(f"  min={np.nanmin(contact_dist):.0f}m  median={np.nanmedian(contact_dist):.0f}m  "
+      f"max={np.nanmax(contact_dist):.0f}m")
+print()
+print("Soft-falloff scoring at σ=2km:")
+print(f"  cells with score > 0.5 (within ~1.5km of a contact): "
+      f"{int((gaussian_falloff(contact_dist.to_numpy(), sigma_m=2000.0) > 0.5).sum()):,}")
+```
+
+The map of this feature is mostly low values (cells far from any boundary)
+with bright stripes hugging the major lithological contacts in the AOI: the
+Mother Lode trend, the major plutonic contacts in the western foothills, the
+faulted contact between Sierra batholith and Western Metamorphic Belt.
+
+## 6. What's deferred to v4
+
+- **HUC12 categorical feature** (planned in B.6): the NHDPlus HR GeoPackage
+  ships flowlines but not WBD HUC12 polygons. v4 should add a separate WBD
+  download adapter.
+- **Per-population paleochannel composite** (planned in B.3): v3 keeps the
+  single composite. Per-population recompute would require an additional
+  precompute pass and is deferred.
+- **Paleochannel orientation feature**: ~3 hours to build but uncertain
+  marginal signal. v4 candidate.
+
+## What's next (Phase C)
+
+Three model upgrades:
+
+1. **XGBoost** added to the stacking pool (RF + LightGBM + XGBoost).
+2. **nnPU** for the Quaternary branch (modern positive-unlabeled method
+   replacing the 2014 Mordelet-Vert PU bagging).
+3. **Calibrated logistic stacking** for the two-population fusion, replacing
+   the per-cell `np.maximum` operator.
+
+Then Phase D (data additions), Phase E (validation upgrades), Phase F (full
+retrain + audit + ship).
