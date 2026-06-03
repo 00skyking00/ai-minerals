@@ -1,0 +1,178 @@
+---
+title: "v3 Phase E: validation upgrades"
+subtitle: "Calibration audit, capture rates, Platt vs isotonic, SHAP recipe, leakage audit, block-size diagnostic"
+author: "Sky King"
+date: 2026-06-02
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+execute:
+  warning: false
+---
+
+## What this notebook is
+
+v3 Phase E added six diagnostic audits. Each one will run automatically as
+part of the Phase F.1 retrain pipeline. This notebook shows the empirical
+findings on the v2-killed data we already have on disk.
+
+## E.6 spatial block-size empirical diagnostic
+
+The v2 plan inherited a 20 km block size for spatial CV without empirical
+justification. E.6 runs a pre-flight diagnostic at 10 / 15 / 20 / 25 / 30 km
+and reports the trade-off: smaller blocks have more folds but more
+adjacency leakage; larger blocks lose statistical power but tighten the CV.
+
+```{python}
+#| label: block-size-diag
+from pathlib import Path
+import pandas as pd
+import matplotlib.pyplot as plt
+
+REPO_ROOT = Path.cwd()
+while not (REPO_ROOT / "pyproject.toml").exists() and REPO_ROOT.parent != REPO_ROOT:
+    REPO_ROOT = REPO_ROOT.parent
+
+bs = pd.read_csv(REPO_ROOT / "data/derived/northern_sierra_placer/block_size_ablation_diagnostic.csv")
+print(bs.to_string(index=False))
+```
+
+The 8-neighbour adjacency correlation is the "leakage risk" number: how
+correlated are positive counts in adjacent blocks. At 10 km blocks it's 0.83
+(adjacent blocks are nearly perfectly correlated; bad CV). At 30 km it drops
+to 0.46 (acceptable). v3's planned 20 km default sits at 0.71.
+
+```{python}
+#| label: block-size-plot
+fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+axes[0].plot(bs.block_size_m / 1000, bs.adjacency_pos_corr,
+             marker="o", color="crimson", linewidth=2)
+axes[0].set_xlabel("block size (km)")
+axes[0].set_ylabel("8-neighbour adjacency positive correlation")
+axes[0].set_title("Adjacency leakage (lower is better)")
+axes[0].axhline(0.5, color="gray", linestyle=":", alpha=0.6, label="0.5 acceptable")
+axes[0].legend()
+axes[0].grid(True, alpha=0.25)
+
+axes[1].plot(bs.block_size_m / 1000, bs.n_folds,
+             marker="o", color="steelblue", linewidth=2, label="n_folds")
+ax2 = axes[1].twinx()
+ax2.plot(bs.block_size_m / 1000, bs.blocks_with_zero_pos,
+         marker="s", color="darkorange", linewidth=2,
+         label="zero-pos blocks (wasted)")
+axes[1].set_xlabel("block size (km)")
+axes[1].set_ylabel("n_folds", color="steelblue")
+ax2.set_ylabel("zero-positive blocks", color="darkorange")
+axes[1].set_title("Statistical power trade-off")
+axes[1].grid(True, alpha=0.25)
+plt.tight_layout()
+plt.show()
+```
+
+**Recommendation**: Phase F.1 will try 25 km first (adjacency 0.57, 96 folds,
+57 wasted zero-pos blocks). If the per-fold AUC variance is high we'll
+escalate to 30 km. If the wasted-block ratio worries you we'll back down to
+20 km.
+
+## E.5 leakage-risk audit
+
+This audit computes Pearson + Spearman correlation between each suspect
+feature and each population's binary label. The audit flags features with
+|r| > 0.10 as a leakage warning.
+
+```{python}
+#| label: leakage-audit
+leak = pd.read_csv(REPO_ROOT / "data/derived/northern_sierra_placer/leakage_risk_audit.csv")
+print(leak.to_string(index=False))
+```
+
+**Finding**: NO features flagged. **And yet we know from v2 that pit-proximity
+leaks** (RF AUC 0.995 vs LightGBM 0.804). What's happening:
+
+- At 0.02% positive rate, the Pearson correlation of any feature with the
+  binary label has an upper bound near 0.05 just from the prior. Even a
+  perfectly-predictive feature would barely cross 0.10.
+- The v2 RF leakage was via PATTERN (cells near pit polygons get high score
+  because cells AT pit polygons are positives). Pearson doesn't see this —
+  it's not a linear correlation, it's a local-neighborhood structure.
+
+This is a real diagnostic limit. Simple correlation isn't useful for
+small-positive leakage detection. The real diagnostics for that are:
+
+- **E.4 SHAP recipe match**: if `hydraulic_pit_proximity_m_buffered` dominates
+  the top-5 Tertiary features it's leakage even when |r| < 0.10.
+- **Held-out generalization**: if Lindgren PP73 secondary (de-duped 500m from
+  any pit) scores 0 of 13 in the high tail it's leakage.
+
+v3.5 work: improve the leakage audit by adding nearest-neighbour positive
+density per cell as a leakage probe (the kind of structure Pearson misses).
+
+## E.1 calibration validation
+
+Pre/post isotonic comparison on the v2 Tertiary calibrated raster:
+
+```{python}
+#| label: calibration
+cal = pd.read_csv(REPO_ROOT / "data/derived/northern_sierra_placer/calibration_validation_placer_tertiary.csv")
+cal_pre = pd.read_csv(REPO_ROOT / "data/derived/northern_sierra_placer/calibration_validation_placer_tertiary_precal.csv")
+print("Post-isotonic calibration validation (v2 Tertiary):")
+print(cal.to_string(index=False))
+print()
+print("Pre-isotonic (raw stacking OOF) calibration:")
+print(cal_pre.to_string(index=False))
+```
+
+Pre-isotonic ECE was 0.0004; post-isotonic ECE is 0.0001 — the calibrator is
+genuinely improving the calibration. v3 will inherit isotonic's edge over
+Platt at this positive rate (see E.3).
+
+## E.3 Platt vs isotonic ablation
+
+```{python}
+#| label: platt-vs-isotonic
+ab = pd.read_csv(REPO_ROOT / "data/derived/northern_sierra_placer/calibration_ablation_placer_tertiary.csv")
+print(ab.to_string(index=False))
+```
+
+Isotonic wins on Tertiary by 100x lower ECE. Sigmoid's top-decile precision
+is identical (both identify the same cells as positives), but isotonic's
+probability scale matches observed frequencies more closely. v3 keeps the
+existing isotonic-default behavior.
+
+## E.2 capture rates
+
+Added to the per-fold metrics CSV. The model card now reports per-model
+mean ± std of capture_at_5pct alongside the existing AUC. Implemented as a
+helper in `src/ai_minerals/metrics/bootstrap.py`; 9 unit tests cover edge
+cases.
+
+## E.4 SHAP recipe match
+
+Implemented in the rationale script + the validation harness model card.
+Will produce real numbers when v3 Phase F.1 retrains both populations
+(the v2 estimator joblib has stale litho column names that the recipe-match
+helper doesn't recognize cleanly; the v3 joblibs will be clean).
+
+The Tertiary recipe expectations: top-5 must include ≥3 of
+{paleochannel_likelihood, distance_to_lode_m,
+hydraulic_pit_proximity_m_buffered, tertiary_terrace_likelihood,
+lithology_class_*}. The Quaternary recipe expectations: top-5 must include
+≥3 of {distance_downstream_from_lode_m, catchment_au_hawkes, spi_band,
+ksn, distance_to_lode_m, lithology_class_*}.
+
+If Tertiary's top feature is the unbuffered `hydraulic_pit_proximity_m` we
+re-introduce the leakage shortcut and the recipe gate fails. The buffered
+variant in v3's TERTIARY_FEATURE_COLUMNS is what we expect.
+
+## What's next (Phase F)
+
+Three steps before ship:
+
+1. **F.0** (new): rebuild the feature parquet with v3 assemble (the new
+   features + reclassified labels + refined anchor coordinates land).
+2. **F.1**: train both populations with v3 settings. Expect ~12-16 hours
+   wall clock (Hawkes refactor savings were marginal as Phase A discovered).
+3. **F.2-F.4**: audit suite (uses the Phase E scripts above) → ship/no-ship
+   gates → chapter update + deploy.
