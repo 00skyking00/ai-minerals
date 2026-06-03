@@ -287,6 +287,48 @@ def tpi(dem_array: np.ndarray, *, radius_cells: int = 8) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Second-derivative curvature (plan / profile)
+# ---------------------------------------------------------------------------
+
+def plan_curvature(dem: np.ndarray, *, sigma_cells: float = 2.0) -> np.ndarray:
+    """Curvature of contour lines (orthogonal to slope direction). Positive
+    on ridges, negative in valleys. Computed via Gaussian-smoothed
+    gradient + second-derivative scheme. NaN preserved."""
+    from scipy import ndimage
+    dem_s = ndimage.gaussian_filter(np.where(np.isfinite(dem), dem, np.nanmean(dem)),
+                                    sigma=sigma_cells, mode='reflect')
+    dy, dx = np.gradient(dem_s)
+    dyy, _ = np.gradient(dy)
+    _, dxx = np.gradient(dx)
+    _, dxy = np.gradient(dy)
+    p = dx**2 + dy**2
+    q = p + 1.0
+    eps = 1e-12
+    out = ((dxx * dy**2 - 2.0 * dxy * dx * dy + dyy * dx**2) / (p * np.sqrt(q) + eps)).astype(np.float32)
+    out[~np.isfinite(dem)] = np.nan
+    return out
+
+
+def profile_curvature(dem: np.ndarray, *, sigma_cells: float = 2.0) -> np.ndarray:
+    """Curvature along the slope direction. Positive at convex breaks of
+    slope (knickpoints); negative at concave breaks (terraces, bench
+    toes). Same Gaussian-smoothed scheme as plan_curvature."""
+    from scipy import ndimage
+    dem_s = ndimage.gaussian_filter(np.where(np.isfinite(dem), dem, np.nanmean(dem)),
+                                    sigma=sigma_cells, mode='reflect')
+    dy, dx = np.gradient(dem_s)
+    dyy, _ = np.gradient(dy)
+    _, dxx = np.gradient(dx)
+    _, dxy = np.gradient(dy)
+    p = dx**2 + dy**2
+    q = p + 1.0
+    eps = 1e-12
+    out = ((dxx * dx**2 + 2.0 * dxy * dx * dy + dyy * dy**2) / (p * np.power(q, 1.5) + eps)).astype(np.float32)
+    out[~np.isfinite(dem)] = np.nan
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Geomorphon terrace mask (GRASS r.geomorphon)
 # ---------------------------------------------------------------------------
 
@@ -406,6 +448,21 @@ def _run_grass_geomorphon(
             str(script_path),
         ]
         subprocess.run(cmd, check=True, capture_output=True)
+
+
+# ---------------------------------------------------------------------------
+# Soft-falloff distance feature helper (v3 Phase B.5)
+# ---------------------------------------------------------------------------
+
+def gaussian_falloff(d: np.ndarray, sigma_m: float) -> np.ndarray:
+    """Smooth Gaussian decay from 1 (at d=0) to ~5% at d=3*sigma.
+    Returns 0 where d is NaN. Used as a smoother replacement for
+    inverse-with-hard-cap distance features in v3."""
+    d = np.asarray(d, dtype=np.float64)
+    finite = np.isfinite(d)
+    out = np.zeros_like(d, dtype=np.float32)
+    out[finite] = np.exp(-(d[finite] ** 2) / (2.0 * sigma_m * sigma_m)).astype(np.float32)
+    return out
 
 
 # ---------------------------------------------------------------------------

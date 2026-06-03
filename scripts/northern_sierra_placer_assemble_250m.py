@@ -45,13 +45,17 @@ from ai_minerals.features.hydrology import (
     flow_accumulation,
     geomorphon_terrace_mask,
     knickpoint_ksn,
+    plan_curvature,
+    profile_curvature,
     stream_power_index_band,
     topographic_wetness_index,
     tpi,
 )
 from ai_minerals.features.placer_geology import (
+    distance_to_lithological_contact_m,
     hawkes_dual_decay_catchment,
     hydraulic_pit_proximity_m,
+    hydraulic_pit_proximity_m_buffered,
     is_quaternary_alluvium,
     tertiary_terrace_likelihood,
 )
@@ -217,10 +221,14 @@ def _inject_placer_positives(
         deep-gravel district), OR
       - it sits on a CGS 2010 PTYPE in {Tvp, Tv} (Tertiary volcanic cap that
         overlies buried Tertiary auriferous gravels).
-    Otherwise leave as Quaternary. This shifts ~30-50 MRDS records from
-    Quaternary to Tertiary; Tertiary grows from 158 cells to ~200, Quaternary
-    drops from 573 to ~530. The v2 behavior (all MRDS placers -> Quaternary)
-    is preserved by `reclassify_mrds=False`.
+    Otherwise: Quaternary. Records on bedrock PTYPE (Pz, J, grMz, Mzv, etc.)
+    are correctly Quaternary by default — they are bedrock-paystreak placers
+    in incised streams where the gravel veneer is too thin for CGS 2010's
+    1:750,000 mapping to resolve (the mining works the bedrock-gravel
+    contact, but the deposit itself is a Quaternary surficial gravel that
+    just isn't mapped at this resolution). v2 treated all MRDS placers as
+    Quaternary; v3 only reassigns the ones with explicit Tertiary signal.
+    Preserve v2 behavior with `reclassify_mrds=False`.
     """
     df = df.copy()
     from ai_minerals.data.adapters.occurrences.mrds import _PLACER_DEP_TYPE_RE
@@ -401,6 +409,20 @@ def _build_placer_columns(
         _maybe_attach(df, "tpi",
                       _ravel_north_up_to_grid_order(tpi_north_up), flat_idx)
 
+        # v3 Phase B.6: second-derivative curvature features. plan_curvature
+        # distinguishes ridges (positive) from valleys (negative); profile
+        # curvature picks out convex/concave breaks of slope. Both are
+        # Tertiary-relevant (flat-bench vs valley-side discrimination).
+        # huc12_id is deferred to v4 (need WBD HUC12 polygon download; the
+        # NHDPlus HR GeoPackage at REGION.raw_paths["nhd_flowlines"] only
+        # ships flowlines, not the WBD HUC12 layer).
+        plan_curv_north_up = plan_curvature(dem_north_up, sigma_cells=2.0)
+        prof_curv_north_up = profile_curvature(dem_north_up, sigma_cells=2.0)
+        _maybe_attach(df, "plan_curvature",
+                      _ravel_north_up_to_grid_order(plan_curv_north_up), flat_idx)
+        _maybe_attach(df, "profile_curvature",
+                      _ravel_north_up_to_grid_order(prof_curv_north_up), flat_idx)
+
     # ---- Geomorphon terrace mask (GRASS r.geomorphon; slow on first run).
     print("[placer] geomorphon terrace mask")
     if not dem_path.exists():
@@ -497,11 +519,18 @@ def _build_placer_columns(
             "hydraulic_pit_proximity_m filled with NaN."
         )
         _maybe_attach(df, "hydraulic_pit_proximity_m", None, flat_idx)
+        _maybe_attach(df, "hydraulic_pit_proximity_m_buffered", None, flat_idx)
     else:
         pit_polys = get_adapter("geology", "hydraulic_pits")(pit_path, REGION.aoi)
         prox = hydraulic_pit_proximity_m(pit_polys, grid)
         _maybe_attach(df, "hydraulic_pit_proximity_m",
                       prox.to_numpy(dtype=np.float32), flat_idx)
+        # v3 Phase B.2: buffered variant for Tertiary training so the model
+        # cannot learn the trivial "distance == 0 → pit centroid → positive"
+        # shortcut. NaN within 1 km of any pit polygon.
+        prox_buffered = hydraulic_pit_proximity_m_buffered(pit_polys, grid)
+        _maybe_attach(df, "hydraulic_pit_proximity_m_buffered",
+                      prox_buffered.to_numpy(dtype=np.float32), flat_idx)
 
     # ---- Quaternary-alluvium boolean.
     print("[placer] Quaternary-alluvium mask")
@@ -511,11 +540,21 @@ def _build_placer_columns(
             f"geology missing at {geo_path}; is_quaternary_alluvium filled with NaN."
         )
         _maybe_attach(df, "is_quaternary_alluvium", None, flat_idx)
+        _maybe_attach(df, "distance_to_lithological_contact_m", None, flat_idx)
     else:
         geo_poly = get_adapter("geology", REGION.geology_source)(geo_path, REGION.aoi)
         qal = is_quaternary_alluvium(geo_poly, grid)
         # Bool feature; preserve dtype rather than float-cast.
         df["is_quaternary_alluvium"] = qal.to_numpy(dtype=bool)[flat_idx]
+
+        # v3 Phase B.6: distance to nearest CGS 2010 lithology contact.
+        # Contact zones favor lode -> placer transport; cells far from any
+        # polygon boundary sit inside large homogeneous units. Reuses the
+        # same geo_poly load as is_quaternary_alluvium.
+        print("[placer] distance to lithological contact")
+        contact_dist = distance_to_lithological_contact_m(geo_poly, grid)
+        _maybe_attach(df, "distance_to_lithological_contact_m",
+                      contact_dist.to_numpy(dtype=np.float32), flat_idx)
 
     # ---- Tertiary terrace likelihood (depends on tpi, slope, is_quaternary_alluvium).
     # The standard paleochannel composite scores modern-channel-proximity; Sierra

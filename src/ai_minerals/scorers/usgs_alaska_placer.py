@@ -37,6 +37,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from ai_minerals.features.hydrology import gaussian_falloff
+
 
 @dataclass(frozen=True)
 class FeatureWeight:
@@ -47,13 +49,19 @@ class FeatureWeight:
         "inverse"     — higher feature value → lower score
         "bandpass"    — feature is already a [0, 1] membership; pass through
         "boolean"     — coerce to 0/1, then treat as direct
+        "gaussian"    — soft-falloff distance: score = exp(-d^2 / (2 sigma^2)).
+                        Reads `sigma_m`; output is already [0, 1].
     cap:
         For "inverse" features, cells with value >= cap clip to score 0.
+        Ignored for other directions.
+    sigma_m:
+        For "gaussian" features, the Gaussian falloff length scale (meters).
         Ignored for other directions.
     """
     weight: float
     direction: str
     cap: float | None = None
+    sigma_m: float | None = None
 
 
 DEFAULT_WEIGHTS: dict[str, FeatureWeight] = {
@@ -93,6 +101,72 @@ DEFAULT_WEIGHTS: dict[str, FeatureWeight] = {
     "twi":                             FeatureWeight(0.03, "direct"),
     "geomorphon_terrace_mask":         FeatureWeight(0.02, "boolean"),
     "slope":                           FeatureWeight(0.01, "inverse"),
+}
+
+
+# v3 Phase B per-population scorer weights. DEFAULT_WEIGHTS above is the
+# legacy / Phase 1 fallback (shared stack); the per-population variants are
+# what the v3 calibration code reaches for when a population label is
+# available.
+#
+# Tertiary weights. The Tertiary population (positives = hydraulic-mine pit
+# centroids on bench terraces above modern drainage):
+#   - Drop spi_band, ksn, twi: Quaternary-modern-channel signals that do
+#     not characterize Tertiary terraces (terrace cells score low on
+#     stream-power-competence because they are NOT in a channel). twi is
+#     kept at token weight for residual moisture-trap context.
+#   - Drop distance_downstream_from_lode_m: NaN at >98% of Tertiary cells
+#     (Sierra deep-gravels are offset from the modern Mother Lode flow trend,
+#     not downstream of it). Wastes weight on a feature that contributes 0.
+#   - Use hydraulic_pit_proximity_m_buffered (NaN within 1 km of any pit
+#     polygon) NOT the unbuffered original. The unbuffered feature is the
+#     v2 label leak: positives ARE pits, so distance == 0 at every positive.
+#   - Add tertiary_terrace_likelihood and distance_to_lithological_contact_m
+#     as Tertiary-specific signals.
+#   - is_quaternary_alluvium kept as a low-weight antithesis (Tertiary
+#     deep-gravels are NOT in modern alluvium; high values argue against
+#     Tertiary classification).
+DEFAULT_WEIGHTS_TERTIARY: dict[str, FeatureWeight] = {
+    "distance_to_lode_m":              FeatureWeight(0.22, "gaussian", sigma_m=12_000.0),
+    "tertiary_terrace_likelihood":     FeatureWeight(0.18, "direct"),
+    "paleochannel_likelihood":         FeatureWeight(0.16, "direct"),
+    "hydraulic_pit_proximity_m_buffered": FeatureWeight(0.16, "gaussian", sigma_m=3_000.0),
+    "catchment_au_hawkes":             FeatureWeight(0.12, "direct"),
+    "is_quaternary_alluvium":          FeatureWeight(0.05, "boolean"),  # antithesis
+    "distance_to_lithological_contact_m": FeatureWeight(0.05, "gaussian", sigma_m=2_000.0),
+    "twi":                             FeatureWeight(0.03, "direct"),
+    "slope":                           FeatureWeight(0.03, "inverse"),
+}
+
+
+# Quaternary weights. The Quaternary population (positives = MRDS placer
+# points along modern streams):
+#   - Drop tertiary_terrace_likelihood: opposite-signal feature (high =
+#     bench-not-channel; the wrong direction for modern-channel placers).
+#   - Drop is_quaternary_alluvium: LABEL LEAK. MRDS placer records sit in
+#     Qa/Qal polygons by definition; the feature trivially encodes the label.
+#   - Drop hydraulic_pit_proximity_m entirely (no buffered variant either):
+#     pits are Tertiary deep-gravel features, irrelevant to modern-channel
+#     prospectivity.
+#   - Keep stream-power / wetness features (spi_band, ksn, twi, flow_acc):
+#     these characterize where modern channels concentrate gold.
+#   - Use distance_downstream_from_lode_m with the larger sigma (20 km) to
+#     catch Sacramento Valley distal placers without overwhelming the signal
+#     at intermediate distances.
+#   - Add pathfinder elements (catchment_as_hawkes, catchment_sb_hawkes) as
+#     low-weight supporting signal for catchment-Au.
+DEFAULT_WEIGHTS_QUATERNARY: dict[str, FeatureWeight] = {
+    "distance_downstream_from_lode_m": FeatureWeight(0.20, "gaussian", sigma_m=20_000.0),
+    "distance_to_lode_m":              FeatureWeight(0.12, "gaussian", sigma_m=12_000.0),
+    "catchment_au_hawkes":             FeatureWeight(0.18, "direct"),
+    "spi_band":                        FeatureWeight(0.12, "bandpass"),
+    "ksn":                             FeatureWeight(0.08, "direct"),
+    "twi":                             FeatureWeight(0.06, "direct"),
+    "flow_acc":                        FeatureWeight(0.05, "direct"),
+    "paleochannel_likelihood":         FeatureWeight(0.08, "direct"),
+    "distance_to_lithological_contact_m": FeatureWeight(0.05, "gaussian", sigma_m=2_000.0),
+    "catchment_as_hawkes":             FeatureWeight(0.03, "direct"),
+    "catchment_sb_hawkes":             FeatureWeight(0.03, "direct"),
 }
 
 
@@ -136,6 +210,17 @@ def _normalize_bandpass(values: pd.Series) -> pd.Series:
     return values.clip(lower=0.0, upper=1.0).astype("float64")
 
 
+def _normalize_gaussian(values: pd.Series, sigma_m: float | None) -> pd.Series:
+    """Gaussian soft-falloff: score = exp(-d^2 / (2 sigma_m^2)). NaN→0."""
+    if sigma_m is None or sigma_m <= 0:
+        raise ValueError(
+            f"gaussian direction requires sigma_m > 0; got sigma_m={sigma_m!r}"
+        )
+    arr = values.to_numpy(dtype=np.float64)
+    scored = gaussian_falloff(arr, sigma_m=float(sigma_m))
+    return pd.Series(scored.astype("float64"), index=values.index)
+
+
 def _apply_one(values: pd.Series, fw: FeatureWeight) -> pd.Series:
     if fw.direction == "direct":
         return _normalize_direct(values)
@@ -145,6 +230,8 @@ def _apply_one(values: pd.Series, fw: FeatureWeight) -> pd.Series:
         return _normalize_boolean(values)
     if fw.direction == "bandpass":
         return _normalize_bandpass(values)
+    if fw.direction == "gaussian":
+        return _normalize_gaussian(values, fw.sigma_m)
     raise ValueError(f"Unknown direction {fw.direction!r}")
 
 
