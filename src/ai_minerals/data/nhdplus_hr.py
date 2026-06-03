@@ -288,14 +288,12 @@ def fetch(aoi: AOI, *, force: bool = False) -> Path:
             "hydroseq": pd.to_numeric(
                 _col(merged, "HydroSeq", "Hydroseq", "hydroseq"), errors="coerce"
             ).fillna(0).astype("int64"),
-            # NHDPlus HR ships a per-flowline longitudinal slope (dimensionless,
-            # rise/run) in the VAA table. Used as a cell-level Quaternary feature
-            # in v3 Phase D.2 (nearest-reach snap). Some reaches have NaN slope
-            # in the source; preserve NaN rather than zero-fill so downstream
-            # consumers can distinguish "unknown" from "flat".
+            # NHDPlus HR per-flowline longitudinal slope. NoData encoded as
+            # -9998 in the VAA; coerce to NaN so downstream tree learners
+            # don't treat the sentinel as a giant outlier.
             "slope": pd.to_numeric(
                 _col(merged, "Slope", "slope"), errors="coerce"
-            ).astype("float64"),
+            ).where(lambda s: s > -9000).astype("float64"),
         },
         crs="EPSG:4326",
     )
