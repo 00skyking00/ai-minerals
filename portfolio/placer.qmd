@@ -1,0 +1,237 @@
+---
+title: "Chapter 4: Placer-Au prospectivity (northern Sierra)"
+subtitle: "Two-population (Tertiary deep-gravel + Quaternary modern-channel) at 250 m on the canonical California placer province"
+---
+
+[← back to portfolio map](index.html)
+
+## What this chapter is about
+
+Placer-Au prospectivity modeling sits about a decade behind lode in the
+published literature. The lode side has stacked supervised pipelines with
+spatial-block cross-validation, leakage audits, and external blind tests
+as standard practice. The placer side mostly does not, because the data
+is messier (point occurrences with inconsistent `dep_type` strings), the
+positives concentrate in a few well-known districts, and the geomorphic
+chain from lode source to placer trap involves transport mechanics that
+do not show up in a static feature stack. The only production-grade
+transferable placer model that survives in the published record is the
+USGS Alaska watershed scorer used in the Cross, Frost, and Karl
+assessments (USGS Open-File Report series), a weighted-sum
+knowledge-driven index rather than a supervised classifier. It works
+because Alaska placer-bearing watersheds are large and the scoring
+features are tractable per-watershed averages.
+
+This chapter ports that knowledge-driven approach to the northern Sierra
+deep-gravel belt at 250 m grid resolution, adds Sierra-specific features
+that capture the deep-gravel geometry (terraces above the modern
+drainage, not channel bottoms), then runs a Phase 2 supervised pass
+(PU bagging + Random Forest + LightGBM + stacking + isotonic
+calibration) with the same discipline the lode side already practices.
+The result is two calibrated rasters, one per geomorphic placer
+population, fused per-cell into a single deliverable GeoTIFF that the
+[goldbug](https://johnsondevco.com/goldbug/) live tool samples for
+per-claim prospectivity scoring.
+
+Two populations of placer with different geomorphic signatures:
+
+- **Tertiary deep-gravel**, the auriferous-gravel paleo-channels that
+  the ancestral Yuba and American rivers cut before late-Tertiary uplift,
+  later buried by andesitic flows, then re-exposed by hydraulic mining
+  in the 1850s-1884 era. Pay strata sit on hillside benches above the
+  modern drainage. Positive labels: the 167 Orlando 2016 hydraulic-mine
+  pit polygons (158 unique cells on the 250 m grid).
+- **Quaternary modern-channel**, active stream alluvium along the
+  modern Yuba / Bear / American river system and their tributaries.
+  Positive labels: 573 cells from MRDS records with `dep_type` matching
+  placer / alluvial / stream / gravel.
+
+The Phase 1 weighted-knowledge-driven index runs across both populations
+with a single composite score; Phase 2 trains one classifier per
+population and fuses the calibrated rasters with `np.maximum`.
+
+## Phase 1: knowledge-driven anchor gate
+
+The Phase 1 scorer combines eleven features into a p1/p99-clipped
+min-max-normalized weighted sum, including `distance_to_lode_m` (omnidirectional Euclidean
+to nearest MRDS lode-Au seed), `paleochannel_likelihood` (a composite of
+NHDPlus HR-derived REM + local relief + geomorphon-based GMI),
+`hydraulic_pit_proximity_m`, `tertiary_terrace_likelihood` (a
+geometric-mean composite of TPI-high, slope-low, not-Qal that scores the
+bench-above-drainage geometry directly), and `catchment_au_hawkes` (Hawkes
+1976 dual-decay catchment aggregation of NGDB + NURE stream-sediment Au).
+The full feature stack and per-layer maps are documented in the
+[data exploration notebook](notebooks/northern_sierra_placer/data_exploration.html).
+
+The Phase 1 validation gate: seven historic deep-gravel anchor districts
+(Malakoff Diggins, North San Juan, Dutch Flat, You Bet, Iowa Hill,
+Forest Hill, Michigan Bluff) must each land in the top decile of the
+score. None of the seven appears in the training labels (the matching
+hydraulic-pit polygons are excluded by name). The v1 model gets
+**7 of 7**. A held-out Lindgren PP73 secondary set of thirteen
+non-anchor Tertiary districts (Smartsville, Camptonville, Alleghany,
+Damascus, Lake City, Sucker Flat, French Corral, Sweetland, Cherokee,
+Indian Hill, Brandy City, Snake Creek, Quartz Mountain) lands at median
+decile 0 (same as the anchors), 11 of 13 in the top quintile. The
+feature engineering generalizes; the gate is not an anchor-fit
+artifact.
+
+## Phase 2: supervised, per population
+
+The v2 pipeline trains one classifier stack per population on the same
+250 m feature frame:
+
+1. **PU bagging** (Mordelet-Vert positive-unlabeled bagging,
+   `n_bags=30`) as the one-class baseline that does not assume the
+   unlabeled set is negative.
+2. **Random Forest** and **LightGBM** under 20 km spatial-block
+   cross-validation, with per-fold Hawkes catchment-geochem recompute so
+   a test-fold sample never contributes to a feature the model sees at
+   fit time.
+3. **Stacking meta-learner**: logistic regression over the spatial-block
+   out-of-fold predictions from RF and LightGBM. The meta uses the same
+   20 km cross-validation iterable, so it never sees in-block test
+   positives during fit.
+4. **Isotonic calibration** via `CalibratedClassifierCV`. Platt sigmoid
+   fallback when a population has fewer than 30 positives.
+5. **Per-population fusion**: the two calibrated rasters combine
+   per-cell via `np.maximum` into a single deliverable GeoTIFF.
+
+Every population mask, fold split, and calibration fold excludes the
+seven anchor districts, so the validation gate stays a real held-out
+test.
+
+## Tertiary v2 cross-validation by model
+
+![Per-fold spatial-block ROC-AUC for the three Tertiary models. Each blue or brown dot is one of 14 spatial blocks; the black bar is the model's mean across folds. Stacking is plotted as the single global out-of-fold score because the meta-learner is trained once on the OOF base scores from RF + LightGBM.](data/derived/northern_sierra_placer/v2_fold_auc_tertiary.png)
+
+What the chart is telling you. RF averages 0.995 across 14 spatial
+blocks with std 0.008. That number is too good. It is the model
+memorizing the spatial neighborhood around each Tertiary positive: the
+positive labels are hydraulic-pit polygon centroids, and
+`hydraulic_pit_proximity_m` is in the feature set. Held-out blocks still
+contain the zero-distance cells that ring each positive; RF (deep
+trees, no regularization, no shrinkage on small leaves) trivially
+identifies them. The feature is not leaking across folds in the
+strict-data-leakage sense, but it is structurally inverse-encoding the
+label, which the model picks up.
+
+LightGBM averages 0.804 across the same 14 folds with std 0.101,
+including two folds at 0.5. The regularized boosting framework resists
+the pit-proximity memorization but pays for it with fold-to-fold
+variance. The two folds at 0.5 are blocks where the held-out positives
+have no nearby pit proximity signal in the training data.
+
+Stacking averages the two via logistic regression on the spatial-block
+OOF predictions, reaching a global OOF AUC of 0.961 and a PR-AUC of
+0.116 (the latter low because the 158 positives among 800k cells is a
+0.02% prior, so any model with non-trivial recall produces low
+precision-weighted area). The meta-learner down-weights the
+RF score where it disagrees with LightGBM, pulling the headline number
+back to a range the per-fold LightGBM evidence actually supports.
+
+## What the calibrated Tertiary raster looks like
+
+![Tertiary v2 calibrated probability, displayed as percentile rank across the AOI (the calibrated probability has a long zero tail that linear color stretching would wash out). The cyan outlines are the 167 Orlando 2016 hydraulic-mine pit polygons. The red dots are the seven anchor districts, none of which appear in the training labels.](data/derived/northern_sierra_placer/v2_calibrated_tertiary_map.png)
+
+The hot zone (yellow / orange) traces the Mother Lode trend through the
+western part of the AOI; the eastern half (toward the Sierra crest) is
+mostly zero-probability black. The anchor districts all land in the hot
+zone. The eastern dark zone is correct: the Mother Lode lode-Au sources
+are concentrated west, and the geomorphic features that score Tertiary
+placers (paleo-channel REM, terrace TPI, pit proximity, low slope) all
+fade east of the lode trend.
+
+## Tertiary v2 anchor + held-out validation
+
+![Decile distribution of the calibrated Tertiary probability for three point sets: the seven anchor districts (trained out of every fold; red), the thirteen Lindgren PP73 secondary Tertiary districts (held out entirely; blue), and the five Lindgren PP73 secondary Quaternary districts (held out entirely; orange). v2 is Tertiary-specific, so Lindgren Quaternary correctly clusters in the bottom decile.](data/derived/northern_sierra_placer/v2_decile_histogram_tertiary.png)
+
+The anchor districts split 6 in the top quintile (3 at d0, 3 at d1)
+plus 1 in the bottom decile. That single d9 anchor is Forest Hill,
+which the Phase 1 gate also placed at the bottom of the passing set
+(decile 2 there). Forest Hill is geologically the least pit-proximal of
+the seven, and the v2 isotonic calibrator pushes it into the zero bin
+because no nearby positive cells anchor its probability.
+
+The Lindgren Tertiary set splits cleanly: 5 cells in d1 (matching the
+anchor cluster), 8 cells in d9 (the zero bin). The calibration produces
+a bimodal output by design: cells are either "near a pit-proximity
+signal" or "not", with little middle ground. Eight Lindgren districts
+landing in the zero bin is the model saying it does not have enough
+local evidence to rank them above the floor, not that they are not
+placer-prospective. The Phase 1 weighted-knowledge-driven score still
+ranks 11 of 13 in the top quintile because it uses the full feature
+stack at low resolution, not the calibrated supervised output.
+
+The Lindgren Quaternary set sits in the zero bin almost entirely
+(4 of 5 at d9, 1 at d1), which is what we want from a Tertiary-specific
+classifier. The Quaternary classifier (v2 Quaternary pipeline, in
+training as this chapter is being written) will handle them.
+
+## What v2 buys over Phase 1
+
+The Phase 1 weighted index uses a fixed linear combination of features
+that the geologist set by hand. The v2 supervised pass replaces the
+hand-tuning with stacked tree models that learn the feature interactions
+from the labels themselves. Two concrete improvements:
+
+1. **Per-population specialization**. Phase 1 was Tertiary-tuned because
+   all seven training anchors are Tertiary. v2 trains a separate
+   classifier per population, so the Quaternary branch can weight
+   stream-power, catchment-Au Hawkes, and is_quaternary_alluvium
+   appropriately on the 573 modern-channel positives.
+2. **Calibration to a real probability scale**. Phase 1 produces a
+   weighted-sum index in [0, 1] that is not a calibrated probability
+   (cells at 0.85 are not "85% likely to host a placer"). v2's isotonic
+   calibration step maps the stacked score to a probability that can be
+   thresholded and explained to a non-modeler.
+
+The Phase 1 raster stays useful as a feature-rich knowledge-driven prior
+that complements v2; the v2 calibrated raster is the deliverable that
+the goldbug tool ingests.
+
+## What this does not prove
+
+This is a regional prospectivity model trained on 158 + 573 positive
+cells over an 805,000-cell grid. It says where the model places its
+probability mass given the public-data feature stack and the spatial
+distribution of the labels. It does not say:
+
+- **The hot cells contain extractable gold.** They contain features
+  that match the trained labels' features. Hydraulic-pit polygons mark
+  where the 1850s-1884 miners chose to wash hillsides; they do not
+  prove every ranked-high cell has commercial pay.
+- **The model transfers off the AOI.** A Calaveras transfer test
+  (Phase J.3) is queued; expect a Klamath-style drop (Mother Lode →
+  Klamath went from AUC 0.85 to 0.58 on the lode side). Within-AOI
+  generalization is the story so far; out-of-AOI is the next test.
+- **The Phase 1 anchor gate is a perfect external test.** The Lindgren
+  PP73 secondary set is the better external test: 13 Tertiary districts
+  never seen by any classifier or scorer. v2 catches 5 of 13 in the
+  high-percentile zone; the rest land in the bimodal zero bin.
+- **The Tertiary RF AUC of 0.995 is the headline number.** The stacking
+  meta-learner's 0.961 is closer to what the model will achieve on new
+  cells. The RF number is what the model can do when it is allowed to
+  memorize the label-inverse feature.
+
+## Hand-off to goldbug
+
+The deliverable raster
+`prospectivity_placer_placer_tertiary_250m_calibrated_4326.tif` (plus
+the matching `_3310.tif` in California Albers, and the same pair for
+Quaternary when the v2 Quaternary pipeline finishes) lands in
+`data/derived/northern_sierra_placer/`. The
+[goldbug](https://johnsondevco.com/goldbug/) sibling repo samples the
+fused raster with its existing zonal-mean machinery: per-claim mean +
+max + count + has-data flag against the calibrated probability,
+weighted by the claim polygon footprint. No API contract beyond the
+GeoTIFF; the goldbug consumer treats the raster as one more input
+layer.
+
+## Deeper notebooks
+
+- [Data exploration: feature stack walkthrough](notebooks/northern_sierra_placer/data_exploration.html): every input layer (DEM, slope, TPI, NHD hydrology, hydraulic pits, CGS geology, MRDS lode seeds, paleochannel composite, Tertiary terrace likelihood, NGDB + NURE catchment Hawkes) with a map at each step, ending at the Phase 1 anchor + Lindgren validation result.
+- [Northern Sierra placer integrated report](notebooks/northern_sierra_placer/northern_sierra_placer_prospectivity.html): the polished writeup with methodology details, reproduction commands, and the v2 audit checklist.
+- [Internal review notes](notebooks/northern_sierra_placer/internal.html): per-fold metric tables, leakage audit traces, decision log, and the v3 Phase candidates list.
+
+[← back to portfolio map](index.html)

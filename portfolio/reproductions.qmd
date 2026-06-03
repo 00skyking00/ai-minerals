@@ -1,5 +1,5 @@
 ---
-title: "Chapter 4: Reproducing + auditing two published methods"
+title: "Chapter 5: Reproducing + auditing two published methods"
 subtitle: "Cloned the official code for Lawley 2022 and DEEP-SEAM, ran end-to-end, found label leaks and evaluation-inflation issues in both"
 ---
 

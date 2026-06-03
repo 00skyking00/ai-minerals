@@ -12,6 +12,7 @@ project:
     # `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`.)
     - index.qmd
     - regional.qmd
+    - placer.qmd
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
@@ -44,12 +45,14 @@ website:
         text: "2. Regional MPM"
       - href: https://johnsondevco.com/goldbug/goldbug.html
         text: "3. goldbug"
+      - href: placer.qmd
+        text: "4. Placer"
       - href: reproductions.qmd
-        text: "4. Reproductions + audits"
+        text: "5. Reproductions + audits"
       - href: cross_region.qmd
-        text: "5. Cross-region"
+        text: "6. Cross-region"
       - href: drill_planning.qmd
-        text: "6. Drill planning"
+        text: "7. Drill planning"
       # Hidden until first note lands. The page itself still renders.
       # - href: posts.qmd
       #   text: "Notes"
