@@ -18,6 +18,28 @@ def _capture_at_k(
     return float(positives[top_idx].sum() / positives.sum())
 
 
+def capture_rate(
+    scores: np.ndarray,
+    positives: np.ndarray,
+    k_pct: float,
+) -> float:
+    """Fraction of positives in the top k% of cells ranked by score (descending).
+
+    Inputs may be any array-like; positives is coerced to a boolean / 0-1 mask.
+    Returns 0.0 if the input is empty or contains no positives.
+    """
+    scores_arr = np.asarray(scores, dtype=np.float64).ravel()
+    positives_arr = np.asarray(positives).astype(np.int64).ravel()
+    if scores_arr.shape != positives_arr.shape:
+        raise ValueError(
+            f"scores and positives shape mismatch: "
+            f"{scores_arr.shape} vs {positives_arr.shape}"
+        )
+    if scores_arr.size == 0:
+        return 0.0
+    return _capture_at_k(scores_arr, positives_arr, k_pct)
+
+
 def bootstrap_capture_ci(
     scores: np.ndarray,
     positives: np.ndarray,
