@@ -186,7 +186,12 @@ def _combine_geochem_samples(
     return gpd.GeoDataFrame(out, geometry="geometry", crs=ngdb.crs)
 
 
-def _inject_placer_positives(df: pd.DataFrame, *, resolution_m: int) -> pd.DataFrame:
+def _inject_placer_positives(
+    df: pd.DataFrame,
+    *,
+    resolution_m: int,
+    reclassify_mrds: bool = True,
+) -> pd.DataFrame:
     """Overwrite is_placer_tertiary / is_placer_quaternary with real positives.
 
     The canonical MRDS adapter is lode-Au-tuned: it assigns codes 36a/36b for
@@ -205,6 +210,17 @@ def _inject_placer_positives(df: pd.DataFrame, *, resolution_m: int) -> pd.DataF
     Rows are matched by spatial proximity: each positive geometry is snapped
     to its nearest grid cell (the one whose (x, y) centroid is closest in
     the working CRS).
+
+    v3 reclassification (B.0a, opt-in via `reclassify_mrds=True`, default):
+    after identifying MRDS placer records, reclassify each as Tertiary if:
+      - it sits within 500 m of any Orlando 2016 pit polygon (clearly a
+        deep-gravel district), OR
+      - it sits on a CGS 2010 PTYPE in {Tvp, Tv} (Tertiary volcanic cap that
+        overlies buried Tertiary auriferous gravels).
+    Otherwise leave as Quaternary. This shifts ~30-50 MRDS records from
+    Quaternary to Tertiary; Tertiary grows from 158 cells to ~200, Quaternary
+    drops from 573 to ~530. The v2 behavior (all MRDS placers -> Quaternary)
+    is preserved by `reclassify_mrds=False`.
     """
     df = df.copy()
     from ai_minerals.data.adapters.occurrences.mrds import _PLACER_DEP_TYPE_RE
@@ -264,12 +280,65 @@ def _inject_placer_positives(df: pd.DataFrame, *, resolution_m: int) -> pd.DataF
             )
             placer = mrds_raw[placer_mask].copy()
             placer = placer[placer.geometry.notna()]
-            q_idxs = _snap_to_cells(placer)
+
+            # v3 reclassification: split MRDS placers into Tertiary vs Quaternary
+            # using the rules in the function docstring. v2 behavior (all MRDS
+            # placers -> Quaternary) is reproduced by reclassify_mrds=False.
+            if reclassify_mrds and pit_path is not None and pit_path.exists():
+                placer_proj = placer.to_crs(REGION.working_crs)
+                pit_polys_proj = pit_polys.to_crs(REGION.working_crs)
+                pit_buffer = pit_polys_proj.geometry.union_all().buffer(500.0)
+                near_pit = placer_proj.geometry.within(pit_buffer).to_numpy()
+
+                # Sample CGS PTYPE under each placer record
+                geo_path = REGION.raw_paths.get("geology")
+                if geo_path is not None and geo_path.exists():
+                    geo = gpd.read_file(geo_path).to_crs(REGION.working_crs)
+                    if "PTYPE" in geo.columns:
+                        on_geo = gpd.sjoin(
+                            placer_proj[["geometry"]].reset_index(),
+                            geo[["PTYPE", "geometry"]],
+                            how="left", predicate="within",
+                        )
+                        on_geo = on_geo.drop_duplicates("index", keep="first")
+                        on_geo = on_geo.set_index("index").reindex(placer_proj.index)
+                        on_tertiary_volcanic = on_geo["PTYPE"].isin({"Tvp", "Tv"}).to_numpy()
+                    else:
+                        on_tertiary_volcanic = np.zeros(len(placer_proj), dtype=bool)
+                else:
+                    on_tertiary_volcanic = np.zeros(len(placer_proj), dtype=bool)
+
+                is_tertiary_record = near_pit | on_tertiary_volcanic
+                t_records = placer_proj[is_tertiary_record]
+                q_records = placer_proj[~is_tertiary_record]
+                print(f"[assemble]   v3 MRDS reclassification: "
+                      f"{int(near_pit.sum())} within 500 m of a pit polygon, "
+                      f"{int(on_tertiary_volcanic.sum())} on Tvp/Tv PTYPE, "
+                      f"union = {int(is_tertiary_record.sum())} reclassified Tertiary; "
+                      f"{int((~is_tertiary_record).sum())} kept as Quaternary")
+            else:
+                t_records = placer.iloc[:0]
+                q_records = placer
+
+            # Quaternary positives (the records NOT reclassified to Tertiary)
+            q_idxs = _snap_to_cells(q_records)
             df["is_placer_quaternary"] = 0
             if q_idxs:
                 df.loc[q_idxs, "is_placer_quaternary"] = 1
             print(f"[assemble]   is_placer_quaternary: {df['is_placer_quaternary'].sum()} cells "
-                  f"({len(placer)} MRDS placer records, {len(set(q_idxs))} unique cells)")
+                  f"({len(q_records)} MRDS records, {len(set(q_idxs))} unique cells)")
+
+            # Augment Tertiary with the reclassified records
+            if reclassify_mrds and len(t_records) > 0:
+                aug_idxs = _snap_to_cells(t_records)
+                if aug_idxs:
+                    df.loc[aug_idxs, "is_placer_tertiary"] = 1
+                aug_unique = len(set(aug_idxs))
+                base_unique = int(df["is_placer_tertiary"].sum()) - aug_unique
+                # base_unique may not match exactly because cell-snap can put a
+                # reclassified record on a pit cell (double-counted). Defensive math.
+                print(f"[assemble]   is_placer_tertiary: {df['is_placer_tertiary'].sum()} cells "
+                      f"(after +{aug_unique} reclassified MRDS records snapped to unique cells)")
         else:
             print("[assemble]   is_placer_quaternary: MRDS has no dep_type column; left at 0")
     else:
