@@ -1,6 +1,10 @@
 project:
   type: website
   output-dir: _site
+  resources:
+    # beacon.php is a tracking pixel. Quarto copies it verbatim into _site/
+    # so the deploy script's rsync ships it to public_html/ai-minerals/.
+    - beacon.php
   render:
     # ai-minerals deploys a single site at /ai-minerals/. The chapter pages
     # are the front door; the deep-review notebooks (per-region notebooks/
@@ -65,6 +69,7 @@ format:
     toc: true
     code-fold: false
     code-tools: true
+    include-after-body: _includes/beacon.html
 
 execute:
   freeze: auto
