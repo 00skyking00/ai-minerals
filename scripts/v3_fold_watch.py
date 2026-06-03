@@ -44,7 +44,11 @@ class FoldMetric(NamedTuple):
 
 
 def _pop_short(pop: str) -> str:
-    return {"placer_tertiary": "T", "placer_quaternary": "Q"}.get(pop, pop)
+    return {
+        "placer_tertiary": "T",
+        "placer_quaternary": "Q",
+        "ablation_no_pit": "Abl",
+    }.get(pop, pop)
 
 
 def _parse_checkpoint(p: Path) -> FoldMetric | None:
@@ -111,8 +115,8 @@ def main() -> None:
     first_pass = True
     while True:
         try:
-            current = set(CK_DIR.glob("placer_*__*_cv__fold_*.joblib")) \
-                | set(CK_DIR.glob("placer_*__stack_oof__fold_*.joblib"))
+            current = set(CK_DIR.glob("*__*_cv__fold_*.joblib")) \
+                | set(CK_DIR.glob("*__stack_oof__fold_*.joblib"))
             new = sorted(current - seen, key=lambda p: p.stat().st_mtime)
             for p in new:
                 m = _parse_checkpoint(p)
