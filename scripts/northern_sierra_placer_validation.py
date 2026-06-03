@@ -312,7 +312,7 @@ def _aggregate_fold_metrics(per_pop_metrics_files: dict[str, Path | None]) -> pd
                 continue
             roc_lo, roc_hi = np.percentile(roc, [2.5, 97.5]) if roc.size >= 2 else (roc[0], roc[0])
             pr_lo, pr_hi = np.percentile(pr, [2.5, 97.5]) if pr.size >= 2 else (pr[0], pr[0])
-            rows.append({
+            row: dict[str, object] = {
                 "population": pop,
                 "model": model,
                 "n_folds": int(roc.size),
@@ -324,7 +324,24 @@ def _aggregate_fold_metrics(per_pop_metrics_files: dict[str, Path | None]) -> pd
                 "pr_auc_std": float(pr.std(ddof=1)) if pr.size > 1 else 0.0,
                 "pr_auc_lo": float(pr_lo),
                 "pr_auc_hi": float(pr_hi),
-            })
+            }
+            # v3 Phase E.2: per-fold capture rates alongside AUC. These columns
+            # land in pop_fold_metrics_<pop>.csv when the v3 training script ran;
+            # they may be absent on v2 metrics files.
+            for cap_col in ("capture_at_1pct", "capture_at_5pct",
+                            "capture_at_10pct", "enrichment_at_1pct"):
+                if cap_col in grp.columns:
+                    arr = grp[cap_col].to_numpy(dtype=float)
+                    arr = arr[np.isfinite(arr)]
+                    if arr.size == 0:
+                        row[f"{cap_col}_mean"] = float("nan")
+                        row[f"{cap_col}_std"] = float("nan")
+                    else:
+                        row[f"{cap_col}_mean"] = float(arr.mean())
+                        row[f"{cap_col}_std"] = (
+                            float(arr.std(ddof=1)) if arr.size > 1 else 0.0
+                        )
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -354,18 +371,71 @@ def _format_per_fold_section(per_fold: pd.DataFrame) -> list[str]:
                      "or the fold-metrics CSVs are empty._")
         return lines
     lines.append("Per (population, model) over spatial-CV folds (`SpatialBlockCV(block_size_m=20_000)`); "
-                 "CI95 is the 2.5/97.5 percentile across folds:")
+                 "CI95 is the 2.5/97.5 percentile across folds. `capture@5%` is the "
+                 "v3 Phase E.2 per-fold capture rate: fraction of held-out positives "
+                 "ranked in the top 5% of predicted scores.")
     lines.append("")
-    lines.append("| population | model | n_folds | roc_auc mean +/- std [CI95] | pr_auc mean +/- std [CI95] |")
-    lines.append("| --- | --- | --- | --- | --- |")
+    has_cap5 = "capture_at_5pct_mean" in per_fold.columns
+    if has_cap5:
+        lines.append("| population | model | n_folds | roc_auc mean +/- std [CI95] | pr_auc mean +/- std [CI95] | capture@5% mean +/- std |")
+        lines.append("| --- | --- | --- | --- | --- | --- |")
+    else:
+        lines.append("| population | model | n_folds | roc_auc mean +/- std [CI95] | pr_auc mean +/- std [CI95] |")
+        lines.append("| --- | --- | --- | --- | --- |")
     for _, r in per_fold.iterrows():
-        lines.append(
+        base = (
             f"| {r['population']} | {r['model']} | {int(r['n_folds'])} | "
             f"{r['roc_auc_mean']:.3f} +/- {r['roc_auc_std']:.3f} "
             f"[{r['roc_auc_lo']:.3f}, {r['roc_auc_hi']:.3f}] | "
             f"{r['pr_auc_mean']:.3f} +/- {r['pr_auc_std']:.3f} "
             f"[{r['pr_auc_lo']:.3f}, {r['pr_auc_hi']:.3f}] |"
         )
+        if has_cap5:
+            cap_mean = r.get("capture_at_5pct_mean", float("nan"))
+            cap_std = r.get("capture_at_5pct_std", float("nan"))
+            if pd.notna(cap_mean) and pd.notna(cap_std):
+                base += f" {cap_mean:.3f} +/- {cap_std:.3f} |"
+            else:
+                base += " _n/a_ |"
+        lines.append(base)
+    return lines
+
+
+def _load_recipe_matches() -> dict[str, dict]:
+    """Read recipe_match_<pop>.json (v3 Phase E.4) for every population present."""
+    out: dict[str, dict] = {}
+    for pop in POPULATIONS:
+        p = OUT_DIR / f"recipe_match_{pop}.json"
+        if not p.exists():
+            continue
+        try:
+            out[pop] = json.loads(p.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+    return out
+
+
+def _format_recipe_section(recipes: dict[str, dict]) -> list[str]:
+    """Markdown for the SHAP recipe-match section (v3 Phase E.4)."""
+    lines: list[str] = []
+    if not recipes:
+        lines.append("_No `recipe_match_<pop>.json` files present; run "
+                     "`scripts/northern_sierra_placer_rationale_250m.py` first._")
+        return lines
+    lines.append("Per-population SHAP top-5 features vs the geological recipe "
+                 "(v3 Phase E.4 spec). Gate passes when at least 3 of the top-5 "
+                 "features match the recipe list. The lithology family "
+                 "(`litho_*` / `lithology_class_*`) counts once, not once per "
+                 "one-hot dummy.")
+    lines.append("")
+    lines.append("| population | top-5 features | expected | matched | gate |")
+    lines.append("| --- | --- | --- | --- | --- |")
+    for pop, rec in recipes.items():
+        top_5 = ", ".join(rec.get("top_5", []))
+        expected = ", ".join(rec.get("expected", []))
+        n = rec.get("n_matched", 0)
+        gate = "PASS" if rec.get("gate_passes", False) else "FAIL"
+        lines.append(f"| {pop} | {top_5} | {expected} | {n}/5 | {gate} |")
     return lines
 
 
@@ -379,6 +449,7 @@ def _render_model_card(
     per_pop_metrics_files: dict[str, Path | None],
     headline: pd.DataFrame | None = None,
     per_fold: pd.DataFrame | None = None,
+    recipes: dict[str, dict] | None = None,
 ) -> None:
     """Write the markdown model card. Brutally honest about what wasn't shipped."""
     lines: list[str] = []
@@ -464,6 +535,11 @@ def _render_model_card(
     push("## Per-fold spatial-CV metrics")
     push("")
     for line in _format_per_fold_section(per_fold if per_fold is not None else pd.DataFrame()):
+        push(line)
+    push("")
+    push("## SHAP recipe match (v3 Phase E.4)")
+    push("")
+    for line in _format_recipe_section(recipes if recipes is not None else {}):
         push(line)
     push("")
     push("## Deliverable")
@@ -565,6 +641,14 @@ def main(argv: list[str] | None = None) -> int:
     per_fold = _aggregate_fold_metrics(per_pop_metrics)
     print(f"    {len(per_fold)} (population, model) aggregates")
 
+    print("==> Loading SHAP recipe-match JSONs (v3 Phase E.4)")
+    recipes = _load_recipe_matches()
+    for pop, rec in recipes.items():
+        gate = "PASS" if rec.get("gate_passes", False) else "FAIL"
+        print(f"    {pop}: {rec.get('n_matched', 0)}/5 ({gate})")
+    if not recipes:
+        print("    no recipe_match_<pop>.json files found")
+
     print(f"==> Rendering model card -> {OUT_CARD}")
     _render_model_card(
         out_path=OUT_CARD,
@@ -575,6 +659,7 @@ def main(argv: list[str] | None = None) -> int:
         per_pop_metrics_files=per_pop_metrics,
         headline=headline,
         per_fold=per_fold,
+        recipes=recipes,
     )
 
     print(json.dumps({
@@ -583,6 +668,7 @@ def main(argv: list[str] | None = None) -> int:
         "comparison_rows": len(comparison),
         "headline_rows": len(headline),
         "per_fold_rows": len(per_fold),
+        "recipe_match_pops": list(recipes.keys()),
         "model_card": str(OUT_CARD),
     }, indent=2))
     return 0

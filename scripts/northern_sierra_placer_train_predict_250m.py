@@ -29,7 +29,9 @@ Outputs (per population pop) under data/derived/northern_sierra_placer/:
     pop_calibrated_<pop>_250m.parquet
         row, col, x, y, p_cal
     pop_fold_metrics_<pop>.csv
-        model, fold_id, n_train, n_test, roc_auc, pr_auc
+        model, fold_id, n_train, n_test, roc_auc, pr_auc,
+        capture_at_1pct, capture_at_5pct, capture_at_10pct,
+        enrichment_at_1pct
     prospectivity_placer_<pop>_250m_calibrated_3310.tif
     prospectivity_placer_<pop>_250m_calibrated_4326.tif
 """
@@ -57,6 +59,7 @@ from ai_minerals.config import (
 )
 from ai_minerals.data.adapters import get_adapter
 from ai_minerals.features.placer_geology import hawkes_dual_decay_catchment
+from ai_minerals.metrics.bootstrap import capture_rate as _capture_rate
 from ai_minerals.grid import build_grid
 from ai_minerals.io.geotiff import write_geotiff_dual_crs
 from ai_minerals.model import (
@@ -346,6 +349,9 @@ def _spatial_block_scores_with_refold(
         model = model_factory()
         proba = _fit_predict_tree(model, X_train, y_train, X_test)
         roc, pr = _score_proba(y_test, proba)
+        cap_1 = _capture_rate(proba, y_test, 1.0)
+        cap_5 = _capture_rate(proba, y_test, 5.0)
+        cap_10 = _capture_rate(proba, y_test, 10.0)
         row = {
             "model": model_name,
             "fold_id": int(block_id),
@@ -354,6 +360,10 @@ def _spatial_block_scores_with_refold(
             "n_test_pos": int(y_test.sum()),
             "roc_auc": roc,
             "pr_auc": pr,
+            "capture_at_1pct": cap_1,
+            "capture_at_5pct": cap_5,
+            "capture_at_10pct": cap_10,
+            "enrichment_at_1pct": cap_1 / 0.01,
         }
         rows.append(row)
         if fold_ckpt is not None:
@@ -689,14 +699,22 @@ def train_one_population(
             ])
         )[:, 1]
         stack_roc, stack_pr = _score_proba(y_train[valid_meta], p_stack_oof_train)
+        y_meta = y_train[valid_meta]
+        stack_cap_1 = _capture_rate(p_stack_oof_train, y_meta, 1.0)
+        stack_cap_5 = _capture_rate(p_stack_oof_train, y_meta, 5.0)
+        stack_cap_10 = _capture_rate(p_stack_oof_train, y_meta, 10.0)
         fold_metrics.append(pd.DataFrame([{
             "model": "stack",
             "fold_id": -1,  # global OOF score, not a single fold
             "n_train": int(valid_meta.sum()),
             "n_test": int(valid_meta.sum()),
-            "n_test_pos": int(y_train[valid_meta].sum()),
+            "n_test_pos": int(y_meta.sum()),
             "roc_auc": stack_roc,
             "pr_auc": stack_pr,
+            "capture_at_1pct": stack_cap_1,
+            "capture_at_5pct": stack_cap_5,
+            "capture_at_10pct": stack_cap_10,
+            "enrichment_at_1pct": stack_cap_1 / 0.01,
         }]))
         print(f"[{pop}]   stacking OOF AUC={stack_roc:.3f}  PR-AUC={stack_pr:.3f}", flush=True)
 
