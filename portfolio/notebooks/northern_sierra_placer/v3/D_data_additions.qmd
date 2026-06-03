@@ -1,0 +1,154 @@
+---
+title: "v3 Phase D: data additions"
+subtitle: "Magnetic + gravity wiring (already upstream), NHD VAA, CGS Jennings scaffold, OSM mining, motherlode A/B"
+author: "Sky King"
+date: 2026-06-02
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+execute:
+  warning: false
+---
+
+## What landed in Phase D
+
+Five workflow agents in parallel grew the per-population feature stacks from
+(17, 18) to (18, 23) without expensive new data fetches. Most additions are
+cheap (wiring rasters already on disk; reading attributes already in the
+GeoPackages we own).
+
+```{python}
+#| label: feature-growth
+from ai_minerals.config import (
+    TERTIARY_FEATURE_COLUMNS, QUATERNARY_FEATURE_COLUMNS,
+)
+print(f"Tertiary feature stack:   {len(TERTIARY_FEATURE_COLUMNS)} features")
+print(f"Quaternary feature stack: {len(QUATERNARY_FEATURE_COLUMNS)} features")
+print()
+print("Features added in Phase D:")
+phase_d_features = {
+    "motherlode_prob (D.5)": ("motherlode_prob" in TERTIARY_FEATURE_COLUMNS,
+                              "motherlode_prob" in QUATERNARY_FEATURE_COLUMNS),
+    "nearest_reach_stream_order (D.2)": (False, "nearest_reach_stream_order" in QUATERNARY_FEATURE_COLUMNS),
+    "nearest_reach_arbolate_sum_km (D.2)": (False, "nearest_reach_arbolate_sum_km" in QUATERNARY_FEATURE_COLUMNS),
+    "nearest_reach_slope (D.2)": (False, "nearest_reach_slope" in QUATERNARY_FEATURE_COLUMNS),
+    "distance_to_nearest_reach_m (D.2)": (False, "distance_to_nearest_reach_m" in QUATERNARY_FEATURE_COLUMNS),
+}
+for feat, (in_t, in_q) in phase_d_features.items():
+    print(f"  {feat:55s} tert={in_t}, quat={in_q}")
+```
+
+## D.1 magnetic + gravity wiring
+
+The Region's `raw_paths` dict already included `magnetic` and `gravity`
+(mirrored from the motherlode pipeline; same AOI). `build_feature_frame` in
+`src/ai_minerals/features/assemble.py` already samples both rasters onto the
+grid and attaches as `df["magnetic"]` and `df["gravity"]` BEFORE the placer-
+specific column build runs. So D.1's "wire magnetic + gravity into placer"
+turned out to be a verify-only task — they were already there.
+
+The assemble script gets a documenting "Geophysics" section as a defensive
+check so a regression upstream surfaces as a warning rather than silently
+dropping the features.
+
+## D.2 NHDPlus HR ValueAddedAttributes
+
+Four cell-level features sampled from the nearest NHD reach:
+
+- `nearest_reach_stream_order`: Strahler stream order (1 = headwater, 7 = main
+  stem). Quaternary placers concentrate on orders 3-5 (gold settles where
+  stream power transitions from "scour" to "deposit").
+- `nearest_reach_arbolate_sum_km`: upstream drainage length, in km. Catchment
+  size proxy.
+- `nearest_reach_slope`: longitudinal slope (dimensionless). Knickpoint /
+  flat-stretch indicator. Currently NaN-dominated until the fetcher is re-run
+  with the slope column extension (added in this commit).
+- `distance_to_nearest_reach_m`: cell-to-reach Euclidean distance.
+
+All four added to QUATERNARY_FEATURE_COLUMNS only. Tertiary cells on hillside
+benches above modern drainage are far from any NHD reach by definition; the
+features would be NaN-dominated and add noise.
+
+## D.3 CGS Jennings 2010 fault scaffold (wiring deferred to v3.5)
+
+The v3 plan called for splitting v2's single `distance_to_fault_m` feature
+into two: pre-Quaternary faults (lode control for Tertiary) and Quaternary-
+active faults (modern drainage tilt for Quaternary). v3 ships the scaffold
+without the assemble integration:
+
+```{python}
+#| label: cgs-jennings-scaffold
+from ai_minerals.data.cgs_jennings import fetch_cgs_jennings
+from ai_minerals.data.adapters import get_adapter
+from ai_minerals.features.hydrology import distance_to_fault_by_class
+import inspect
+
+print(f"fetcher:        {fetch_cgs_jennings.__name__}")
+print(f"adapter:        {get_adapter('geology', 'cgs_jennings').__name__}")
+print(f"feature fn sig: {inspect.signature(distance_to_fault_by_class)}")
+```
+
+The fetcher pages the CGS FaultActivityMapCA FeatureServer with bbox clipping
+to the region AOI. The adapter normalizes the activity-class column into
+`pre_quaternary` and `quaternary_active`. The feature function returns a dict
+mapping each class to a per-cell distance Series. v3.5 work: actually call the
+fetcher, run the assemble integration, add `distance_to_prequaternary_fault_m`
+and `distance_to_quaternary_fault_m` to the per-population feature stacks.
+
+The fetcher was NOT called from the workflow agent (would hit the live CGS
+server from an unattended job). Trigger manually:
+
+```bash
+.venv/bin/python -c "from ai_minerals.data.cgs_jennings import fetch_cgs_jennings; \
+    from ai_minerals.regions.northern_sierra_placer import NORTHERN_SIERRA_PLACER; \
+    fetch_cgs_jennings(NORTHERN_SIERRA_PLACER.aoi)"
+```
+
+## D.4 OSM mining-tag features as supplementary Quaternary labels
+
+New `scripts/northern_sierra_placer_fetch_osm_mining.py` queries OSM Overpass
+via osmnx for `historic=mine`, `man_made=mineshaft`, `man_made=adit`,
+`landuse=quarry` tags within the placer AOI. Results written to
+`data/raw/osm_mining/osm_mining_<region>.gpkg`.
+
+Used as **supplementary positive labels** for the Quaternary population
+(modern-stream placers concentrate on the OSM mining tag set). Gated by the
+new `--augment-osm-mining` CLI flag in `assemble_250m.py` (default off so
+the v3 retrain in Phase F.1 doesn't accidentally pick up label augmentation
+without explicit opt-in).
+
+ODbL attribution requirement documented in the fetcher's header.
+
+## D.5 motherlode_prob A/B diagnostic feature
+
+The motherlode v2 calibrated raster at
+`data/derived/motherlode/prospectivity_motherlode_v2_250m_calibrated_4326.tif`
+overlaps the placer AOI substantially. v3 samples it onto each placer cell as a
+single feature `motherlode_prob`. Added to BOTH Tertiary and Quaternary stacks.
+
+The question: does feeding the lode model's output into the placer model help
+generalization or just compound errors? v3 ships an A/B comparison via the
+new `--no-motherlode-prob` CLI flag in `train_predict_250m.py` main(). Default
+includes motherlode_prob; flag drops it from feat_cols before fitting. Phase
+F.1 will train both variants and compare per-fold AUC, anchor gate, Lindgren
+held-out.
+
+The proper hierarchical model (out-of-fold motherlode predictions per placer
+spatial-block fold so the motherlode model never sees placer-fold test cells)
+is v4 work. v3's single-feature approach is a diagnostic.
+
+## What's next (Phase E)
+
+Six validation upgrades, parallelizable:
+
+1. **E.1** per-population calibration validation (binned predicted P vs
+   observed positive rate)
+2. **E.2** per-fold capture rates (top-k%) alongside AUC
+3. **E.3** Platt vs isotonic calibration ablation
+4. **E.4** SHAP feature importance + recipe-match check
+5. **E.5** leakage-risk audit script (per-feature × per-fold correlation
+   between feature and held-out label)
+6. **E.6** spatial block size empirical justification (10/15/20/25/30 km
+   ablation)
