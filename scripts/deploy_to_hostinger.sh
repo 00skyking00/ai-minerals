@@ -105,18 +105,27 @@ rsync -avz --delete --delete-excluded --progress \
   data/derived/us_carbonatite_ree \
   "${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
 
-# Make HTML revalidate so a deploy is visible immediately instead of being masked
-# by Hostinger's default ~7-day cache (this is why a stale redirect/page can stick
-# in the browser after a deploy). The rsync --delete above would wipe a
-# server-side .htaccess, so (re)write it here, after the sync. Static assets keep
-# the long cache. Requires mod_headers (no-op if the module is absent).
+# Make every served asset revalidate so a deploy is visible immediately
+# instead of being masked by Hostinger's default ~7-day cache. The site is
+# under active development; chapter prose AND figures (PNGs, charts,
+# GeoTIFF thumbnails) change frequently and a 7-day cache means recruiters
+# see stale results for a week. Once the site stabilizes for hiring, narrow
+# this back to HTML-only and add long-cache for fonts / favicon.
+#
+# Pattern matches anything with a file extension: HTML, PNG, JPG, JS, CSS,
+# JSON, CSV, SVG, TIF, ICO, WOFF, etc. Files without extension (rare here)
+# get the server default.
+#
+# The rsync --delete above would wipe a server-side .htaccess, so (re)write
+# it here, after the sync. Requires mod_headers (no-op if absent).
 echo
-echo "==> Writing no-cache .htaccess for HTML at ${REMOTE_DIR}/"
+echo "==> Writing no-cache .htaccess (covers HTML + assets) at ${REMOTE_DIR}/"
 ssh "${REMOTE_HOST}" "cat > ${REMOTE_DIR}/.htaccess <<'EOF'
 <IfModule mod_headers.c>
-  <FilesMatch \"\\.html\$\">
+  <FilesMatch \"\\.[A-Za-z0-9]+\$\">
     Header set Cache-Control \"no-cache, must-revalidate, max-age=0\"
     Header unset Expires
+    Header unset Pragma
   </FilesMatch>
 </IfModule>
 EOF
