@@ -27,7 +27,10 @@ project:
     - notebooks/bcgt/*.qmd
     - notebooks/motherlode/*.qmd
     - notebooks/arizona/*.qmd
-    - notebooks/northern_sierra_placer/*.qmd
+    # northern_sierra_placer: the three v2-era internal qmds (data_exploration,
+    # internal, northern_sierra_placer_prospectivity) and the v3 phase notebooks
+    # under v3/ are review-only artifacts; the public overview is data_overview.qmd.
+    - notebooks/northern_sierra_placer/data_overview.qmd
     - notebooks/cross_region/*.qmd
     - notebooks/drill_planning/*.qmd
     - notebooks/prospectus/*.qmd
