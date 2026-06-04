@@ -8,19 +8,30 @@ title: "ai-minerals"
 </object>
 ```
 
-This site is what I've been playing with in my off-hours: machine
-learning on public geological data, at the scale of an individual
-prospector or a family-owned claim. The work started when I went
-looking for the drill logs on a placer claim my family has held
-since the early twentieth century at Cape Nome and noticed the
-published modeling literature operates at regional scale, not the
-scale of one claim. The seven chapters span those 100-year-old paper
-drill logs, four regional prospectivity pipelines across the western
-cordillera, a live land-status tool for the California Mother Lode,
-and a couple of reproductions of published methods with the
-validation tightened up. Each region is a different test of whether
-the same open-data pipeline holds up across deposit types and
-geographies, with the failure modes as visible as the successes.
+I've spent nearly thirty years building anti-malware on Windows:
+kernel drivers, Windows internals, low-level systems work. None of
+that has anything to do with mining; this site is what I've been
+playing with in my off-hours.
+
+A few years ago I started helping my mom research a book about her
+grandfather, Walter W. Johnson, a mining and mechanical engineer and
+builder of large placer-mining machinery. In the process we
+discovered that the family still owned a large interest in several
+patented mining claims in Nome, Alaska. One of the claims had
+recently been high-graded; the others purportedly still held unmined
+gold. As I started researching the book and the mining claims, two
+things happened that I was not expecting. 1) I fell in love with
+mining. 2) Every mining problem I encountered looked like it could
+be decomposed into a computer program. Computing Bear Cub's resource
+estimates from 100-year-old drill logs is one example of that.
+
+The rest of this site is me poking around to see how useful public
+data is for machine learning at the scale of an individual
+prospector or a family-owned claim. One offshoot of that line of
+investigation is goldbug, which unites it with one of my other
+hobbies: title research. goldbug pairs the ML signal with public
+land law: it ranks the parcels you can legally stake, not the ones
+already withdrawn, patented, or under active claim.
 
 ## Chapters
 
