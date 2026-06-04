@@ -2,78 +2,32 @@
 title: "ai-minerals"
 ---
 
-![](data/derived/portfolio_charts/region_locator_map.png){fig-alt="North America locator map showing the five regions worked across in this portfolio: Bear Cub (Nome, AK) for OCR + 3-D modeling of historical drill logs; and four regional MPM pipelines at Tanacross (eastern Alaska), the BC Golden Triangle, the California Mother Lode, and the Arizona porphyry-Cu belt."}
+![](data/derived/portfolio_charts/region_locator_map.svg){fig-alt="North America locator map showing the five regions worked across in this portfolio: Bear Cub (Nome, AK) for OCR + 3-D modeling of historical drill logs; and four regional MPM pipelines at Tanacross (eastern Alaska), the BC Golden Triangle, the California Mother Lode, and the Arizona porphyry-Cu belt."}
 
-I have nearly thirty years of programming experience developing
-anti-malware solutions on Windows, mostly low-level work on kernel
-drivers and Windows internals. None of that has anything to do with
-mining; this site is what I've been playing with in my off-hours.
-
-Disclaimer: I'm not a geologist or a data scientist. But I
-have a deep passion for mining.
-
-A few years ago I started helping my mom research a book about her
-grandfather, Walter W. Johnson, a mining and mechanical engineer and
-builder of large placer-mining machinery. In the process we discovered that
-the family still owned a large interest in several patented mining
-claims in Nome, Alaska. One of those claims had recently been
-high-graded by lessees of the other partial-interest holder without
-our knowledge, and the others purportedly still held unmined gold.
-As I started researching the book and the mining claims, two things
-happened that I was not expecting. 1) I fell in love with mining.
-2) Every mining problem I encountered looked like it could be
-decomposed into a computer program. Thus began my quest
-to apply my programming skills to the domain in every way I
-could. Computing Bear Cub's resource estimates from 100-year-old drill
-logs is one example of that.
-
-The rest of this site is me poking around to see how useful public
-data is for machine learning. One
-offshoot of that line of investigation is goldbug, which unites
-it with one of my other unexpected new passions: title research.
-goldbug looks at machine learning through the lens of public land
-law, showing you not just where the most gold might be, but where
-the most gold that you can legally claim as your own might be.
-
-KoBold Metals works in this part of the field commercially,
-across four continents, with a stack that goes well beyond what
-I'm doing here (full-physics inversions, Bayesian drill planning,
-proprietary sensor data on top of the public layers). I've been
-playing with what tree-based ML (random forests, gradient
-boosting) trained on public data looks like at the scale of an
-individual prospector or a family-owned claim.
+This site is what I've been playing with in my off-hours: machine
+learning on public geological data, at the scale of an individual
+prospector or a family-owned claim. The seven chapters span a
+100-year-old set of drill logs at Cape Nome, four regional
+prospectivity pipelines across the western cordillera, a live
+land-status tool for the California Mother Lode, and a couple of
+reproductions of published methods with the validation tightened up.
 
 ## Chapters
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
+### 1. Bear Cub (Cape Nome placer Au)
 
-After learning we still owned these claims, I had to figure out
-what they were and what this meant to us. I dove into the history
-first. Old newspapers, state and national
-archives, museum collections; territorial court transcripts, recorded
-documents, old mining journals, mining engineer reports, drill logs,
-company reports. Bear Cub sits on the legendary Third Beach Line at
-Nome, and cases involving its ownership had already worked their way
-up to the Supreme Court within a few years of its 1899 staking.
-Figuring out how to ingest all this disparate information, add
-structure to it, and use it as input for computational processes is
-turning into a lifelong quest. I tracked down the Bear Cub drill logs
-in the archives of the Huntington Library, in their Charles Janin
-collection: 24 early 20th-century placer churn drill logs. I
-developed a multi-engine OCR pipeline (Tesseract, TrOCR, Cloud
-Vision, Claude Opus arbitrating with structured-output JSON) to
-ingest them, programmatically mapped each hole onto a recent plat of
-the claim, built a 3D model of the bedrock and each hole, and used
-standard algorithms (Voronoi-cell volumetrics, Monte Carlo
-uncertainty) to compute potential yield. In the end, per-hole grades
-matched two mining engineers' independent analyses within 6%. I'm
-using the results to feed the damages calculation in our active
-litigation, and to develop a plan to mine the deeper gold that's
-still there. On top of the same 24-hole grid I also built a
-Gaussian-process next-drill-site recommender to ask where hole #25
-should go.
+A family-owned patented mining claim on the Third Beach Line at
+Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked
+the 24 churn-drill logs down at the Huntington Library, built a
+multi-engine OCR pipeline (Tesseract, TrOCR, Cloud Vision, Claude
+Opus arbitrating with structured-output JSON) to ingest them,
+mapped each hole onto a recent plat, built a 3D model of bedrock
+and pay-zone, and computed Voronoi-cell volumetrics with Monte
+Carlo uncertainty. Per-hole grades matched two mining engineers'
+independent analyses within 6%. On top of the same grid, a
+Gaussian-process recommender picks where hole #25 should go.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Bear Cub aerial photo with pay-zone grade overlay](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](https://johnsondevco.com/bearcub/bear_cub.html)
@@ -84,20 +38,9 @@ should go.
 :::
 ::::
 
-## Machine learning on public geological data
-
-When I started looking at machine learning on public geological
-data, I had two criteria: which regions interested me personally, and
-which felt amenable to the methodology. My great-grandfather, and
-his four sons including my grandfather, had mined across the
-California Mother Lode, British Columbia, and Alaska, so those areas
-were the natural draw. The Arizona copper porphyry belt held no
-personal interest for me, but the data and the geology looked right
-for the methodology to work.
-
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [2. Regional MPM pipelines](regional.qmd)
+### 2. Regional MPM pipelines
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
@@ -115,7 +58,7 @@ most.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [3. goldbug (live tool, CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
+### 3. goldbug (live tool, CA Mother Lode)
 
 The Mother Lode model from Chapter 2 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
@@ -137,7 +80,7 @@ modeling).
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [4. Placer-Au prospectivity (northern Sierra)](placer.qmd)
+### 4. Placer-Au prospectivity (northern Sierra)
 
 Placer prospectivity modeling is roughly a decade behind lode in the
 published literature. The only production-grade transferable model is
@@ -161,7 +104,7 @@ per-claim sampling.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [5. Reproducing + auditing two published methods](reproductions.qmd)
+### 5. Reproducing + auditing two published methods
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
@@ -185,7 +128,7 @@ saw.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [6. Cross-region experiments](cross_region.qmd)
+### 6. Cross-region experiments
 
 I ran a five-region transferability test on the DEEP-SEAM
 deviation-network architecture. The 2-3× advantage over Random
@@ -205,7 +148,7 @@ result.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [7. Drill planning under uncertainty](drill_planning.qmd)
+### 7. Drill planning under uncertainty
 
 A prospectivity map by itself doesn't tell you where to put the next
 drill hole. I built a POMDP planner with Monte Carlo Tree Search,
@@ -252,18 +195,6 @@ Public data sources: USGS, NRCan, state surveys, Sentinel-2. Code is
 Python: scikit-learn, pandas + pyarrow, geopandas + rasterio,
 PyTorch (for the DEEP-SEAM port), PyVista for the Bear Cub 3D
 visualization, Quarto for the site itself.
-
-## Site map
-
-| Chapter | Detail |
-|---|---|
-| [1. Bear Cub](https://johnsondevco.com/bearcub/bear_cub.html) | [main](https://johnsondevco.com/bearcub/notebooks/bear_cub/main.html), [mining_review](https://johnsondevco.com/bearcub/notebooks/bear_cub/mining_review.html), [Bear Cub GP](https://johnsondevco.com/bearcub/notebooks/bear_cub/gp_recommender.html) |
-| [2. Regional MPM](regional.qmd) | [Eastern Alaska](https://johnsondevco.com/ai-minerals/notebooks/eastak/eastak_porphyry_prospectivity.html), [BCGT](https://johnsondevco.com/ai-minerals/notebooks/bcgt/bcgt_porphyry_prospectivity.html), [Mother Lode](https://johnsondevco.com/ai-minerals/notebooks/prospectus/motherlode.html), [Arizona](https://johnsondevco.com/ai-minerals/notebooks/arizona/main.html) |
-| [3. goldbug](https://johnsondevco.com/goldbug/goldbug.html) | [live tool](https://www.johnsondevco.com/goldbug/) |
-| [4. Placer (northern Sierra)](placer.qmd) | [data exploration](https://johnsondevco.com/ai-minerals/notebooks/northern_sierra_placer/data_exploration.html), [integrated report](https://johnsondevco.com/ai-minerals/notebooks/northern_sierra_placer/northern_sierra_placer_prospectivity.html), [internal review](https://johnsondevco.com/ai-minerals/notebooks/northern_sierra_placer/internal.html) |
-| [5. Reproductions + audits](reproductions.qmd) | [Lawley](https://johnsondevco.com/ai-minerals/notebooks/prospectus/lawley.html), [Lawley audit](https://johnsondevco.com/ai-minerals/notebooks/prospectus/lawley_audit.html), [DEEP-SEAM](https://johnsondevco.com/ai-minerals/notebooks/prospectus/deep_seam_cross_region.html), [DEEP-SEAM audit](https://johnsondevco.com/ai-minerals/notebooks/prospectus/deep_seam_audit.html) |
-| [6. Cross-region](cross_region.qmd) | [four-cell deep dive](https://johnsondevco.com/ai-minerals/notebooks/cross_region/four_cell.html), [US Carbonatite REE](https://johnsondevco.com/ai-minerals/notebooks/prospectus/us_carbonatite_ree.html) |
-| [7. Drill planning](drill_planning.qmd) | [BCGT POMDP](https://johnsondevco.com/ai-minerals/notebooks/bcgt/decision_planning.html) |
 
 ## Reproduce
 

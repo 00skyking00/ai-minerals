@@ -1,6 +1,7 @@
 ---
 title: "Chapter 2: Regional MPM pipelines"
 subtitle: "Mineral prospectivity on public open data: four regions, four deposit types"
+sidebar: regional
 ---
 
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)
@@ -73,6 +74,38 @@ geochemical, and geological data on national grids. My pipeline:
    by a model that did not train on its block. Bootstrap CIs on AUC
    and top-k% capture.
 
+## Eastern Alaska: three channels of exploration bias
+
+The Eastern Alaska sensitivity pass made me look hard at how a
+pseudo-supervised pipeline lets exploration history leak into the
+features. The bias arrives through three channels, even after the
+obvious `*_count_5km` columns get dropped. First, count-level: explored
+cells just have more samples, and the count features expose that
+directly. Second, NaN-versus-value: cells with zero samples become
+sentinel-filled in the feature matrix, so the random forest can split
+on "sentinel vs real value" as a proxy for "explored vs unexplored,"
+though the `*_has_data` indicator columns I added landed outside the
+top-15 importances, so this channel is minor in practice. Third,
+magnitude-within-explored: among already-sampled cells, the max of 100
+samples runs mechanically larger than the max of 5, so `*_max_5km`
+correlates with sampling density even on non-NaN rows.
+
+## BCGT: the 366-collar blind test inversion
+
+The BC Golden Triangle gave me a clean external test the other
+regions could not. BCGS GeoFile 2025-11 publishes 366 post-2015 drill
+collars in the AOI with per-hole element maxima, which lets me build
+distributions of model probability at drilled-positive versus
+drilled-negative cells, restricted to cells the training labels know
+nothing about. The result inverts the expected direction. The
+Kolmogorov-Smirnov test rejects equality of the two distributions,
+but the Mann-Whitney one-sided test (positives greater than negatives)
+fails: drilled-nothing cells score as high as drilled-ore cells, and
+at the top-5% cutoff slightly higher. Both populations sit in the
+same already-explored terrain near training positives, so they look
+equally prospective to a model that learned exploration history as
+much as it learned ore geology.
+
 ## The Mother Lode v3.1 increment
 
 Mother Lode shipped as v3 in April 2026 with an AUC of 0.85 under
@@ -94,6 +127,19 @@ either improved or tightened the result:
   the v3 positives that were placer, epithermal, or skarn-Au
   rather than in-place orogenic. AUC roughly unchanged; the cleanup
   is for correctness, not performance.
+
+The C2 experiment is worth pulling out. I trained a Sierra model
+on geology only (lithology one-hots, MAJOR1/2/3 fields, age, distance
+to fault, basic topography) and dropped the regionally-shifting
+features (magnetic, gravity, NGDB geochemistry, Sentinel-2). On
+Klamath the geology-only model captures 1.27x more positives in the
+top 1% than a random sample would, where the full-feature v3 model
+captured only 0.41x as many (worse than random). Past the top 1%
+the model falls back below random again. So feature shift in the
+geophysical and remote-sensing layers explains some of the transfer
+failure, but even with that out of the way the model trained on
+Sierra spatial context does not generalize past the very top cells
+in Klamath.
 
 ## What the four regions together show
 
