@@ -26,6 +26,9 @@ _site_internal/
 .quarto/
 _freeze/
 
+# Pre-prod-push snapshots (last 3 retained by scripts/snapshot_prod.sh)
+/snapshots/
+
 # Quarto per-notebook render artifacts (regenerated on `quarto render`)
 **/*_files/
 /index_files/
