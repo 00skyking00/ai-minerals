@@ -47,6 +47,7 @@ Scope rules for Claude Code when working in this repo. Local to this project; do
 - Raw downloads go to `data/raw/` (gitignored — can be large).
 - Pipeline outputs go to `data/derived/` (gitignored — regenerable).
 - If a small output file *should* be tracked for reproducibility (a derived summary CSV, say), `git add -f` it and justify in the commit message.
+- Cross-repo coordination requests (work items going to or coming from `~/src/bearcub/`, `~/src/goldbug/`, `~/src/fossick/`) live under `handoff/outbox/` and `handoff/inbox/`. Use `research/` for substantive findings; `handoff/` for routine "please do X in your tree" notes. See `handoff/README.md`.
 
 ## Out of scope (don't drift)
 
