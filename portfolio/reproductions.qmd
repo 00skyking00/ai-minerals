@@ -1,6 +1,7 @@
 ---
 title: "Chapter 5: Reproducing + auditing two published methods"
 subtitle: "Cloned the official code for Lawley 2022 and DEEP-SEAM, ran end-to-end, found label leaks and evaluation-inflation issues in both"
+sidebar: reproductions
 ---
 
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)

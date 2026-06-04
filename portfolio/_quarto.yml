@@ -22,18 +22,25 @@ project:
     - drill_planning.qmd
     - posts.qmd
     - posts/*/index.qmd
-    # Deep-review notebooks (one folder per region).
-    - notebooks/eastak/*.qmd
-    - notebooks/bcgt/*.qmd
-    - notebooks/motherlode/*.qmd
+    # Deep-review notebooks. Listed explicitly (not globbed) so retired or
+    # superseded notebooks under each region stay un-rendered. To restore a
+    # dropped notebook, add it back here.
+    - notebooks/eastak/data_exploration.qmd
+    - notebooks/eastak/eastak_porphyry_prospectivity.qmd
+    - notebooks/bcgt/data_exploration.qmd
+    - notebooks/bcgt/validation.qmd
+    - notebooks/bcgt/decision_planning.qmd
+    - notebooks/bcgt/bcgt_porphyry_prospectivity.qmd
+    - notebooks/motherlode/data_exploration.qmd
+    - notebooks/motherlode/v3p1_improvements.qmd
     - notebooks/arizona/*.qmd
     # northern_sierra_placer: the three v2-era internal qmds (data_exploration,
     # internal, northern_sierra_placer_prospectivity) and the v3 phase notebooks
     # under v3/ are review-only artifacts; the public overview is data_overview.qmd.
     - notebooks/northern_sierra_placer/data_overview.qmd
-    - notebooks/cross_region/*.qmd
-    - notebooks/drill_planning/*.qmd
-    - notebooks/prospectus/*.qmd
+    - notebooks/cross_region/four_cell.qmd
+    - notebooks/prospectus/deep_seam_audit.qmd
+    - notebooks/prospectus/us_carbonatite_ree.qmd
 
 website:
   title: "ai-minerals"
@@ -44,8 +51,7 @@ website:
   navbar:
     left:
       # Bear Cub + goldbug are cross-site links (their own repos own /bearcub/ + /goldbug/).
-      - href: index.qmd
-        text: Portfolio
+      # Brand "ai-minerals" links to index.qmd, so no separate Portfolio link.
       - href: https://johnsondevco.com/bearcub/bear_cub.html
         text: "1. Bear Cub"
       - href: regional.qmd
@@ -63,6 +69,50 @@ website:
       # Hidden until first note lands. The page itself still renders.
       # - href: posts.qmd
       #   text: "Notes"
+  sidebar:
+    # One floating sidebar per chapter with deeper notebooks. Quarto picks
+    # the sidebar whose id matches the current page's section; floating
+    # style keeps the sidebar out of the way on chapter pages that don't
+    # reference it.
+    - id: regional
+      title: "Regional MPM notebooks"
+      style: "floating"
+      align: left
+      contents:
+        - notebooks/eastak/eastak_porphyry_prospectivity.qmd
+        - notebooks/eastak/data_exploration.qmd
+        - notebooks/bcgt/bcgt_porphyry_prospectivity.qmd
+        - notebooks/bcgt/data_exploration.qmd
+        - notebooks/bcgt/validation.qmd
+        - notebooks/bcgt/decision_planning.qmd
+        - notebooks/motherlode/data_exploration.qmd
+        - notebooks/motherlode/v3p1_improvements.qmd
+        - notebooks/arizona/main.qmd
+    - id: placer
+      title: "Placer notebooks"
+      style: "floating"
+      align: left
+      contents:
+        - notebooks/northern_sierra_placer/data_overview.qmd
+    - id: reproductions
+      title: "Reproductions + audits notebooks"
+      style: "floating"
+      align: left
+      contents:
+        - notebooks/prospectus/deep_seam_audit.qmd
+    - id: cross_region
+      title: "Cross-region notebooks"
+      style: "floating"
+      align: left
+      contents:
+        - notebooks/cross_region/four_cell.qmd
+        - notebooks/prospectus/us_carbonatite_ree.qmd
+    - id: drill_planning
+      title: "Drill planning notebooks"
+      style: "floating"
+      align: left
+      contents:
+        - notebooks/bcgt/decision_planning.qmd
 
 format:
   html:

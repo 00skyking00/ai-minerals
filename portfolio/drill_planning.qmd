@@ -1,6 +1,7 @@
 ---
 title: "Chapter 7: Drill planning under uncertainty"
 subtitle: "POMDP planning with Monte Carlo Tree Search on the BC Golden Triangle regional prospectivity prior"
+sidebar: drill_planning
 ---
 
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)
@@ -53,6 +54,27 @@ i.i.d.-Bernoulli + noiseless-sensor assumptions limit how much
 MCTS rollouts can improve over a one-step-lookahead greedy. The
 v2.0 version (correlated draws and noisy sensors) would widen the
 gap.
+
+## What this piece does and doesn't establish
+
+The POMDP work is a methodology demonstration on a regional prior,
+not a production-grade resource model. The path-planning policy is
+single-hypothesis: the prior is fixed and is not updated mid-campaign,
+which is the v1.0 simplification rather than the v2.0 multi-hypothesis
+extension. Real exploration would also need to handle drill-cost
+gradients (terrain, access), real per-hole information yield
+distributions rather than the simulated ones I use here, and the
+practical constraint that drill rigs cost money to move. The notebook
+documents these limits explicitly.
+
+The property-scale counterpart in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html)
+produces a workable next-hole pair on the 24 Bear Cub holes even
+though the spatial-only Gaussian process predicts pay-zone grade
+poorly in absolute terms (negative leave-one-out R², because the
+beach-line geology creates a gradient that 24 samples cannot
+constrain). The recommender output is still meaningful because the
+GP posterior variance is a faithful map of where the data is sparse,
+even when the GP mean is unreliable.
 
 ## Where this goes from here
 

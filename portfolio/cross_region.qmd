@@ -1,6 +1,7 @@
 ---
 title: "Chapter 6: Cross-region experiments"
 subtitle: "Five-region transferability test for the DEEP-SEAM deviation-network architecture"
+sidebar: cross_region
 ---
 
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)
