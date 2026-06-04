@@ -121,19 +121,28 @@ is not the gate passing. It is the model declining to rank the held-out
 cells above the floor because the shortcut feature has nothing to anchor
 their probability to.
 
+![Of the 13 Tertiary-named Lindgren PP73 secondary districts I hand-geocoded, the 500 m dedup buffer against trained positives drops Alleghany and Indian Hill, leaving 11 that v2 and v3 both score. The v2 calibrated raster put 7 of those 11 in the zero bin (d9) and 4 in d1, with nothing in the top decile. The v3 raster moves all 11 out of d9: 2 land in d0 (Smartsville and Cherokee), 5 in d1, 3 in d2, and one outlier (Lake City) at d7. Median decile shifts from d9 to d1, top quintile from 5 of 13 to 7 of 11. The 500 m buffer plus the per-population feature stack do what they were supposed to do: the held-out Tertiary names are no longer landing on the v2 raster's zero pile.](data/derived/northern_sierra_placer/v3_vs_v2_lindgren_decile_histogram.png)
+
 **v3 closes the leak but doesn't fully erase it.** Buffering
 `hydraulic_pit_proximity_m` to NaN within 1 km of any pit prevents the
 trivial zero-distance shortcut, but SHAP TreeExplainer puts
 `hydraulic_pit_proximity_m_buffered` at #1 in the top-5 feature ranking, 2.7x
-the mean absolute SHAP value of the second feature (gravity). I ran an
-ablation to measure the residual leak: retrain Tertiary RF and XGB without
-the feature entirely. RF dropped 10.5 percentage points (0.749 → 0.644) and
-XGB dropped 11.8 pp (0.826 → 0.708). About ten points of the v3 base AUCs
-are the buffered feature doing legitimate Tertiary-belt encoding (cells in
-the broader hydraulic-mining belt have a real geological reason to score
-higher) plus whatever residual shortcut the 1 km buffer still admits. The
-Lindgren secondaries pass at 81.8% top quintile because they live in the
-Tertiary belt by definition, so the belt-membership component of the
+the mean absolute SHAP value of the second feature (gravity).
+
+![SHAP TreeExplainer ranks `hydraulic_pit_proximity_m_buffered` as the dominant feature for the v3 Tertiary stack, 2.7x the mean absolute SHAP value of the next feature (`gravity`). The 1 km buffer pushes the trivial zero-distance shortcut out of reach, but the feature still encodes Tertiary belt membership; the ablation below measures how much of that lead is real geological signal vs residual shortcut the buffer admits.](data/derived/northern_sierra_placer/v3_shap_top5_tertiary.png)
+
+I ran an ablation to measure the residual leak: retrain Tertiary RF and XGB
+without the feature entirely. RF dropped 10.5 percentage points (0.749 →
+0.644) and XGB dropped 11.8 pp (0.826 → 0.708). About ten points of the v3
+base AUCs are the buffered feature doing legitimate Tertiary-belt encoding
+(cells in the broader hydraulic-mining belt have a real geological reason
+to score higher) plus whatever residual shortcut the 1 km buffer still
+admits.
+
+![I dropped `hydraulic_pit_proximity_m_buffered` from the v3 Tertiary feature stack and retrained the RF and XGB base learners on the same 20 spatial-block folds. RF AUC fell 10.5 percentage points (0.749 to 0.644); XGB fell 11.8 pp (0.826 to 0.708). About ten points of each model's baseline AUC was the buffered feature doing real Tertiary-belt encoding plus whatever residual shortcut the 1 km buffer admits; the remaining 0.64 to 0.71 AUC is what the other fifteen features carry on their own.](data/derived/northern_sierra_placer/v3_ablation_no_pit_proximity.png)
+
+The Lindgren secondaries pass at 81.8% top quintile because they live in
+the Tertiary belt by definition, so the belt-membership component of the
 feature predicts them correctly even after the trivial zero-distance lookup
 is blocked. v3.5 widens the buffer to 2 km to partition those ten points
 between real signal and residual leak.
