@@ -10,11 +10,17 @@ title: "ai-minerals"
 
 This site is what I've been playing with in my off-hours: machine
 learning on public geological data, at the scale of an individual
-prospector or a family-owned claim. The seven chapters span a
-100-year-old set of drill logs at Cape Nome, four regional
-prospectivity pipelines across the western cordillera, a live
-land-status tool for the California Mother Lode, and a couple of
-reproductions of published methods with the validation tightened up.
+prospector or a family-owned claim. The work started when I went
+looking for the drill logs on a placer claim my family has held
+since the early twentieth century at Cape Nome and noticed the
+published modeling literature operates at regional scale, not the
+scale of one claim. The seven chapters span those 100-year-old paper
+drill logs, four regional prospectivity pipelines across the western
+cordillera, a live land-status tool for the California Mother Lode,
+and a couple of reproductions of published methods with the
+validation tightened up. Each region is a different test of whether
+the same open-data pipeline holds up across deposit types and
+geographies, with the failure modes as visible as the successes.
 
 ## Chapters
 
