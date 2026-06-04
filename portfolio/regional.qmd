@@ -94,17 +94,20 @@ correlates with sampling density even on non-NaN rows.
 
 The BC Golden Triangle gave me a clean external test the other
 regions could not. BCGS GeoFile 2025-11 publishes 366 post-2015 drill
-collars in the AOI with per-hole element maxima, which lets me build
-distributions of model probability at drilled-positive versus
-drilled-negative cells, restricted to cells the training labels know
-nothing about. The result inverts the expected direction. The
-Kolmogorov-Smirnov test rejects equality of the two distributions,
-but the Mann-Whitney one-sided test (positives greater than negatives)
-fails: drilled-nothing cells score as high as drilled-ore cells, and
-at the top-5% cutoff slightly higher. Both populations sit in the
-same already-explored terrain near training positives, so they look
-equally prospective to a model that learned exploration history as
-much as it learned ore geology.
+collars in the AOI with per-hole element maxima. After restricting
+to cells the training labels know nothing about, the blind subset is
+241 cells: 154 drilled-positive and 87 drilled-negative. That lets me
+build distributions of model probability at drilled-positive versus
+drilled-negative cells on a truly held-out set. The result inverts
+the expected direction. The Kolmogorov-Smirnov test rejects equality
+of the two distributions, but the Mann-Whitney one-sided test
+(positives greater than negatives) fails. At the top-5% cutoff the
+model flags 63% of drilled-negative cells against 40% of
+drilled-positive cells, so the negatives get flagged 1.57x as often
+as the positives. Both populations sit in the same already-explored
+terrain near training positives, so they look equally prospective to
+a model that learned exploration history as much as it learned ore
+geology.
 
 ## The Mother Lode v3.1 increment
 
@@ -176,7 +179,7 @@ calibration on a 250 m grid). It now lives in its own chapter; see
 
 - [Eastern Alaska v1 integrated report](https://johnsondevco.com/ai-minerals/notebooks/eastak/eastak_porphyry_prospectivity.html): full pipeline plus Kenorland blind test diagnostic.
 - [BC Golden Triangle v2 integrated report](https://johnsondevco.com/ai-minerals/notebooks/bcgt/bcgt_porphyry_prospectivity.html): 154-positive blind-drill validation against post-2015 holes.
-- [Mother Lode v3 portfolio summary](https://johnsondevco.com/ai-minerals/notebooks/prospectus/motherlode.html), [v3.1 improvements (8 experiments)](https://johnsondevco.com/ai-minerals/notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](https://johnsondevco.com/ai-minerals/notebooks/motherlode/data_exploration.html).
+- Mother Lode: [v3.1 improvements (8 experiments)](https://johnsondevco.com/ai-minerals/notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](https://johnsondevco.com/ai-minerals/notebooks/motherlode/data_exploration.html).
 - [Arizona v4 integrated report](https://johnsondevco.com/ai-minerals/notebooks/arizona/main.html): Cox-Singer-cleaned 191-positive porphyry-Cu set with 4-cell DEEP-SEAM-style methodology comparison.
 
 [← back to portfolio map](https://johnsondevco.com/ai-minerals/)

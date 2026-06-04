@@ -82,18 +82,19 @@ rsync -avz --delete --delete-excluded --progress \
   "${REMOTE_HOST}:${REMOTE_DIR}/"
 
 # Chapter qmds reference figures via absolute URLs of the form
-# https://johnsondevco.com/ai-minerals/data/derived/<region>/<fig>.png.
+# https://johnsondevco.com/ai-minerals/data/derived/<region>/<fig>.{png,svg}.
 # Quarto does not copy resources referenced by absolute URL into _site/, so
-# those URLs 404 after the _site/ sync above. Push the PNGs that prose
-# references separately, restricted to chart subdirectories and PNG files
-# only — data/derived/ also holds multi-GB feature parquets, SHAP .npz
-# blobs, and intermediate .tif rasters that are not for public release.
+# those URLs 404 after the _site/ sync above. Push the figures that prose
+# references separately, restricted to chart subdirectories and PNG/SVG files
+# only. data/derived/ also holds multi-GB feature parquets, SHAP .npz blobs,
+# and intermediate .tif rasters that are not for public release.
 echo
-echo "==> Syncing data/derived/{chart subdirs}/*.png -> ${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
+echo "==> Syncing data/derived/{chart subdirs}/*.{png,svg} -> ${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
 ssh "${REMOTE_HOST}" "mkdir -p ${REMOTE_DIR}/data/derived"
 rsync -avz --delete --delete-excluded --progress \
   --include='*/' \
   --include='*.png' \
+  --include='*.svg' \
   --exclude='*' \
   --prune-empty-dirs \
   data/derived/arizona \

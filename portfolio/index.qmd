@@ -2,7 +2,11 @@
 title: "ai-minerals"
 ---
 
-![](data/derived/portfolio_charts/region_locator_map.svg){fig-alt="North America locator map showing the five regions worked across in this portfolio: Bear Cub (Nome, AK) for OCR + 3-D modeling of historical drill logs; and four regional MPM pipelines at Tanacross (eastern Alaska), the BC Golden Triangle, the California Mother Lode, and the Arizona porphyry-Cu belt."}
+```{=html}
+<object data="data/derived/portfolio_charts/region_locator_map.svg" type="image/svg+xml" style="width:100%; max-width:1100px; display:block; margin:0 auto;" aria-label="Map of the project regions across North America. Each dot links to its chapter.">
+  <img src="data/derived/portfolio_charts/region_locator_map.svg" alt="Map of project regions; dots are clickable in modern browsers." style="width:100%;">
+</object>
+```
 
 This site is what I've been playing with in my off-hours: machine
 learning on public geological data, at the scale of an individual
