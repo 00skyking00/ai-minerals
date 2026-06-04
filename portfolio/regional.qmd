@@ -28,7 +28,6 @@ the approach holds up.
 | BC Golden Triangle v2 (multi-deposit) | Cu / Au / Ag / Zn | 154 (blind set) | n/a | n/a | n/a |
 | Mother Lode v3 / v3.1 (Sierra foothills) | orogenic Au | 6,149 | n/a | 19.5% (4×) | 0.85 [0.79, 0.90] |
 | Arizona v4 (SE porphyry belt) | porphyry Cu | 191 | 23.0% (23×) | 51.3% (10×) | n/a |
-| Northern Sierra placer v6 (two-population fusion) | placer Au | TBD (Hydraulic-Pit + MRDS) | TBD | TBD | gldbg-handoff raster |
 
 Top-1% and top-5% are capture rates: fraction of held-out positives
 in the top k% of cells the model ranks most prospective. The
@@ -122,39 +121,10 @@ stream-sediment, porphyry-host intrusive lithology, and
 distance-to-fault, which is the canonical porphyry-Cu recipe.
 Reasonable model behavior.
 
-## Northern Sierra placer v6 (two-population fusion)
-
-Placer prospectivity sits about a decade behind lode in published
-methods; only the USGS Alaska watershed scorer (Cross, Frost, Karl)
-survives as a production-grade transferable model. The northern Sierra
-deep-gravel belt is the canonical California placer province: Tertiary
-buried paleochannels later capped by lava flows, then re-exposed in the
-Quaternary as the Yuba and American rivers incised through them. The
-hydraulic-mining era (1850s-1884) opened Malakoff Diggins, Dutch Flat,
-North San Juan, You Bet, Forest Hill, Iowa Hill, and Michigan Bluff.
-Lindgren 1911 (USGS PP73, DOI 10.3133/pp73) remains the canonical
-geological reference.
-
-The v6 build is a two-population fusion. Tertiary deep-gravel positives
-come from the Hydraulic Mine Pits of California (DOI 10.5066/F7J38QMD,
-167 polygons); Quaternary modern-channel positives come from MRDS records
-with placer dep_types. Each population trains its own classifier (PU
-bagging baseline, Random Forest, LightGBM, stacking, isotonic calibration);
-the calibrated rasters fuse via per-cell `np.maximum` into a single
-deliverable GeoTIFF that the gldbg sibling repo
-([johnsondevco.com/goldbug/](https://johnsondevco.com/goldbug/))
-samples via its existing zonal-mean machinery. Phase 1 runs a USGS-Alaska-
-style weighted knowledge-driven index first, with a validation gate that
-every one of the seven anchor districts must land in the top decile
-without being in the training labels; the gate has to pass before Phase 2
-wires up.
-
-The placer chapter coordinates with goldbug: goldbug did the SOTA survey,
-corrected fabricated citations in the original SOTA writeup, and extended
-the goldbug scanner to a new northern-Sierra region. ai-minerals builds
-the model and ships the calibrated raster back. The handoff brief lives
-at `research/placer_handoff_start_here.md` (and is the right entry point
-for anyone resuming this work).
+Placer prospectivity is a different problem from the four lode pipelines
+in this chapter (two-population fusion, hydraulic-pit positives, isotonic
+calibration on a 250 m grid). It now lives in its own chapter; see
+[Chapter 4: Placer-Au prospectivity (northern Sierra)](placer.qmd).
 
 ## Deeper notebooks
 

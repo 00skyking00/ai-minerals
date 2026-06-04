@@ -1,0 +1,141 @@
+---
+title: "Northern Sierra placer: data + model overview"
+subtitle: "Per-feature decisions, the v3 redesign mechanics, the empirical defense of the spatial-CV setup"
+---
+
+[← back to chapter](../../placer.html)
+
+## What this is
+
+The depth notebook behind [Chapter 4](../../placer.html). The chapter
+covers the v3 deliverable, the v2 leakage discovery, and the ablation
+that measures how much of v3's headline AUC is real Tertiary-belt
+signal vs residual buffered-pit shortcut. This notebook unpacks the
+per-feature design choices that lead to those results, the three
+concrete mechanics that distinguish v3 from v2, and the empirical
+basis for the 20 km spatial-block CV the chapter assumes.
+
+## The Phase 1 feature stack, decision by decision
+
+**Two distance-to-lode features, not one.** The flow-routed
+`distance_downstream_from_lode_m` walks the NHD network downstream
+from each MRDS lode-Au seed via `hydroseq` ordering. It carries the
+correct physics for modern-channel placers (gold flows downhill on real
+streams), and it is NaN at 98.3% of cells in this AOI because the
+Sierra Tertiary deep-gravels are paleo-channels offset from the modern
+Mother Lode trend. The omnidirectional `distance_to_lode_m` companion
+fires at every cell within 25 km of any lode seed regardless of
+routing, which is the feature the Tertiary anchors key on.
+
+**Tertiary terrace, three-component geometric mean.**
+`tertiary_terrace_likelihood` is the geometric mean of three
+components: TPI-high (the cell sits above its local neighborhood),
+slope-low (bench geometry, not canyon wall), and not-Quaternary-alluvium
+(the antithesis signal). I picked geometric mean over arithmetic
+because any single zero signature should zero the composite. A
+Tertiary terrace candidate needs all three signatures together, not
+one out of three. Anchor districts that the paleochannel composite
+alone misses (anchor values 0.17 to 0.44 against a raster median of
+0.40) rank in the top decile on this single feature.
+
+**Hydraulic-pit polygons as the Tertiary seed, not MRDS placer
+points.** MRDS `dep_type` tagging for placer is explicit on only 1.7%
+of records in the AOI; the rest are tagged generically or not at all.
+The Orlando 2016 hydraulic-mine pit polygons are the literal physical
+evidence of where Tertiary pay was rich enough to justify hydraulic
+mining. 167 polygons resolve to 158 unique cells at 250 m.
+
+**Catchment-Au Hawkes, dual decay at 2 km and 15 km.** The Hawkes 1976
+dual-decay kernel aggregates NGDB + NURE stream-sediment Au into each
+cell's upstream catchment. Short decay (2 km) captures source-confidence
+near the cell; long decay (15 km) captures regional dilution. The
+20 km spatial-block CV picks block size against this long-decay
+characteristic length so a test-fold cell never sits inside the
+train-fold cells' aggregation kernel.
+
+## The v3 redesign, three concrete mechanics
+
+**Per-population feature splits.** v2 trained both populations on the
+same 44-feature stack. SPI / `ksn` / Hawkes pathfinder features help
+Quaternary modern-channel placers (stream-power transitions where gold
+deposits) but are noise on Tertiary terraces (high above the modern
+drainage). v3 splits the stack: 17 features for Tertiary
+(`tertiary_terrace_likelihood`, buffered pit-proximity, `gravity`,
+`distance_to_lode_m`, lithology, and others), 22 for Quaternary
+(`distance_downstream_from_lode_m`, four NHD ValueAddedAttributes,
+`catchment_au_hawkes`, `spi_band`, and others).
+
+**Gaussian falloff, not hard cap.** v2's distance features used a hard
+cap: cells beyond 15 km got score 0 and cells at the boundary got an
+arbitrary near-zero. The score map showed a visible discontinuity at
+the cap. v3 uses a gaussian falloff with a sigma_m parameter, decaying
+from 1 at distance 0 to ~5% at distance 3σ. Forest Hill sits about
+12 km from the nearest mapped lode seed; v2 scored it ~0.2 (just above
+the hard zero), v3 with σ = 12 km scores it ~0.61 (matching its
+recognized geology).
+
+**Buffered pit-proximity.** v2's `hydraulic_pit_proximity_m` trivially
+encoded the Tertiary label: positive cells are pit polygon centroids,
+so the feature at distance 0 IS the label. v3 trains on
+`hydraulic_pit_proximity_m_buffered`, which is NaN within 1 km of any
+pit polygon. The buffer voids 10,000 to 20,000 cells around pits. The
+model's view of "near a pit" becomes "I have no signal here", which
+forces it to use the other 16 features to rank those cells. The
+chapter covers the ablation that measures how much shortcut the 1 km
+buffer still admits (RF drops 10.5 pp, XGB drops 11.8 pp when the
+feature is dropped entirely); v3.5 widens the buffer to 2 km to
+partition real signal from residual shortcut.
+
+## Spatial-block CV, defended empirically
+
+**Block size from the Hawkes characteristic length.** 20 km is a
+little more than 2x the Hawkes long-decay (15 km), the floor at which
+a test-fold cell stops sitting inside the train-fold cells'
+aggregation kernel. The pre-flight diagnostic measured 8-neighbour
+adjacency correlation of positive counts at 10, 15, 20, 25, and
+30 km block sizes. Adjacency correlation falls 0.83 (at 10 km, adjacent
+blocks are near-perfectly correlated, which defeats spatial CV's
+point) to 0.46 (at 30 km, adjacent blocks are decorrelated). 20 km
+sits at 0.71, 25 km at 0.57. v3 default is 20 km for compatibility
+with v2; v3.5 will try 25 km.
+
+**The stacking meta uses the same iterable.** The trap inside
+`StackingClassifier` is that its `cv` argument silently defaults to
+random KFold if you don't pass an iterable. The meta-learner then
+trains on out-of-fold base predictions that came from random splits,
+which leak across spatial blocks. v3 passes the same `SpatialBlockCV`
+iterable to RF, LightGBM, XGBoost, AND the stacking meta's `cv`
+parameter.
+
+## Validation diagnostics that work and ones that don't
+
+**Pearson correlation is the wrong instrument at 0.02% positive
+rate.** I built a leakage-risk audit that computes Pearson and
+Spearman correlation between every suspect feature and each
+population's binary label, with a flag at |r| > 0.10. It flagged
+nothing in v2 and nothing in v3. The v2 pit-proximity leak (RF AUC
+0.995 vs LightGBM 0.804) was completely invisible to it. At a 0.02%
+positive rate, the linear correlation of any feature with the binary
+label has a ceiling near 0.05 just from the base rate, even for a
+perfectly predictive feature. The real diagnostics are the SHAP
+top-5 recipe match (which fired on `hydraulic_pit_proximity_m_buffered`
+as #1 in v3 and prompted the ablation) and the held-out Lindgren PP73
+secondary anchors (81.8% top quintile on the Tertiary calibrated
+raster, the gate v2 failed).
+
+**Isotonic beats Platt 100x in ECE at this base rate.** Pre-isotonic
+ECE on the v3 Tertiary stacking OOF was 0.0002; post-isotonic ECE is
+0.0002. Isotonic doesn't move it because the input stack arrives
+well-calibrated. The Platt vs isotonic ablation shows top-decile
+precision is identical (both calibrators rank the same cells as
+positives), but isotonic's probability scale matches observed
+frequencies more closely.
+
+## Where to look
+
+[← back to chapter](../../placer.html) for the v2-to-v3 narrative,
+held-out validation gates, and ablation results.
+
+The v3 phase-by-phase review notebooks (A through E) live alongside
+this overview in the repo but are not in the public render. They were
+review artifacts during the build, not reader-facing material.
