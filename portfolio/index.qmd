@@ -37,7 +37,7 @@ already withdrawn, patented, or under active claim.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 1. Bear Cub (Cape Nome placer Au)
+### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
 
 A family-owned patented mining claim on the Third Beach Line at
 Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked
@@ -61,7 +61,7 @@ Gaussian-process recommender picks where hole #25 should go.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 2. Regional MPM pipelines
+### [2. Regional MPM pipelines](regional.qmd)
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
@@ -79,7 +79,7 @@ most.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 3. goldbug (live tool, CA Mother Lode)
+### [3. goldbug (live tool, CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
 
 The Mother Lode model from Chapter 2 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
@@ -101,7 +101,7 @@ modeling).
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 4. Placer-Au prospectivity (northern Sierra)
+### [4. Placer-Au prospectivity (northern Sierra)](placer.qmd)
 
 Placer prospectivity modeling is roughly a decade behind lode in the
 published literature. The only production-grade transferable model is
@@ -125,7 +125,7 @@ per-claim sampling.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 5. Reproducing + auditing two published methods
+### [5. Reproducing + auditing two published methods](reproductions.qmd)
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
@@ -149,7 +149,7 @@ saw.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 6. Cross-region experiments
+### [6. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
 deviation-network architecture. The 2-3× advantage over Random
@@ -169,7 +169,7 @@ result.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### 7. Drill planning under uncertainty
+### [7. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
 drill hole. I built a POMDP planner with Monte Carlo Tree Search,
