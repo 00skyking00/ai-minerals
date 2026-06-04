@@ -92,6 +92,8 @@ the top 1% of cells, enrichment 71x) and capture@5% of 85.7%. Calibration
 ECE measured pre-isotonic at 0.0002 and post-isotonic at 0.0002; the input
 stack arrives well-calibrated and isotonic doesn't have room to move it.
 
+![The v3 Tertiary calibrated probability raster, displayed as percentile rank across the AOI because the calibrated probability has a long zero tail that linear color stretching would wash out. Cyan outlines are the 158 Orlando 2016 hydraulic-mine pit polygons that supplied the training labels. Red dots mark the seven anchor districts, none of which appear in the training labels; all seven land in the top decile. The hot zone traces the Mother Lode trend through the western half of the AOI; the eastern half toward the Sierra crest is mostly zero-probability black.](data/derived/northern_sierra_placer/v3_calibrated_tertiary_map.png)
+
 **Quaternary v3 in training.** The Quaternary classifier is finishing its
 stacking out-of-fold stage as this chapter is being written. Numbers ship in
 the next render. The Tertiary results above are final for v3.

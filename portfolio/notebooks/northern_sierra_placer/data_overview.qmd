@@ -17,6 +17,8 @@ basis for the 20 km spatial-block CV the chapter assumes.
 
 ## The Phase 1 feature stack, decision by decision
 
+![The Phase 1 weighted-knowledge-driven placer-Au prospectivity index, on a 250 m grid. All seven anchor hydraulic-mining districts land in the top decile, with percentile ranks between 0.98 and 0.99 on their pit-centroid cells. The eastern half of the AOI is mostly zero because the Mother Lode lode-Au sources concentrate west, and the geomorphic features that score Tertiary placers fade east of the lode trend. The index is the gate every supervised pass below this layer has to clear.](../../data/derived/northern_sierra_placer/phase1_score_map.png)
+
 **Two distance-to-lode features, not one.** The flow-routed
 `distance_downstream_from_lode_m` walks the NHD network downstream
 from each MRDS lode-Au seed via `hydroseq` ordering. It carries the
@@ -37,6 +39,8 @@ Tertiary terrace candidate needs all three signatures together, not
 one out of three. Anchor districts that the paleochannel composite
 alone misses (anchor values 0.17 to 0.44 against a raster median of
 0.40) rank in the top decile on this single feature.
+
+![The `tertiary_terrace_likelihood` feature: geometric mean of TPI-high, slope-low, and not-Quaternary-alluvium. The hot YlOrBr bands cluster in the upper-left where the dark-blue hydraulic-pit polygons sit, which is the design intent. The geometric mean zeros out anywhere any single signature is missing, so a candidate Tertiary terrace needs all three present.](../../data/derived/northern_sierra_placer/tertiary_terrace_likelihood_map.png)
 
 **Hydraulic-pit polygons as the Tertiary seed, not MRDS placer
 points.** MRDS `dep_type` tagging for placer is explicit on only 1.7%
@@ -74,6 +78,8 @@ from 1 at distance 0 to ~5% at distance 3σ. Forest Hill sits about
 the hard zero), v3 with σ = 12 km scores it ~0.61 (matching its
 recognized geology).
 
+![v2's hard-cap inverse falloff (dashed grey) vs v3's gaussian falloff at σ = 12 km (solid steelblue). Forest Hill at 12 km scores ~0.2 under v2 (just above the hard zero) and ~0.61 under v3. The hard cap created a visible discontinuity in the score map at 15 km; the gaussian decays smoothly to ~5% at 3σ.](../../data/derived/northern_sierra_placer/gaussian_vs_hard_cap_falloff.png)
+
 **Buffered pit-proximity.** v2's `hydraulic_pit_proximity_m` trivially
 encoded the Tertiary label: positive cells are pit polygon centroids,
 so the feature at distance 0 IS the label. v3 trains on
@@ -98,6 +104,8 @@ blocks are near-perfectly correlated, which defeats spatial CV's
 point) to 0.46 (at 30 km, adjacent blocks are decorrelated). 20 km
 sits at 0.71, 25 km at 0.57. v3 default is 20 km for compatibility
 with v2; v3.5 will try 25 km.
+
+![The spatial-CV block-size trade-off measured empirically. Left panel: 8-neighbour adjacency correlation of positive counts vs block size; the dashed grey reference line marks the 0.5 threshold above which adjacent blocks contaminate each other. Right panel: n_folds (steelblue, left axis) vs zero-positive blocks (darkorange, right axis). Smaller blocks have more folds but adjacent ones correlate; larger blocks decorrelate but waste statistical power on zero-positive blocks.](../../data/derived/northern_sierra_placer/block_size_adjacency_diagnostic.png)
 
 **The stacking meta uses the same iterable.** The trap inside
 `StackingClassifier` is that its `cv` argument silently defaults to
