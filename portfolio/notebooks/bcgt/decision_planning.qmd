@@ -1,6 +1,7 @@
 ---
 title: "Decision-theoretic drill planning"
 subtitle: "A POMDP framing for sequential exploration on the BCGT prior"
+sidebar: drill_planning
 author: "Sky King"
 date: "2026-05"
 format:
