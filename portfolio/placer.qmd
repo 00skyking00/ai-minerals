@@ -95,9 +95,54 @@ stack arrives well-calibrated and isotonic doesn't have room to move it.
 
 ![The v3 Tertiary calibrated probability raster, displayed as percentile rank across the AOI because the calibrated probability has a long zero tail that linear color stretching would wash out. Cyan outlines are the 158 Orlando 2016 hydraulic-mine pit polygons that supplied the training labels. Red dots mark the seven anchor districts, none of which appear in the training labels; all seven land in the top decile. The hot zone traces the Mother Lode trend through the western half of the AOI; the eastern half toward the Sierra crest is mostly zero-probability black.](data/derived/northern_sierra_placer/v3_calibrated_tertiary_map.png)
 
-**Quaternary v3 in training.** The Quaternary classifier is finishing its
-stacking out-of-fold stage as this chapter is being written. Numbers ship in
-the next render. The Tertiary results above are final for v3.
+**Quaternary v3.** The Quaternary classifier finished its full pipeline on
+2026-06-05 with a stacking out-of-fold AUC of 0.832 across 50 spatial
+blocks (RF base mean 0.601, LightGBM 0.570, XGBoost 0.708; stacking
+moves the result +12 pp above the best base learner). PR-AUC is 0.004;
+the 0.054% positive rate puts a hard floor on precision-weighted area
+regardless of ranking quality. The five
+Lindgren PP73 Quaternary-named secondary districts (Downieville,
+Goodyears Bar, Sierra City, Brandy City, Camptonville) land at 80% in
+the top quintile of the Quaternary calibrated raster (4 of 5; median
+decile 0), clearing the ship gate of 30% by 50 pp.
+
+![The v3 Quaternary calibrated probability raster, percentile-rank stretch with viridis colormap. NHD flowlines are overlaid in dark blue because modern-channel placers concentrate along streams. The five Lindgren PP73 Quaternary-named held-out districts are marked as orange dots. The active drainage network is what the Quaternary model is ranking, not the Tertiary deep-gravel belt the Tertiary chapter section shows.](data/derived/northern_sierra_placer/v3_calibrated_quaternary_map.png)
+
+**Quaternary is materially harder than Tertiary at this resolution.**
+Tertiary stack OOF is 0.970; Quaternary is 0.832. The gap is real and
+structural. Tertiary placer targets are hydraulic-mining-pit polygons that
+average 50-500 cells at 250 m, with broad geomorphic signatures
+(paleo-channel REM, terrace TPI, lithology, pit-buffered distance) the
+model can learn directly. Quaternary placer targets are MRDS placer
+records (point occurrences with median 555 m positional offset per a
+v3.5 recon) sitting in modern stream channels 10-50 m wide. The features
+that should encode the Quaternary physics (`spi_band`, `ksn`,
+`distance_downstream_from_lode_m`, `paleochannel_likelihood`) are
+computed from a 250 m DEM that smears them across the channel + gravel
+bar + valley wall. SHAP on the Quaternary fullfit confirms the model
+fell back on coarse-scale features that do carry signal at 250 m
+(`elevation`, `distance_to_lode_m`, `tpi`, `nearest_reach_slope`,
+`gravity`); the channel-physics features rank 11-18. The recipe-match
+gate at 1 of 5 expected features is a fail in the ship-gate sense but
+not a leakage signal. No `hydraulic_pit_proximity_m_buffered` in the Q
+top-5, no features cross the 0.10 leakage-correlation threshold. The
+model is doing the right thing at the wrong resolution.
+
+![v3 Tertiary vs Quaternary AUC by base learner and stack. Tertiary climbs cleanly across all three base learners (RF 0.749, LGBM 0.637, XGB 0.826) into a stack OOF of 0.970. Quaternary is lower across the board (RF 0.601, LGBM 0.570, XGB 0.708) and the stack reaches 0.832. That sits well above any single Q base learner because the meta combines complementary errors, but still meaningfully below the Tertiary number.](data/derived/northern_sierra_placer/v3_t_vs_q_auc_comparison.png)
+
+![Per-fold ROC-AUC for the v3 Quaternary spatial-block CV (50 folds). Each dot is one block's held-out AUC for that base learner; the bar is the per-model mean. Stacking OOF is plotted as the black bar at 0.832. The high per-fold spread (LGBM ranges 0.20-0.93 across folds) reflects the difficulty of localizing 437 positives across 50 spatial blocks; some blocks have only 1-2 positives where the AUC is statistically noisy.](data/derived/northern_sierra_placer/v3_q_per_fold_auc.png)
+
+![Lindgren PP73 Quaternary-named held-out districts in the v3 Quaternary calibrated raster (n=5). Four of five land in the top quintile (deciles 0 or 1); only Sierra City sits at decile 4. This is the held-out test that distinguishes the Quaternary model from v2's killed-mid-stacking baseline (where Q had no calibrated raster); the v3 plan's ship gate is ≥30% top quintile, v3 delivers 80%.](data/derived/northern_sierra_placer/v3_lindgren_q_decile_histogram.png)
+
+**Fused deliverable.** The Tertiary and Quaternary calibrated rasters fuse
+per-cell via `np.maximum` into a single GeoTIFF. The fused raster passes
+the anchor ship gate at 7/7 in the top decile because the seven anchors
+are Tertiary hydraulic-mining sites and Tertiary scores dominate at those
+cells. The fused Phase 2 P-A AUC is 1.000 against the anchor set; Phase
+2 Tertiary-alone P-A AUC is 0.979; Phase 2 Quaternary-alone P-A AUC is
+0.840. The Quaternary contribution to the fused raster is at cells in
+active stream alluvium where Tertiary returns near-zero, which is exactly
+where modern-channel placers should rank above the deep-gravel signal.
 
 ## What we learned
 
