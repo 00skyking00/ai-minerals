@@ -29,6 +29,7 @@ def fit_pu_bagging(
     n_bags: int = 30,
     random_state: int = 42,
     rf_kwargs: dict | None = None,
+    n_negatives_override: int | None = None,
 ) -> tuple[np.ndarray, list[str]]:
     """Fit a bagging PU ensemble and return out-of-bag probabilities for EVERY cell.
 
@@ -38,6 +39,13 @@ def fit_pu_bagging(
     Each bag: positives + random unlabeled draw of equal size -> RF fit.
     Each cell's final score averages predictions from bags where the cell was
     NOT in the unlabeled-as-negative training set (OOB).
+
+    `n_negatives_override` (v3.6): when set, each bag draws exactly this many
+    unlabeled negatives instead of `len(pos_idx)`. Used by the Tertiary path
+    so the negative subsample is sized by effective positive mass (sum of
+    weights, ceiled to int) rather than the integer positive count, which
+    would otherwise oversample negatives when the positives are partially
+    weighted.
     """
     if label_col not in df.columns:
         raise KeyError(f"label_col {label_col!r} not in dataframe columns")
@@ -72,14 +80,19 @@ def fit_pu_bagging(
     pos_idx = np.where(pos_mask)[0]
     unl_idx = np.where(~pos_mask)[0]
     n_pos = len(pos_idx)
+    n_neg = (
+        int(n_negatives_override) if n_negatives_override is not None else n_pos
+    )
+    if n_neg > len(unl_idx):
+        n_neg = len(unl_idx)
 
     proba_sum = np.zeros(len(df), dtype=np.float64)
     bag_count = np.zeros(len(df), dtype=np.int32)
 
     for b in range(n_bags):
-        neg_sample = rng.choice(unl_idx, size=n_pos, replace=False)
+        neg_sample = rng.choice(unl_idx, size=n_neg, replace=False)
         train_idx = np.concatenate([pos_idx, neg_sample])
-        y_train = np.concatenate([np.ones(n_pos), np.zeros(n_pos)]).astype(np.int64)
+        y_train = np.concatenate([np.ones(n_pos), np.zeros(n_neg)]).astype(np.int64)
         clf = RandomForestClassifier(random_state=b, **rf_kwargs)
         clf.fit(X_all[train_idx], y_train)
 

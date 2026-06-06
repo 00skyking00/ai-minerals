@@ -10,6 +10,16 @@ Quaternary modern-channel). Each population goes through:
     -> Stacking   (logistic-regression meta on (RF, LGBM, XGB) base scores)
     -> Isotonic calibration (sigmoid fallback when positives are sparse)
 
+v3.6: Tertiary base learners and PU bagging now respect a continuous
+`placer_tertiary_weight` column (float32 in [0, 1]) produced by polygon
+rasterization in the assemble step. Per-cell sample weights flow into
+RF/LGBM/XGB `sample_weight` at every spatial-block fold and the full-data
+refit; PU bagging rescales its negative subsample size by the effective
+positive mass (sum of weights) rather than the integer positive count.
+If the weight column is absent (pre-v3.6 assemble output) the code falls
+back to `is_placer_tertiary.astype(float32)` so older feature parquets
+behave the same as before. The Quaternary path is unchanged.
+
 Anchor districts (Malakoff, Dutch Flat, etc.) are masked out of every
 training fold, every PU bag, and every calibration fold, so the Phase 1
 validation gate is never trained on.
@@ -281,9 +291,20 @@ def _score_proba(y_true: np.ndarray, proba: np.ndarray) -> tuple[float, float]:
     )
 
 
-def _fit_predict_tree(model, X_train, y_train, X_test) -> np.ndarray:
-    """Fit a tree model and return positive-class probabilities on X_test."""
-    model.fit(X_train, y_train)
+def _fit_predict_tree(
+    model, X_train, y_train, X_test,
+    *, sample_weight: np.ndarray | None = None,
+) -> np.ndarray:
+    """Fit a tree model and return positive-class probabilities on X_test.
+
+    `sample_weight` (when given) is forwarded as the sklearn-API
+    `sample_weight=` kwarg, which RF, LightGBM, and XGBoost all accept.
+    Used by the v3.6 Tertiary sample-weighted training path.
+    """
+    if sample_weight is not None:
+        model.fit(X_train, y_train, sample_weight=sample_weight)
+    else:
+        model.fit(X_train, y_train)
     return model.predict_proba(X_test)[:, 1]
 
 
@@ -301,6 +322,7 @@ def _spatial_block_scores_with_refold(
     grid,
     block_size_m: float = BLOCK_SIZE_M,
     ckpt_prefix: str | None = None,
+    sample_weight: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """Spatial-block CV with optional per-fold Hawkes refold.
 
@@ -311,6 +333,10 @@ def _spatial_block_scores_with_refold(
     `{ckpt_prefix}__fold_{block_id}.joblib` immediately after it finishes;
     on rerun, folds whose checkpoint exists are loaded and not recomputed.
     A death mid-CV loses at most one fold's work.
+
+    `sample_weight`, when given, is a length-len(df_train) float array of
+    per-row weights; each fold's training slice is forwarded to the model's
+    `fit(..., sample_weight=...)` (v3.6 Tertiary path).
     """
     cv = SpatialBlockCV(block_size_m=block_size_m)
     cell_block_ids = _block_ids(df_train, block_size_m)
@@ -346,8 +372,11 @@ def _spatial_block_scores_with_refold(
 
         X_train = X_fold.iloc[train_idx].fillna(-9999.0).to_numpy(dtype=np.float32)
         X_test = X_fold.iloc[test_idx].fillna(-9999.0).to_numpy(dtype=np.float32)
+        sw_train = sample_weight[train_idx] if sample_weight is not None else None
         model = model_factory()
-        proba = _fit_predict_tree(model, X_train, y_train, X_test)
+        proba = _fit_predict_tree(
+            model, X_train, y_train, X_test, sample_weight=sw_train,
+        )
         roc, pr = _score_proba(y_test, proba)
         cap_1 = _capture_rate(proba, y_test, 1.0)
         cap_5 = _capture_rate(proba, y_test, 5.0)
@@ -378,6 +407,7 @@ def _stacking_oof_predictions(
     *,
     block_size_m: float = BLOCK_SIZE_M,
     ckpt_prefix: str | None = None,
+    sample_weight: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Spatial-block OOF predictions for RF + LGBM + XGBoost.
 
@@ -393,6 +423,10 @@ def _stacking_oof_predictions(
     If `ckpt_prefix` is set, each completed fold's test-cell predictions are
     cached as `{ckpt_prefix}__fold_{block_id}.joblib`. A death mid-stacking
     loses at most one fold's RF + LGBM + XGB fit.
+
+    `sample_weight`, when given, is a length-len(df_train) float array of
+    per-row weights forwarded to each base learner's `fit(..., sample_weight=...)`
+    in each fold (v3.6 Tertiary path).
     """
     cv = SpatialBlockCV(block_size_m=block_size_m)
     y = df_train[label_col].to_numpy(dtype=np.int64)
@@ -420,16 +454,26 @@ def _stacking_oof_predictions(
         y_train = y[train_idx]
         if y_train.sum() == 0:
             continue
+        sw_train = sample_weight[train_idx] if sample_weight is not None else None
         rf = make_rf(random_state=42)
-        rf.fit(X_base[train_idx], y_train)
+        if sw_train is not None:
+            rf.fit(X_base[train_idx], y_train, sample_weight=sw_train)
+        else:
+            rf.fit(X_base[train_idx], y_train)
         p_rf_test = rf.predict_proba(X_base[test_idx])[:, 1]
         p_rf[test_idx] = p_rf_test
         lgbm = make_lgbm(random_state=42)
-        lgbm.fit(X_base[train_idx], y_train)
+        if sw_train is not None:
+            lgbm.fit(X_base[train_idx], y_train, sample_weight=sw_train)
+        else:
+            lgbm.fit(X_base[train_idx], y_train)
         p_lgbm_test = lgbm.predict_proba(X_base[test_idx])[:, 1]
         p_lgbm[test_idx] = p_lgbm_test
         xgb = make_xgb(random_state=42)
-        xgb.fit(X_base[train_idx], y_train)
+        if sw_train is not None:
+            xgb.fit(X_base[train_idx], y_train, sample_weight=sw_train)
+        else:
+            xgb.fit(X_base[train_idx], y_train)
         p_xgb_test = xgb.predict_proba(X_base[test_idx])[:, 1]
         p_xgb[test_idx] = p_xgb_test
         seen[test_idx] = True
@@ -571,6 +615,38 @@ def train_one_population(
         print(f"[{pop}] WARNING: distance_downstream_from_lode_m missing from features; "
               f"check assemble script's lode-leakage guard.", flush=True)
 
+    # v3.6: load per-row Tertiary sample weights. Polygon rasterization in the
+    # assemble step produces `placer_tertiary_weight` (float32 in [0, 1])
+    # alongside the existing binary `is_placer_tertiary`. The weight column
+    # gets passed as sklearn `sample_weight=` to RF/LGBM/XGB at every fold and
+    # at the full-data refit, and rescales the PU-bagging negative subsample
+    # size by effective positive mass instead of the integer positive count.
+    # Quaternary is unaffected: tert_sample_weight stays None and the existing
+    # binary code path runs untouched.
+    tert_sample_weight: np.ndarray | None = None
+    if pop == "placer_tertiary":
+        if "placer_tertiary_weight" in df_oh_train.columns:
+            tert_sample_weight = (
+                df_oh_train["placer_tertiary_weight"]
+                .to_numpy(dtype=np.float32)
+            )
+            print(f"[{pop}] v3.6 sample weights from placer_tertiary_weight: "
+                  f"sum={float(tert_sample_weight.sum()):.2f}, "
+                  f"max={float(tert_sample_weight.max()):.3f}, "
+                  f"nonzero={int((tert_sample_weight > 0).sum()):,}",
+                  flush=True)
+        else:
+            # Backwards-compat with v3 (pre-3.6) assemble output: leave
+            # tert_sample_weight as None so the existing unweighted code path
+            # runs untouched. Using binary is_placer_tertiary here would zero
+            # out every negative row (sample_weight=0 means no contribution
+            # to the loss), which would silently break training on pre-v3.6
+            # parquets.
+            tert_sample_weight = None
+            print(f"[{pop}] placer_tertiary_weight column missing; running "
+                  f"unweighted (sample_weight=None). v3 pre-polygon-raster "
+                  f"path.", flush=True)
+
     fold_metrics: list[pd.DataFrame] = []
 
     # --- PU baseline. Cached as a pair (training-set p_pu, full-grid p_pu) so a
@@ -599,18 +675,57 @@ def train_one_population(
             return {"p_pu_train": p_train, "p_pu_full": p_full}
         pu_result = _run_stage(f"{pop}__pu", _nnpu)
     else:
+        # v3.6: PU-bagging negative subsample is sized by effective positive
+        # mass (sum of placer_tertiary_weight over positives, ceil'd to int)
+        # rather than the raw positive count. With partially-weighted positives,
+        # 1:1 against the integer count oversamples negatives; rebalancing
+        # against the effective mass keeps the per-bag class balance honest.
+        # Currently the code defaults to a 1:1 positive:negative ratio inside
+        # fit_pu_bagging; the override below replaces only the negative count.
+        # If the weight column is absent, tert_sample_weight reduces to the
+        # binary label, and n_neg_override == n_pos, i.e. no behavior change.
+        pu_n_neg_override: int | None = None
+        if tert_sample_weight is not None:
+            pos_mask_train = (df_oh_train[label_col] == 1).to_numpy()
+            n_positives_effective = float(
+                tert_sample_weight[pos_mask_train].sum()
+            )
+            pu_n_neg_override = int(np.ceil(n_positives_effective))
+            pos_mask_full = (df_oh_full[label_col] == 1).to_numpy()
+            # Build a full-grid weight aligned to df_oh_full for the prediction
+            # PU fit; pull placer_tertiary_weight when present, else fall back
+            # to the binary label, matching the training-side rule above.
+            if "placer_tertiary_weight" in df_oh_full.columns:
+                tert_weight_full = (
+                    df_oh_full["placer_tertiary_weight"].to_numpy(dtype=np.float32)
+                )
+            else:
+                tert_weight_full = (
+                    df_oh_full[label_col].to_numpy(dtype=np.float32)
+                )
+            pu_n_neg_override_full = int(
+                np.ceil(float(tert_weight_full[pos_mask_full].sum()))
+            )
+            print(f"[{pop}] v3.6 PU bagging: n_pos_effective_train="
+                  f"{n_positives_effective:.2f}  n_neg_override_train="
+                  f"{pu_n_neg_override}  n_neg_override_full="
+                  f"{pu_n_neg_override_full}", flush=True)
+        else:
+            pu_n_neg_override_full = None
         def _pu():
             print(f"[{pop}] PU bagging (n_bags={N_PU_BAGS})...", flush=True)
             t0 = time.time()
             p_pu_train, _ = fit_pu_bagging(
                 df_oh_train, top_classes,
                 label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+                n_negatives_override=pu_n_neg_override,
             )
             print(f"[{pop}]   PU train done in {(time.time()-t0)/60:.1f} min "
                   f"(n_finite={int(np.isfinite(p_pu_train).sum())})", flush=True)
             p_pu_full, _ = fit_pu_bagging(
                 df_oh_full, top_classes,
                 label_col=label_col, n_bags=N_PU_BAGS, random_state=42,
+                n_negatives_override=pu_n_neg_override_full,
             )
             return {"p_pu_train": p_pu_train, "p_pu_full": p_pu_full}
         pu_result = _run_stage(f"{pop}__pu", _pu)
@@ -629,6 +744,7 @@ def train_one_population(
             refold_hawkes=refold_hawkes,
             samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
             ckpt_prefix=f"{pop}__rf_cv",
+            sample_weight=tert_sample_weight,
         )
         print(f"[{pop}]   RF CV done in {(time.time()-t0)/60:.1f} min  "
               f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
@@ -646,6 +762,7 @@ def train_one_population(
             refold_hawkes=refold_hawkes,
             samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
             ckpt_prefix=f"{pop}__lgbm_cv",
+            sample_weight=tert_sample_weight,
         )
         print(f"[{pop}]   LGBM CV done in {(time.time()-t0)/60:.1f} min  "
               f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
@@ -664,6 +781,7 @@ def train_one_population(
             refold_hawkes=refold_hawkes,
             samples=samples, sample_block_ids=sample_block_ids, nhd=nhd, grid=grid,
             ckpt_prefix=f"{pop}__xgb_cv",
+            sample_weight=tert_sample_weight,
         )
         print(f"[{pop}]   XGB CV done in {(time.time()-t0)/60:.1f} min  "
               f"folds={len(out)}  AUC mean={out['roc_auc'].mean():.3f}", flush=True)
@@ -678,6 +796,7 @@ def train_one_population(
         out = _stacking_oof_predictions(
             df_oh_train, feat_cols, label_col, block_size_m=BLOCK_SIZE_M,
             ckpt_prefix=f"{pop}__stack_oof",
+            sample_weight=tert_sample_weight,
         )
         print(f"[{pop}]   stacking OOF done in {(time.time()-t0)/60:.1f} min", flush=True)
         return out
@@ -726,15 +845,24 @@ def train_one_population(
         X_grid = df_oh_full[feat_cols].fillna(-9999.0).to_numpy(dtype=np.float32)
 
         rf_full = make_rf(random_state=42)
-        rf_full.fit(X_train_full, y_train)
+        if tert_sample_weight is not None:
+            rf_full.fit(X_train_full, y_train, sample_weight=tert_sample_weight)
+        else:
+            rf_full.fit(X_train_full, y_train)
         p_rf_grid = rf_full.predict_proba(X_grid)[:, 1]
 
         lgbm_full = make_lgbm(random_state=42)
-        lgbm_full.fit(X_train_full, y_train)
+        if tert_sample_weight is not None:
+            lgbm_full.fit(X_train_full, y_train, sample_weight=tert_sample_weight)
+        else:
+            lgbm_full.fit(X_train_full, y_train)
         p_lgbm_grid = lgbm_full.predict_proba(X_grid)[:, 1]
 
         xgb_full = make_xgb(random_state=42)
-        xgb_full.fit(X_train_full, y_train)
+        if tert_sample_weight is not None:
+            xgb_full.fit(X_train_full, y_train, sample_weight=tert_sample_weight)
+        else:
+            xgb_full.fit(X_train_full, y_train)
         p_xgb_grid = xgb_full.predict_proba(X_grid)[:, 1]
 
         p_stack_grid = meta.predict_proba(

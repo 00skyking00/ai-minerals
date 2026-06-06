@@ -61,6 +61,7 @@ from ai_minerals.features.hydrology import (
     topographic_wetness_index,
     tpi,
 )
+from ai_minerals.features.label_kernels import rasterize_polygon_positives
 from ai_minerals.features.placer_geology import (
     distance_to_lithological_contact_m,
     hawkes_dual_decay_catchment,
@@ -240,6 +241,17 @@ def _inject_placer_positives(
     just isn't mapped at this resolution). v2 treated all MRDS placers as
     Quaternary; v3 only reassigns the ones with explicit Tertiary signal.
     Preserve v2 behavior with `reclassify_mrds=False`.
+
+    v3.6 polygon rasterization (Tertiary only): replace centroid-snapping
+    of hydraulic-pit polygons with `rasterize_polygon_positives`. Every
+    grid cell whose centroid falls inside any pit polygon is assigned
+    weight 1.0, cells within a 1-cell Chebyshev buffer of a polygon edge
+    get weight 0.5, and a binary `is_placer_tertiary = (weight > 0)`
+    column is kept for downstream consumers. The pit polygons span many
+    grid cells (some hundreds), so centroid-snapping was discarding most
+    of the positive footprint. Quaternary positives (MRDS records) are
+    point-like and stay as centroid-snap. See
+    `research/v35_northern_sierra_placer_plan.md` for the rationale.
     """
     df = df.copy()
     from ai_minerals.data.adapters.occurrences.mrds import _PLACER_DEP_TYPE_RE
@@ -272,21 +284,35 @@ def _inject_placer_positives(
                 out.append(rc_to_idx[key])
         return out
 
-    # ---- Tertiary: hydraulic-pit polygon centroids.
+    # ---- Tertiary: hydraulic-pit polygon rasterization (v3.6).
+    # v3.5 and earlier snapped each pit polygon to a single cell via its
+    # centroid, which discards the multi-cell footprint of the larger pits.
+    # v3.6 polygon-rasterizes: interior cells get weight 1.0, 1-cell edge
+    # buffer gets weight 0.5, everywhere else 0.0. See
+    # `research/v35_northern_sierra_placer_plan.md`.
     pit_path = REGION.raw_paths.get("hydraulic_pits")
     if pit_path is not None and pit_path.exists():
         pit_polys = get_adapter("geology", "hydraulic_pits")(pit_path, REGION.aoi)
-        pit_centroids = gpd.GeoDataFrame(
-            geometry=pit_polys.to_crs(REGION.working_crs).geometry.centroid,
-            crs=REGION.working_crs,
-        )
-        t_idxs = _snap_to_cells(pit_centroids)
-        df["is_placer_tertiary"] = 0
-        if t_idxs:
-            df.loc[t_idxs, "is_placer_tertiary"] = 1
-        print(f"[assemble]   is_placer_tertiary: {df['is_placer_tertiary'].sum()} cells "
-              f"({len(pit_centroids)} pit centroids, {len(set(t_idxs))} unique cells)")
+        weight_full = rasterize_polygon_positives(pit_polys, grid)
+        # Gather the per-cell weights into df via the same (row, col) -> df
+        # row index lookup that _snap_to_cells uses.
+        ncols = grid.shape[1]
+        df_flat = (df["row"].to_numpy(dtype=np.int64) * ncols
+                   + df["col"].to_numpy(dtype=np.int64))
+        df_weight = weight_full[df_flat].astype(np.float32)
+        df["placer_tertiary_weight"] = df_weight
+        df["is_placer_tertiary"] = (df_weight > 0).astype(np.int64)
+
+        total_weighted_positives = float(df_weight.sum())
+        n_inside_cells = int((df_weight == 1.0).sum())
+        n_edge_cells = int(((df_weight > 0) & (df_weight < 1.0)).sum())
+        print(f"[assemble]   is_placer_tertiary (v3.6 polygon-rasterized): "
+              f"total_weighted_positives={total_weighted_positives:.1f}, "
+              f"n_inside_cells={n_inside_cells}, n_edge_cells={n_edge_cells} "
+              f"({len(pit_polys)} pit polygons)")
     else:
+        df["placer_tertiary_weight"] = np.zeros(len(df), dtype=np.float32)
+        df["is_placer_tertiary"] = 0
         print("[assemble]   is_placer_tertiary: no pit polygons; left at 0")
 
     # ---- Quaternary: MRDS placer-flagged records.
@@ -352,6 +378,9 @@ def _inject_placer_positives(
                 aug_idxs = _snap_to_cells(t_records)
                 if aug_idxs:
                     df.loc[aug_idxs, "is_placer_tertiary"] = 1
+                    # Keep placer_tertiary_weight in sync: MRDS records snap
+                    # to a single cell with full positive weight.
+                    df.loc[aug_idxs, "placer_tertiary_weight"] = 1.0
                 aug_unique = len(set(aug_idxs))
                 base_unique = int(df["is_placer_tertiary"].sum()) - aug_unique
                 # base_unique may not match exactly because cell-snap can put a
