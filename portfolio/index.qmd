@@ -36,8 +36,20 @@ already withdrawn, patented, or under active claim.
 ## Chapters
 
 :::: {.grid}
-::: {.g-col-12 .g-col-md-9}
+::: {.g-col-12}
 ### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
+
+:::: {.grid}
+::: {.g-col-12 .g-col-md-4}
+[![1936 cartographer's plat: the 24 hole locations on the Third Beach Line, the input I started from](data/derived/portfolio_charts/thumbs/ch1_bear_cub_plat.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+:::
+::: {.g-col-12 .g-col-md-4}
+[![Bear Cub aerial photo with pay-zone grade overlay: the answer on real-world geography](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+:::
+::: {.g-col-12 .g-col-md-4}
+[![Next-drill-site recommender: where the GP picks hole 25](data/derived/portfolio_charts/thumbs/ch1_bear_cub_gp.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+:::
+::::
 
 A family-owned patented mining claim on the Third Beach Line at
 Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked
@@ -49,13 +61,6 @@ and pay-zone, and computed Voronoi-cell volumetrics with Monte
 Carlo uncertainty. Per-hole grades matched two mining engineers'
 independent analyses within 6%. On top of the same grid, a
 Gaussian-process recommender picks where hole #25 should go.
-:::
-::: {.g-col-12 .g-col-md-3}
-[![Bear Cub aerial photo with pay-zone grade overlay](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](https://johnsondevco.com/bearcub/bear_cub.html)
-
-[![Fence diagram: 24 Bear Cub drill holes, log-scale gold grade, pay-zone framing](data/derived/portfolio_charts/thumbs/ch1_bear_cub_fence.png)](https://johnsondevco.com/bearcub/bear_cub.html)
-
-[![Next-drill-site recommender on Bear Cub: max-variance + max-EI picks against the GP-predicted grade surface](data/derived/portfolio_charts/thumbs/ch1_bear_cub_gp.png)](https://johnsondevco.com/bearcub/bear_cub.html)
 :::
 ::::
 
