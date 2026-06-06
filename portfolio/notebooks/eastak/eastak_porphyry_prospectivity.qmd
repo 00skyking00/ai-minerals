@@ -27,7 +27,7 @@ What's in this repo, at a glance:
 - `notebooks/eastak/eastak_porphyry_prospectivity.qmd` — this document; the v1 integrated report.
 - `notebooks/eastak/{data_exploration, baseline_model, random_forest_and_shap, validation}.qmd` — the build-log series this report rolls up.
 - `notebooks/bcgt/` — the v2 BC Golden Triangle track with the distribution-based blind test.
-- `design/mvp-proposal.md` — the scoping document; what we built and why.
+- `docs/mvp-proposal.md` — the scoping document; what we built and why.
 
 ## Why critical minerals, and why now
 
@@ -668,7 +668,7 @@ uv run jupyter nbconvert --to notebook --execute --inplace \
 - [`src/ai_minerals/model.py`](../../src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
 - [`src/ai_minerals/model_rf.py`](../../src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
 - [`src/ai_minerals/model_pu.py`](../../src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
-- [`design/mvp-proposal.md`](../../design/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
+- [`docs/mvp-proposal.md`](../../docs/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
 - [`notebooks/day{3,4,5}_*.qmd`](../../notebooks/) — day-by-day build log; audit trail for how the results above came together.
 
 ## References (primary sources)

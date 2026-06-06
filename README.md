@@ -89,7 +89,7 @@ src/ai_minerals/
 tools/                                 # CLI drivers (resource analysis, reviewer apps,
                                        # 3D model generator, redistribution diff lister, etc.)
 research/                              # company / state-of-the-art briefs
-design/                                # scoping doc, v1.1 findings trace
+docs/                                  # scoping doc, v1.1 findings trace, runbooks
 data/raw/, data/derived/               # gitignored except small reference inputs
 scripts/deploy_to_hostinger.sh         # rsync the rendered _site/ to johnsondevco.com
 ```

@@ -76,7 +76,7 @@ rsync -avz --delete --delete-excluded --progress \
   --exclude='/research' \
   --exclude='/src' \
   --exclude='/scripts' \
-  --exclude='/design' \
+  --exclude='/docs' \
   --exclude='*.qmd' \
   "${LOCAL_SITE}/" \
   "${REMOTE_HOST}:${REMOTE_DIR}/"

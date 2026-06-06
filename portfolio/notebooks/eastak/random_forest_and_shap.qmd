@@ -10,7 +10,7 @@ execute:
 ---
 
 The baseline-model notebook raised five diagnostic questions (see
-`design/mvp-proposal.md`). This notebook answers four of them with
+`docs/mvp-proposal.md`). This notebook answers four of them with
 Random Forest + SHAP. The fifth (external blind test) is in
 [`validation.qmd`](validation.qmd).
 
