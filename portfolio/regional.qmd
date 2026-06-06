@@ -144,6 +144,16 @@ failure, but even with that out of the way the model trained on
 Sierra spatial context does not generalize past the very top cells
 in Klamath.
 
+The Mother Lode AOI is also covered cell-for-cell by the northern
+Sierra placer model in [Chapter 4](placer.qmd). I built the placer
+AOI as a superset of the Mother Lode lode-raster extent on purpose,
+so the two grids register exactly and goldbug can ingest the same
+placer GeoTIFF as both the Mother Lode lode-gold layer and the
+Mother Lode placer layer. The Tertiary deep-gravel and Quaternary
+modern-channel components are separately calibrated rasters that
+get fused per-cell with `np.maximum` into the single deliverable
+goldbug consumes. Methods for the placer side are in Chapter 4.
+
 ## What the four regions together show
 
 **The methodology reproduces across deposit type and region.** Top-1%

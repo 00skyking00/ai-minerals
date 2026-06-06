@@ -40,13 +40,12 @@ already withdrawn, patented, or under active claim.
 ### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
 
 :::: {.grid}
-::: {.g-col-12 .g-col-md-4}
-[![1919 drill log from the Frozen Ground report: one of the 24 churn-drill records I OCR'd](data/derived/portfolio_charts/thumbs/ch1_bear_cub_log.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+::: {.g-col-12 .g-col-md-6}
+[![1919 drill log from the Frozen Ground report: one of the 24 churn-drill records I OCRed](data/derived/portfolio_charts/thumbs/ch1_bear_cub_log.png)](https://johnsondevco.com/bearcub/bear_cub.html)
 :::
-::: {.g-col-12 .g-col-md-4}
+::: {.g-col-12 .g-col-md-6}
 [![3D bedrock + pay-zone model rendered with PyVista from the 24 drill holes](data/derived/portfolio_charts/thumbs/ch1_bear_cub_3d.png)](https://johnsondevco.com/bearcub/bear_cub.html)
-:::
-::: {.g-col-12 .g-col-md-4}
+
 [![Next-drill-site recommender: where the GP picks hole 25](data/derived/portfolio_charts/thumbs/ch1_bear_cub_gp.png)](https://johnsondevco.com/bearcub/bear_cub.html)
 :::
 ::::
