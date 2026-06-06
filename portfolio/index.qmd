@@ -41,10 +41,10 @@ already withdrawn, patented, or under active claim.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-4}
-[![1936 cartographer's plat: the 24 hole locations on the Third Beach Line, the input I started from](data/derived/portfolio_charts/thumbs/ch1_bear_cub_plat.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+[![1919 drill log from the Frozen Ground report: one of the 24 churn-drill records I OCR'd](data/derived/portfolio_charts/thumbs/ch1_bear_cub_log.png)](https://johnsondevco.com/bearcub/bear_cub.html)
 :::
 ::: {.g-col-12 .g-col-md-4}
-[![Bear Cub aerial photo with pay-zone grade overlay: the answer on real-world geography](data/derived/portfolio_charts/thumbs/ch1_bear_cub.png)](https://johnsondevco.com/bearcub/bear_cub.html)
+[![3D bedrock + pay-zone model rendered with PyVista from the 24 drill holes](data/derived/portfolio_charts/thumbs/ch1_bear_cub_3d.png)](https://johnsondevco.com/bearcub/bear_cub.html)
 :::
 ::: {.g-col-12 .g-col-md-4}
 [![Next-drill-site recommender: where the GP picks hole 25](data/derived/portfolio_charts/thumbs/ch1_bear_cub_gp.png)](https://johnsondevco.com/bearcub/bear_cub.html)
