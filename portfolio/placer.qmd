@@ -1,6 +1,6 @@
 ---
 title: "Chapter 4: Placer-Au prospectivity (northern Sierra)"
-subtitle: "Two-population (Tertiary deep-gravel + Quaternary modern-channel) calibrated probability raster at 250 m on the canonical California placer province"
+subtitle: "Tertiary deep-gravel and Quaternary modern-channel calibrated probability rasters fused at 250 m on the canonical California placer province"
 sidebar: placer
 ---
 
@@ -21,7 +21,7 @@ Placer-Au modeling sits about a decade behind lode in the published
 literature. The lode side has stacked supervised pipelines with spatial-block
 cross-validation, leakage audits, and external blind tests as standard
 practice. The placer side mostly does not, because the data is sparse (point
-occurrences with inconsistent `dep_type` strings), the positives concentrate
+occurrences with inconsistent free-text deposit-type descriptions), the positives concentrate
 in a few well-known districts, and the geomorphic chain from lode source to
 placer trap involves transport mechanics that don't show up in a static
 feature stack. The only production-grade transferable placer model in the
@@ -29,10 +29,11 @@ published record is the USGS Alaska watershed scorer used in the Cross,
 Frost, and Karl assessments, and even that is a knowledge-driven weighted
 index rather than a supervised classifier. This chapter ports the Alaska
 scorer to the northern Sierra at 250 m, then layers a supervised pass on
-top that catches the v2-era leakage shortcut and measures the residual leak
-in the v3 build. The deliverable feeds Chapter 3 (goldbug); the sibling Cape
-Nome property in Chapter 1 (Bear Cub) is different geology and a different
-audience but shares the population-level reasoning.
+top with separate classifiers for the Tertiary deep-gravel and Quaternary
+modern-channel populations, fused per-cell into a single calibrated
+probability raster. The deliverable feeds Chapter 3 (goldbug); the sibling
+Cape Nome property in Chapter 1 (Bear Cub) is different geology and a
+different audience but shares the population-level reasoning.
 
 ## What got built
 

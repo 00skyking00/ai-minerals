@@ -68,6 +68,24 @@ def main() -> None:
         pits = pits.to_crs(epsg=4326)
     print(f"Loaded {len(pits)} pit polygons from {PITS_PATH.name}")
 
+    # Tight viewport: union bounds of pit polygons + 0.15 deg pad on all sides.
+    # The raster spans a much larger AOI; without cropping we get a big zoomed-
+    # out frame plus a band of invalid/empty cells on the east edge.
+    pit_minx, pit_miny, pit_maxx, pit_maxy = pits.total_bounds
+    pad = 0.15
+    view_lon_min = pit_minx - pad
+    view_lon_max = pit_maxx + pad
+    view_lat_min = pit_miny - pad
+    view_lat_max = pit_maxy + pad
+    print(
+        f"Pit union bounds: lon [{pit_minx:.4f}, {pit_maxx:.4f}], "
+        f"lat [{pit_miny:.4f}, {pit_maxy:.4f}]"
+    )
+    print(
+        f"View extent (+{pad} pad): lon [{view_lon_min:.4f}, "
+        f"{view_lon_max:.4f}], lat [{view_lat_min:.4f}, {view_lat_max:.4f}]"
+    )
+
     # Figure.
     # Figure is sized so bbox_inches="tight" trims to roughly the target
     # ~1400x1000. The AOI itself is taller than it is wide, so the final png
@@ -130,8 +148,10 @@ def main() -> None:
             zorder=6,
         )
 
-    ax.set_xlim(bounds.left, bounds.right)
-    ax.set_ylim(bounds.bottom, bounds.top)
+    # Crop to the pit-cluster viewport so the action fills the frame and the
+    # dead band on the east edge of the raster falls outside the axes.
+    ax.set_xlim(view_lon_min, view_lon_max)
+    ax.set_ylim(view_lat_min, view_lat_max)
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.tick_params(labelsize=8)

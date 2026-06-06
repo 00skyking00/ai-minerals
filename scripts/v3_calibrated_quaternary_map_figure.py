@@ -46,6 +46,12 @@ Q_DISTRICTS: dict[str, tuple[float, float]] = {
     "Camptonville":  (-121.045, 39.452),
 }
 
+# Tighter view: union of the 5 Q-named districts padded by 0.2 deg on all sides.
+# This crops out the dark-streak artifact on the east edge of the AOI raster
+# and zooms in on the upper Yuba / North Fork American watershed.
+VIEW_LON_MIN, VIEW_LON_MAX = -121.3, -120.4
+VIEW_LAT_MIN, VIEW_LAT_MAX = 39.2, 39.8
+
 
 def percentile_rank(values: np.ndarray) -> np.ndarray:
     n = values.size
@@ -92,12 +98,15 @@ def main() -> None:
     nhd.plot(ax=ax, color="#0b3d91", linewidth=0.35, alpha=0.85, zorder=4)
 
     # Q districts: orange dots + white-outlined labels.
+    # Goodyears Bar and Brandy City are ~3 km apart on the Yuba; push them
+    # in opposite directions so the labels don't stack. Sierra City sits east,
+    # Downieville in the middle of the cluster, Camptonville south.
     label_offsets: dict[str, tuple[float, float, str]] = {
-        "Downieville":   (0.020, 0.018, "left"),
-        "Goodyears Bar": (-0.020, -0.020, "right"),
-        "Sierra City":   (0.020, 0.018, "left"),
-        "Brandy City":   (-0.020, 0.018, "right"),
-        "Camptonville":  (-0.020, -0.020, "right"),
+        "Sierra City":   ( 0.025,  0.025, "left"),
+        "Downieville":   ( 0.025,  0.030, "left"),
+        "Goodyears Bar": ( 0.010,  0.055, "center"),
+        "Brandy City":   (-0.025, -0.030, "right"),
+        "Camptonville":  (-0.025, -0.025, "right"),
     }
     label_stroke = [withStroke(linewidth=2.0, foreground="black")]
     for name, (lon, lat) in Q_DISTRICTS.items():
@@ -119,8 +128,8 @@ def main() -> None:
             zorder=7,
         )
 
-    ax.set_xlim(bounds.left, bounds.right)
-    ax.set_ylim(bounds.bottom, bounds.top)
+    ax.set_xlim(VIEW_LON_MIN, VIEW_LON_MAX)
+    ax.set_ylim(VIEW_LAT_MIN, VIEW_LAT_MAX)
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.tick_params(labelsize=8)
