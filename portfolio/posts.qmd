@@ -9,4 +9,4 @@ listing:
   date-format: iso
 ---
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)
