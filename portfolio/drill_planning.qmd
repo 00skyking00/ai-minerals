@@ -4,7 +4,7 @@ subtitle: "POMDP planning with Monte Carlo Tree Search on the BC Golden Triangle
 sidebar: drill_planning
 ---
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)
 
 ## What this chapter is about
 
@@ -24,7 +24,7 @@ policies. The Bear Cub property-scale GP drill-site recommender
 that uses the same general idea at single-claim scale lives in
 [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
-![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](https://johnsondevco.com/ai-minerals/data/derived/bcgt/fig_pomcp_discovery_curves.png)
+![POMCP discovery curves on the BC Golden Triangle prior. Each line is a different policy; the y-axis is the fraction of true deposits drilled after k holes. POMCP recovers more of the prior's mass per hole than uncertainty-sampling or random baselines.](./data/derived/bcgt/fig_pomcp_discovery_curves.png)
 
 ## BCGT POMDP decision planning
 
@@ -43,17 +43,44 @@ et al., *Geosci. Model Dev.* 16:289, 2023). The setup:
 - **Policy** = POMCP (Monte Carlo Tree Search over the belief
   MDP).
 
-Three policies side-by-side on the same prior: random (uniform
-over unrevealed cells), greedy (drill the highest-prior cell), and
-POMCP. The POMCP planner gains roughly 10-15% in expected reward
-over greedy at modest planner-depth budgets, and substantially
-more at deeper budgets. The improvement is modest because the
-BCGT prior is high-information already (much of the variance is
-captured by the RF posterior), and because the v1.0
-i.i.d.-Bernoulli + noiseless-sensor assumptions limit how much
-MCTS rollouts can improve over a one-step-lookahead greedy. The
-v2.0 version (correlated draws and noisy sensors) would widen the
-gap.
+Four policies side-by-side on the same prior: random (uniform
+over unrevealed cells), greedy (drill the highest-prior cell),
+EOI (drill the cell that reduces uncertainty about the deposit
+indicator the most, per Caers et al. 2022,
+DOI [10.1007/s11053-022-10030-1](https://doi.org/10.1007/s11053-022-10030-1)),
+and POMCP. The result on this prior is that greedy and EOI tie
+and both outperform POMCP, which beats random only slightly. The
+greedy / EOI overlap is mechanical. Every BCGT cell sits below
+50% probability, where binary entropy is monotone increasing in p,
+so the hit-maximizing objective (greedy) and the
+information-maximizing objective (EOI) pick the same cell
+cell-by-cell.
+
+The greedy-beats-POMCP ordering looks counterintuitive but is
+structurally expected for this setup. With i.i.d. Bernoulli cells
+and a noiseless sensor, the optimal sequential policy IS one-step
+greedy: each drill collapses one cell's belief to truth and tells
+the model nothing about any other cell, so there is no multi-step
+lookahead value to extract. POMCP's MCTS rollouts spend planning
+budget exploring non-greedy actions (via UCB bonus) that have no
+expected payoff in this regime, and those exploration picks are
+what you see as the gap below the greedy curve. POMCP's planning
+machinery is the right tool for a different problem than the
+v1.0 setup gives it.
+
+The v2.0 extensions in Mern et al. 2024 ([arXiv 2410.10610](https://arxiv.org/abs/2410.10610))
+change that. Correlated draws (a Gaussian random field over the
+prior surface, thresholded) mean an observation does update
+neighbor priors, so multi-step lookahead becomes meaningful and
+POMCP's MCTS starts paying its way. Noisy sensors mean a drill
+observation returns a likelihood rather than collapsing a cell to
+truth, so planning over belief states becomes necessary. Once
+correlated updates push some neighbor priors above 0.5 the
+greedy / EOI overlap also breaks: greedy keeps drilling the
+high-probability cluster while EOI moves to the still-uncertain
+margins. The notebook ships a small v2.0 toy on a synthetic
+3-hypothesis prior demonstrating the belief-update mechanics
+including the all-hypotheses-wrong falsification case.
 
 ## What this piece does and doesn't establish
 
@@ -82,13 +109,19 @@ This is an early experiment at converting a regional probability
 surface into a hole-location decision. The BCGT POMDP runs on a
 prior covering thousands of square kilometers. The underlying
 notebook documents the v1.0 simplifications I made; the v2.0
-extensions in Mern et al. 2023 (correlated draws, noisy sensors)
-would widen the POMCP-vs-greedy gap. The property-scale
-counterpart of this idea, a GP drill-site recommender on the 24
-Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
+extensions in Mern et al. 2024 ([arXiv 2410.10610](https://arxiv.org/abs/2410.10610)) — correlated draws, noisy
+sensors, and multi-hypothesis falsification — would widen the
+POMCP-vs-greedy gap and let the planner detect when its
+geological hypotheses are wrong. The notebook ships a small
+toy implementation of the v2.0 belief-update mechanics on a
+synthetic 3-hypothesis prior, showing the posterior trajectory
+under each ground-truth scenario including the "all hypotheses
+wrong" falsification case. The property-scale counterpart of
+this idea, a GP drill-site recommender on the 24 Bear Cub
+holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
 ## Deeper notebooks
 
-- [BCGT POMDP decision planning](https://johnsondevco.com/ai-minerals/notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
+- [BCGT POMDP decision planning](./notebooks/bcgt/decision_planning.html): full notebook with POMCP implementation, random and greedy baselines, and the v1.0-vs-v2.0 limits discussion.
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)

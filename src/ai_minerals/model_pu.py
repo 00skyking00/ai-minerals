@@ -30,7 +30,8 @@ def fit_pu_bagging(
     random_state: int = 42,
     rf_kwargs: dict | None = None,
     n_negatives_override: int | None = None,
-) -> tuple[np.ndarray, list[str]]:
+    return_per_bag: bool = False,
+) -> tuple[np.ndarray, list[str]] | tuple[np.ndarray, list[str], np.ndarray]:
     """Fit a bagging PU ensemble and return out-of-bag probabilities for EVERY cell.
 
     `label_col` selects which binary positive-label column to train against
@@ -46,6 +47,14 @@ def fit_pu_bagging(
     weights, ceiled to int) rather than the integer positive count, which
     would otherwise oversample negatives when the positives are partially
     weighted.
+
+    `return_per_bag` (EW5 / Caers 2020 AutoBEL-style MC bracket): when True,
+    additionally returns a ``(n_bags, n_cells)`` array of per-bag predictions
+    over EVERY cell (not OOB-masked). Each bag's RF predicts on the full
+    grid; the per-bag array lets a downstream consumer compute MC quantiles
+    (P05 / P50 / P95) per cell as an empirical uncertainty bracket on the
+    PU ensemble. Default False keeps the existing two-tuple signature for
+    all current callers.
     """
     if label_col not in df.columns:
         raise KeyError(f"label_col {label_col!r} not in dataframe columns")
@@ -88,6 +97,10 @@ def fit_pu_bagging(
 
     proba_sum = np.zeros(len(df), dtype=np.float64)
     bag_count = np.zeros(len(df), dtype=np.int32)
+    per_bag = (
+        np.full((n_bags, len(df)), np.nan, dtype=np.float32)
+        if return_per_bag else None
+    )
 
     for b in range(n_bags):
         neg_sample = rng.choice(unl_idx, size=n_neg, replace=False)
@@ -106,6 +119,14 @@ def fit_pu_bagging(
         proba_sum[oob] += clf.predict_proba(X_all[oob])[:, 1]
         bag_count[oob] += 1
 
+        if per_bag is not None:
+            # Predict on the WHOLE grid (not OOB-masked) so the per-bag matrix
+            # supports quantile aggregation per cell. Adds ~30% to per-bag
+            # wall-clock; only paid when the EW5 flag is set.
+            per_bag[b] = clf.predict_proba(X_all)[:, 1].astype(np.float32)
+
     with np.errstate(invalid="ignore"):
         proba = np.where(bag_count > 0, proba_sum / bag_count, np.nan)
+    if return_per_bag:
+        return proba, feat_cols, per_bag
     return proba, feat_cols
