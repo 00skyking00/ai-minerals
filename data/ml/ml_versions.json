@@ -1,0 +1,13 @@
+{
+  "_schema": "ai-minerals canonical ML version manifest. Goldbug reads this in place of parsing model rasters' filenames. Bare-semver strings (no 'v' prefix). Update when any listed model bumps version.",
+  "ai_minerals": "1.0.2",
+  "placer": "3.6.1",
+  "lode": "2",
+  "lookalike": "2",
+  "released": "2026-06-09",
+  "notes": {
+    "placer": "v3.6.1 = v3.6 model with sidecars (coverage_mask + bands.json + 2-band split). No model retrain. Next bump v3.7.0 = Mother-Lode-wide Quaternary retrain, ETA 2026-06-15.",
+    "lode": "Mother Lode lode-Au RF (Cox-Singer porphyry + orogenic positives across CA). No version bump planned in v1.x.",
+    "lookalike": "Within-region similarity-based scoring used by goldbug. No version bump planned in v1.x."
+  }
+}
