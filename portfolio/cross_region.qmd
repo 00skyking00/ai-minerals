@@ -4,7 +4,7 @@ subtitle: "Five-region transferability test for the DEEP-SEAM deviation-network 
 sidebar: cross_region
 ---
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)
 
 ## What this chapter is about
 
@@ -21,7 +21,7 @@ its tuning dataset. Classical tree-based methods (Random Forest or
 gradient boosting) win on the other four by 7 to 37 percentage
 points of top-1% capture.
 
-![Top-1% capture rate by region: tree-based methods (green) win four of five regions; DEEP-SEAM (red) wins only its tuning dataset.](https://johnsondevco.com/ai-minerals/data/derived/portfolio_charts/cross_region_top1.png)
+![Top-1% capture rate by region: tree-based methods (green) win four of five regions; DEEP-SEAM (red) wins only its tuning dataset.](./data/derived/portfolio_charts/cross_region_top1.png)
 
 ## The five-region scorecard
 
@@ -99,7 +99,7 @@ claim that the new method is better.
 
 ## Deeper notebooks
 
-- [Cross-region four-cell deep dive](https://johnsondevco.com/ai-minerals/notebooks/cross_region/four_cell.html): the 2×2 controlled experiment design (DevNet/RF × DEEP-SEAM-style features / my raw features) across Curnamona / Tanacross / Arizona.
-- [US Carbonatite REE within-niche transfer test](https://johnsondevco.com/ai-minerals/notebooks/prospectus/us_carbonatite_ree.html): full writeup of the row-2 within-niche falsification.
+- [Cross-region four-cell deep dive](./notebooks/cross_region/four_cell.html): the 2×2 controlled experiment design (DevNet/RF × DEEP-SEAM-style features / my raw features) across Curnamona / Tanacross / Arizona.
+- [US Carbonatite REE within-niche transfer test](./notebooks/prospectus/us_carbonatite_ree.html): full writeup of the row-2 within-niche falsification.
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)

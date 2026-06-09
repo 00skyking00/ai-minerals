@@ -106,6 +106,31 @@ rsync -avz --delete --delete-excluded --progress \
   data/derived/us_carbonatite_ree \
   "${REMOTE_HOST}:${REMOTE_DIR}/data/derived/"
 
+# Beta-target URL rewrite. Quarto bakes site-url
+# (https://johnsondevco.com/ai-minerals/, from portfolio/_quarto.yml) into
+# OG / canonical / sitemap entries, and any absolute prod URL that ever
+# slipped into a chapter qmd lands in the rendered HTML too. On a beta
+# deploy those URLs send a recruiter / reviewer back to prod instead of
+# the beta page they're looking at. Rewrite them in place on the remote
+# after rsync — keeps the local _site/ untouched so a subsequent prod
+# deploy is byte-identical to what was reviewed on beta.
+#
+# Pattern is the literal string `johnsondevco.com/ai-minerals/` (with the
+# trailing slash). The substitution is idempotent: rerunning on already-
+# rewritten content does nothing because `/ai-minerals-beta/` doesn't
+# contain `/ai-minerals/` as a substring (the char after `/ai-minerals`
+# is `-`, not `/`).
+if [ "${SUBPATH}" = "ai-minerals-beta" ]; then
+  echo
+  echo "==> Rewriting prod URLs -> beta URLs in served HTML/JSON/XML"
+  # First pass: plain literal URLs.
+  ssh "${REMOTE_HOST}" "find ${REMOTE_DIR}/ -type f \\( -name '*.html' -o -name '*.json' -o -name '*.xml' \\) -exec sed -i 's|johnsondevco.com/ai-minerals/|johnsondevco.com/ai-minerals-beta/|g' {} +"
+  # Second pass: JS-escaped form (\\/ instead of /). Quarto embeds the
+  # site-url in a nav-bar active-link RegExp as `https:\/\/johnsondevco\.com\/ai-minerals\/`.
+  # Without this pass, beta pages don't highlight the active nav entry.
+  ssh "${REMOTE_HOST}" "find ${REMOTE_DIR}/ -type f -name '*.html' -exec sed -i 's#ai-minerals\\\\/#ai-minerals-beta\\\\/#g' {} +"
+fi
+
 # Make every served asset revalidate so a deploy is visible immediately
 # instead of being masked by Hostinger's default ~7-day cache. The site is
 # under active development; chapter prose AND figures (PNGs, charts,
