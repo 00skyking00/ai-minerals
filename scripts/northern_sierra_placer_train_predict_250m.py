@@ -525,6 +525,7 @@ def train_one_population(
     nhd: gpd.GeoDataFrame | None,
     grid,
     drop_motherlode_prob: bool = False,
+    nnpu_prior_override: float | None = None,
 ) -> dict:
     """Run PU -> RF -> LGBM -> stacking -> calibration for one population.
 
@@ -663,20 +664,35 @@ def train_one_population(
     # fully labeled). The stage checkpoint key is unchanged
     # (`{pop}__pu`) so resumed runs pick up the right cached result. ---
     if pop == "placer_quaternary":
+        # Estimate the nnPU class prior from the observed labeled-positive
+        # rate. v3.6 used a hardcoded prior=0.0007 matching the 437 MRDS-
+        # derived positives. v3.7 has ~8,300 channel-kernel-derived
+        # positives (rate ~1%), so the prior must scale or nnPU's
+        # non-negative risk clamp produces degenerate output. Default
+        # behavior: prior = observed labeled-positive rate, capped at a
+        # plausible domain ceiling of 0.05 (5% of AOI cells being truly
+        # placer is an upper bound for the Sierra alluvial belt).
+        nnpu_prior = nnpu_prior_override
+        if nnpu_prior is None:
+            observed_rate = float((df_oh_train[label_col] > 0).mean())
+            nnpu_prior = min(observed_rate, 0.05)
+            print(f"[{pop}] nnPU prior auto-estimated from "
+                  f"observed_rate={observed_rate:.4f} -> prior={nnpu_prior:.4f}",
+                  flush=True)
         def _nnpu():
-            print(f"[{pop}] nnPU training (Kiryo 2017, prior=0.0007)...", flush=True)
+            print(f"[{pop}] nnPU training (Kiryo 2017, prior={nnpu_prior})...", flush=True)
             t0 = time.time()
             from ai_minerals.model_nnpu import fit_nnpu_quaternary
             p_train, _ = fit_nnpu_quaternary(
                 df_oh_train, label_col=label_col,
-                feature_cols=feat_cols, prior=0.0007,
+                feature_cols=feat_cols, prior=nnpu_prior,
                 random_state=42,
             )
             print(f"[{pop}]   nnPU train done in {(time.time()-t0)/60:.1f} min",
                   flush=True)
             p_full, _ = fit_nnpu_quaternary(
                 df_oh_full, label_col=label_col,
-                feature_cols=feat_cols, prior=0.0007,
+                feature_cols=feat_cols, prior=nnpu_prior,
                 random_state=42,
             )
             return {"p_pu_train": p_train, "p_pu_full": p_full}
@@ -1065,6 +1081,17 @@ def main(argv: list[str] | None = None) -> int:
              "held-out, and SHAP top-features to decide whether the "
              "transitive motherlode feature actually helps.",
     )
+    parser.add_argument(
+        "--nnpu-prior",
+        type=float,
+        default=None,
+        help="Override the nnPU class prior for Quaternary training. "
+             "Default (None) auto-estimates from the observed labeled-"
+             "positive rate, capped at 0.05. v3.6 used a hardcoded "
+             "0.0007 matching 437 MRDS positives; v3.7 channel-kernel "
+             "labels produce ~1% observed rate so the prior must scale "
+             "or nnPU's non-negative risk clamp produces degenerate output.",
+    )
     args = parser.parse_args(argv)
 
     if not args.features.exists():
@@ -1122,6 +1149,7 @@ def main(argv: list[str] | None = None) -> int:
             nhd=nhd,
             grid=grid,
             drop_motherlode_prob=args.no_motherlode_prob,
+            nnpu_prior_override=args.nnpu_prior,
         )
         _write_outputs(df, pop, result)
 
