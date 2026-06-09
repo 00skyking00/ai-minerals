@@ -829,10 +829,69 @@ def _build_placer_columns(
     return df
 
 
-def assemble(*, resolution_m: int, augment_osm_mining: bool = False) -> pd.DataFrame:
-    """Build the per-cell placer feature frame and return it."""
+def _inject_v37_quaternary_kernel(
+    df: pd.DataFrame,
+    *,
+    kernel_parquet: Path,
+    threshold: float,
+) -> pd.DataFrame:
+    """Overwrite Quaternary labels with the v3.7 USMIN channel-aligned kernel.
+
+    Loads the per-cell weight parquet produced by
+    `scripts/northern_sierra_placer_relabel_motherlode.py` and joins by
+    (row, col) onto df. Replaces:
+      - `placer_quaternary_weight` (float, [0, 1]) for sample_weight training
+      - `is_placer_quaternary` = (weight > threshold) (binary)
+
+    Mirrors the v3.6 Tertiary polygon-rasterization pattern.
+    """
+    df = df.copy()
+    print(f"[assemble] v3.7 Quaternary relabel: loading {kernel_parquet.name}")
+    kernel = pd.read_parquet(kernel_parquet)
+    print(f"[assemble]   kernel: {len(kernel):,} cells with weight > 0")
+
+    # Reset Quaternary columns; the v3.6 MRDS-based work is overwritten.
+    df["placer_quaternary_weight"] = np.float32(0.0)
+    # Join by (row, col)
+    merged = df.merge(
+        kernel[["row", "col", "weight"]],
+        on=["row", "col"],
+        how="left",
+    )
+    merged["weight"] = merged["weight"].fillna(0.0).astype(np.float32)
+    df["placer_quaternary_weight"] = merged["weight"].to_numpy()
+    df["is_placer_quaternary"] = (df["placer_quaternary_weight"] > threshold).astype(np.int64)
+
+    n_binary = int(df["is_placer_quaternary"].sum())
+    weight_sum = float(df["placer_quaternary_weight"].sum())
+    weight_max = float(df["placer_quaternary_weight"].max())
+    print(f"[assemble]   v3.7 Quaternary: {n_binary:,} binary positives "
+          f"(weight > {threshold}), effective_positives={weight_sum:.1f}, "
+          f"max_weight={weight_max:.4f}")
+    return df
+
+
+def assemble(
+    *,
+    resolution_m: int,
+    augment_osm_mining: bool = False,
+    placer_version: str = "v36",
+    v37_kernel_parquet: Path | None = None,
+    v37_quaternary_threshold: float = 0.5,
+) -> pd.DataFrame:
+    """Build the per-cell placer feature frame and return it.
+
+    `placer_version`:
+      - "v36": shipped behavior. MRDS-based Quaternary labels, v3.6
+        polygon-rasterized Tertiary.
+      - "v37": Tertiary unchanged from v3.6; Quaternary swapped from
+        MRDS-derived to USMIN channel-aligned kernel weights produced
+        by scripts/northern_sierra_placer_relabel_motherlode.py.
+        `v37_kernel_parquet` and `v37_quaternary_threshold` are required.
+    """
     t0 = time.time()
-    print(f"[assemble] base frame ({REGION.slug}, resolution={resolution_m} m)")
+    print(f"[assemble] base frame ({REGION.slug}, resolution={resolution_m} m, "
+          f"placer_version={placer_version})")
     df = build_feature_frame(REGION, resolution_m=resolution_m)
 
     assert "is_placer_tertiary" in df.columns, (
@@ -864,6 +923,19 @@ def assemble(*, resolution_m: int, augment_osm_mining: bool = False) -> pd.DataF
         augment_osm_mining=augment_osm_mining,
     )
 
+    if placer_version == "v37":
+        if v37_kernel_parquet is None or not v37_kernel_parquet.exists():
+            raise FileNotFoundError(
+                f"placer_version=v37 requires --v37-kernel-parquet pointing at "
+                f"a valid file (got {v37_kernel_parquet}). Run "
+                f"scripts/northern_sierra_placer_relabel_motherlode.py first."
+            )
+        df = _inject_v37_quaternary_kernel(
+            df,
+            kernel_parquet=v37_kernel_parquet,
+            threshold=v37_quaternary_threshold,
+        )
+
     df = _build_placer_columns(df, resolution_m=resolution_m)
 
     elapsed_min = (time.time() - t0) / 60.0
@@ -892,16 +964,40 @@ def main(argv: list[str] | None = None) -> int:
             "ODbL; model card must attribute (c) OpenStreetMap contributors."
         ),
     )
+    parser.add_argument(
+        "--placer-version", choices=["v36", "v37"], default="v36",
+        help=(
+            "v36 (default) ships the v3.6 MRDS-based Quaternary labels. "
+            "v37 swaps Quaternary to the USMIN channel-aligned Gaussian "
+            "kernel weights from "
+            "data/derived/northern_sierra_placer/v37_quaternary_kernel_weights.parquet. "
+            "Tertiary is unchanged in both versions."
+        ),
+    )
+    parser.add_argument(
+        "--v37-kernel-parquet", type=Path,
+        default=DATA_DERIVED / "northern_sierra_placer" / "v37_quaternary_kernel_weights.parquet",
+        help="Kernel weights parquet from northern_sierra_placer_relabel_motherlode.py.",
+    )
+    parser.add_argument(
+        "--v37-quaternary-threshold", type=float, default=0.5,
+        help="Binary positive threshold on the v3.7 kernel weight (default: 0.5).",
+    )
     args = parser.parse_args(argv)
 
+    # Tag v3.7 outputs so the v3.6 parquet stays addressable side-by-side.
+    suffix = "_v37" if args.placer_version == "v37" else ""
     out_path = args.out or (
-        DATA_DERIVED / f"features_{REGION.data_prefix}_{args.resolution_m}m.parquet"
+        DATA_DERIVED / f"features_{REGION.data_prefix}_{args.resolution_m}m{suffix}.parquet"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     df = assemble(
         resolution_m=args.resolution_m,
         augment_osm_mining=args.augment_osm_mining,
+        placer_version=args.placer_version,
+        v37_kernel_parquet=args.v37_kernel_parquet,
+        v37_quaternary_threshold=args.v37_quaternary_threshold,
     )
     df.to_parquet(out_path, index=False)
     print(f"wrote {out_path} ({len(df):,} rows × {len(df.columns)} cols)")
