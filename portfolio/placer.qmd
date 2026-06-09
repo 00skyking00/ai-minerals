@@ -35,6 +35,23 @@ probability raster. The deliverable feeds Chapter 3 (goldbug); the sibling
 Cape Nome property in Chapter 1 (Bear Cub) is different geology and a
 different audience but shares the population-level reasoning.
 
+Two caveats to surface up front so the headline numbers below are
+read correctly. First, the v3.6 Tertiary out-of-fold AUC of 0.993 and
+anchor-capture AUC-PA of 0.998 include 7 to 15 percentage points of
+polygon-rasterization neighbor-cell inflation. The Tertiary positive
+labels are the 158 Orlando hydraulic-pit polygons rasterized to the
+250 m grid (~2,700 weighted cells); cells immediately adjacent to a
+positive inherit the same feature values, and the model learns that
+neighborhood. The leak-free Tertiary AUC sits in the 0.85 to 0.97
+range. The Quaternary AUC-PA of 0.840 is not affected by this
+mechanism and is the population-level transfer-honest number. Second,
+this is a northern-Sierra-only model. The training labels concentrate
+north of 39° latitude. Cells in the southern Mother Lode (Tuolumne,
+Mariposa, Calaveras) score near the raster floor because the model
+has not seen southern Quaternary signal. The v3.7.0 retrain
+expanding the Quaternary classifier to the full Mother Lode is
+queued.
+
 ## What got built
 
 **Phase 1 knowledge-driven index.** I ported the USGS Alaska watershed scorer
@@ -372,6 +389,7 @@ biggest unanswered concern first.
 - **Whether the model generalizes across the Sierra belt, not just inside Northern Sierra:** run `scripts/northern_sierra_placer_calaveras_transfer.py` (scripted but not yet executed) to train on Northern Sierra v3.6 calibrated labels and score the Mother Lode / Calaveras County AOI cell-for-cell. Compare to the Mother Lode v3 stacking OOF (0.85) for a within-province transfer-loss number; the Klamath cross-province test scored 0.58 on the lode side. Calaveras is the same orogenic-Au belt but a different watershed system.
 - **Whether v3.6 stays calibrated at the operational top-X% probability bins goldbug actually consumes:** stratified Brier score and per-bin ECE at the top 1% / 5% / 10% probability quantiles separately per population, instead of the overall ECE we already report (Tertiary post-calibration 0.004, Quaternary post-calibration 0.000). Overall ECE can mask tail mis-calibration where the highest-confidence predictions diverge from the observed positive rate.
 - **Whether the per-fold Hawkes refold (`refold_hawkes=True`) actually prevents the contagion leakage it was designed to prevent:** ablate to `refold_hawkes=False` on v3.6 Tertiary, compare per-fold AUC distributions and SHAP attributions on `catchment_au_hawkes`. If the refold is doing its job, refold-off should show higher in-fold AUC (leakage helps inside the fold) but worse Lindgren PP73 blind-set top-decile capture (true generalization gets worse when the leakage path is open).
+- **Whether channel-scale features computed on a finer DEM than the current 30 m paleochannel composite would close the v3.6 Quaternary gap:** the v3 paleochannel-likelihood feature uses a 30 m internal resolution downsampled from native 1 m 3DEP LIDAR; the other DEM derivatives (slope, TPI, TWI, ksn) are computed on a 90 m baseline. Five queued channel-scale features need 10 m DEM input to encode anything new: chi-mapping knickpoint indicator (Mudd 2014 channel-steepness method, picks up bedrock-confined reaches), paleochannel-confluence proximity (where two paleo-flow paths join), bedrock-confined NHD reaches (where modern channels intersect mapped bedrock outcrop), NHDPlus VAA connectivity (the value-added-attribute network distance to a known placer record along the flow graph), and along-channel gradient discontinuity (where slope changes mid-reach, the classic placer-trap site). All are tiled-compute jobs that produce a single per-cell scalar at 250 m grid resolution; they go into placer-v3.8.0. The model itself stays on the 250 m training grid because 10 m would be ~625× more cells, which pushes per-fold training from ~14 hours to weeks.
 
 ## Where to look
 
