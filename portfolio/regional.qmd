@@ -4,7 +4,7 @@ subtitle: "Mineral prospectivity on public open data: four regions, four deposit
 sidebar: regional
 ---
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)
 
 ## What this chapter is about
 
@@ -19,7 +19,7 @@ bootstrap confidence intervals on AUC and top-k% capture rates. Each
 region is its own geologically distinct problem and tests whether
 the approach holds up.
 
-![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 ARDF porphyry positives held out for evaluation.](https://johnsondevco.com/ai-minerals/data/derived/eastak/fig_prospectivity_tanacross.png)
+![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 ARDF porphyry positives held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
 
 ## Headline results
 
@@ -109,6 +109,91 @@ terrain near training positives, so they look equally prospective to
 a model that learned exploration history as much as it learned ore
 geology.
 
+## Going wider on BCGT: dh2loop and the Loop3D bridge
+
+The 366 post-2015 collars above are a slice of a much larger
+dataset. The full BCGS Assessment Report Drillhole Database (GeoFile
+2025-11) contains 6,460 collars going back to 1985, with 107k
+lithology intervals and 5.5M long-format geochemical assays across
+121k samples. That makes it the public Canadian analog of the
+Western Australia WAMEX archive that KoBold's TerraShed ingests at
+industrial scale.
+
+To use this data for anything beyond the per-element maxima feature
+table the prospectivity model already consumes, the operator-format
+records need a translation step. dh2loop 1.0 (Joshi et al. 2021,
+[GMD 14:6711](https://doi.org/10.5194/gmd-14-6711-2021)) is the
+Loop3D consortium's drillhole adapter: it produces standardized
+Collar, Survey, and Lithology tables that LoopStructural, map2loop,
+and the wider Loop3D 3D-modeling stack expect as input. I wrote
+`scripts/bcgs_to_dh2loop.py` to ingest the BCGS relational
+GeoPackage, reproject collars from five source UTM zones to a common
+BC Albers grid (EPSG:3005), and write the four dh2loop-format
+tables.
+
+![BCGS drillholes converted to dh2loop format and rendered for the BCGT AOI. Left: 1,225 collars with their elevations, showing the topographic relief the dataset spans. Right: bedrock-top elevation surface, interpolated from per-hole contact depths inferred from the lithology table.](./data/derived/bcgt/fig_bcgs_bedrock_plate.png)
+
+Two findings from the conversion are worth being explicit about.
+
+First, BCGS lithology entries are operator-format text — and dirty.
+The 107,326 intervals are logged under 2,024 distinct strings.
+Operators use seven distinct codes for overburden alone (`OVB`,
+`OVBD`, `OB`, `OVER`, `Overburden`, plus mixed-case variants), four
+for drill casing (`WCAS`, `CAS`, `CASN`, `CASE`), and a long tail of
+acronyms (`TFML`, `AXXX`, `MNZD`, `KMZ`, `AnLAT`, `PMFP`) whose
+meaning depends on which contractor logged the hole.
+
+The dh2loop 757-term thesaurus exists precisely to normalize this
+vocabulary. I applied it in two stages: a hand-built BCGS-specific
+decoder for the operator shorthand we can confidently expand
+(`OVB` → overburden, `MNZD` → monzodiorite, `DDRT` → diorite),
+followed by the dh2loop hierarchical thesaurus via rapidfuzz
+fuzzy-matching for the plain-English geological terms. The combined
+pipeline standardizes **66.6% of the 107,326 intervals** (71,499
+rows) into the dh2loop `Detailed_Lithology / Lithology_Subgroup /
+Lithology_Group` triple. The remaining 33% is opaque operator-specific
+shorthand whose decoding needs per-contractor decoder keys that
+neither BCGS nor dh2loop ships. The normalized table is at
+`data/derived/bcgs_dh2loop/Lithology_normalized.csv`; the script
+is `scripts/bcgs_thesaurus_pass.py`. A discovery from this iteration:
+dh2loop's `thesaurus_geology_lithology_code.csv` is WAMEX-specific
+(per-company code lookup from Western Australian records); only one
+of the 27 BCGS-AOI top-25 codes matches it directly. The hierarchical
+thesaurus is portable because it matches on plain English; the
+per-company code lookup is not.
+
+Second, the LoopStructural piece needs more than dh2loop tables.
+LoopStructural's implicit-foliation interpolator wants authentic
+structural orientation observations (strike / dip vectors at known
+locations), which a dh2loop Lithology table doesn't carry. The BCGS
+GeoFile doesn't ship downhole-deviation surveys or per-interval
+structural attitudes either. I tried fitting the bedrock-top surface
+with LoopStructural by giving it synthetic horizontal orientations
+at each contact point, which is mathematically incoherent: the
+foliation degenerated to a near-constant z-value around 8 m above
+sea level, ignoring the actual contact elevations (which span 526
+to 1655 m across the AOI). The figure above uses scipy's
+thin-plate-spline RBF interpolator instead, which is the appropriate
+tool for the "estimate z from scattered (x, y, z) observations
+without orientation data" problem this dataset actually presents.
+LoopStructural becomes the right tool when the next iteration on
+this thread adds correlated-prior and multi-hypothesis machinery
+(D.6.B in the project's long-term plan).
+
+The forward-looking value of the converted dataset is the pre/post-2010
+collar split it enables. Inside the BCGT AOI, 230 collars were
+drilled before 2010 and 744 in the 2010 to 2020 window.
+
+![BCGS drillhole density inside the BCGT AOI, pre-2010 (left, n = 230) and 2010 to 2020 (right, n = 744). The exploration footprint shifted southeast over the decade, concentrating in what became the modern porphyry-epithermal corridor (the 140-collars-per-hex cluster is the KSM-Brucejack project area). This is the substrate for the D.6.B retrospective validation: the left pattern is what the v2.0 POMDP planner gets to train on; the right pattern is what it has to predict.](./data/derived/bcgt/fig_bcgs_drill_density_split.png)
+
+The substrate is now ready for a retrospective validation
+experiment of the v2.0 POMDP planner from
+[Chapter 7](drill_planning.qmd): train the prior on pre-2010
+positives, ask the planner which cells to drill next, and compare
+its recommendations against the cells operators actually drilled in
+the 2010 to 2020 window. The dh2loop tables are at
+`data/derived/bcgs_dh2loop/` ready for that experiment.
+
 ## The Mother Lode v3.1 increment
 
 Mother Lode shipped as v3 in April 2026 with an AUC of 0.85 under
@@ -187,9 +272,9 @@ calibration on a 250 m grid). It now lives in its own chapter; see
 
 ## Deeper notebooks
 
-- [Eastern Alaska v1 integrated report](https://johnsondevco.com/ai-minerals/notebooks/eastak/eastak_porphyry_prospectivity.html): full pipeline plus Kenorland blind test diagnostic.
-- [BC Golden Triangle v2 integrated report](https://johnsondevco.com/ai-minerals/notebooks/bcgt/bcgt_porphyry_prospectivity.html): 154-positive blind-drill validation against post-2015 holes.
-- Mother Lode: [v3.1 improvements (8 experiments)](https://johnsondevco.com/ai-minerals/notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](https://johnsondevco.com/ai-minerals/notebooks/motherlode/data_exploration.html).
-- [Arizona v4 integrated report](https://johnsondevco.com/ai-minerals/notebooks/arizona/main.html): Cox-Singer-cleaned 191-positive porphyry-Cu set with 4-cell DEEP-SEAM-style methodology comparison.
+- [Eastern Alaska v1 integrated report](./notebooks/eastak/eastak_porphyry_prospectivity.html): full pipeline plus Kenorland blind test diagnostic.
+- [BC Golden Triangle v2 integrated report](./notebooks/bcgt/bcgt_porphyry_prospectivity.html): 154-positive blind-drill validation against post-2015 holes.
+- Mother Lode: [v3.1 improvements (8 experiments)](./notebooks/motherlode/v3p1_improvements.html), [v3 data exploration](./notebooks/motherlode/data_exploration.html).
+- [Arizona v4 integrated report](./notebooks/arizona/main.html): Cox-Singer-cleaned 191-positive porphyry-Cu set with 4-cell DEEP-SEAM-style methodology comparison.
 
-[← back to portfolio map](https://johnsondevco.com/ai-minerals/)
+[← back to portfolio map](index.html)
