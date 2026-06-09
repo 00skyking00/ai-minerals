@@ -116,12 +116,15 @@ deep-gravel belt at 250 m resolution, then added a supervised pass
 calibration) on top, run as two separate classifiers because Tertiary
 deep-gravel (pay strata on hillside benches above the modern drainage)
 and Quaternary modern-channel placer have different geomorphic
-signatures. The Phase 1 anchor-district gate passes 7 of 7 with a
-held-out Lindgren PP73 secondary set matching the anchor median; v2
-Tertiary stacking reaches OOF AUC 0.961 with the model-disagreement
-between RF (0.995) and LightGBM (0.804) telling the leakage-care
-story. The calibrated raster feeds the goldbug live tool for
-per-claim sampling.
+signatures. The Phase 1 anchor-district gate passes 7 of 7; v3.6
+Tertiary stacking reaches OOF AUC 0.993 with anchor-capture AUC-PA
+of 0.998, though 7 to 15 percentage points of that figure is
+polygon-rasterization neighbor-cell inflation (the leak-free
+Tertiary AUC sits in the 0.85 to 0.97 range). The Quaternary
+AUC-PA of 0.840 is the population-level transfer-honest read. The
+calibrated raster feeds the goldbug live tool for per-claim
+sampling. v3.7.0 broadening the Quaternary classifier from the
+northern Sierra to the full Mother Lode is queued.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Tertiary placer-Au prospectivity, percentile rank of calibrated probability](data/derived/portfolio_charts/thumbs/ch4_placer.png)](placer.qmd)
