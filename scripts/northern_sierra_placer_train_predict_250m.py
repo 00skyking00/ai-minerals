@@ -626,14 +626,21 @@ def train_one_population(
     tert_sample_weight: np.ndarray | None = None
     if pop == "placer_tertiary":
         if "placer_tertiary_weight" in df_oh_train.columns:
-            tert_sample_weight = (
-                df_oh_train["placer_tertiary_weight"]
-                .to_numpy(dtype=np.float32)
-            )
-            print(f"[{pop}] v3.6 sample weights from placer_tertiary_weight: "
-                  f"sum={float(tert_sample_weight.sum()):.2f}, "
-                  f"max={float(tert_sample_weight.max()):.3f}, "
-                  f"nonzero={int((tert_sample_weight > 0).sum()):,}",
+            # The polygon-rasterization weight column is 1.0 inside polygons,
+            # 0.5 in the edge buffer, 0.0 everywhere else. Passing the raw
+            # column as `sample_weight` zeros out every negative row, which
+            # collapses training to positives only and produces a degenerate
+            # constant raster. Lift negatives to 1.0 so they contribute to the
+            # loss at full weight; the polygon weights still up- or down-weight
+            # positives relative to each other (interior 1.0 vs buffer 0.5).
+            raw_w = df_oh_train["placer_tertiary_weight"].to_numpy(dtype=np.float32)
+            tert_sample_weight = np.where(raw_w > 0.0, raw_w, 1.0).astype(np.float32)
+            print(f"[{pop}] v3.6 sample weights from placer_tertiary_weight "
+                  f"(negatives lifted to 1.0): "
+                  f"raw_sum={float(raw_w.sum()):.2f}, "
+                  f"lifted_sum={float(tert_sample_weight.sum()):.2f}, "
+                  f"pos_cells={int((raw_w > 0).sum()):,}, "
+                  f"neg_cells={int((raw_w == 0).sum()):,}",
                   flush=True)
         else:
             # Backwards-compat with v3 (pre-3.6) assemble output: leave

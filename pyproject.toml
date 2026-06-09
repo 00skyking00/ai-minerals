@@ -54,6 +54,16 @@ dependencies = [
 [project.optional-dependencies]
 boost = ["xgboost>=2.1", "lightgbm>=4.5"]
 dev = ["ruff>=0.7", "pytest>=8"]
+# Normalizing flows for Masked Autoregressive Flow geochemical anomaly
+# detection (Scheidt et al. 2024, DOI 10.1007/s11053-024-10409-2). Used by
+# scripts/northern_sierra_placer_maf_geochem_anomaly.py + model_maf_anomaly.py.
+flows = ["normflows>=1.7"]
+# Loop3D implicit 3D structural modelling. LoopStructural consumes
+# dh2loop-format Collar/Survey/Lithology CSVs (produced by
+# scripts/bcgs_to_dh2loop.py) and renders a probabilistic 3D bedrock
+# surface. Used by the BCGT Chapter 2 D.6.A enhancement (Joshi et al. 2021,
+# DOI 10.5194/gmd-14-6711-2021).
+loop3d = ["loopstructural>=1.6", "rapidfuzz>=3.9"]
 # Phase 2/D paleochannel hydrology: bulky native deps used only by
 # features/hydrology.py (Whitebox flow-routing), features/paleochannel.py
 # (RiverREM + LRM + GMI composite), and the geomorphon terrace classifier

@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.insert(0, str(Path('../../src').resolve()))
 from ai_minerals.decision import (
-    DrillingProblem, GreedyPolicy, POMCPPolicy, RandomPolicy,
+    DrillingProblem, EOIPolicy, GreedyPolicy, POMCPPolicy, RandomPolicy,
     load_subarea_prior, sample_ground_truth, simulate_policy,
 )
 
@@ -127,12 +127,19 @@ plt.tight_layout()
 plt.show()
 ```
 
-## Three policies
+## Four policies
 
 - **Random** — pick an un-drilled cell uniformly at random.
 - **Greedy** — pick the un-drilled cell with the highest current
   posterior probability (after collapsing already-drilled cells to
   their observed truth).
+- **EOI** (Efficacy of Information; [Caers et al. 2022][caers-eoi]) —
+  pick the un-drilled cell whose drilling is expected to reduce
+  uncertainty on the deposit indicator the most. Under the v1.0
+  noiseless-independent setup, EOI(c) reduces to the binary entropy
+  $h_2(p_c)$ of the prior at cell $c$, and the argmax becomes
+  **uncertainty sampling**: drill the cell whose prior is closest
+  to 0.5.
 - **POMCP** — Partially Observable Monte Carlo Planning, via
   [`pomdp_py`][pomdp-py] (Brown H2R Lab, v1.3.5.1). Per-step it draws
   particle samples of the joint state from the per-cell Bernoulli
@@ -140,13 +147,52 @@ plt.show()
   the recommended next cell.
 
 [pomdp-py]: https://github.com/h2r/pomdp-py
+[caers-eoi]: https://doi.org/10.1007/s11053-022-10030-1
 
 ```{python}
 #| label: policies
 print("Policies:")
 print("  RandomPolicy()      — uniform over un-drilled cells")
 print("  GreedyPolicy()      — argmax(posterior) over un-drilled cells")
+print("  EOIPolicy()         — argmax(h2(posterior)) — uncertainty sampling")
 print("  POMCPPolicy(planning_time=0.2s, max_depth=3, n_particles=60)")
+```
+
+### The EOI surface vs the prior
+
+EOI scores cells by how much an observation there is expected to reduce
+uncertainty about the deposit indicator at that cell. Under v1.0
+assumptions (noiseless observation collapses the posterior to 0/1),
+this reduces to the binary entropy of the prior.
+
+```{python}
+#| label: eoi-surface
+#| fig-cap: "Left: the RF prior $p_c$ on the working subarea (same as above, reproduced for comparison). Right: the binary entropy $h_2(p_c)$ — i.e. EOI under v1.0 assumptions. The RF prior is highly skewed below 0.5, so $h_2$ tracks $p$ monotonically: cells with high prior are also cells the model is least sure about. Greedy and EOI consequently pick the same cells in this regime. The two policies would diverge if the prior had cells exceeding 0.5 (which happens once neighbor updates from a v2.0 correlated prior push some cells past the 50% boundary)."
+from ai_minerals.decision import binary_entropy
+
+eoi_vals = binary_entropy(sub.p_prior.values)
+eoi_grid = np.full((ny, nx), np.nan)
+for k, row in sub.iterrows():
+    i = ys.index(row.y); j = xs.index(row.x)
+    eoi_grid[i, j] = eoi_vals[k]
+
+fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+im0 = axes[0].imshow(prior_grid[::-1], cmap='magma', aspect='equal')
+axes[0].set_title('RF posterior $p_c$')
+plt.colorbar(im0, ax=axes[0], fraction=0.04, pad=0.02)
+im1 = axes[1].imshow(eoi_grid[::-1], cmap='viridis', aspect='equal')
+axes[1].set_title('EOI: $h_2(p_c)$ (bits)')
+plt.colorbar(im1, ax=axes[1], fraction=0.04, pad=0.02)
+for ax in axes:
+    ax.set_xlabel('Cell column')
+    ax.set_ylabel('Cell row')
+plt.tight_layout()
+plt.show()
+
+print(f"Prior range:  {sub.p_prior.min():.4f} … {sub.p_prior.max():.4f}")
+print(f"EOI range:    {eoi_vals.min():.4f} … {eoi_vals.max():.4f} bits")
+print(f"Cells with prior > 0.5: {int((sub.p_prior > 0.5).sum())} of {len(sub)} "
+      f"(greedy and EOI disagree only when this count is non-zero)")
 ```
 
 ## Episode comparison
@@ -158,12 +204,16 @@ drill count, averaged over 25 ground-truth + RNG seeds.
 ```{python}
 #| label: episode-compare
 #| code-fold: true
+from ai_minerals.decision import binary_entropy
+
 N_SEEDS = 25
 HORIZON = 30
 curves: dict[str, np.ndarray] = {}
-for pol in (RandomPolicy(), GreedyPolicy(),
+eoi_per_step: dict[str, np.ndarray] = {}  # per-step EOI of the chosen cell
+for pol in (RandomPolicy(), GreedyPolicy(), EOIPolicy(),
             POMCPPolicy(planning_time=0.2, max_depth=3, n_particles=60)):
     cum = np.zeros((N_SEEDS, HORIZON + 1), dtype=int)
+    eoi_trace = np.full((N_SEEDS, HORIZON), np.nan)
     t0 = time.time()
     for seed in range(N_SEEDS):
         rng_gt = np.random.default_rng(1000 + seed)
@@ -178,22 +228,39 @@ for pol in (RandomPolicy(), GreedyPolicy(),
         if len(cs) < HORIZON + 1:
             cs = np.concatenate([cs, np.full(HORIZON + 1 - len(cs), cs[-1])])
         cum[seed] = cs
+        # Annotate per-step EOI: the binary entropy of the cell the policy
+        # chose, evaluated against the prior at choice time.
+        for k, a in enumerate(out['actions']):
+            eoi_trace[seed, k] = float(binary_entropy(sub.p_prior.values[a]))
     elapsed = time.time() - t0
     curves[pol.name] = cum
+    eoi_per_step[pol.name] = eoi_trace
     print(f"  {pol.name:>7s}: ran {N_SEEDS} seeds × {HORIZON} drills in {elapsed:.1f}s")
 ```
 
 ```{python}
 #| label: discovery-curves
-#| fig-cap: "Cumulative discoveries vs drill count, mean ± 1 std across 25 ground-truth realizations sampled from the same prior. Random discovers at the expected base rate (~1.5% of cells per drill); greedy and POMCP both exploit the prior and converge toward each other in this independent-Bernoulli setup."
+#| fig-cap: "Cumulative discoveries vs drill count, mean ± 1 std across 25 ground-truth realizations sampled from the same prior. Random discovers at the expected base rate (~1.5% of cells per drill); greedy, EOI, and POMCP all exploit the prior. On the BCGT prior — where every cell sits below 0.5 — EOI and greedy pick the same cells (binary entropy is monotone increasing on $[0, 0.5]$) and their discovery curves overlap exactly."
+from matplotlib import patheffects as pe
 fig, ax = plt.subplots(figsize=(9, 5.5))
-colors = {'random': '#888', 'greedy': '#1f77b4', 'pomcp': '#d62728'}
+# Greedy and EOI overlap exactly on the BCGT prior. Greedy drawn thick
+# blue underneath; EOI drawn thinner green dashed on top with explicit
+# zorder + a white halo (path_effects) so the dashes are unambiguous
+# against the thick blue. Same trick on the per-step EOI plate below.
+styles = {
+    'random': dict(color='#888',    linewidth=2,   linestyle='-',        zorder=2),
+    'greedy': dict(color='#1f77b4', linewidth=5,   linestyle='-',        zorder=3),
+    'eoi':    dict(color='#2ca02c', linewidth=2.5, linestyle=(0,(10,5)), zorder=10,
+                   path_effects=[pe.Stroke(linewidth=4.5, foreground='white'), pe.Normal()]),
+    'pomcp':  dict(color='#d62728', linewidth=2.5, linestyle='-',        zorder=4),
+}
 for name, cum in curves.items():
     mean = cum.mean(axis=0)
     std = cum.std(axis=0)
     xs = np.arange(HORIZON + 1)
-    ax.plot(xs, mean, label=name, color=colors[name], linewidth=2)
-    ax.fill_between(xs, mean - std, mean + std, alpha=0.15, color=colors[name])
+    st = styles[name]
+    ax.plot(xs, mean, label=name, **st)
+    ax.fill_between(xs, mean - std, mean + std, alpha=0.12, color=st['color'], zorder=1)
 ax.set_xlabel('Drill count')
 ax.set_ylabel('Cumulative discoveries')
 ax.set_title('Cumulative discoveries vs drill count\n'
@@ -205,10 +272,53 @@ plt.tight_layout()
 plt.show()
 ```
 
-Headline result: **greedy outperforms both random and POMCP** on this
-independent-Bernoulli noiseless-sensor setup. By drill 30, greedy
-discovers ~1.5 deposits on average vs. ~0.8 for POMCP and ~0.5 for
-random.
+### EOI per drill across policies
+
+The per-step EOI annotation — the binary entropy of the cell each policy
+chose at each drill, averaged over the 25 seeds — separates the
+hit-maximizing vs information-maximizing framings cleanly.
+
+```{python}
+#| label: eoi-per-step
+#| fig-cap: "Per-drill EOI (in bits) of the cell each policy chose, mean ± 1 std across 25 seeds. Random's mean EOI tracks the average prior entropy across the action space (~0.25 bits). Greedy and EOI overlap exactly on the BCGT prior because the prior never exceeds 0.5 — both policies are picking the same high-entropy cells. POMCP scatters around the greedy curve because its MCTS rollout sometimes picks a non-greedy action that, in this independent-cell regime, carries lower per-drill EOI."
+fig, ax = plt.subplots(figsize=(9, 5.5))
+for name in ('random', 'greedy', 'eoi', 'pomcp'):
+    trace = eoi_per_step[name]  # (N_SEEDS, HORIZON)
+    mean = np.nanmean(trace, axis=0)
+    std = np.nanstd(trace, axis=0)
+    xs = np.arange(HORIZON) + 1
+    st = styles[name]
+    ax.plot(xs, mean, label=name, **st)
+    ax.fill_between(xs, mean - std, mean + std, alpha=0.12, color=st['color'], zorder=1)
+ax.set_xlabel('Drill index')
+ax.set_ylabel('EOI of chosen cell (bits)')
+ax.set_title('Per-drill EOI by policy (Caers et al. 2022)')
+ax.legend(loc='upper right')
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+### Why greedy and EOI overlap on this prior
+
+The binary entropy $h_2(p)$ is monotone increasing on $[0, 0.5]$ and
+monotone decreasing on $[0.5, 1]$. The BCGT prior maxes out below 0.2
+on the 30×30 working subarea (see the printed range above): every cell
+sits in the rising half. So $\arg\max p = \arg\max h_2(p)$, and greedy
+and EOI produce identical action sequences cell-by-cell.
+
+The two policies would diverge if the prior had cells exceeding 0.5.
+That happens once a v2.0 setup activates: a correlated-prior model
+where observing a positive at cell $i$ pushes neighbor cells' posterior
+above 0.5, at which point further drilling near $i$ becomes high-hit
+but low-information (greedy stays, EOI moves away). The
+[long-term plan](../../../research/kobold_integration_longterm.md)
+section D.2.1 covers correlated draws as the next build.
+
+Headline result: **greedy and EOI overlap and both outperform random
+and POMCP** on this independent-Bernoulli noiseless-sensor setup. By
+drill 30, greedy and EOI both discover ~1.5 deposits on average vs.
+~0.8 for POMCP and ~0.5 for random.
 
 That ordering is structurally expected for *this* setup, and worth
 unpacking — it isn't a critique of POMCP, it's a property of the
@@ -219,21 +329,27 @@ problem we've handed it:
   changes nothing about other cells. There is no multi-step lookahead
   benefit to extract: the optimal action is always to drill the
   highest-prior remaining cell.
+- **EOI tracks greedy on this prior** because every BCGT cell sits
+  below 0.5, where binary entropy is monotone in $p$. The two policies
+  pick the same cells in this regime; the per-drill EOI annotation
+  above is what makes the equivalence visible.
 - **POMCP pays a constant cost for planning that greedy doesn't.**
   Per-step it builds a particle ensemble and runs MCTS; the
   exploration in the tree (via UCB) sometimes picks a non-greedy
   action that, in this independent-cell regime, was worse than the
   greedy pick.
-- **POMCP shines** in setups where (a) the prior is correlated, so an
-  observation updates beliefs about un-drilled cells; (b) there is a
-  meaningful STOP action with cumulative-reward semantics; (c) the
-  sensor is noisy and observations are evidence rather than ground
-  truth. None of these are present in our v1.0-faithful setup.
+- **POMCP and EOI both shine** in setups where (a) the prior is
+  correlated, so an observation updates beliefs about un-drilled cells;
+  (b) there is a meaningful STOP action with cumulative-reward
+  semantics; (c) the sensor is noisy and observations are evidence
+  rather than ground truth. None of these are present in our
+  v1.0-faithful setup. EOI in particular diverges from greedy as soon
+  as correlated updates push some neighbor priors above 0.5: greedy
+  keeps drilling them, EOI moves on.
 
-What this confirms: the framework is plumbed correctly. POMCP does not
-crash, does not regress below random, and produces interpretable action
-sequences. The methodological infrastructure is in place; lifting any
-of the next-section limitations would shift the balance toward POMCP.
+What this confirms: the framework is plumbed correctly for four
+policies. The methodological infrastructure is in place; lifting any
+of the next-section limitations would shift the balance among them.
 
 ## What this doesn't establish
 
@@ -263,8 +379,11 @@ of the next-section limitations would shift the balance toward POMCP.
   multi-step lookahead matters.
 - **Single hypothesis class.** Mern v2.0 plans across competing
   geological hypotheses and detects when one is falsified. We don't
-  have multiple hypothesis classes for BCGT, so we stay on v1.0
-  framing.
+  have multiple hypothesis classes for BCGT, so the main comparison
+  above stays on v1.0 framing. The
+  [hypothesis-falsification toy](#hypothesis-falsification-on-a-synthetic-prior)
+  section below demonstrates the v2.0 belief-update mechanics on a
+  synthetic 3-hypothesis prior.
 - **Action-space scale.** 900 cells is what fits in POMCP's planning
   budget; the full 108k-cell BCGT AOI does not. Real productized
   systems handle this with action-set pre-filtering plus hierarchical
@@ -273,6 +392,139 @@ of the next-section limitations would shift the balance toward POMCP.
 The notebook *is* the methodology working end-to-end on real BCGT
 geology. It establishes that decision-theoretic drill planning fits
 into the same code stack as the prospectivity-mapping pipeline.
+
+## Hypothesis-falsification on a synthetic prior
+
+Intelligent Prospector v2.0 ([Mern, Corso, Burch, House, Caers 2024,
+arXiv 2410.10610][mern2]) extends v1.0 by maintaining a belief over
+multiple competing geological hypotheses instead of a single fixed
+prior. After each drill, the hypothesis posterior updates by Bayes'
+rule. The trajectory of that posterior exposes two regimes — one
+hypothesis converging to certainty (correctly identified), or no
+hypothesis converging (all wrong, the falsification signal).
+
+This section is a toy demonstration of the v2.0 belief-update
+mechanics on a synthetic 3-hypothesis prior. The full
+production-scale falsification on the real BCGT prior is queued at
+section D.2.3 of the
+[long-term plan](../../../research/kobold_integration_longterm.md).
+
+```{python}
+#| label: hypothesis-setup
+#| code-fold: true
+from ai_minerals.decision import (
+    BeliefOverHypotheses, synthetic_vein_priors,
+)
+
+hset = synthetic_vein_priors(n_side=20, rng=np.random.default_rng(0))
+print(f"Hypotheses: {hset.names}")
+print(f"Grid: {hset.n_cells} cells, {hset.n_hypotheses} priors")
+for i, name in enumerate(hset.names):
+    p = hset.priors[i]
+    print(f"  H{i+1} {name:>14s}: min={p.min():.3f}, "
+          f"mean={p.mean():.3f}, max={p.max():.3f}")
+```
+
+```{python}
+#| label: hypothesis-priors-fig
+#| fig-cap: "Three competing deposit-indicator priors on a 20×20 toy subarea: NW-trending vein (left), NE-trending vein (middle), disseminated halo (right). Each is a different geological hypothesis. Each cell's value is the per-cell Bernoulli probability of a deposit under that hypothesis. Ground truth — sampled from one of the three — is what the planner uses its drill observations to identify."
+fig, axes = plt.subplots(1, 3, figsize=(13, 4.2))
+for i, (ax, name) in enumerate(zip(axes, hset.names)):
+    grid = hset.priors[i].reshape(20, 20)
+    im = ax.imshow(grid, cmap='magma', aspect='equal', vmin=0, vmax=0.5)
+    ax.set_title(f"H{i+1}: {name}")
+    plt.colorbar(im, ax=ax, fraction=0.04, pad=0.02)
+    ax.set_xlabel('Cell column')
+    if i == 0:
+        ax.set_ylabel('Cell row')
+plt.tight_layout()
+plt.show()
+```
+
+### Belief trajectory under each ground truth
+
+For each of the three "true" scenarios — H1 true, H2 true, H3 true —
+sample a ground-truth realization, then run 20 drills selecting cells
+by maximizing the entropy-equivalent marginal-prior under the current
+belief (a one-line implementation of EOI generalized over a belief
+over hypotheses). Update the posterior after each drill. Plot the
+posterior trajectory.
+
+```{python}
+#| label: hypothesis-trajectory-fig
+#| fig-cap: "Posterior trajectory over 20 drills under each of three ground-truth scenarios. Top row: which hypothesis was sampled as ground truth. Bottom row: the posterior $P(H_i)$ vs drill index. In each scenario the correct hypothesis converges to near-1 after 10-15 drills, and the wrong hypotheses collapse to near-0. The 'all hypotheses wrong' case (not shown) keeps all three posteriors near uniform — the falsification signal."
+def run_simulation(hset, true_h, n_drills=20, seed=42):
+    rng_gt = np.random.default_rng(seed)
+    gt = (rng_gt.random(hset.n_cells) < hset.priors[true_h]).astype(int)
+    belief = BeliefOverHypotheses.uniform(hset)
+    drilled = set()
+    posterior_trace = [belief.posterior.copy()]
+    for _ in range(n_drills):
+        margin = belief.marginal_prior()
+        order = np.argsort(-margin)
+        for c in order:
+            if int(c) not in drilled:
+                cell = int(c); break
+        else:
+            break
+        belief.update(cell, int(gt[cell]))
+        drilled.add(cell)
+        posterior_trace.append(belief.posterior.copy())
+    return np.array(posterior_trace)
+
+fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+colors = ['#1f77b4', '#d62728', '#2ca02c']
+for true_h, ax in enumerate(axes):
+    trace = run_simulation(hset, true_h=true_h, seed=42 + true_h)
+    xs = np.arange(trace.shape[0])
+    for j in range(hset.n_hypotheses):
+        lw = 2.5 if j == true_h else 1.5
+        ls = '-' if j == true_h else '--'
+        ax.plot(xs, trace[:, j], color=colors[j], linewidth=lw,
+                linestyle=ls, label=hset.names[j])
+    ax.set_title(f"Ground truth: H{true_h+1} ({hset.names[true_h]})")
+    ax.set_xlabel('Drill index')
+    ax.set_ylabel('$P(H_i)$')
+    ax.set_ylim(-0.02, 1.02)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+plt.tight_layout()
+plt.show()
+```
+
+### The 'all hypotheses wrong' case
+
+The interesting case for v2.0 is when the data was generated by a
+process none of the three hypotheses describes. The posterior over
+hypotheses cannot rise above the uniform expectation because every
+hypothesis is equally bad at predicting the observations. The
+``BeliefOverHypotheses.is_falsified()`` method flags this:
+
+```{python}
+#| label: hypothesis-falsified
+# Generate ground truth from a 4th hypothesis the belief set doesn't include
+rng_gt = np.random.default_rng(99)
+gt_wrong = (rng_gt.random(hset.n_cells) < 0.1).astype(int)  # uniform 10% prior
+
+belief = BeliefOverHypotheses.uniform(hset)
+drilled = set()
+for step in range(20):
+    margin = belief.marginal_prior()
+    order = np.argsort(-margin)
+    cell = next(int(c) for c in order if int(c) not in drilled)
+    belief.update(cell, int(gt_wrong[cell]))
+    drilled.add(cell)
+print(f"After 20 drills under 'no hypothesis correct' ground truth:")
+print(f"  posterior: {belief.posterior.round(3)}")
+print(f"  max posterior: {belief.posterior.max():.3f}")
+print(f"  uniform expectation: {1/hset.n_hypotheses:.3f}")
+print(f"  falsified (heuristic): {belief.is_falsified()}")
+```
+
+The posterior in the falsification regime stays near uniform, and
+the planner can use that signal to STOP and re-elicit hypotheses
+from the geological team instead of drilling further at high
+per-hole cost.
 
 ## Reproducing
 

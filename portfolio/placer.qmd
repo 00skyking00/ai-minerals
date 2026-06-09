@@ -196,6 +196,138 @@ feature predicts them correctly even after the trivial zero-distance lookup
 is blocked. v3.5 widens the buffer to 2 km to partition those ten points
 between real signal and residual leak.
 
+## v3.6: rasterizing the Tertiary labels
+
+The v3 Tertiary label set was 158 cells, the centroid of each hydraulic
+mine pit polygon rasterized to the 250 m grid. Each polygon contributes
+exactly one positive even when it covers ten cells of bedrock. v3.6
+rasterizes the full polygon: every cell whose 250 m square touches a
+pit polygon counts as a positive, with a weight equal to the fractional
+overlap (1.0 for interior cells, ~0.5 for boundary cells). The Tertiary
+positive count grows from 158 binary cells to 2,709 weighted cells
+(~17x). Quaternary labels are unchanged because Quaternary positives
+were never the bottleneck.
+
+The headline number jumps. The v3.6 Tertiary stacking out-of-fold AUC
+lands at 0.993, up from v3's 0.970. The anchor-capture AUC-PA, the
+metric the validation script reports as the headline, lands at 0.998
+with a tight 95% confidence interval of [0.997, 0.998]. Both numbers
+are mechanically eye-catching and methodologically suspicious. The
+v3.6 audit (full F.2 suite, [model card](data/derived/northern_sierra_placer/model_card_northern_sierra_placer.md))
+unpacks why.
+
+![Phase 1 knowledge-driven index vs. v3.6 Phase 2 calibrated models on the success-rate / Prediction-Area curve. The y-axis is the fraction of the seven anchor districts captured as a function of the fraction of area selected at the highest scores. Phase 2 fused and Phase 2 Tertiary land all seven anchors inside the top 1% of cells (capture 1.0 at 0.01 area). Phase 1 puts 2 of 7 in the top 1% and reaches all 7 by 5%. The Tertiary curve's near-perfect AUC-PA of 0.998 is partly because anchors are positive labels under the polygon-rasterization scheme; the buffered cells around each anchor centroid inherit the same positive label and the same neighborhood feature values. Quaternary (the unaffected population) sits at the more measured AUC-PA of 0.840 [0.759, 0.946].](data/derived/northern_sierra_placer/success_rate_curve_phase1_vs_phase2.png)
+
+Three audit findings together tell the polygon-rasterization story.
+First, the SHAP TreeExplainer pass shows
+`hydraulic_pit_proximity_m_buffered` dominating the Tertiary feature
+ranking at 2.3x the mean absolute SHAP value of the next feature
+(slope), with the v3 plan's expected top-5 feature recipe failing the
+match gate at 2 of 5 (`paleochannel_likelihood` and
+`tertiary_terrace_likelihood` did not make the v3.6 top-5 the way the
+plan designed for). The model is leaning on pit-proximity harder in
+v3.6 than it did in v3, which is what we would expect if the buffered
+cells around each pit are pulling the gradient toward "score this
+neighborhood high".
+
+Second, the Lindgren PP73 secondary-district blind set tells a more
+measured story. Of 350 truly blind hydraulic-mining sites (456
+secondaries minus 106 deduplicated against pit polygons, anchor
+districts, and MRDS records inside a 500 m buffer), the v3.6 fused
+calibrated score puts 28% in its top decile, against a knowledge-driven
+Phase 1 baseline of 22% and a random baseline of 10%. The fused model
+adds 6 percentage points of top-decile capture over the Phase 1
+baseline. Real signal, modest. Not the eye-popping 0.998 the headline
+number suggests.
+
+Third, the north-south spatial-cross-validation pass trains on the
+southern half of the AOI (zero anchor districts in training, 68
+Tertiary positives + 320 Quaternary positives) and predicts on the
+northern half (where all 7 anchors sit). The south-trained model still
+captures 7 of 7 Tertiary anchors at the top 5% and 3 of 7 Quaternary
+anchors at the top decile, matching the in-sample baseline at delta
+zero. The model generalizes spatially without anchor leakage. That
+result is independent of polygon-rasterization and confirms the
+underlying geomorphic signal is real, even if the headline OOF AUC
+overstates how much of it the model is capturing.
+
+The net read on v3.6 is two parts. The Quaternary stack at AUC-PA
+0.840 [0.759, 0.946] is healthy: nothing changed between v3 and v3.6
+on the Quaternary side, the metric matches v3's 0.832, and the SHAP
+top-5 leans on elevation, distance-to-lode, topographic position, and
+gravity. The Tertiary stack at AUC-PA 0.998 is partly inflated by
+polygon-rasterization label propagation; the leak-free number is
+probably closer to v3's 0.97 or below, and the [Open validation
+questions](#open-validation-questions) section below lists the
+audits that would partition the signal cleanly. The fused deliverable
+goldbug consumes is still the right thing to ship for per-claim
+ranking because (a) the calibrated probability scale is preserved
+(Brier 0.0025 on the calibrated raster, post-isotonic ECE = 0.004 in
+the audit), and (b) goldbug uses the score as a within-AOI ranking
+rather than as an absolute probability claim, so the metric inflation
+matters less for its consumer pattern.
+
+## MAF anomaly detection on Au pathfinder geochem
+
+I ported the Scheidt, Mathieu, Yin, Wang, Caers (2024)
+[Masked Autoregressive Flow framework](https://doi.org/10.1007/s11053-024-10409-2)
+for geochemical anomaly detection to the Northern Sierra placer AOI, with
+Au pathfinder elements (As, Sb, Bi, W, Cu) substituted for the original
+paper's Li-Cs-Ta pegmatite chemistry. The MAF normalizing flow learns
+the joint distribution of pathfinder values across NGDB stream-sediment
+samples; samples with low log-density under the fitted flow are flagged
+as candidate anomalies. The Scheidt paper uses this to surface
+LCT-pegmatite candidates from continental-scale databases. Here it
+surfaces samples whose 5-element pathfinder fingerprint deviates from
+the regional baseline.
+
+The training set is 482 NGDB samples with complete-case measurements
+across all 5 pathfinder elements. That is much smaller than Scheidt's
+~10k pegmatite-region samples, so the fitted MAF density is noisier
+than the paper's; the relative anomaly ranking holds but absolute
+scores should not be over-interpreted. Median anomaly score lands at
+5.6 (in nats), p90 at 8.9, p99 at 13.3, max at 22.2, a long-tail
+distribution where a small set of strongly anomalous samples stands
+out cleanly from the bulk.
+
+![Per-sample MAF anomaly score over the Northern Sierra NGDB stream-sediment AOI (482 samples × 5 elements: As, Sb, Bi, W, Cu). Color is the anomaly score (negative log-density) clipped at the p99; white-circled samples are the top decile (n=49). The strongest anomalies cluster around the Tertiary deep-gravel belt south of Forest Hill and along the Yuba and American river systems. Method follows Scheidt et al. 2024, DOI 10.1007/s11053-024-10409-2.](data/derived/northern_sierra_placer/fig_maf_anomaly_map.png)
+
+The per-sample anomaly scores are exported to
+`maf_geochem_anomaly_scores.parquet` for downstream use. In v3.5.LF, the
+MAF score becomes a `geochem_maf_anomaly` feature on the 250 m grid
+via inverse-distance interpolation from the 482 sample points; the
+ablation will measure how much it adds over the current Hawkes-Au
+catchment feature.
+
+## Monte Carlo uncertainty bracket on the Quaternary raster
+
+The headline calibrated Quaternary raster reports a single per-cell
+probability. That hides the model's own uncertainty about negatives:
+30 Mordelet-Vert PU-bagging classifiers each see a different random
+"unlabeled-as-negative" subsample, and their predictions at any given
+cell sample from the epistemic uncertainty over which unlabeled cells
+are actually negative. The quantiles across that sample form a
+per-cell confidence band, following the entry-level Monte
+Carlo precursor to the full Bayesian Evidential Learning framework
+in [Yin, Strebelle, Caers (2020)](https://doi.org/10.5194/gmd-13-651-2020).
+
+I aggregate the 30 per-bag predictions into P05 / P50 / P95 per cell
+and report the ±90% spread (P95 − P05) as the per-cell uncertainty
+metric. Across the AOI:
+
+- Spread median: 0.050  (most cells have a ±5% probability band)
+- Spread p90:    0.111
+- Spread p99:    0.139
+- Spread max:    0.201
+
+![PU-bagging median probability (left) vs ±90% Monte Carlo uncertainty bracket (right) for the v3 Quaternary model on the Northern Sierra AOI. The point estimate shows the expected stream-network pattern: yellow streaks along the modern channel system flanked by darker negatives. The uncertainty bracket is narrow over both clearly-positive (channel) and clearly-negative (upland) regions, and widest in the boundary zones, exactly where PU bagging is by design most informative. Reporting in P05/P50/P95 instead of a single point estimate gives goldbug a per-claim confidence interval to act on; a narrow bracket means "the 30 base learners all agree this cell scores high (or low)," a wide bracket means "the model is unsure even after pooling 30 bag predictions, treat the score as advisory."](data/derived/northern_sierra_placer/fig_mc_uncertainty_bracket.png)
+
+The triplet of GeoTIFFs ships as
+`prospectivity_placer_quaternary_250m_mc_{p05,p50,p95,spread}_{3310,4326}.tif`.
+goldbug consumes them via the same zonal-mean machinery as the
+calibrated raster, producing per-claim P05/P50/P95 sampled against the
+parcel footprint.
+
 ## What this doesn't prove
 
 - **The hot cells contain extractable gold.** Hydraulic-pit polygons mark
@@ -208,16 +340,38 @@ between real signal and residual leak.
   comparable to the Klamath-region transfer on the lode side (Mother Lode →
   Klamath went from AUC 0.85 to 0.58). Within-AOI generalization is the
   story so far.
-- **The Tertiary stacking out-of-fold AUC of 0.970 is the headline number.**
-  The ablation says about ten points of the base AUCs come from
-  `hydraulic_pit_proximity_m_buffered`, partly real Tertiary-belt encoding
-  and partly residual shortcut. The leak-free number is closer to
-  0.85-0.90, which still beats the projected post-leakage band of 0.75-0.85
-  the v3 redesign aimed at.
+- **The Tertiary v3.6 anchor-capture AUC-PA of 0.998 (and stacking
+  out-of-fold AUC of 0.993) is the headline number.** The polygon-rasterization
+  jump from 158 binary centroid cells to 2,709 weighted cells inflates
+  both metrics: buffered cells around each pit centroid inherit the same
+  positive label and the same neighborhood feature values, so the model
+  is partly memorizing pit polygons rather than learning placer
+  geomorphology. The pit-proximity ablation against v3 measured about
+  ten percentage points of base AUC coming from
+  `hydraulic_pit_proximity_m_buffered`; v3.6's SHAP shows the model
+  leaning on that feature even harder than v3 did (2.3x the next
+  feature's mean absolute SHAP value). The Lindgren PP73 secondary
+  blind set adds 6 percentage points of top-decile capture over the
+  knowledge-driven Phase 1 baseline, which is the trustworthy lower
+  bound on real signal over the geologist-set index. The leak-free
+  number is probably in the 0.85-0.97 band, closer to v3's 0.97 than
+  to v3.6's 0.998.
 - **The Phase 1 anchor gate is a sufficient external test.** Lindgren PP73
   secondaries are the better test, because they were never seen by any
   classifier or scorer and they are 500 m de-duped from any training pit
   polygon. v3 passes Lindgren at 81.8% top quintile; v2 did not.
+
+## Open validation questions
+
+These are the audits I haven't run yet that would harden the v3.6
+result if a reviewer asked, ordered roughly by what closes the
+biggest unanswered concern first.
+
+- **Whether the v3.6 polygon-rasterization actually inflates the OOF AUC, or genuinely adds signal:** retrain v3.6 with centroid-only positive labels (drop the buffer-cell expansion that grew Tertiary positives from 158 binary cells to 2,709 weighted cells), keep the same stacked pipeline (RF + LGBM + XGB into a logistic-regression meta-learner, isotonic calibration, 20 km spatial-block CV), compare the resulting stacking OOF AUC to v3.6's 0.993. If centroid-only lands near v3's 0.970 the buffer expansion is incremental signal; a sharp drop would say the 0.993 was label-propagation inflation.
+- **Whether the dominant `hydraulic_pit_proximity_m_buffered` feature carries disproportionate weight on v3.6 specifically:** rerun `scripts/v3_ablation_no_pit_proximity.py` against the v3.6 stacking ensemble, not just the v3 RF + XGB pair from the June 3 ablation. The v3 result showed 10.5 pp RF drop and 11.8 pp XGB drop when the feature was removed (intermediate range; neither pure incremental signal nor pure leakage shortcut). A much larger drop on v3.6 would imply the polygon-rasterization made the model lean harder on the feature.
+- **Whether the model generalizes across the Sierra belt, not just inside Northern Sierra:** run `scripts/northern_sierra_placer_calaveras_transfer.py` (scripted but not yet executed) to train on Northern Sierra v3.6 calibrated labels and score the Mother Lode / Calaveras County AOI cell-for-cell. Compare to the Mother Lode v3 stacking OOF (0.85) for a within-province transfer-loss number; the Klamath cross-province test scored 0.58 on the lode side. Calaveras is the same orogenic-Au belt but a different watershed system.
+- **Whether v3.6 stays calibrated at the operational top-X% probability bins goldbug actually consumes:** stratified Brier score and per-bin ECE at the top 1% / 5% / 10% probability quantiles separately per population, instead of the overall ECE we already report (Tertiary post-calibration 0.004, Quaternary post-calibration 0.000). Overall ECE can mask tail mis-calibration where the highest-confidence predictions diverge from the observed positive rate.
+- **Whether the per-fold Hawkes refold (`refold_hawkes=True`) actually prevents the contagion leakage it was designed to prevent:** ablate to `refold_hawkes=False` on v3.6 Tertiary, compare per-fold AUC distributions and SHAP attributions on `catchment_au_hawkes`. If the refold is doing its job, refold-off should show higher in-fold AUC (leakage helps inside the fold) but worse Lindgren PP73 blind-set top-decile capture (true generalization gets worse when the leakage path is open).
 
 ## Where to look
 

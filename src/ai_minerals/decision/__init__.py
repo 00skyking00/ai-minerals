@@ -17,6 +17,11 @@ Public API:
                                    realization; returns the trace + reward
     RandomPolicy / GreedyPolicy → baseline policies
     pomcp_plan                  → POMCP wrapper from pomdp_py
+    EOIPolicy                   → Efficacy-of-Information policy (Caers
+                                   2022); reduces to uncertainty
+                                   sampling in the v1.0 setup
+    efficacy_of_information     → per-cell EOI scoring function
+    binary_entropy              → h2(p) helper, reused for EOI annotation
 """
 
 from .pomdp import (
@@ -31,14 +36,30 @@ from .policies import (
     RandomPolicy,
     pomcp_plan,
 )
+from .eoi import (
+    EOIPolicy,
+    binary_entropy,
+    efficacy_of_information,
+)
+from .multi_hypothesis import (
+    BeliefOverHypotheses,
+    HypothesisSet,
+    synthetic_vein_priors,
+)
 
 __all__ = [
+    "BeliefOverHypotheses",
     "DrillingProblem",
+    "EOIPolicy",
     "GreedyPolicy",
+    "HypothesisSet",
     "POMCPPolicy",
     "RandomPolicy",
+    "binary_entropy",
+    "efficacy_of_information",
     "load_subarea_prior",
     "pomcp_plan",
     "sample_ground_truth",
     "simulate_policy",
+    "synthetic_vein_priors",
 ]
