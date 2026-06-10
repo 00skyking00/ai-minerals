@@ -271,13 +271,18 @@ def main() -> int:
                 p10 = float(np.percentile(probs_arr, 10))
                 p90 = float(np.percentile(probs_arr, 90))
                 med_rank = rank_against(med_p, fused_finite)
-                # Gate decision: median MRDS-cell probability lands in
-                # bottom half of AOI distribution -> v3.7.0.1 augmentation
-                # fires for this county.
-                if med_rank >= 0.5:
-                    gate = "PASS"
-                elif med_rank >= 0.3:
-                    gate = "MARGINAL"
+                # Gate decision: median MRDS-cell probability vs AOI quantiles.
+                # The AOI has a long zero-tail (mostly floor cells outside the
+                # placer belt), so "median_rank >= 0.5" is a trivially-true bar.
+                # The meaningful threshold is the AOI top decile: if the median
+                # MRDS-known cell sits in the top 10% of the AOI distribution,
+                # the model successfully identified these as candidate placer
+                # cells. If it sits below the top quintile, the model isn't
+                # seeing them and v3.7.0.1 augmentation should fire.
+                if med_p >= aoi_q["p90"]:
+                    gate = "PASS (top decile)"
+                elif med_p >= aoi_q["p75"]:
+                    gate = "MARGINAL (top quintile)"
                 else:
                     gate = "FAIL (fires v3.7.0.1 augmentation)"
             county_rows.append({
