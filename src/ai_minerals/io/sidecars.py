@@ -7,8 +7,8 @@ Three functions, one per sidecar:
   population quantiles + the calibration method + recommended high /
   moderate / weak bucket cutoffs.
 - `build_two_band_geotiff`: 2-band float32 GeoTIFF with Tertiary on
-  band 1 and Quaternary on band 2 (for downstream consumers that want
-  per-population reasoning).
+  band 1 and Quaternary on band 2 (for goldbug if it wants
+  per-population reasoning per parcel).
 
 Each function returns the meta dict it would have written; the script
 wrapper at `scripts/build_placer_sidecars.py` is the thin CLI that
@@ -135,8 +135,8 @@ def build_bands_json(
     """Write the bands.json sidecar and return its document.
 
     `per_region_bboxes` is an iterable of (name, W, S, E, N) tuples for
-    the regions a downstream consumer might want per-region quantiles
-    for (e.g., the six goldbug regions).
+    the regions goldbug wants per-region quantiles for (the six
+    Mother Lode regions it covers as of 2026-06-11).
     """
     with rasterio.open(fused_path) as src_fused:
         fused = src_fused.read(1)
@@ -248,6 +248,6 @@ def build_two_band_geotiff(
         "fusion_note": (
             "The single-band fused raster (np.maximum of these two bands) "
             "remains the primary deliverable; this 2-band file is a sibling "
-            "for downstream consumers that want per-population reasoning."
+            "for goldbug if it wants per-population reasoning per parcel."
         ),
     }

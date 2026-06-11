@@ -364,9 +364,9 @@ PR-AUC up-weights the high-confidence band and rewards precision
 on the cells the model is most sure of, which is where the
 channel kernel concentrates positive mass. For placer
 prospectivity work the precision-on-high-confidence-cells number
-is the one a downstream consumer actually uses, so the 17x
-PR-AUC improvement is the result that matters; the 3-pp ROC-AUC
-regression is the trade I made for it.
+is the one goldbug actually uses for the per-claim score, so the
+17x PR-AUC improvement is the result that matters; the 3-pp
+ROC-AUC regression is the trade I made for it.
 
 The southern districts get materially more probability mass in
 absolute terms. The AOI p90 of the calibrated probability jumps
@@ -494,11 +494,11 @@ v3.7.0.1 lands.
 
 The model now produces real placer probability across the full
 Mother Lode rather than a floor of 0.0004 everywhere south of
-39°N, the downstream consumer confirmed the shape of that
-expansion on its own data and surfaced a sensible UX response to
-the one documented weak county, and the model's precision on the
-high-confidence band improved by 17x at the cost of three
-percentage points of overall ROC-AUC. The Mariposa gate failure
+39°N, goldbug confirmed the shape of that expansion on its own
+data and surfaced a sensible UX response to the one documented
+weak county, and the model's precision on the high-confidence
+band improved by 17x at the cost of three percentage points of
+overall ROC-AUC. The Mariposa gate failure
 is a real bound on what 4 USMIN records can teach the model;
 v3.7.0.1 patches it without redefining the experiment, and the
 remaining three MARGINAL counties stay as documented edges of
