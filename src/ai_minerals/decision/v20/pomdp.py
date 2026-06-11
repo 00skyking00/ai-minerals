@@ -13,7 +13,10 @@ Locked parameters per the spec:
     Sensor noise (B.2 + C.1): Bernoulli alpha=0.05, beta=0.10
     Sensitivity sweep (C.1):  3x3 over (alpha, beta)
 
-NOT IMPLEMENTED YET. Skeletons only.
+B.1 IMPLEMENTATION STATUS (2026-06-11):
+    CorrelatedDrillingProblem.step (Gaussian branch): DONE - GH issue #4
+    Bernoulli branch:                                  NOT YET - C.1 milestone
+    MultiHypothesisDrillingProblem.step:               NOT YET - C.2 milestone
 """
 
 from __future__ import annotations
@@ -69,26 +72,76 @@ class CorrelatedDrillingProblem:
     def n_cells(self) -> int:
         return int(len(self.x_m))
 
+    def __post_init__(self) -> None:
+        n = self.n_cells
+        if self.true_grade.shape != (n,):
+            raise ValueError(
+                f"true_grade must be shape ({n},); got {self.true_grade.shape}"
+            )
+        if self.y_m.shape != (n,):
+            raise ValueError(
+                f"y_m must be shape ({n},); got {self.y_m.shape}"
+            )
+        if self.sensor_noise_sigma <= 0 and self.sensor_model is SensorModel.GAUSSIAN_CONTINUOUS:
+            raise ValueError(
+                f"sensor_noise_sigma must be > 0 for Gaussian sensor; "
+                f"got {self.sensor_noise_sigma}"
+            )
+
     def step(
         self,
         cell_idx: int,
         drilled: frozenset[int],
         rng: np.random.Generator,
     ) -> tuple[float | int, float, frozenset[int]]:
-        """Apply a drill action; return (noisy_observation, reward, drilled).
+        """Apply a drill action; return (observation, reward, next_drilled).
 
         For SensorModel.GAUSSIAN_CONTINUOUS:
-            observation = true_grade[cell_idx] + N(0, sensor_noise_sigma^2)
-            reward = -drill_cost + discovery_value * indicator(grade > cutoff)
-        For SensorModel.BERNOULLI_BINARY:
-            true = int(true_grade[cell_idx] >= cutoff_grade)
-            obs = noisy_bernoulli(true, alpha, beta, rng)
+            obs    = true_grade[cell_idx] + N(0, sensor_noise_sigma^2)
+            reward = -drill_cost + discovery_value * indicator(
+                                                  true_grade > cutoff_grade)
+        For SensorModel.BERNOULLI_BINARY (C.1 milestone):
+            true   = int(true_grade[cell_idx] >= cutoff_grade)
+            obs    = noisy_bernoulli(true, alpha, beta, rng)
             reward = -drill_cost + discovery_value * true
+        For SensorModel.NOISELESS:
+            obs    = true_grade[cell_idx]
+            reward = same as Gaussian.
 
-        TODO B.1: implement Gaussian branch.
-        TODO C.1: implement Bernoulli branch.
+        Drilling an already-drilled cell wastes a turn (returns reward
+        = -drill_cost and the same observation; matches v1.0 semantics).
         """
-        raise NotImplementedError("B.1 / C.1 milestone")
+        if not (0 <= cell_idx < self.n_cells):
+            raise IndexError(
+                f"cell_idx {cell_idx} out of range for {self.n_cells} cells"
+            )
+
+        already_drilled = cell_idx in drilled
+        true_value = float(self.true_grade[cell_idx])
+        is_discovery = true_value > self.cutoff_grade
+
+        if self.sensor_model is SensorModel.GAUSSIAN_CONTINUOUS:
+            noise = float(rng.normal(0.0, self.sensor_noise_sigma))
+            obs: float | int = true_value + noise
+        elif self.sensor_model is SensorModel.NOISELESS:
+            obs = true_value
+        elif self.sensor_model is SensorModel.BERNOULLI_BINARY:
+            # C.1 milestone; gated to keep B.1 surface narrow.
+            raise NotImplementedError(
+                "Bernoulli sensor model lands in C.1 (issue #8)"
+            )
+        else:  # pragma: no cover  - enum exhaustiveness
+            raise ValueError(f"Unknown SensorModel: {self.sensor_model!r}")
+
+        if already_drilled:
+            reward = -self.drill_cost
+        else:
+            reward = -self.drill_cost + (
+                self.discovery_value if is_discovery else 0.0
+            )
+
+        next_drilled = drilled | {cell_idx}
+        return obs, reward, next_drilled
 
 
 @dataclass
