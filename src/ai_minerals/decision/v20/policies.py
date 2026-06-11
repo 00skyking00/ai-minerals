@@ -3,10 +3,12 @@
 Extends `src/ai_minerals/decision/policies.py` (v1.0 random + greedy +
 POMCP + EOI on Bernoulli prior) with:
 
-- B.1: CorrelatedPriorPOMCPPolicy — POMCP over the particle-filter belief
-  state; per-step replanning uses the current PF posterior mean as the
-  rollout prior.
-- B.2: same policy class, fed BCGS pre-2010 prior + post-2010 ground truth.
+- B.1 (this file): RandomPolicy + GreedyMeanPolicy + (skeleton)
+  CorrelatedPriorPOMCPPolicy. Random + greedy are concrete baselines
+  the SyntheticMonteCarloSimulator can drive end-to-end without the
+  pomdp_py wrapper. POMCP integration is the chapter-update milestone.
+- B.2: same Random / Greedy / POMCP triplet, fed BCGS pre-2010 prior +
+  post-2010 ground truth.
 - C.1: NoisyObservationPOMCPPolicy — adds the Bernoulli sensor model to
   the belief update; otherwise identical to B.1.
 - C.2: MultiHypothesisFalsificationPolicy — maintains posterior over
@@ -19,17 +21,21 @@ POMCP re-planning takes more than 5 sec/step, switch to PyJulia bridge
 calling Mern's SARSOP. See research/pomdp_v20_implementation_plan.md
 section Q5.
 
-NOT IMPLEMENTED YET. Skeletons only.
+B.1 IMPLEMENTATION STATUS (2026-06-11):
+    RandomPolicy, GreedyMeanPolicy:      DONE - GH issue #5 prelude
+    CorrelatedPriorPOMCPPolicy:           NOT YET - GH issue #6 chapter
+    MultiHypothesisFalsificationPolicy:   NOT YET - C.2 milestone
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 import numpy as np
 
 from .belief_pf import ParticleFilter
-from .hypotheses import HypothesisSet
+from .hypotheses import Hypothesis, HypothesisSet
 from .pomdp import (
     CorrelatedDrillingProblem,
     MultiHypothesisDrillingProblem,
@@ -40,6 +46,99 @@ from .pomdp import (
 POMCP_N_SIMS_DEFAULT = 1000   # MCTS rollouts per planning step
 POMCP_C_EXPLORATION = 1.41    # UCB constant; sqrt(2) is the textbook default
 POMCP_MAX_DEPTH = 20          # truncates rollouts; should exceed drill budget
+
+
+# --- Policy interface --------------------------------------------------------
+
+
+class Policy(Protocol):
+    """The policy contract the B.1 simulator drives.
+
+    A policy is reset at the start of every episode (so any internal
+    state doesn't leak across realizations) and queried once per drill
+    step. The simulator passes the observed history so far; the policy
+    returns the next cell to drill. Policies should NOT inspect the
+    problem's true_grade field; the simulator type-checks neither, so
+    discipline is on the implementation.
+    """
+
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None: ...
+
+    def choose_action(
+        self,
+        history: list[tuple[int, float]],
+        drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> int: ...
+
+
+# --- Concrete B.1 baselines --------------------------------------------------
+
+
+@dataclass
+class RandomPolicy:
+    """Uniform random pick from unvisited cells. Baseline for any
+    discovery-rate comparison."""
+
+    _n_cells: int = 0
+
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None:
+        self._n_cells = problem.n_cells
+
+    def choose_action(
+        self,
+        history: list[tuple[int, float]],
+        drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> int:
+        if self._n_cells == 0:
+            raise RuntimeError("RandomPolicy not reset; call reset() first")
+        unvisited = np.array(
+            [i for i in range(self._n_cells) if i not in drilled],
+            dtype=np.int64,
+        )
+        if unvisited.size == 0:
+            raise RuntimeError("All cells drilled; no action available")
+        return int(rng.choice(unvisited))
+
+
+@dataclass
+class GreedyMeanPolicy:
+    """Pick the highest prior-mean cell among unvisited.
+
+    Doesn't incorporate observations into a belief update; just uses the
+    static GP prior mean as its ranking. Ties are broken by RNG (uniform
+    over tied indices). The simulator's POMCP baseline (issue #6) will
+    replace this with a particle-filter-driven greedy step.
+    """
+
+    _prior_mean: np.ndarray | None = None
+
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None:
+        self._prior_mean = problem.hypothesis.prior_mean_field.copy()
+
+    def choose_action(
+        self,
+        history: list[tuple[int, float]],
+        drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> int:
+        if self._prior_mean is None:
+            raise RuntimeError("GreedyMeanPolicy not reset; call reset() first")
+        mask = np.ones(self._prior_mean.size, dtype=bool)
+        for idx in drilled:
+            mask[idx] = False
+        if not mask.any():
+            raise RuntimeError("All cells drilled; no action available")
+        # Mask out drilled cells by setting their value to -inf, then argmax
+        # with random tie-break.
+        scores = np.where(mask, self._prior_mean, -np.inf)
+        top_value = scores.max()
+        candidates = np.flatnonzero(scores >= top_value - 1e-12)
+        return int(rng.choice(candidates))
 
 
 @dataclass
