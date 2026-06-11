@@ -26,7 +26,10 @@ WHY importance-weighted PF for B.1 and not ESS from the start:
       should hold up. For C.2 with K ~50+ holes and multi-hypothesis
       indices, we may hit the degeneracy wall and switch to ESS.
 
-NOT IMPLEMENTED YET. Skeletons only.
+B.1 IMPLEMENTATION STATUS (2026-06-11):
+    ParticleFilter.initialize / update / ESS / resample / posterior_mean /
+    posterior_variance: DONE (GH issue #3).
+    elliptical_slice_sample (C.2): still NotImplemented.
 """
 
 from __future__ import annotations
@@ -75,15 +78,46 @@ class ParticleFilter:
     log_weights: np.ndarray | None = None  # (n_particles,)
 
     def __post_init__(self) -> None:
+        if self.n_particles < 2:
+            raise ValueError(f"n_particles must be >= 2; got {self.n_particles}")
         if self.rng is None:
             self.rng = np.random.default_rng(42)
 
-    def initialize(self) -> None:
-        """Draw n_particles realizations from the GP prior; uniform weights.
+    # --- state queries -----------------------------------------------
 
-        TODO B.1: call hypothesis.sample_realization(rng, n_samples=n).
-        """
-        raise NotImplementedError("B.1 milestone")
+    @property
+    def is_initialized(self) -> bool:
+        return self.particles is not None and self.log_weights is not None
+
+    def _require_initialized(self) -> None:
+        if not self.is_initialized:
+            raise RuntimeError(
+                "ParticleFilter not initialized. Call initialize() first."
+            )
+
+    def _normalized_weights(self) -> np.ndarray:
+        """Linear-space normalized weights (sum to 1, length n_particles)."""
+        self._require_initialized()
+        # Subtract max for numerical stability (log-sum-exp trick).
+        lw = self.log_weights
+        m = lw.max()
+        w = np.exp(lw - m)
+        return w / w.sum()
+
+    # --- lifecycle ---------------------------------------------------
+
+    def initialize(self) -> None:
+        """Draw n_particles realizations from the GP prior; uniform weights."""
+        particles = self.hypothesis.sample_realization(
+            self.rng, n_samples=self.n_particles,
+        )
+        # Uniform log-weights: log(1/N) = -log(N). Stored unnormalized;
+        # normalisation happens in _normalized_weights / mean / var / ESS.
+        log_weights = np.full(
+            self.n_particles, -np.log(self.n_particles), dtype=np.float64,
+        )
+        self.particles = particles
+        self.log_weights = log_weights
 
     def update(
         self,
@@ -91,37 +125,75 @@ class ParticleFilter:
         observation: float,
         sensor_noise_sigma: float,
     ) -> None:
-        """Update particle weights given a noisy drill observation.
+        """Update particle weights given a noisy Gaussian drill observation.
 
-        Per-particle log-likelihood:
-            log p(obs | particle) = log N(obs; particle[cell_idx], sigma)
+        Per-particle log-likelihood under N(particle[cell_idx], sigma^2):
+            log p(obs | particle)
+              = -0.5 * log(2 pi sigma^2) - (obs - x_i)^2 / (2 sigma^2)
+        We drop the constant prefactor (cancels on normalization) and add
+        only the data-dependent term to log_weights.
 
-        Updates log_weights in place; resamples adaptively if ESS_eff
-        drops below threshold.
-
-        TODO B.1: implement; trivial numpy + log-sum-exp for normalization.
+        After updating, adaptively resamples if effective sample size drops
+        below `ESS_RESAMPLING_THRESHOLD * n_particles`.
         """
-        raise NotImplementedError("B.1 milestone")
+        self._require_initialized()
+        if sensor_noise_sigma <= 0:
+            raise ValueError(
+                f"sensor_noise_sigma must be > 0; got {sensor_noise_sigma}"
+            )
+        if not (0 <= cell_idx < self.particles.shape[1]):
+            raise IndexError(
+                f"cell_idx {cell_idx} out of range for "
+                f"{self.particles.shape[1]} cells"
+            )
+
+        residuals = observation - self.particles[:, cell_idx]
+        log_lik = -0.5 * (residuals * residuals) / (sensor_noise_sigma ** 2)
+        self.log_weights = self.log_weights + log_lik
+
+        # Adaptive resampling.
+        ess = self.effective_sample_size()
+        if ess < ESS_RESAMPLING_THRESHOLD * self.n_particles:
+            self.resample()
 
     def effective_sample_size(self) -> float:
-        """Kong et al. 1994 ESS: 1 / sum(w_i^2). Range [1, N_particles]."""
-        # TODO B.1: implement
-        raise NotImplementedError("B.1 milestone")
+        """Kong et al. 1994 ESS: 1 / sum(w_i^2). Range [1, n_particles]."""
+        w = self._normalized_weights()
+        return float(1.0 / (w * w).sum())
 
     def resample(self) -> None:
-        """Systematic resampling; resets weights to uniform.
+        """Systematic resampling (Doucet 1998). Resets weights to uniform."""
+        self._require_initialized()
+        w = self._normalized_weights()
+        n = self.n_particles
+        # Systematic resampling: one uniform draw u_0 in [0, 1/n), then
+        # offsets u_0 + i/n for i in 0..n-1. Pick particles whose CDF
+        # crosses each offset. O(n) and lower-variance than multinomial.
+        cumsum = np.cumsum(w)
+        cumsum[-1] = 1.0  # guard against tiny FP drift
+        u0 = self.rng.uniform(0.0, 1.0 / n)
+        offsets = u0 + np.arange(n) / n
+        # np.searchsorted maps each offset to the right particle index.
+        indices = np.searchsorted(cumsum, offsets, side="right")
+        # Edge case: if any offset exceeds cumsum[-1] (= 1.0) due to FP,
+        # clamp to n-1.
+        indices = np.clip(indices, 0, n - 1)
+        self.particles = self.particles[indices].copy()
+        self.log_weights = np.full(n, -np.log(n), dtype=np.float64)
 
-        TODO B.1: implement; standard systematic resampling per Doucet 1998.
-        """
-        raise NotImplementedError("B.1 milestone")
+    # --- posterior queries -------------------------------------------
 
     def posterior_mean(self) -> np.ndarray:
         """Per-cell weighted mean of particles. Shape (n_cells,)."""
-        raise NotImplementedError("B.1 milestone")
+        w = self._normalized_weights()
+        return w @ self.particles  # (n_particles,) @ (n_particles, n_cells)
 
     def posterior_variance(self) -> np.ndarray:
         """Per-cell weighted variance of particles. Shape (n_cells,)."""
-        raise NotImplementedError("B.1 milestone")
+        w = self._normalized_weights()
+        mean = w @ self.particles
+        diffs = self.particles - mean  # (n_particles, n_cells)
+        return w @ (diffs * diffs)
 
 
 # --- C.2 ESS scaffolding (separate from B.1 PF) -------------------------------
