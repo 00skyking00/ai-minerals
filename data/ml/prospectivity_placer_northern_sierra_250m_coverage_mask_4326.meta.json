@@ -2,8 +2,8 @@
   "source_raster": "data/derived/northern_sierra_placer/prospectivity_placer_northern_sierra_250m_calibrated_4326.tif",
   "threshold": 0.01,
   "n_cells_total": 901648,
-  "n_cells_in_coverage": 14696,
-  "pct_coverage": 1.63,
+  "n_cells_in_coverage": 246113,
+  "pct_coverage": 27.3,
   "schema": {
     "dtype": "uint8",
     "values": {
