@@ -30,9 +30,9 @@ and `research/placer_handoff_start_here.md`).
 
 AOI matches the existing motherlode lode-raster extent (37.49–40.01°N,
 121.55–119.48°W) so the placer 250 m grid registers cell-for-cell with
-the lode raster. gldbg's narrower scan window in
-`config/regions/northern_sierra_ca.yaml` is a downstream consumer of the
-finished raster, not a constraint on this AOI.
+the lode raster. goldbug consumes the finished raster via its narrower
+scan window in `config/regions/northern_sierra_ca.yaml`; that window
+is not a constraint on this AOI.
 
 CRS: EPSG:3310 (California Albers Equal Area, NAD83), matching motherlode
 for direct comparison. The deliverable raster is reprojected to EPSG:4326
