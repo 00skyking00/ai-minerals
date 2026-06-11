@@ -28,7 +28,11 @@ Reference (Julia line ranges):
     ESS-based MCMC:           hypotheses.jl 350-450
     Null hypothesis:          hypotheses.jl 47-50
 
-NOT IMPLEMENTED YET. Skeletons only.
+B.1 IMPLEMENTATION STATUS (2026-06-11):
+    Hypothesis.sample_realization        DONE - GH issue #2
+    Hypothesis.conditional_posterior     NOT YET - GH issue (queued)
+    NullHypothesis.sample_realization    NOT YET - C.2 milestone
+    HypothesisSet.*                      NOT YET - C.2 milestone
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from sklearn.gaussian_process.kernels import Matern
 
 
 # Locked parameters (arXiv 2410.10610 p.28; see pomdp_v20_implementation_plan.md)
@@ -46,6 +51,11 @@ KERNEL_LENGTHSCALE_M_BCGT = 1500.0  # BCGT subarea: 500 m/cell × 3
 SENSOR_NOISE_GAUSSIAN_SIGMA = 0.001   # B.1 synthetic
 N_HYPOTHESES_PAPER = 4         # C.2; H_1 through H_4
 INCLUDE_NULL_HYPOTHESIS = True # C.2; total = N + 1
+
+# Cholesky jitter: Matern v=2.5 eigenvalues can decay fast at long lengthscales,
+# so add a small diagonal term for numerical stability. 1e-6 sigma^2 is the
+# scale at which the jitter is invisible against the marginal variance.
+_CHOLESKY_JITTER = 1e-6
 
 
 @dataclass(frozen=True)
@@ -64,27 +74,77 @@ class Hypothesis:
         Mern 2024 paper's parameterization. For BCGT we collapse these
         to a single domain in B.1; C.2 may use them if real BCGS
         deposit-type splits are available.
+    cell_coords_m : np.ndarray, shape (n_cells, 2)
+        Per-cell (x, y) coordinates in the working CRS, in meters.
+        Used to compute the kernel matrix from pairwise distances.
+    prior_mean_field : np.ndarray, shape (n_cells,)
+        Per-cell GP mean. Initialized from the v3 RF posterior surface.
+        For BCGT this is the posterior mean of porphyry-Cu probability
+        at each cell, optionally centered or logit-transformed.
     gp_kernel_nu : float
         Matern smoothness parameter. Locked at 2.5 per paper p.28.
     gp_marginal_std : float
         sigma in dimensionless units (B.1) or normalized grade units (B.2).
     gp_lengthscale_m : float
         Correlation length in working CRS meters (1500 m for BCGT).
-    prior_mean_field : np.ndarray
-        Per-cell GP mean. Initialized from the v3 RF posterior surface.
-        Shape (n_cells,).
     """
     name: str
     n_grabens: int
     n_domains: int
+    cell_coords_m: np.ndarray = field(
+        default_factory=lambda: np.zeros((0, 2), dtype=np.float64)
+    )
+    prior_mean_field: np.ndarray = field(
+        default_factory=lambda: np.array([], dtype=np.float64)
+    )
     gp_kernel_nu: float = KERNEL_NU
     gp_marginal_std: float = KERNEL_MARGINAL_STD
     gp_lengthscale_m: float = KERNEL_LENGTHSCALE_M_BCGT
-    prior_mean_field: np.ndarray = field(default_factory=lambda: np.array([]))
 
     def __post_init__(self) -> None:
-        # TODO B.1: validate prior_mean_field shape matches the grid.
-        pass
+        cc = np.asarray(self.cell_coords_m, dtype=np.float64)
+        pmf = np.asarray(self.prior_mean_field, dtype=np.float64)
+        if cc.ndim != 2 or cc.shape[1] != 2:
+            raise ValueError(
+                f"cell_coords_m must be (n_cells, 2); got shape {cc.shape}"
+            )
+        if pmf.ndim != 1 or pmf.shape[0] != cc.shape[0]:
+            raise ValueError(
+                f"prior_mean_field must be (n_cells,) matching cell_coords_m "
+                f"({cc.shape[0]} cells); got shape {pmf.shape}"
+            )
+        if self.gp_kernel_nu not in (0.5, 1.5, 2.5):
+            # sklearn's Matern only fast-paths v in {0.5, 1.5, 2.5}; nothing
+            # else makes physical sense for our GP-prior choice either.
+            raise ValueError(
+                f"gp_kernel_nu must be one of {{0.5, 1.5, 2.5}}; "
+                f"got {self.gp_kernel_nu}"
+            )
+        # Reflect dtype normalisations back through the frozen dataclass.
+        object.__setattr__(self, "cell_coords_m", cc)
+        object.__setattr__(self, "prior_mean_field", pmf)
+        object.__setattr__(self, "_cholesky_cache", None)
+
+    @property
+    def n_cells(self) -> int:
+        return int(self.cell_coords_m.shape[0])
+
+    def _kernel_matrix(self) -> np.ndarray:
+        """Matern kernel evaluated on cell_coords_m. (n_cells, n_cells)."""
+        kernel = Matern(length_scale=self.gp_lengthscale_m, nu=self.gp_kernel_nu)
+        return (self.gp_marginal_std ** 2) * kernel(self.cell_coords_m)
+
+    def _cholesky(self) -> np.ndarray:
+        """Cached lower-triangular Cholesky of K + jitter * I."""
+        cache = self._cholesky_cache  # type: ignore[attr-defined]
+        if cache is not None:
+            return cache
+        K = self._kernel_matrix()
+        jitter = _CHOLESKY_JITTER * (self.gp_marginal_std ** 2)
+        K_jittered = K + jitter * np.eye(K.shape[0])
+        L = np.linalg.cholesky(K_jittered)
+        object.__setattr__(self, "_cholesky_cache", L)
+        return L
 
     def sample_realization(
         self,
@@ -93,15 +153,24 @@ class Hypothesis:
     ) -> np.ndarray:
         """Draw N realizations from the GP prior. Shape (n_samples, n_cells).
 
+        Each realization is `prior_mean_field + L @ z` where `L` is the
+        Cholesky factor of the kernel matrix and `z` is a standard-normal
+        vector. The Cholesky is cached per-Hypothesis (deterministic given
+        coords + kernel params), so repeated calls only pay the matrix-vector
+        cost.
+
         For BCGT we threshold the continuous GP draws at a level chosen
         so the marginal positive rate matches the per-cell RF posterior
         mean. That replaces v1.0's iid Bernoulli draws with spatially
         correlated draws where neighbor cells covary per the kernel.
-
-        TODO B.1: implement via sklearn.gaussian_process.GaussianProcessRegressor
-        or george.GP, with prior_mean_field as the mean function.
+        Thresholding happens outside this function — `CorrelatedDrillingProblem`
+        does it.
         """
-        raise NotImplementedError("B.1 milestone")
+        if n_samples < 1:
+            raise ValueError(f"n_samples must be >= 1; got {n_samples}")
+        L = self._cholesky()
+        z = rng.standard_normal(size=(self.n_cells, n_samples))
+        return (self.prior_mean_field[:, None] + L @ z).T  # (n_samples, n_cells)
 
     def conditional_posterior(
         self,
