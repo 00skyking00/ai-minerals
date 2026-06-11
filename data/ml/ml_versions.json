@@ -4,9 +4,9 @@
   "placer": "3.7.0",
   "lode": "2",
   "lookalike": "2",
-  "released": "2026-06-09",
+  "released": "2026-06-11",
   "notes": {
-    "placer": "v3.6.1 = v3.6 model with sidecars (coverage_mask + bands.json + 2-band split). No model retrain. Next bump v3.7.0 = Mother-Lode-wide Quaternary retrain, ETA 2026-06-15.",
+    "placer": "v3.7.0 = Mother-Lode-wide Quaternary retrain (USMIN labels + channel-aligned anisotropic Gaussian kernel along NHD HR; full Mother Lode geography). Tertiary unchanged from v3.6. Per-region p90 jumps 8-13x in southern counties; coverage mask expands from 1.6% to 27.3% of AOI. Mariposa per-county MRDS-held-out gate fails (4 USMIN records too few); v3.7.0.1 patch queued.",
     "lode": "Mother Lode lode-Au RF (Cox-Singer porphyry + orogenic positives across CA). No version bump planned in v1.x.",
     "lookalike": "Within-region similarity-based scoring used by goldbug. No version bump planned in v1.x."
   }
