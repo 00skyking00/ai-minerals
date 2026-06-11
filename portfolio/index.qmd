@@ -106,28 +106,30 @@ modeling).
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [4. Placer-Au prospectivity (northern Sierra)](placer.qmd)
+### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
-Placer prospectivity modeling is roughly a decade behind lode in the
-published literature. The only production-grade transferable model is
-the USGS Alaska watershed scorer. I ported it to the northern Sierra
-deep-gravel belt at 250 m resolution, then added a supervised pass
+Placer prospectivity modeling sits about a decade behind lode in
+the published literature. The only production-grade transferable
+model is the USGS Alaska watershed scorer. I ported it to the
+California Mother Lode at 250 m, then layered a supervised pass
 (PU bagging + Random Forest + LightGBM + stacking + isotonic
-calibration) on top, run as two separate classifiers because Tertiary
-deep-gravel (pay strata on hillside benches above the modern drainage)
-and Quaternary modern-channel placer have different geomorphic
-signatures. The Phase 1 anchor-district gate passes 7 of 7; v3.6
-Tertiary stacking reaches OOF AUC 0.993 with anchor-capture AUC-PA
-of 0.998, though 7 to 15 percentage points of that figure is
-polygon-rasterization neighbor-cell inflation (the leak-free
-Tertiary AUC sits in the 0.85 to 0.97 range). The Quaternary
-AUC-PA of 0.840 is the population-level transfer-honest read. The
+calibration) on top, run as two classifiers because Tertiary
+deep-gravel and Quaternary modern-channel placer have different
+geomorphic signatures. The v3.6 Tertiary stack reaches OOF AUC
+0.993 with 7 to 15 percentage points of polygon-rasterization
+inflation (leak-free range 0.85 to 0.97); Quaternary at AUC-PA
+0.840 is the read on transferability. The v3.7.0 retrain
+broadened Quaternary from the northern Sierra to the full Mother
+Lode by swapping MRDS for USMIN plus a channel-aligned kernel
+along NHD; ROC drops 3 pp, PR-AUC climbs 17x, and southern
+districts get 8 to 13 times more probability mass per cell.
+One per-county MRDS-held-out gate (Mariposa, 4 USMIN records)
+fails and is queued for a v3.7.0.1 augmentation patch. The
 calibrated raster feeds the goldbug live tool for per-claim
-sampling. v3.7.0 broadening the Quaternary classifier from the
-northern Sierra to the full Mother Lode is queued.
+sampling.
 :::
 ::: {.g-col-12 .g-col-md-3}
-[![Tertiary placer-Au prospectivity, percentile rank of calibrated probability](data/derived/portfolio_charts/thumbs/ch4_placer.png)](placer.qmd)
+[![v3.6 vs v3.7.0 Quaternary placer-Au prospectivity, percentile rank against the AOI. Left: v3.6, MRDS-derived labels concentrated north of 39°N. Right: v3.7.0, USMIN + channel-aligned kernel across the full Mother Lode.](data/derived/portfolio_charts/thumbs/ch4_placer.png)](placer.qmd)
 :::
 ::::
 

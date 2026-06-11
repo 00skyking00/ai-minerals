@@ -1,7 +1,7 @@
 {
   "_schema": "ai-minerals canonical ML version manifest. Goldbug reads this in place of parsing model rasters' filenames. Bare-semver strings (no 'v' prefix). Update when any listed model bumps version.",
-  "ai_minerals": "1.0.2",
-  "placer": "3.6.1",
+  "ai_minerals": "1.1.0",
+  "placer": "3.7.0",
   "lode": "2",
   "lookalike": "2",
   "released": "2026-06-09",

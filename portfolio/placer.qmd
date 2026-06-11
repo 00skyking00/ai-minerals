@@ -8,14 +8,18 @@ sidebar: placer
 
 ## What this is
 
-A 250 m calibrated probability raster for placer-Au prospectivity across the
-northern Sierra deep-gravel belt, built as two per-population classifiers
-(Tertiary buried paleo-channels, Quaternary modern-channel alluvium) fused
-into a single GeoTIFF that the [goldbug](https://johnsondevco.com/goldbug/)
-live tool samples per claim. The geological setting is Lindgren 1911 (USGS
-Professional Paper 73) at canonical resolution: hydraulic-mined deep gravels
-from Malakoff Diggins south through Forest Hill, plus the modern Yuba, Bear,
-and American river placers below them.
+A 250 m calibrated probability raster for placer-Au prospectivity
+across the California Mother Lode, built as two per-population
+classifiers (Tertiary buried paleo-channels in the northern Sierra,
+Quaternary modern-channel alluvium across the full Mother Lode belt)
+fused into a single GeoTIFF that the
+[goldbug](https://johnsondevco.com/goldbug/) live tool samples per
+claim. The geological setting is Lindgren 1911 (USGS Professional
+Paper 73) at canonical resolution: hydraulic-mined deep gravels from
+Malakoff Diggins south through Forest Hill, the modern Yuba, Bear,
+and American river placers below them, and the southern Mother Lode
+modern-channel placers in Calaveras, Tuolumne, and Mariposa
+counties.
 
 Placer-Au modeling sits about a decade behind lode in the published
 literature. The lode side has stacked supervised pipelines with spatial-block
@@ -36,21 +40,24 @@ Cape Nome property in Chapter 1 (Bear Cub) is different geology and a
 different audience but shares the population-level reasoning.
 
 Two caveats to surface up front so the headline numbers below are
-read correctly. First, the v3.6 Tertiary out-of-fold AUC of 0.993 and
-anchor-capture AUC-PA of 0.998 include 7 to 15 percentage points of
-polygon-rasterization neighbor-cell inflation. The Tertiary positive
-labels are the 158 Orlando hydraulic-pit polygons rasterized to the
-250 m grid (~2,700 weighted cells); cells immediately adjacent to a
-positive inherit the same feature values, and the model learns that
-neighborhood. The leak-free Tertiary AUC sits in the 0.85 to 0.97
-range. The Quaternary AUC-PA of 0.840 is not affected by this
-mechanism and is the population-level transfer-honest number. Second,
-this is a northern-Sierra-only model. The training labels concentrate
-north of 39° latitude. Cells in the southern Mother Lode (Tuolumne,
-Mariposa, Calaveras) score near the raster floor because the model
-has not seen southern Quaternary signal. The v3.7.0 retrain
-expanding the Quaternary classifier to the full Mother Lode is
-queued.
+read correctly. First, the v3.6 Tertiary out-of-fold AUC of 0.993
+and anchor-capture AUC-PA of 0.998 include 7 to 15 percentage
+points of polygon-rasterization neighbor-cell inflation. The
+Tertiary positive labels are the 158 Orlando hydraulic-pit
+polygons rasterized to the 250 m grid (~2,700 weighted cells);
+cells immediately adjacent to a positive inherit the same feature
+values, and the model learns that neighborhood. The leak-free
+Tertiary AUC sits in the 0.85 to 0.97 range. Second, the v3.7.0
+Quaternary retrain (the [v3.7.0 section](#v3.7.0-mother-lode-wide-quaternary-retrain)
+below) broadened training labels from MRDS to USMIN and expanded
+geography from the northern Sierra to the full Mother Lode. The
+stacked out-of-fold ROC-AUC dropped from v3.6's 0.832 to v3.7.0's
+0.802 (a 3-pp regression on a harder problem); the PR-AUC
+improved from 0.004 to 0.071 (a 17x precision gain on the
+high-confidence cells). The Mariposa held-out gate against MRDS
+fails because four USMIN records is not enough to teach the
+model southern-Mariposa Quaternary signal; v3.7.0.1 will patch
+Mariposa with MRDS supplements and is queued.
 
 ## What got built
 
@@ -283,6 +290,185 @@ ranking because (a) the calibrated probability scale is preserved
 the audit), and (b) goldbug uses the score as a within-AOI ranking
 rather than as an absolute probability claim, so the metric inflation
 matters less for its consumer pattern.
+
+## v3.7.0: Mother-Lode-wide Quaternary retrain
+
+The v3.6 model trained on Quaternary positives concentrated north
+of latitude 39°N. Goldbug's southern-region rollout in early June
+surfaced the gap: when the model scored parcels in Tuolumne,
+Mariposa, Calaveras, El Dorado, and Amador, the parcels came
+back near-floor across the board. Goldbug's per-region sampling
+table reported Tuolumne max P at the 0.0004 raster floor and
+Mariposa with no cell above floor anywhere. Those are districts
+with continuous placer-Au production going back to the 1850s.
+
+The diagnosis was straightforward. The model had never seen a
+positive label in those counties. The v3 and v3.6 Quaternary
+labels were MRDS placer-Au records filtered through a CGS 2010
+reclassification pass, and that set was geographically skewed
+north because the northern Sierra deep-gravel districts were
+better catalogued in the original MRDS compilation than the
+southern stream-placer ground.
+
+v3.7.0 swaps the Quaternary label source and broadens the
+training geography. The label source change is from MRDS to USMIN,
+the USGS Mineral Resources Mine Inventory. USMIN traces historic
+USGS topographic-map symbols for placer mines, gravel pits, sand
+pits, diggings, and tailings into a point dataset. Sub-cell
+positional accuracy at named anchors: the surveyor in 1924 knew
+where the pit was when they drew the symbol, so the median offset
+against a modern plat overlay is 0 m for named records. MRDS, by
+contrast, carries a median offset of 555 m and a 90th-percentile
+offset of 1.97 km. For placer ground whose value follows stream
+gradient, those numbers matter; an MRDS record nominally on a
+tributary may actually plot on the adjacent ridge in the model's
+grid coordinates.
+
+The kernel change converts each USMIN point into a multi-cell
+weighted positive via an anisotropic 2D Gaussian centered on the
+point, with along-channel σ = 1500 m (Singer and Menzie 2010 USGS
+Bulletin 1693 placer-run length scale) and cross-channel σ = 250 m,
+oriented along the nearest stream-order-≥-3 NHD HR reach. Cells
+inside the kernel footprint take weighted positive labels capped
+at 1.0 via per-cell max aggregation over overlapping kernels. The
+436 AOI-clipped USMIN placer/gravel records turn into 8,333 binary
+positives at the 0.5-weight threshold, or 11,149 effective weighted
+positives summed across the kernel footprint.
+
+The geography change is straightforward. The AOI extent was already
+the full Mother Lode (37.49°N to 40.01°N); v3.6 just had no labels
+south of 39°N. v3.7.0 distributes positives across all ten historic
+Mother Lode counties plus Plumas, Sacramento, San Joaquin, and
+Stanislaus on the Central Valley margin. The per-county USMIN
+record count, north to south: Butte 8, Yuba 8, Sierra 42, Nevada
+62, Placer 49, El Dorado 43, Amador 18, Calaveras 23, Tuolumne 26,
+Mariposa 4. Four counties sit below the 20-positive gate I set
+ahead of training, and the audit below tracks what that costs.
+
+Tertiary is unchanged from v3.6 because Tertiary deep-gravel ground
+genuinely is a northern Sierra phenomenon. The Lindgren-mapped
+Tertiary auriferous-gravel system sits between latitudes 39.0°N
+and 39.4°N; extending Tertiary labels south would be wishful. The
+v3.7.0 deliverable carries the unchanged v3.6 Tertiary on band 1
+of a new two-band GeoTIFF and the new v3.7.0 Quaternary on band 2.
+
+The stacking out-of-fold ROC-AUC for v3.7.0 Quaternary lands at
+0.802, down from v3.6's 0.832 by 3 percentage points. The PR-AUC
+goes from v3.6's 0.004 to v3.7.0's 0.071, an increase of 17x.
+Read the two numbers together. ROC-AUC is a property of the entire
+ranking; spreading 7,900 new positive cells across heterogeneous
+southern terrain makes the cheap northern-Sierra-elevation-and-
+distance-to-lode ranking shortcuts work worse, and a small ROC
+regression is the expected price of asking a harder question.
+PR-AUC up-weights the high-confidence band and rewards precision
+on the cells the model is most sure of, which is where the
+channel kernel concentrates positive mass. For placer
+prospectivity work the precision-on-high-confidence-cells number
+is the one a downstream consumer actually uses, so the 17x
+PR-AUC improvement is the result that matters; the 3-pp ROC-AUC
+regression is the trade I made for it.
+
+The southern districts get materially more probability mass in
+absolute terms. The AOI p90 of the calibrated probability jumps
+from v3.6's 0.0016 to v3.7.0's 0.0226, a factor of 14.
+Per-region: El Dorado / Placer p90 goes from 0.0052 to 0.0588
+(11x); Amador 0.0031 to 0.0283 (9x); Tuolumne 0.0017 to 0.0214
+(13x); Mariposa 0.0016 to 0.0203 (13x); Calaveras 0.0021 to 0.0167
+(8x). The coverage-mask sidecar goldbug consumes (cells with
+calibrated P above 0.01) expands from 14,696 cells (1.6% of the
+AOI) to 246,113 cells (27.3% of the AOI), a 17x increase in the
+addressable ranking space.
+
+![v3.6 vs v3.7.0 Quaternary calibrated probability, percentile rank against the AOI distribution. Left: v3.6 Quaternary, MRDS-derived labels concentrated north of 39°N; the southern Mother Lode reads near-floor everywhere. Right: v3.7.0 Quaternary, USMIN labels with channel-aligned kernel across the full Mother Lode belt. Cyan dashed rectangles outline the four below-gate counties (Butte, Yuba, Amador, Mariposa); white circles mark southern anchor districts at a 2 km buffer.](data/derived/portfolio_charts/v37_vs_v36_quaternary_comparison.png)
+
+To check whether the broader USMIN labels generalize to records
+the model never saw during training, I score every MRDS placer-Au
+record in the four below-gate counties against the v3.7.0
+calibrated raster. MRDS records were held entirely out of the
+v3.7.0 training set, so this is a real held-out test against an
+independent label source. The gate: if the median MRDS-record
+probability lands in the top decile of the AOI distribution
+(rank ≥ 0.90), the model identified those cells as candidate
+placer ground (PASS); top quintile but not top decile is MARGINAL;
+below top quintile fires a follow-up augmentation patch (FAIL).
+
+| County | n MRDS | v3.6 median rank | v3.7.0 median rank | Result |
+|---|---|---|---|---|
+| Butte | 574 | 0.844 | 0.825 | MARGINAL |
+| Yuba | 202 | 0.859 | 0.880 | MARGINAL |
+| Amador | 1146 | 0.927 (PASS) | 0.753 | MARGINAL |
+| Mariposa | 1229 | 0.884 | **0.662** | **FAIL** |
+
+The mixed result is the chapter's most interesting finding. v3.7.0
+moves Yuba up the AOI rank distribution; it moves Butte and Amador
+down. Amador regressed from PASS to MARGINAL despite getting 9x
+more absolute probability mass: the AOI also got denser, and the
+relative-rank metric penalizes that. Mariposa drops from MARGINAL
+to FAIL because four USMIN records is not enough to teach the
+model what southern-Quaternary signal looks like at parity with
+the densely-labeled northern belt. The model puts non-trivial
+probability mass on Mariposa cells (p90 = 0.020, 13x v3.6), but
+the AOI's p90 of 0.023 is just barely higher; the median MRDS
+record sits below the AOI's median rather than above its top
+decile.
+
+The v3.7.0.1 augmentation patch for Mariposa is queued: pull
+Mariposa-county MRDS placer-Au records as supplementary positive
+labels and retrain only the Quaternary branch. That patch trades
+USMIN's sub-cell positional accuracy for MRDS's better record
+count in one specific county, which is a different trade than
+mixing the sources globally would be. The remaining three weak-
+gate counties stay where they are; their MARGINAL position is
+itself informative. With 8 to 18 USMIN records each, the model
+picked up partial signal but did not reach top-decile confidence,
+which is the right qualitative outcome for sparse labels and the
+right place to leave the chapter without back-filling MRDS into
+training.
+
+Eighteen named historic placer districts spread across the weak
+counties and the northern belt land in the v3.7.0 raster at the
+percentile ranks below. The buffer is 2 km around each district
+centroid; the rank reported is the maximum probability cell
+inside the buffer.
+
+| Anchor | County | v3.7.0 max P | Rank in AOI | Decile |
+|---|---|---|---|---|
+| Mokelumne Hill | Amador | 0.353 | 0.991 | 10 |
+| Plymouth | Amador | 0.027 | 0.920 | 10 |
+| Jackson | Amador | 0.043 | 0.949 | 10 |
+| Drytown | Amador | 0.022 | 0.894 | 9 |
+| Murphys | Calaveras | 0.179 | 0.983 | 10 |
+| Angels Camp | Calaveras | 0.029 | 0.924 | 10 |
+| San Andreas | Calaveras | 0.041 | 0.948 | 10 |
+| Carson Hill | Calaveras | 0.022 | 0.897 | 9 |
+| Sonora | Tuolumne | 0.030 | 0.928 | 10 |
+| Columbia | Tuolumne | 0.025 | 0.912 | 10 |
+| Jamestown | Tuolumne | 0.037 | 0.942 | 10 |
+| Coulterville | Mariposa | 0.030 | 0.929 | 10 |
+| Hornitos | Mariposa | 0.014 | 0.806 | 9 |
+| Mariposa town | Mariposa | 0.013 | 0.797 | 8 |
+| Cherokee | Butte | 0.886 | 1.000 | 10 |
+| Oroville | Butte | 0.012 | 0.770 | 8 |
+| Smartsville | Yuba | 0.848 | 0.999 | 10 |
+
+Of 17 sampled (Marysville landed on an NA cell at the AOI
+boundary), 12 anchors land in the top decile, 3 in the ninth
+decile (top quintile but not top decile), and 2 in the eighth.
+The eighth-decile cases (Oroville in Butte, Mariposa town in
+Mariposa) match the per-county MRDS gate result: named anchors
+in counties with few USMIN labels under-rank against the AOI
+distribution, while named anchors in counties with adequate
+label density rank cleanly.
+
+The net read on v3.7.0 is that the goldbug consumer now has
+real placer probability across the full Mother Lode rather than
+a floor of 0.0004 everywhere south of 39°N, and the model's
+ranking quality on the high-confidence band improved at the
+cost of three points of overall ROC-AUC. The Mariposa gate
+failure is a real bound on what 4 USMIN records can teach the
+model; v3.7.0.1 patches it without redefining the experiment,
+and the remaining three MARGINAL counties stay as documented
+edges of v3.7.0's confidence.
 
 ## MAF anomaly detection on Au pathfinder geochem
 
