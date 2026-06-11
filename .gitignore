@@ -81,3 +81,7 @@ Thumbs.db
 outreach/
 
 **/*.quarto_ipynb
+
+# Vendored third-party binaries (rebuilt via scripts/build_pomdpsol.sh).
+# The build script + source URL are tracked; the build tree + binary are not.
+/vendor/
