@@ -135,7 +135,7 @@ tables.
 
 Two findings from the conversion are worth being explicit about.
 
-First, BCGS lithology entries are operator-format text — and dirty.
+First, BCGS lithology entries are operator-format text, and dirty.
 The 107,326 intervals are logged under 2,024 distinct strings.
 Operators use seven distinct codes for overburden alone (`OVB`,
 `OVBD`, `OB`, `OVER`, `Overburden`, plus mixed-case variants), four

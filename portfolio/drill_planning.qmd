@@ -109,16 +109,33 @@ This is an early experiment at converting a regional probability
 surface into a hole-location decision. The BCGT POMDP runs on a
 prior covering thousands of square kilometers. The underlying
 notebook documents the v1.0 simplifications I made; the v2.0
-extensions in Mern et al. 2024 ([arXiv 2410.10610](https://arxiv.org/abs/2410.10610)) — correlated draws, noisy
-sensors, and multi-hypothesis falsification — would widen the
-POMCP-vs-greedy gap and let the planner detect when its
-geological hypotheses are wrong. The notebook ships a small
-toy implementation of the v2.0 belief-update mechanics on a
-synthetic 3-hypothesis prior, showing the posterior trajectory
-under each ground-truth scenario including the "all hypotheses
-wrong" falsification case. The property-scale counterpart of
-this idea, a GP drill-site recommender on the 24 Bear Cub
-holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
+extensions in Mern et al. 2024
+([arXiv 2410.10610](https://arxiv.org/abs/2410.10610)) cover
+correlated draws, noisy sensors, and multi-hypothesis
+falsification. Those would widen the POMCP-vs-greedy gap and let
+the planner detect when its geological hypotheses are wrong. The
+notebook ships a small toy implementation of the v2.0 belief-
+update mechanics on a synthetic 3-hypothesis prior, showing the
+posterior trajectory under each ground-truth scenario including
+the "all hypotheses wrong" falsification case.
+
+A production-scale Python port of the v2.0 paper is the next
+release on this repo. The milestones I have queued: B.1
+correlated-prior single-hypothesis POMCP on the BCGT prior; B.2
+retrospective validation against the BCGS post-2010 drill record
+(my contribution beyond Mern, since the paper validates on
+synthetic Monte Carlo only); C.1 Bernoulli noisy sensor with a
+3-by-3 sensitivity sweep on (alpha, beta); C.2 multi-hypothesis
+posterior over four paper hypotheses plus a null, with the
+falsification check that fires when h_0 dominates the posterior.
+Solver split: POMCP via `pomdp_py` for B.1, B.2, and C.1
+(matches this chapter's v1.0 setup); SARSOP via the APPL
+`pomdpsol` binary for C.2 (matches the paper directly; the
+build script lives at `scripts/build_pomdpsol.sh`).
+
+The property-scale counterpart of this idea, a GP drill-site
+recommender on the 24 Bear Cub holes, sits in
+[Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 
 ## Deeper notebooks
 
