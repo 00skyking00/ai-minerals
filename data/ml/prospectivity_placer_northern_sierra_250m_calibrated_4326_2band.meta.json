@@ -16,9 +16,9 @@
     },
     "quaternary": {
       "min": 0.0,
-      "max": 0.03127063810825348,
-      "mean": 0.0004965265979990363,
-      "median": 0.0003221326624043286
+      "max": 0.8666666746139526,
+      "mean": 0.014343280345201492,
+      "median": 0.005982662551105022
     }
   },
   "fusion_note": "The single-band fused raster at prospectivity_placer_northern_sierra_250m_calibrated_4326.tif remains the primary deliverable. It is computed per-cell as np.maximum(band1, band2) from this 2-band file."
