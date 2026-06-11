@@ -108,7 +108,7 @@ server from an unattended job). Trigger manually:
 
 ## D.4 OSM mining-tag features as supplementary Quaternary labels
 
-New `scripts/northern_sierra_placer_fetch_osm_mining.py` queries OSM Overpass
+New `scripts/northern_sierra_placer/fetch_osm_mining.py` queries OSM Overpass
 via osmnx for `historic=mine`, `man_made=mineshaft`, `man_made=adit`,
 `landuse=quarry` tags within the placer AOI. Results written to
 `data/raw/osm_mining/osm_mining_<region>.gpkg`.

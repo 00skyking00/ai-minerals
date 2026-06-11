@@ -1,6 +1,6 @@
 """Write a per-cell value array to a GeoTIFF in the working CRS, plus a 4326 sibling.
 
-Extracted from `scripts/motherlode_v2_postprocess_250m.py::write_geotiff` so the
+Extracted from `scripts/motherlode/v2_postprocess_250m.py::write_geotiff` so the
 motherlode lode pipeline, the northern-Sierra placer Phase 1 driver, and the
 two-population fusion script can share one well-tested implementation.
 """

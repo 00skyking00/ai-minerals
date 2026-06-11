@@ -158,7 +158,7 @@ A/B happens in Phase F.
 #| label: fusion-smoke
 import subprocess
 result = subprocess.run(
-    [".venv/bin/python", "scripts/northern_sierra_placer_calibrate_and_fuse.py",
+    [".venv/bin/python", "scripts/northern_sierra_placer/calibrate_and_fuse.py",
      "--no-logistic-fusion"],
     cwd=str(REPO_ROOT),
     capture_output=True, text=True, timeout=120,
@@ -168,7 +168,7 @@ print(result.stdout[-1000:] if result.stdout else "(no stdout)")
 print()
 
 result2 = subprocess.run(
-    [".venv/bin/python", "scripts/northern_sierra_placer_calibrate_and_fuse.py"],
+    [".venv/bin/python", "scripts/northern_sierra_placer/calibrate_and_fuse.py"],
     cwd=str(REPO_ROOT),
     capture_output=True, text=True, timeout=120,
 )

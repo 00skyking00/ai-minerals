@@ -5,7 +5,7 @@ diggings named in Lindgren 1911 (USGS Professional Paper 73, DOI 10.3133/pp73)
 that are NOT among the 7 anchor districts in `_northern_sierra_anchors.py`.
 
 Use case: held-out blind validation in
-`scripts/northern_sierra_placer_lindgren_blind_set.py`. None of these
+`scripts/northern_sierra_placer/lindgren_blind_set.py`. None of these
 centroids are used to train any classifier; the placer fetch + Phase 2
 training/calibration paths never see this fixture.
 

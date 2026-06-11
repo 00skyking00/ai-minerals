@@ -10,7 +10,7 @@ Mother Lode v3.1 and Tanacross Path 2:
   - Isostatic-residual gravity layer alongside Bouguer.
   - Cox-Singer-cleaned labels + leak-free out-of-fold spatial-block CV
     scoring as the validation default (template:
-    `scripts/motherlode_path1_oof.py`).
+    `scripts/motherlode/path1_oof.py`).
 
 AOI scoping decision:
   Arizona has multiple porphyry-Cu districts. For a single self-

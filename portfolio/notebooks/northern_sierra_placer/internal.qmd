@@ -15,7 +15,7 @@ format:
 
 The polished chapter lives at [northern_sierra_placer_prospectivity.qmd](northern_sierra_placer_prospectivity.qmd). This page is the warts-and-all companion: decisions I would interrogate in a code review, per-fold metrics, the leakage audits I ran before I trusted the headline numbers, and the list of things I would build next if I had another week. Read it if you want to understand why the pipeline looks the way it does, or if you want to find the rough edges before they bite you.
 
-What was built: a 250 m prospectivity grid for placer Au across the northern Sierra Nevada, two populations (Tertiary deep-gravel and Quaternary modern-channel) trained independently and fused by per-cell max, validated against seven held-out historic hydraulic-mining districts. The pipeline ran from raw-data fetch (`scripts/northern_sierra_placer_fetch_all.py`) through Phase 1 knowledge-driven scoring (`scripts/northern_sierra_placer_phase1_index.py`) and Phase 2 PU-bagging baseline plus stacked RF + LightGBM with isotonic calibration (`scripts/northern_sierra_placer_train_predict_250m.py`, `scripts/northern_sierra_placer_calibrate_and_fuse.py`), with a spatial-block CV at 20 km blocks throughout, including the stacking meta-learner's `cv` argument.
+What was built: a 250 m prospectivity grid for placer Au across the northern Sierra Nevada, two populations (Tertiary deep-gravel and Quaternary modern-channel) trained independently and fused by per-cell max, validated against seven held-out historic hydraulic-mining districts. The pipeline ran from raw-data fetch (`scripts/northern_sierra_placer/fetch_all.py`) through Phase 1 knowledge-driven scoring (`scripts/northern_sierra_placer/phase1_index.py`) and Phase 2 PU-bagging baseline plus stacked RF + LightGBM with isotonic calibration (`scripts/northern_sierra_placer/train_predict_250m.py`, `scripts/northern_sierra_placer/calibrate_and_fuse.py`), with a spatial-block CV at 20 km blocks throughout, including the stacking meta-learner's `cv` argument.
 
 What is deferred: the Phase 3 hybrid-CNN-with-position-encoder model from Cauca-River 2025, an Attention-UNet for paleochannel segmentation (no tile labels exist for bedrock-confined Sierra Tertiary channels yet), the Transformer-GCN for global topology, the goldbug-side integration that samples the deliverable raster into the [goldbug claim-map UI](https://johnsondevco.com/goldbug/), and field validation against the MRDS placer drill-record subset that wasn't used as a training label.
 
@@ -41,11 +41,11 @@ The build made a handful of choices that aren't obvious from reading the code. E
 
 - **SPI band 3 to 6 as the prospective stream-power range, even though the calibration is from New Zealand.** Roy, Upton, and Craw (2018) showed that detachment-and-transport conditions for placer Au sit in the mid-range of stream-power index, not the extreme high. The Sierra Nevada has different lithology, different gradient distribution, and different climate from the South Island, so the NZ-derived band edges are a starting point rather than a final answer. A region-specific re-fit (binning SPI deciles against a placer-occurrence density curve from MRDS Quaternary placer points) is on the Phase 3 list. For now, the band is encoded in `features/hydrology.py::stream_power_index_band` and shows up in Phase 1 with a moderate positive weight.
 
-- **Paleochannel raster precomputed in Phase D, not computed inside the assemble loop.** The paleochannel-likelihood raster (`features/paleochannel.py::build_paleochannel_likelihood`) is a composite of RiverREM detrending, a local-relief-model bandpass, and a GeoMorphic Index that emphasises broad, low-gradient terraces. Run over the full AOI, this is a multi-minute operation. Precomputing once in `scripts/northern_sierra_placer_precompute_paleochannel.py` and sampling via raster lookup inside the assemble loop (`features/assemble.py`) is the right factoring; redoing it per fold or per population would multiply the runtime by ~20 with no change in output.
+- **Paleochannel raster precomputed in Phase D, not computed inside the assemble loop.** The paleochannel-likelihood raster (`features/paleochannel.py::build_paleochannel_likelihood`) is a composite of RiverREM detrending, a local-relief-model bandpass, and a GeoMorphic Index that emphasises broad, low-gradient terraces. Run over the full AOI, this is a multi-minute operation. Precomputing once in `scripts/northern_sierra_placer/precompute_paleochannel.py` and sampling via raster lookup inside the assemble loop (`features/assemble.py`) is the right factoring; redoing it per fold or per population would multiply the runtime by ~20 with no change in output.
 
 ## Per-fold metric tables
 
-After the first end-to-end run, this section shows per-fold ROC-AUC and PR-AUC for each model (PU-bagging baseline, Random Forest, LightGBM, Stacking) under 20 km spatial-block cross-validation, one table per population. The CSV that backs the tables is written by `scripts/northern_sierra_placer_train_predict_250m.py` to `data/derived/northern_sierra_placer/pop_fold_metrics_<pop>.csv`.
+After the first end-to-end run, this section shows per-fold ROC-AUC and PR-AUC for each model (PU-bagging baseline, Random Forest, LightGBM, Stacking) under 20 km spatial-block cross-validation, one table per population. The CSV that backs the tables is written by `scripts/northern_sierra_placer/train_predict_250m.py` to `data/derived/northern_sierra_placer/pop_fold_metrics_<pop>.csv`.
 
 ```{python}
 #| eval: false
@@ -108,11 +108,11 @@ The Hawkes catchment-geochem aggregation in `features/placer_geology.py::hawkes_
 
 The fix is per-fold recomputation: for each of the K spatial-block folds, the Hawkes aggregation is rerun with only the train-fold geochem samples in scope, and the test-fold cells then see only train-fold samples in their catchments. This adds K-times the Hawkes runtime to the training pass; on the full AOI, that's a real cost.
 
-A `--no-hawkes-refold` flag exists on `scripts/northern_sierra_placer_train_predict_250m.py` for runtime triage during development. Using it pushes the deliverable's model card to "deliverable = Phase 1 only", per the plan's ship rule: if the leakage guard is off, the Phase 2 numbers don't ship as headline. The flag exists so I can iterate on feature engineering without paying the K-times cost on every run, not so I can quietly weaken the audit before publishing.
+A `--no-hawkes-refold` flag exists on `scripts/northern_sierra_placer/train_predict_250m.py` for runtime triage during development. Using it pushes the deliverable's model card to "deliverable = Phase 1 only", per the plan's ship rule: if the leakage guard is off, the Phase 2 numbers don't ship as headline. The flag exists so I can iterate on feature engineering without paying the K-times cost on every run, not so I can quietly weaken the audit before publishing.
 
 ## Full anchor-district decile table
 
-The polished chapter shows the anchor-district decile gate as a small table for Phase 1. This section shows the full version across all model columns (the Phase 1 knowledge-driven score, the fused Phase 2 probability, and the calibrated per-population probabilities). The CSV is written by `scripts/northern_sierra_placer_validation.py`.
+The polished chapter shows the anchor-district decile gate as a small table for Phase 1. This section shows the full version across all model columns (the Phase 1 knowledge-driven score, the fused Phase 2 probability, and the calibrated per-population probabilities). The CSV is written by `scripts/northern_sierra_placer/validation.py`.
 
 ```{python}
 #| eval: false
@@ -144,7 +144,7 @@ The Phase 1 vs Phase 2 column comparison is the most useful diagnostic. If Phase
 
 - 3DEP 1 m LiDAR coverage map per sub-area. Some northern-Sierra blocks have flown coverage (Yuba River corridor, most of Nevada and Placer counties); some have only the 10 m fallback. The Phase D paleochannel composite is much stronger where the 1 m LiDAR is available, because the LRM bandpass can resolve channel-scale features. A coverage map per sub-area would let the model card report which districts the model has high-resolution morphology for and which it doesn't.
 - CGS 2010 surficial geology PTYPE coverage for Quaternary alluvium. The Quaternary positive proxy depends on the `is_quaternary_alluvium` feature, which is built from CGS PTYPE codes. Some sub-codes (the beach-sand variants like "Qbs", a handful of fine-grained overbank variants) currently fall through the regex in `features/placer_geology.py::is_quaternary_alluvium` and get coded as non-alluvium. The list of fall-throughs is short but worth a sweep before the next regional rollout.
-- NHDPlus HR caching strategy. The current `hydrology/nhdplus_hr` adapter downloads 4-6 GB of HUC4 packages in `scripts/northern_sierra_placer_fetch_all.py`. For an AOI that only needs part of one HUC4, this is wasteful. A HUC4-by-HUC4 lazy fetch (download the package only when a tile in that HUC4 is touched) would cut the first-run cost for narrow AOIs by a factor of 2-3.
+- NHDPlus HR caching strategy. The current `hydrology/nhdplus_hr` adapter downloads 4-6 GB of HUC4 packages in `scripts/northern_sierra_placer/fetch_all.py`. For an AOI that only needs part of one HUC4, this is wasteful. A HUC4-by-HUC4 lazy fetch (download the package only when a tile in that HUC4 is touched) would cut the first-run cost for narrow AOIs by a factor of 2-3.
 
 ### Transfer to Calaveras (next region)
 
@@ -165,25 +165,25 @@ uv sync --extra paleochannel   # adds the RiverREM/LRM dependencies
 uv run pytest tests/test_distance_downstream_leakage.py -v
 
 # fetch raw data (4-8 GB depending on NHDPlus HR HUC4 coverage)
-uv run python scripts/northern_sierra_placer_fetch_all.py
+uv run python scripts/northern_sierra_placer/fetch_all.py
 
 # Phase D: precompute the paleochannel-likelihood raster
-uv run python scripts/northern_sierra_placer_precompute_paleochannel.py
+uv run python scripts/northern_sierra_placer/precompute_paleochannel.py
 
 # Phase 1: knowledge-driven scorer + anchor-decile validation gate
-uv run python scripts/northern_sierra_placer_phase1_index.py
+uv run python scripts/northern_sierra_placer/phase1_index.py
 
 # Phase 2: per-population training and prediction
-uv run python scripts/northern_sierra_placer_train_predict_250m.py \
+uv run python scripts/northern_sierra_placer/train_predict_250m.py \
     --population tertiary
-uv run python scripts/northern_sierra_placer_train_predict_250m.py \
+uv run python scripts/northern_sierra_placer/train_predict_250m.py \
     --population quaternary
 
 # fusion + isotonic calibration
-uv run python scripts/northern_sierra_placer_calibrate_and_fuse.py
+uv run python scripts/northern_sierra_placer/calibrate_and_fuse.py
 
 # validation report (anchor decile table + success-rate curve PNG)
-uv run python scripts/northern_sierra_placer_validation.py
+uv run python scripts/northern_sierra_placer/validation.py
 ```
 
 Development-only flags:

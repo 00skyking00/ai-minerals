@@ -509,7 +509,7 @@ within 5 km of any of these are not eligible to be labeled negative.
 ## 10. Modeling and validation summary
 
 The feature frame above is the substrate for three model variants
-trained in Phase 2 (`scripts/motherlode_phase2.py`):
+trained in Phase 2 (`scripts/motherlode/phase2.py`):
 
 - **RF baseline** (full feature set, 200 trees, balanced subsampling)
 - **RF without count features**: drops `*_count_5km` and
@@ -528,7 +528,7 @@ Spatial-block cross-validation (20 km blocks) on Mother Lode produces:
 Bootstrap 95% CI on the RF-no-count mean AUC, NaN-folds filtered:
 **[0.805, 0.900]**.
 
-Phase 3 within-Sierra validation (`scripts/motherlode_phase3.py`):
+Phase 3 within-Sierra validation (`scripts/motherlode/phase3.py`):
 
 - **Mother Lode Belt blind holdout**: median P inside belt 0.97,
   outside 0.12 → **lift 7.9×**. The model lights up the belt.

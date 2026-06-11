@@ -214,10 +214,10 @@ areas you have not.
 
 ## Files and reproduction
 
-- Phase 1 driver: [scripts/lawley_phase1_gbm.py](../../scripts/lawley_phase1_gbm.py)
-- Phase 1b driver: [scripts/lawley_phase1b_leak_corrected.py](../../scripts/lawley_phase1b_leak_corrected.py)
-- Phase 2 driver: [scripts/lawley_phase2_eval.py](../../scripts/lawley_phase2_eval.py)
-- CSV → parquet converter: [scripts/lawley_csv_to_parquet.py](../../scripts/lawley_csv_to_parquet.py)
+- Phase 1 driver: [scripts/reproductions/lawley/phase1_gbm.py](../../scripts/reproductions/lawley/phase1_gbm.py)
+- Phase 1b driver: [scripts/reproductions/lawley/phase1b_leak_corrected.py](../../scripts/reproductions/lawley/phase1b_leak_corrected.py)
+- Phase 2 driver: [scripts/reproductions/lawley/phase2_eval.py](../../scripts/reproductions/lawley/phase2_eval.py)
+- CSV → parquet converter: [scripts/reproductions/lawley/csv_to_parquet.py](../../scripts/reproductions/lawley/csv_to_parquet.py)
 - Reference code (SRI baseline): [`DARPA-CRITICALMAAS/sri-ta3-baselines`](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines)
 - Findings writeups: [Phase 1](../../research/lawley_phase1_findings_2026-05.md), [Phase 2](../../research/lawley_phase2_findings_2026-05.md)
 

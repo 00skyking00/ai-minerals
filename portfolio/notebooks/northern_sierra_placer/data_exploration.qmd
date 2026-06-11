@@ -64,7 +64,7 @@ classifier per population and fuse the calibrated rasters per-cell.
 | NURE I-ICP-MS | USGS DOI 10.5066/F7765DHF | reanalyzed NURE archive (Au + Sb + Hg) |
 
 Every dataset is open, public-domain, and reproducible from `uv sync`
-+ `python scripts/northern_sierra_placer_fetch_all.py`. Raw fetches land
++ `python scripts/northern_sierra_placer/fetch_all.py`. Raw fetches land
 in `data/raw/<dataset>/`; the assembled 250 m feature frame is at
 `data/derived/features_northern_sierra_placer_250m.parquet`.
 

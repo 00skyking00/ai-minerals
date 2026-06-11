@@ -2,7 +2,7 @@
 
 Eight historic placer-mining towns in Calaveras County, California.
 Used by the Sierra → Calaveras coarse-transfer driver
-(`scripts/northern_sierra_placer_calaveras_transfer.py`) to score
+(`scripts/northern_sierra_placer/calaveras_transfer.py`) to score
 known producer districts under the Sierra-trained model and check
 whether deciles transfer.
 

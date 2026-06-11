@@ -173,7 +173,7 @@ useful than a blanket claim that the new method is better.
 
 ## Files and reproduction
 
-- Lawley Phase 3 (the head-to-head): [scripts/lawley_phase3_devnet.py](../../scripts/lawley_phase3_devnet.py)
+- Lawley Phase 3 (the head-to-head): [scripts/reproductions/lawley/phase3_devnet.py](../../scripts/reproductions/lawley/phase3_devnet.py)
 - DevNet implementation: [src/ai_minerals/model_devnet.py](../../src/ai_minerals/model_devnet.py)
 - Cross-region findings: [research/cross_region_methodology_findings_2026-05.md](../../research/cross_region_methodology_findings_2026-05.md)
 - Lawley Phase 3 findings: [research/lawley_phase3_findings_2026-05.md](../../research/lawley_phase3_findings_2026-05.md)

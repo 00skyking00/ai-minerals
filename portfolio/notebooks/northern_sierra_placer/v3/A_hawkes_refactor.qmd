@@ -178,7 +178,7 @@ per-population feature splits) add work, but Hawkes was the dominant cost.
 
 Verification status:
 - [x] Cell-mask refactor written and parses (`src/ai_minerals/features/placer_geology.py`)
-- [x] Caller `_recompute_hawkes_for_fold` updated to pass AOI cell_mask (`scripts/northern_sierra_placer_train_predict_250m.py`)
+- [x] Caller `_recompute_hawkes_for_fold` updated to pass AOI cell_mask (`scripts/northern_sierra_placer/train_predict_250m.py`)
 - [x] Unit tests cover: equivalence at mask-true cells, NaN at mask-false cells, length mismatch raises, empty/full mask edge cases, speedup direction
 - [x] All 9 tests pass (3 legacy leakage tests + 6 new hawkes_cell_mask tests)
 - [x] Synthetic-grid timing direction confirmed

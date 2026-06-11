@@ -1,6 +1,6 @@
 {
-  "model_version": "placer-v3.6.0",
-  "release": "ai-minerals-v1.0.1",
+  "model_version": "placer-v3.7.0",
+  "release": "ai-minerals-v1.1.0",
   "calibration_method": "isotonic_via_CalibratedClassifierCV",
   "fusion_method": "np.maximum(P_tertiary, P_quaternary)",
   "crs": "EPSG:4326",
@@ -218,7 +218,7 @@
     }
   },
   "recommended_bands": {
-    "description": "Cutoffs derived from the fused raster's distribution. Goldbug's prior absolute bands (high=0.05, moderate=0.01, weak=0.001) map cleanly onto these quantiles: high cuts at the AOI p99, moderate at p95, weak at p90. Per-region cutoffs should generally use the northern_sierra region's values rather than per-region p99, since the model's training signal is northern-Sierra-anchored.",
+    "description": "Cutoffs derived from the fused raster's distribution. Goldbug's prior absolute bands (high=0.05, moderate=0.01, weak=0.001) map cleanly onto these quantiles: high cuts at the AOI p99, moderate at p95, weak at p90.",
     "high": 0.3324131667613983,
     "moderate": 0.04359041154384613,
     "weak": 0.022559896111488342

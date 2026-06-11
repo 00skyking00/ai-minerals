@@ -149,9 +149,9 @@ region nobody has drilled yet."
 
 ## Files and reproduction
 
-- Pipeline driver: [scripts/motherlode_phase3.py](../../scripts/motherlode_phase3.py)
+- Pipeline driver: [scripts/motherlode/phase3.py](../../scripts/motherlode/phase3.py)
 - Region config: [src/ai_minerals/regions/motherlode.py](../../src/ai_minerals/regions/motherlode.py)
-- Cox-Singer label cleanup: [scripts/motherlode_v3p1_groupCD.py](../../scripts/motherlode_v3p1_groupCD.py)
+- Cox-Singer label cleanup: [scripts/motherlode/v3p1_groupCD.py](../../scripts/motherlode/v3p1_groupCD.py)
 - v3.1 improvements writeup: [notebooks/motherlode/v3p1_improvements.qmd](../../notebooks/motherlode/v3p1_improvements.qmd)
 
 ## Sources

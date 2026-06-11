@@ -36,7 +36,7 @@ finished raster, not a constraint on this AOI.
 
 CRS: EPSG:3310 (California Albers Equal Area, NAD83), matching motherlode
 for direct comparison. The deliverable raster is reprojected to EPSG:4326
-via `scripts/motherlode_v2_postprocess_250m.py::write_geotiff`.
+via `scripts/motherlode/v2_postprocess_250m.py::write_geotiff`.
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ NORTHERN_SIERRA_PLACER = Region(
         "lode_mrds":     DATA_RAW / "mrds" / "mrds_motherlode.gpkg",
 
         # Phase 2 paleochannel-likelihood raster, precomputed by
-        # scripts/northern_sierra_placer_precompute_paleochannel.py.
+        # scripts/northern_sierra_placer/precompute_paleochannel.py.
         "paleochannel_likelihood":
                          DATA_RAW / "3dep_lidar" / "paleochannel_likelihood_northern_sierra.tif",
 

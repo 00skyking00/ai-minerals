@@ -334,12 +334,12 @@ is dataset-specific in an even tighter sense.
 
 ## Files and reproduction
 
-- Curnamona reference implementation: [scripts/deep_seam_replicate.py](../../scripts/deep_seam_replicate.py)
+- Curnamona reference implementation: [scripts/reproductions/deep_seam/replicate.py](../../scripts/reproductions/deep_seam/replicate.py)
 - Cell A (Curnamona + DevNet): [data/derived/deep_seam_cell_a_loo.json](../../data/derived/deep_seam_cell_a_loo.json)
 - Cell B (Curnamona + RF): [data/derived/deep_seam_cell_b_loo.json](../../data/derived/deep_seam_cell_b_loo.json)
-- Tanacross Path 5 4-cell: [scripts/eastak_path5_oof_comparison.py](../../scripts/eastak_path5_oof_comparison.py), [data/derived/eastak/path5_decomposed_metrics.json](../../data/derived/eastak/path5_decomposed_metrics.json)
-- Arizona Path 3 4-cell: [scripts/arizona_oof_comparison.py](../../scripts/arizona_oof_comparison.py), [data/derived/arizona/path3_decomposed_metrics.json](../../data/derived/arizona/path3_decomposed_metrics.json)
-- Lawley continental: [scripts/lawley_phase3_devnet.py](../../scripts/lawley_phase3_devnet.py)
+- Tanacross Path 5 4-cell: [scripts/eastak/path5_oof_comparison.py](../../scripts/eastak/path5_oof_comparison.py), [data/derived/eastak/path5_decomposed_metrics.json](../../data/derived/eastak/path5_decomposed_metrics.json)
+- Arizona Path 3 4-cell: [scripts/arizona/oof_comparison.py](../../scripts/arizona/oof_comparison.py), [data/derived/arizona/path3_decomposed_metrics.json](../../data/derived/arizona/path3_decomposed_metrics.json)
+- Lawley continental: [scripts/reproductions/lawley/phase3_devnet.py](../../scripts/reproductions/lawley/phase3_devnet.py)
 - Cross-region writeup: [research/cross_region_methodology_findings_2026-05.md](../../research/cross_region_methodology_findings_2026-05.md)
 - DEEP-SEAM implementation: [src/ai_minerals/model_devnet.py](../../src/ai_minerals/model_devnet.py)
 

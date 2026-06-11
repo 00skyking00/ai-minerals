@@ -172,7 +172,7 @@ generalizes.
 
 ## Files and reproduction
 
-- Pipeline driver: [scripts/eastak_path2_stage1bc_oof_kenorland.py](../../scripts/eastak_path2_stage1bc_oof_kenorland.py)
+- Pipeline driver: [scripts/eastak/path2_stage1bc_oof_kenorland.py](../../scripts/eastak/path2_stage1bc_oof_kenorland.py)
 - Region config: [src/ai_minerals/regions/eastak.py](../../src/ai_minerals/regions/eastak.py)
 - Original Tanacross notebook: [notebooks/eastak/eastak_porphyry_prospectivity.qmd](../../notebooks/eastak/eastak_porphyry_prospectivity.qmd)
 - Data exploration: [notebooks/eastak/data_exploration.qmd](../../notebooks/eastak/data_exploration.qmd)

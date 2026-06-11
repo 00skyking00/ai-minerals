@@ -387,7 +387,7 @@ The Arizona v4 work does **not** establish:
 - Feature frame: [data/derived/features_arizona_500m.parquet](../../data/derived/features_arizona_500m.parquet)
 - Decomposed feature frame: [data/derived/features_arizona_500m_decomposed.parquet](../../data/derived/features_arizona_500m_decomposed.parquet)
 - 4-cell OOF metrics: [data/derived/arizona/path3_decomposed_metrics.json](../../data/derived/arizona/path3_decomposed_metrics.json)
-- Build scripts: [arizona_fetch_all.py](../../scripts/arizona_fetch_all.py), [arizona_features.py](../../scripts/arizona_features.py), [arizona_decompose_features.py](../../scripts/arizona_decompose_features.py), [arizona_oof_comparison.py](../../scripts/arizona_oof_comparison.py)
+- Build scripts: [arizona_fetch_all.py](../../scripts/arizona/fetch_all.py), [arizona_features.py](../../scripts/arizona/features.py), [arizona_decompose_features.py](../../scripts/arizona/decompose_features.py), [arizona_oof_comparison.py](../../scripts/arizona/oof_comparison.py)
 - Companion notebook: [cross-region four-cell deep dive](../cross_region/four_cell.qmd)
 
 ## Sources

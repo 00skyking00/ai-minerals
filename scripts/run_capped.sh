@@ -13,8 +13,8 @@
 #   scripts/run_capped.sh [--mem 11G] [--swap 0] -- <command> [args...]
 #
 # Examples:
-#   scripts/run_capped.sh -- .venv/bin/python scripts/northern_sierra_placer_precompute_paleochannel.py
-#   scripts/run_capped.sh --mem 8G -- .venv/bin/python scripts/northern_sierra_placer_train_predict_250m.py
+#   scripts/run_capped.sh -- .venv/bin/python scripts/northern_sierra_placer/precompute_paleochannel.py
+#   scripts/run_capped.sh --mem 8G -- .venv/bin/python scripts/northern_sierra_placer/train_predict_250m.py
 set -euo pipefail
 
 MEM=11G

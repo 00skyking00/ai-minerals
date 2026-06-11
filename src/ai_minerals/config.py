@@ -10,7 +10,7 @@ from __future__ import annotations
 
 # ---------------------------------------------------------------------------
 # Training / CV (currently hardcoded in
-# scripts/northern_sierra_placer_train_predict_250m.py)
+# scripts/northern_sierra_placer/train_predict_250m.py)
 # ---------------------------------------------------------------------------
 
 # Mordelet-Vert PU bagging: number of bootstrap bags used to derate the
@@ -77,7 +77,7 @@ SPI_BANDPASS_HI = 6.0
 
 # ---------------------------------------------------------------------------
 # v3 Phase B per-population feature stacks
-# (consumed by scripts/northern_sierra_placer_train_predict_250m.py
+# (consumed by scripts/northern_sierra_placer/train_predict_250m.py
 # train_one_population to filter the assembled feature frame down to the
 # subset matched to each population's geomorphic signature)
 #

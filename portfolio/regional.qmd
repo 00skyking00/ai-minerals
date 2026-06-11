@@ -126,7 +126,7 @@ records need a translation step. dh2loop 1.0 (Joshi et al. 2021,
 Loop3D consortium's drillhole adapter: it produces standardized
 Collar, Survey, and Lithology tables that LoopStructural, map2loop,
 and the wider Loop3D 3D-modeling stack expect as input. I wrote
-`scripts/bcgs_to_dh2loop.py` to ingest the BCGS relational
+`scripts/bcgt/bcgs_to_dh2loop.py` to ingest the BCGS relational
 GeoPackage, reproject collars from five source UTM zones to a common
 BC Albers grid (EPSG:3005), and write the four dh2loop-format
 tables.
@@ -155,7 +155,7 @@ Lithology_Group` triple. The remaining 33% is opaque operator-specific
 shorthand whose decoding needs per-contractor decoder keys that
 neither BCGS nor dh2loop ships. The normalized table is at
 `data/derived/bcgs_dh2loop/Lithology_normalized.csv`; the script
-is `scripts/bcgs_thesaurus_pass.py`. A discovery from this iteration:
+is `scripts/bcgt/bcgs_thesaurus_pass.py`. A discovery from this iteration:
 dh2loop's `thesaurus_geology_lithology_code.csv` is WAMEX-specific
 (per-company code lookup from Western Australian records); only one
 of the 27 BCGS-AOI top-25 codes matches it directly. The hierarchical

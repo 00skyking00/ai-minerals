@@ -9,7 +9,7 @@ Quaternary stream and gravel-bench placers, with the Tertiary deep-gravel
 signal more localized than in the Yuba / American river systems further
 north.
 
-Used by `scripts/northern_sierra_placer_calaveras_transfer.py` as a
+Used by `scripts/northern_sierra_placer/calaveras_transfer.py` as a
 coarse out-of-region transfer target. Not a full-build region: the data
 inventory below mirrors `northern_sierra_placer.py` for path-key
 compatibility, but Calaveras-specific raw files (paleochannel-likelihood

@@ -267,11 +267,11 @@ haven't drilled yet."
 
 ## Files
 
-- Phase 1 driver: [scripts/lawley_phase1_gbm.py](../../scripts/lawley_phase1_gbm.py)
-- Phase 1b driver (leak-corrected): [scripts/lawley_phase1b_leak_corrected.py](../../scripts/lawley_phase1b_leak_corrected.py)
-- Phase 2 driver (2-D blocks + cross-continent): [scripts/lawley_phase2_eval.py](../../scripts/lawley_phase2_eval.py)
-- Phase 3 driver (DevNet head-to-head): [scripts/lawley_phase3_devnet.py](../../scripts/lawley_phase3_devnet.py)
-- CSV → parquet converter: [scripts/lawley_csv_to_parquet.py](../../scripts/lawley_csv_to_parquet.py)
+- Phase 1 driver: [scripts/reproductions/lawley/phase1_gbm.py](../../scripts/reproductions/lawley/phase1_gbm.py)
+- Phase 1b driver (leak-corrected): [scripts/reproductions/lawley/phase1b_leak_corrected.py](../../scripts/reproductions/lawley/phase1b_leak_corrected.py)
+- Phase 2 driver (2-D blocks + cross-continent): [scripts/reproductions/lawley/phase2_eval.py](../../scripts/reproductions/lawley/phase2_eval.py)
+- Phase 3 driver (DevNet head-to-head): [scripts/reproductions/lawley/phase3_devnet.py](../../scripts/reproductions/lawley/phase3_devnet.py)
+- CSV → parquet converter: [scripts/reproductions/lawley/csv_to_parquet.py](../../scripts/reproductions/lawley/csv_to_parquet.py)
 - Audit research synthesis: [research/lawley_audit_2026-05.md](../../research/lawley_audit_2026-05.md)
 - Reference code (cloned): `third_party/sri-ta3-baselines/`
 - Companion: [DEEP-SEAM audit](deep_seam_audit.qmd)

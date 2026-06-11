@@ -1,5 +1,5 @@
 {
-  "source_raster": "data/derived/northern_sierra_placer/prospectivity_placer_northern_sierra_250m_calibrated_4326.tif",
+  "source_raster": "/home/sky/src/learning/ai-minerals/data/derived/northern_sierra_placer/prospectivity_placer_northern_sierra_250m_calibrated_4326.tif",
   "threshold": 0.01,
   "n_cells_total": 901648,
   "n_cells_in_coverage": 246113,
@@ -11,5 +11,5 @@
       "1": "inside training-signal coverage; placer score is meaningful"
     }
   },
-  "definition": "Cells where the calibrated fused placer probability exceeds 0.01. The v3.6 raster's empirical floor is ~0.0004 (per goldbug 2026-06-08); cells at the floor are regions where the model has no learned signal and goldbug should not show a placer score."
+  "definition": "Cells where the calibrated fused placer probability exceeds 0.01. Cells at the raster floor (~0.0004) are regions where the model has no learned signal."
 }

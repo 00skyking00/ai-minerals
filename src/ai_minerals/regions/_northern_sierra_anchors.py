@@ -3,7 +3,7 @@
 Seven historic hydraulic-mining districts on the Tertiary deep-gravel belt.
 Phase 1 (`scorers/usgs_alaska_placer.py`) must place every one of them in
 the top decile of the within-AOI index, without any of them appearing in
-the training labels. Phase 2 (`scripts/northern_sierra_placer_train_predict_250m.py`)
+the training labels. Phase 2 (`scripts/northern_sierra_placer/train_predict_250m.py`)
 masks the cells containing these centroids out of every training fold,
 every PU bag, and every calibration fold.
 

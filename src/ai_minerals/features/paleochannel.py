@@ -30,7 +30,7 @@ not built here.
 Where 3DEP 1 m isn't flown, the caller passes a 10 m DEM and the REM/LRM
 signals degrade gracefully (lower resolution = coarser terraces); the
 GMI still works at 10 m. Coverage gaps are logged into the sidecar JSON
-written by `scripts/northern_sierra_placer_precompute_paleochannel.py`.
+written by `scripts/northern_sierra_placer/precompute_paleochannel.py`.
 
 This module is **import-light** — heavy packages (riverrem, whitebox,
 scikit-image) are imported inside the function body so the module
