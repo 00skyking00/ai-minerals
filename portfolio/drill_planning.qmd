@@ -133,6 +133,42 @@ Solver split: POMCP via `pomdp_py` for B.1, B.2, and C.1
 `pomdpsol` binary for C.2 (matches the paper directly; the
 build script lives at `scripts/build_pomdpsol.sh`).
 
+### B.1 status (2026-06-11)
+
+The B.1 foundation machinery is implemented in
+[`src/ai_minerals/decision/v20/`](https://github.com/00skyking00/ai-minerals/tree/main/src/ai_minerals/decision/v20)
+with 49 pytest tests covering construction validation, GP statistical
+correctness, particle-filter update mechanics, and the synthetic
+Monte Carlo simulator. Specifically:
+
+- `hypotheses.py`: Matern v=2.5 GP prior sampler. The empirical
+  pairwise correlation at one lengthscale matches the closed-form
+  Matern value of 0.522 to within 0.04 across 5,000 draws.
+- `belief_pf.py`: importance-weighted particle filter with Kong et al.
+  1994 ESS monitoring and systematic resampling (Doucet 1998).
+  Adaptive resample when ESS/N drops below 0.5.
+- `pomdp.py`: `CorrelatedDrillingProblem` with Gaussian-continuous
+  sensor (B.1 surface) and noiseless fallback. Bernoulli sensor stays
+  gated to C.1.
+- `simulator.py`: 17-realization Monte Carlo loop, drill budget 9, per-
+  episode seeds for reproducibility, per-policy `RandomPolicy` and
+  `GreedyMeanPolicy` baselines.
+
+A baseline benchmark run on a synthetic 30x30 BCGT subarea with a
+Gaussian-bump prior mean (peak 0.3 at the grid center, spread
+matching the GP lengthscale; sigma=0.1, lengthscale 1500 m) and the
+paper's Gaussian sensor noise (sigma=0.001) produces this discovery
+shape across 17 ground-truth realizations:
+
+![Discovery curve and mean discovery rate for Random vs GreedyMean baselines on the 30x30 BCGT synthetic terrain. Random sits at ~8% mean discovery rate over the 9-hole budget; GreedyMean reaches ~79%. The gap is what the v1.0 baseline-vs-greedy result already showed; the v2.0 contribution starts where POMCP can use correlated draws to outpace greedy, which is the next implementation step.](./data/derived/bcgt/fig_v20_b1_baseline_benchmark.png)
+
+The `CorrelatedPriorPOMCPPolicy` lives as a class skeleton in
+`policies.py` but is not yet wired to `pomdp_py`'s POMCP solver; that
+is the next step in this milestone. Once it lands, the three-way
+comparison (Random / GreedyMean / POMCP) on the same 17 realizations
+is what should show the correlated-prior POMCP outpacing greedy that
+the v1.0 setup deliberately suppressed.
+
 The property-scale counterpart of this idea, a GP drill-site
 recommender on the 24 Bear Cub holes, sits in
 [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
