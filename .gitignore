@@ -85,3 +85,12 @@ outreach/
 # Vendored third-party binaries (rebuilt via scripts/build_pomdpsol.sh).
 # The build script + source URL are tracked; the build tree + binary are not.
 /vendor/
+
+# Internal / private content (not for public GitHub mirror).
+# These directories track work-in-progress design docs, cross-repo
+# coordination, and competitive research that lives alongside the public
+# portfolio artifact but should not ship with it.
+/NotebookLM/
+/handoff/
+/research/
+/_quarto-internal.yml
