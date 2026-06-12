@@ -29,7 +29,7 @@ B.1 IMPLEMENTATION STATUS (2026-06-11):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -400,16 +400,64 @@ class MultiHypothesisFalsificationPolicy:
     """
     problem: MultiHypothesisDrillingProblem
     hypothesis_set: HypothesisSet
-    particle_filters: dict[int, ParticleFilter]  # h_idx -> per-h PF
-    hypothesis_posterior: np.ndarray  # current categorical posterior
+    sensor_noise_sigma: float = 0.05
+    falsification_threshold_argmax: bool = True
+    falsification_threshold_likelihood: float = 0.5
     n_sims: int = POMCP_N_SIMS_DEFAULT
     c_exploration: float = POMCP_C_EXPLORATION
     max_depth: int = POMCP_MAX_DEPTH
-    falsification_threshold_argmax: bool = True  # h_0 = argmax fires it
-    falsification_threshold_likelihood: float = 0.5  # alternative: h_0 > 0.5
+
+    _hypothesis_posterior: np.ndarray | None = None
+    _falsification_history: list[bool] = field(default_factory=list)
+
+    def reset(self, rng: np.random.Generator) -> None:
+        """Initialize categorical posterior to the uniform prior."""
+        self._hypothesis_posterior = self.hypothesis_set.initial_prior()
+        self._falsification_history = []
+
+    def step_posterior(
+        self, cell_idx: int, observation: float,
+    ) -> np.ndarray:
+        """Apply one Bayesian update of the categorical posterior given a
+        new observation. Returns the new posterior vector."""
+        if self._hypothesis_posterior is None:
+            raise RuntimeError(
+                "MultiHypothesisFalsificationPolicy not reset; call reset() first"
+            )
+        new_post = self.hypothesis_set.update_posterior(
+            self._hypothesis_posterior,
+            observation=observation, cell_idx=cell_idx,
+            sensor_noise_sigma=self.sensor_noise_sigma,
+        )
+        self._hypothesis_posterior = new_post
+        return new_post
+
+    def falsification_fired(self) -> bool:
+        """True iff the null hypothesis is currently most-supported.
+
+        Two configurable rules apply:
+          falsification_threshold_argmax    True iff h_0 is the argmax.
+          falsification_threshold_likelihood A floor (e.g. 0.5) the null's
+                                            posterior probability must clear.
+        Both rules must hold for falsification to fire.
+        """
+        if self._hypothesis_posterior is None:
+            return False
+        if not (self.hypothesis_set.include_null and self.hypothesis_set.null is not None):
+            return False
+        null_idx = self.hypothesis_set.n_hypotheses - 1
+        argmax_idx = int(np.argmax(self._hypothesis_posterior))
+        argmax_ok = (argmax_idx == null_idx) or (not self.falsification_threshold_argmax)
+        likelihood_ok = (
+            self._hypothesis_posterior[null_idx]
+            >= self.falsification_threshold_likelihood
+        )
+        return bool(argmax_ok and likelihood_ok)
 
     def plan(self, rng: np.random.Generator) -> int:
-        raise NotImplementedError("C.2 milestone")
+        raise NotImplementedError(
+            "Multi-hypothesis POMCP planner is C.2 part 2 issue #11 (SARSOP)"
+        )
 
     def step_and_update(
         self,

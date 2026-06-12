@@ -191,8 +191,36 @@ class MultiHypothesisDrillingProblem:
     ) -> tuple[float | int, float, frozenset[int]]:
         """Same step semantics as CorrelatedDrillingProblem; ground truth
         comes from true_grade (which was drawn from hypotheses[true_hypothesis_idx]
-        if true_hypothesis_idx >= 0, or from h_0 if -1).
+        if true_hypothesis_idx >= 0, or from h_0 if -1)."""
+        if not (0 <= cell_idx < len(self.true_grade)):
+            raise IndexError(
+                f"cell_idx {cell_idx} out of range for "
+                f"{len(self.true_grade)} cells"
+            )
 
-        TODO C.2: implement.
-        """
-        raise NotImplementedError("C.2 milestone")
+        already_drilled = cell_idx in drilled
+        true_value = float(self.true_grade[cell_idx])
+        is_discovery = true_value > 0.2
+
+        if self.sensor_model is SensorModel.GAUSSIAN_CONTINUOUS:
+            noise = float(rng.normal(0.0, self.sensor_noise_sigma))
+            obs: float | int = true_value + noise
+        elif self.sensor_model is SensorModel.NOISELESS:
+            obs = true_value
+        elif self.sensor_model is SensorModel.BERNOULLI_BINARY:
+            if is_discovery:
+                p_one = 1.0 - self.sensor_beta
+            else:
+                p_one = self.sensor_alpha
+            obs = int(rng.random() < p_one)
+        else:  # pragma: no cover
+            raise ValueError(f"Unknown SensorModel: {self.sensor_model!r}")
+
+        if already_drilled:
+            reward = -self.drill_cost
+        else:
+            reward = -self.drill_cost + (
+                self.discovery_value if is_discovery else 0.0
+            )
+
+        return obs, reward, drilled | {cell_idx}

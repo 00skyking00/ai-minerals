@@ -121,6 +121,30 @@ single-hypothesis B.1 finding holds under the Bernoulli sensor: most
 of the win is correlation-aware belief updating; multi-step lookahead
 is a smaller increment on top.
 
+## When the prior itself is wrong
+
+The B.1, B.2, and C.1 charts assume the planner's prior is a fair
+approximation of the truth, even when noisy. C.2 handles the harder
+case: what if neither of the prior's competing geological hypotheses
+is right? Mern et al. 2024 add a null hypothesis (h_0, a maximum-
+entropy mixture with no spatial structure) alongside the paper
+hypotheses and update a categorical posterior over the whole set
+after every drill. When the null becomes the most-supported
+hypothesis, the planner flags "the geological model doesn't explain
+what we're seeing" rather than continuing to fit a wrong story.
+
+![Categorical posterior over a 3-hypothesis set across 25 random drills under three ground-truth scenarios. Left: ground truth drawn from hypothesis A; the posterior locks onto h_A by drill 3. Center: ground truth from hypothesis B; h_B wins by drill 5-7. Right: ground truth from the null (no spatial structure); the falsification flag fires at drill 2 because both paper hypotheses immediately fail to explain observations the null predicts.](./data/derived/bcgt/fig_v20_c2_falsification_demo.png)
+
+The reading. The falsification check fires fast when neither paper
+hypothesis matches the data. The two paper-hypothesis scenarios also
+converge cleanly to the correct hypothesis within 5-7 drills, which
+demonstrates that the categorical update mechanism doesn't degrade
+the planner's identification ability. The shipped C.2 piece is the
+Bayesian-inference layer; multi-hypothesis POMCP action selection
+that uses the posterior to guide drill-cell choice (rather than the
+random selection the demo uses for clarity) lands with the SARSOP
+solver integration in the next milestone.
+
 ## Why v1.0 tied
 
 The 2023 v1.0 paper used independent Bernoulli cells (no correlation
@@ -134,10 +158,13 @@ published a year later, adding correlation and a noisy sensor.
 
 ## Next steps
 
-One milestone queued. C.2: multi-hypothesis with the falsification
-check; the main Mern 2024 contribution, where a drill can falsify a
-whole hypothesis and reshape the posterior over the entire grid.
-The deeper notebook carries the C.2 plan and the research notes.
+One milestone queued. C.2 part 2: integrate the SARSOP POMDP solver
+(via `pomdp_py` and the APPL `pomdpsol` binary) so the multi-
+hypothesis planner can choose drill cells that maximize information
+gain across hypotheses rather than picking randomly. The Bayesian-
+inference machinery the demo above uses is already in place; what
+remains is the multi-hypothesis action-selection layer. The deeper
+notebook carries the remaining plan.
 
 ## Deeper notebooks
 
