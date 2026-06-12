@@ -200,3 +200,186 @@ def test_realization_rejects_zero_or_negative_n_samples():
     rng = np.random.default_rng(0)
     with pytest.raises(ValueError, match="n_samples must be >= 1"):
         h.sample_realization(rng, n_samples=0)
+
+
+# --- C.2 part 1: NullHypothesis + HypothesisSet -----------------------------
+
+
+def test_null_hypothesis_sample_shape_and_stats():
+    """Null hypothesis: independent N(0, sigma^2) draws across cells."""
+    from ai_minerals.decision.v20.hypotheses import NullHypothesis
+    null = NullHypothesis(marginal_std=0.1)
+    rng = np.random.default_rng(0)
+    samples = null.sample_realization(rng, n_cells=500, n_samples=200)
+    assert samples.shape == (200, 500)
+    # Marginal stats: mean ~ 0, std ~ 0.1
+    np.testing.assert_allclose(samples.mean(), 0.0, atol=0.005)
+    np.testing.assert_allclose(samples.std(), 0.1, atol=0.005)
+    # No spatial correlation: corr(cell[0], cell[1]) should be ~ 0
+    corr = np.corrcoef(samples[:, 0], samples[:, 1])[0, 1]
+    assert abs(corr) < 0.15
+
+
+def test_null_hypothesis_rejects_bad_args():
+    from ai_minerals.decision.v20.hypotheses import NullHypothesis
+    null = NullHypothesis()
+    rng = np.random.default_rng(0)
+    with pytest.raises(ValueError, match="n_cells"):
+        null.sample_realization(rng, n_cells=-1, n_samples=1)
+    with pytest.raises(ValueError, match="n_samples"):
+        null.sample_realization(rng, n_cells=10, n_samples=0)
+
+
+def _make_test_hypotheses(n_cells: int) -> tuple:
+    """Build two Hypothesis instances with distinct prior_mean_field for tests."""
+    from ai_minerals.decision.v20.hypotheses import Hypothesis
+    coords = np.column_stack([
+        np.arange(n_cells) * 500.0,
+        np.zeros(n_cells),
+    ])
+    mean_a = np.full(n_cells, 0.3)   # cells say "positive"
+    mean_b = np.full(n_cells, -0.05) # cells say "barren"
+    h_a = Hypothesis(
+        name="A", n_grabens=1, n_domains=1,
+        cell_coords_m=coords, prior_mean_field=mean_a,
+        gp_marginal_std=0.1, gp_lengthscale_m=1500.0,
+    )
+    h_b = Hypothesis(
+        name="B", n_grabens=1, n_domains=1,
+        cell_coords_m=coords, prior_mean_field=mean_b,
+        gp_marginal_std=0.1, gp_lengthscale_m=1500.0,
+    )
+    return h_a, h_b
+
+
+def test_hypothesis_set_initial_prior_uniform_with_null():
+    from ai_minerals.decision.v20.hypotheses import (
+        HypothesisSet, NullHypothesis,
+    )
+    h_a, h_b = _make_test_hypotheses(20)
+    hs = HypothesisSet(
+        hypotheses=(h_a, h_b),
+        null=NullHypothesis(marginal_std=0.1),
+        include_null=True,
+    )
+    prior = hs.initial_prior()
+    assert prior.shape == (3,)
+    np.testing.assert_allclose(prior, 1 / 3, atol=1e-12)
+    np.testing.assert_allclose(prior.sum(), 1.0)
+
+
+def test_hypothesis_set_initial_prior_uniform_without_null():
+    from ai_minerals.decision.v20.hypotheses import HypothesisSet
+    h_a, h_b = _make_test_hypotheses(20)
+    hs = HypothesisSet(
+        hypotheses=(h_a, h_b),
+        null=None, include_null=False,
+    )
+    prior = hs.initial_prior()
+    assert prior.shape == (2,)
+    np.testing.assert_allclose(prior, 0.5)
+
+
+def test_hypothesis_set_initial_prior_empty_raises():
+    from ai_minerals.decision.v20.hypotheses import HypothesisSet
+    hs = HypothesisSet(hypotheses=(), null=None, include_null=False)
+    with pytest.raises(ValueError, match="no hypotheses"):
+        hs.initial_prior()
+
+
+def test_hypothesis_set_update_posterior_shifts_to_matching_hypothesis():
+    """An observation consistent with hypothesis A (mean 0.3) should
+    boost A's posterior weight relative to B (mean -0.05)."""
+    from ai_minerals.decision.v20.hypotheses import (
+        HypothesisSet, NullHypothesis,
+    )
+    h_a, h_b = _make_test_hypotheses(50)
+    hs = HypothesisSet(
+        hypotheses=(h_a, h_b),
+        null=NullHypothesis(marginal_std=0.1),
+        include_null=True,
+    )
+    prior = hs.initial_prior()
+    # Observation strongly consistent with A (mean 0.3)
+    post = hs.update_posterior(prior, observation=0.3, cell_idx=10)
+    assert post.shape == (3,)
+    np.testing.assert_allclose(post.sum(), 1.0)
+    # A should have more posterior weight than B
+    assert post[0] > post[1], (
+        f"posterior should favor A (mean 0.3) over B (mean -0.05); got {post}"
+    )
+
+
+def test_hypothesis_set_update_posterior_rejects_malformed_prior():
+    from ai_minerals.decision.v20.hypotheses import HypothesisSet
+    h_a, h_b = _make_test_hypotheses(10)
+    hs = HypothesisSet(hypotheses=(h_a, h_b), null=None, include_null=False)
+    # Wrong length
+    with pytest.raises(ValueError, match="prior must be shape"):
+        hs.update_posterior(np.array([0.3, 0.3, 0.4]), observation=0.0, cell_idx=0)
+    # Doesn't sum to 1
+    with pytest.raises(ValueError, match="prior must sum"):
+        hs.update_posterior(np.array([0.3, 0.3]), observation=0.0, cell_idx=0)
+
+
+def test_hypothesis_set_update_posterior_falsifies_in_favor_of_null():
+    """If both paper hypotheses predict 'positive' and an observation says
+    'strongly negative', the null hypothesis should gain weight."""
+    from ai_minerals.decision.v20.hypotheses import (
+        HypothesisSet, Hypothesis, NullHypothesis,
+    )
+    coords = np.column_stack([np.arange(30) * 500.0, np.zeros(30)])
+    # Both paper hypotheses say cells should be near 0.3
+    h_a = Hypothesis(
+        name="A", n_grabens=1, n_domains=1,
+        cell_coords_m=coords, prior_mean_field=np.full(30, 0.3),
+        gp_marginal_std=0.05,
+    )
+    h_b = Hypothesis(
+        name="B", n_grabens=1, n_domains=1,
+        cell_coords_m=coords, prior_mean_field=np.full(30, 0.4),
+        gp_marginal_std=0.05,
+    )
+    hs = HypothesisSet(
+        hypotheses=(h_a, h_b),
+        null=NullHypothesis(marginal_std=0.1),
+        include_null=True,
+    )
+    prior = hs.initial_prior()
+    # Strongly negative obs; both paper hypotheses say it should be 0.3+
+    post = hs.update_posterior(prior, observation=-0.4, cell_idx=5)
+    null_idx = 2
+    assert post[null_idx] > prior[null_idx], (
+        f"observation contradicting both paper hypotheses should boost null; "
+        f"got {post}"
+    )
+
+
+def test_porphyry_cu_hypothesis_from_v3_rf_centers_the_field():
+    """The constructed hypothesis should center the input surface so the
+    prior_mean_field has zero average."""
+    from ai_minerals.decision.v20.hypotheses import (
+        porphyry_cu_hypothesis_from_v3_rf,
+    )
+    n = 100
+    coords = np.column_stack([np.arange(n) * 500.0, np.zeros(n)])
+    surface = np.linspace(0.0, 1.0, n)
+    h = porphyry_cu_hypothesis_from_v3_rf(surface, coords, name="bcgt")
+    np.testing.assert_allclose(h.prior_mean_field.mean(), 0.0, atol=1e-12)
+    assert h.name == "bcgt"
+    assert h.cell_coords_m.shape == (n, 2)
+    # Each cell's deviation from the original mean is preserved
+    np.testing.assert_allclose(
+        h.prior_mean_field, surface - surface.mean(), atol=1e-12,
+    )
+
+
+def test_porphyry_cu_hypothesis_from_v3_rf_rejects_bad_shapes():
+    from ai_minerals.decision.v20.hypotheses import (
+        porphyry_cu_hypothesis_from_v3_rf,
+    )
+    with pytest.raises(ValueError, match="cell_coords_m"):
+        porphyry_cu_hypothesis_from_v3_rf(
+            np.array([0.1, 0.2, 0.3]),
+            cell_coords_m=np.zeros((5, 2)),
+        )

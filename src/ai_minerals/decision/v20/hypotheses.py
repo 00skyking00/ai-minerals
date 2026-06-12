@@ -211,9 +211,19 @@ class NullHypothesis:
     ) -> np.ndarray:
         """Independent N(0, marginal_std^2) draws; no spatial correlation.
 
-        TODO C.2: implement; trivial numpy.
+        Shape: (n_samples, n_cells). Each cell is independent of every other,
+        which is what "maximum-entropy mixture" means here: the null
+        hypothesis assigns equal probability to every possible field
+        configuration consistent with the marginal variance.
         """
-        raise NotImplementedError("C.2 milestone")
+        if n_cells < 0:
+            raise ValueError(f"n_cells must be >= 0; got {n_cells}")
+        if n_samples < 1:
+            raise ValueError(f"n_samples must be >= 1; got {n_samples}")
+        return rng.normal(
+            loc=0.0, scale=self.marginal_std,
+            size=(n_samples, n_cells),
+        )
 
 
 @dataclass(frozen=True)
@@ -228,39 +238,113 @@ class HypothesisSet:
     null: NullHypothesis | None = None
     include_null: bool = INCLUDE_NULL_HYPOTHESIS
 
-    def initial_prior(self) -> np.ndarray:
-        """Uniform across {H_1, ..., H_N} + h_0 if null is present.
+    @property
+    def n_hypotheses(self) -> int:
+        """Count of paper hypotheses plus the null if `include_null`."""
+        return len(self.hypotheses) + (1 if (self.include_null and self.null is not None) else 0)
 
-        TODO C.2: implement.
+    def initial_prior(self) -> np.ndarray:
+        """Uniform categorical prior across {H_1, ..., H_N} + h_0 if present.
+
+        Shape: (n_hypotheses,). The null sits at the final index when present.
         """
-        raise NotImplementedError("C.2 milestone")
+        n = self.n_hypotheses
+        if n == 0:
+            raise ValueError(
+                "HypothesisSet has no hypotheses; can't form initial_prior"
+            )
+        return np.full(n, 1.0 / n, dtype=np.float64)
 
     def update_posterior(
         self,
         prior: np.ndarray,
         observation: float,
         cell_idx: int,
+        sensor_noise_sigma: float = 0.0,
     ) -> np.ndarray:
-        """Bayesian update over hypothesis indices given a drill outcome.
+        """Bayesian categorical update given a single Gaussian-continuous obs.
 
-        TODO C.2: implement; per-h likelihood from GP marginal at cell_idx.
+        For each hypothesis h_i, the marginal likelihood at cell_idx is a
+        Gaussian:
+            p(obs | h_i) = N(obs; prior_mean_h_i[cell_idx],
+                             gp_marginal_std_i^2 + sensor_noise_sigma^2)
+        For the null hypothesis the prior mean is zero with the same
+        marginal variance contribution.
+
+        Posterior_i proportional to prior_i * p(obs | h_i); normalized to a
+        probability vector. The shapes:
+            prior        (n_hypotheses,)
+            return       (n_hypotheses,)
         """
-        raise NotImplementedError("C.2 milestone")
+        n = self.n_hypotheses
+        if prior.shape != (n,):
+            raise ValueError(
+                f"prior must be shape ({n},); got {prior.shape}"
+            )
+        if not np.isclose(prior.sum(), 1.0, atol=1e-6):
+            raise ValueError(
+                f"prior must sum to 1.0; got sum={prior.sum():.6f}"
+            )
+        log_lik = np.zeros(n, dtype=np.float64)
+        for i, h in enumerate(self.hypotheses):
+            mean_i = float(h.prior_mean_field[cell_idx])
+            var_i = h.gp_marginal_std ** 2 + sensor_noise_sigma ** 2
+            log_lik[i] = (
+                -0.5 * np.log(2.0 * np.pi * var_i)
+                - 0.5 * (observation - mean_i) ** 2 / var_i
+            )
+        if self.include_null and self.null is not None:
+            var_0 = self.null.marginal_std ** 2 + sensor_noise_sigma ** 2
+            log_lik[-1] = (
+                -0.5 * np.log(2.0 * np.pi * var_0)
+                - 0.5 * (observation ** 2) / var_0
+            )
+        # Log-sum-exp normalization for stability.
+        log_post = np.log(np.maximum(prior, 1e-300)) + log_lik
+        m = log_post.max()
+        post = np.exp(log_post - m)
+        post = post / post.sum()
+        return post
 
 
 def porphyry_cu_hypothesis_from_v3_rf(
     p_prior_surface: np.ndarray,
+    cell_coords_m: np.ndarray,
     name: str = "porphyry-Cu",
+    gp_marginal_std: float = KERNEL_MARGINAL_STD,
+    gp_lengthscale_m: float = KERNEL_LENGTHSCALE_M_BCGT,
+    n_grabens: int = 1,
+    n_domains: int = 1,
 ) -> Hypothesis:
-    """Build a single Hypothesis from the v3 RF posterior over BCGT cells.
+    """Build a Hypothesis from a per-cell RF posterior probability surface.
+
+    Centers the input field at its global mean so the GP prior mean has
+    zero average; kernel parameters default to the locked module values.
 
     Parameters
     ----------
     p_prior_surface : np.ndarray
         Per-cell RF posterior probability of porphyry-Cu, length N.
-        Centered + scaled so the GP mean has zero global average.
-
-    TODO B.1: implement; trivial mean-centering. Sets all kernel params
-    to module defaults locked above.
+    cell_coords_m : np.ndarray
+        Per-cell (x, y) coordinates in the working CRS, shape (N, 2).
+    name : str
+        Human-readable label for the hypothesis.
     """
-    raise NotImplementedError("B.1 milestone")
+    if p_prior_surface.ndim != 1:
+        raise ValueError(
+            f"p_prior_surface must be 1D; got shape {p_prior_surface.shape}"
+        )
+    n_cells = p_prior_surface.shape[0]
+    if cell_coords_m.shape != (n_cells, 2):
+        raise ValueError(
+            f"cell_coords_m must be ({n_cells}, 2); got {cell_coords_m.shape}"
+        )
+    centered = p_prior_surface - float(p_prior_surface.mean())
+    return Hypothesis(
+        name=name,
+        n_grabens=n_grabens, n_domains=n_domains,
+        cell_coords_m=cell_coords_m.astype(np.float64),
+        prior_mean_field=centered.astype(np.float64),
+        gp_marginal_std=gp_marginal_std,
+        gp_lengthscale_m=gp_lengthscale_m,
+    )
