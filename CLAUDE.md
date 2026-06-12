@@ -4,7 +4,7 @@ Scope rules for Claude Code when working in this repo. Local to this project; do
 
 ## Scope
 
-- **Purpose:** Portfolio artifact demonstrating competent engagement with AI-mineral-exploration problem space (target audience: KoBold Metals, ExploreTech, Earth AI). Not a production tool.
+- **Purpose:** Portfolio artifact demonstrating competent engagement with AI-mineral-exploration problem space. Not a production tool.
 - **Deliverable:** A Quarto notebook + writeup producing a mineral-prospectivity map, published as a public GitHub repo.
 - **The writeup is the artifact**, not the code. Prose quality matters as much as code quality.
 - **Public repo from Day 1.** Assume everything in the working tree will be published.
@@ -32,7 +32,7 @@ Scope rules for Claude Code when working in this repo. Local to this project; do
 
 ## Writing rules (for notebook prose + READMEs)
 
-- **Audience:** senior ML + geoscience hiring manager.
+- **Audience:** senior ML + geoscience reader.
 - **Tone:** honest, precise, aware of the limits of a weekend demo. No breathless pitch.
 - **Citations:** every non-trivial technical claim links to the primary source (paper, official docs, company page). No citing blog summaries when the primary exists.
 - **Limitations are explicit.** Each substantive section includes a "what this doesn't prove" note.

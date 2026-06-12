@@ -12,10 +12,8 @@ execute:
 ## About this project
 
 `ai-minerals` is a portfolio demonstration of **mineral prospectivity mapping
-(MPM)** — the use of machine learning on public geoscientific data to rank
-locations by their likelihood of hosting a mineral deposit. The audience is
-AI-driven mineral-exploration teams building production-grade versions of
-this kind of pipeline.
+(MPM)**, the use of machine learning on public geoscientific data to rank
+locations by their likelihood of hosting a mineral deposit.
 
 The repo covers two regions with the same infrastructure:
 

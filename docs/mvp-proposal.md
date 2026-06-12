@@ -4,9 +4,7 @@
 
 Produce a public, runnable demonstration — a single Quarto notebook plus supporting Python module — that takes open geoscientific data for a three-quadrangle slice of eastern Alaska, trains a simple supervised classifier, and outputs a porphyry-copper prospectivity map with honest validation and interpretation. The writeup is the primary artifact.
 
-Audience: senior ML + geoscience hiring managers at KoBold Metals, ExploreTech, Earth AI, and similar.
-
-Success criterion: a reader can clone the repo, execute the notebook in a fresh `uv` environment, produce the published maps, and read the writeup and come away thinking "this person could contribute credibly on our team." Nothing more ambitious than that.
+Success criterion: a reader can clone the repo, execute the notebook in a fresh `uv` environment, produce the published maps, and read the writeup end to end. Nothing more ambitious than that.
 
 ## Region and commodity
 

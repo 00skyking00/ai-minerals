@@ -490,7 +490,7 @@ held-out gate failure above, and goldbug shows an amber "placer
 is marginal here" badge on every Mariposa parcel popup until
 v3.7.0.1 lands.
 
-### Net read
+### What we learned in v3.7.0
 
 The model now produces real placer probability across the full
 Mother Lode rather than a floor of 0.0004 everywhere south of
