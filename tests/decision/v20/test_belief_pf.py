@@ -262,3 +262,69 @@ def test_resample_indices_are_in_range():
     assert pf.particles.shape[0] == pf.n_particles
     assert np.isfinite(pf.particles).all()
     assert np.isfinite(pf.log_weights).all()
+
+
+# --- C.1 Bernoulli observation update ---------------------------------------
+
+
+def test_pf_update_bernoulli_concentrates_on_positive_obs():
+    """One Bernoulli observation of 1 at a cell shifts the weighted P(positive)
+    at that cell toward 1 - beta. Run many draws of the same particles, check
+    the posterior expectation."""
+    from ai_minerals.decision.v20.belief_pf import ParticleFilter
+    from ai_minerals.decision.v20.hypotheses import (
+        KERNEL_LENGTHSCALE_M_BCGT, KERNEL_MARGINAL_STD, Hypothesis,
+    )
+    spacing = 500.0
+    x = np.arange(15) * spacing
+    y = np.arange(15) * spacing
+    xx, yy = np.meshgrid(x, y, indexing="xy")
+    coords = np.column_stack([xx.ravel(), yy.ravel()])
+    mean = np.full(coords.shape[0], 0.2)
+    h = Hypothesis(
+        name="x", n_grabens=1, n_domains=1,
+        cell_coords_m=coords, prior_mean_field=mean,
+        gp_marginal_std=KERNEL_MARGINAL_STD,
+        gp_lengthscale_m=KERNEL_LENGTHSCALE_M_BCGT,
+    )
+    pf = ParticleFilter(
+        hypothesis=h, n_particles=2000,
+        rng=np.random.default_rng(0),
+    )
+    pf.initialize()
+    cutoff = 0.2
+    cell = 100
+
+    # Pre-update: weighted P(particle[cell] > cutoff) ~ 50% under a mean=0.2
+    # symmetric prior around the cutoff.
+    w_pre = pf._normalized_weights()
+    p_pos_pre = float((w_pre * (pf.particles[:, cell] > cutoff)).sum())
+    assert 0.3 < p_pos_pre < 0.7
+
+    # Update with obs=1, alpha=0.05, beta=0.10. Posterior P(positive) should
+    # increase substantially.
+    pf.update_bernoulli(
+        cell_idx=cell, observation=1, cutoff_grade=cutoff,
+        alpha=0.05, beta=0.10,
+    )
+    w_post = pf._normalized_weights()
+    p_pos_post = float((w_post * (pf.particles[:, cell] > cutoff)).sum())
+    assert p_pos_post > p_pos_pre + 0.2, (
+        f"posterior P(positive) at observed cell should jump: "
+        f"pre={p_pos_pre:.3f}, post={p_pos_post:.3f}"
+    )
+
+
+def test_pf_update_bernoulli_rejects_bad_observation():
+    from ai_minerals.decision.v20.belief_pf import ParticleFilter
+    from ai_minerals.decision.v20.hypotheses import Hypothesis
+    spacing = 500.0
+    coords = np.array([[i*spacing, 0.0] for i in range(50)])
+    mean = np.zeros(50)
+    h = Hypothesis(name="x", n_grabens=1, n_domains=1,
+                   cell_coords_m=coords, prior_mean_field=mean)
+    pf = ParticleFilter(hypothesis=h, n_particles=100, rng=np.random.default_rng(0))
+    pf.initialize()
+    with pytest.raises(ValueError, match="Bernoulli observation"):
+        pf.update_bernoulli(cell_idx=0, observation=2, cutoff_grade=0.2,
+                            alpha=0.05, beta=0.10)

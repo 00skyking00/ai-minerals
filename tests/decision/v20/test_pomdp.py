@@ -175,11 +175,12 @@ def test_noiseless_sensor_returns_exact_true_grade():
     assert obs == 0.5
 
 
-def test_bernoulli_sensor_gated_to_C1():
+def test_bernoulli_sensor_returns_a_valid_binary_observation():
+    """Replaces the prior C.1-gate test; Bernoulli is now implemented in C.1."""
     p = _make_problem(sensor_model=SensorModel.BERNOULLI_BINARY)
     rng = np.random.default_rng(6)
-    with pytest.raises(NotImplementedError, match="C.1"):
-        p.step(cell_idx=0, drilled=frozenset(), rng=rng)
+    obs, _, _ = p.step(cell_idx=0, drilled=frozenset(), rng=rng)
+    assert obs in (0, 1)
 
 
 def test_step_rejects_out_of_range_cell_idx():
@@ -187,3 +188,89 @@ def test_step_rejects_out_of_range_cell_idx():
     rng = np.random.default_rng(7)
     with pytest.raises(IndexError):
         p.step(cell_idx=999_999, drilled=frozenset(), rng=rng)
+
+
+# --- C.1 Bernoulli sensor model ----------------------------------------------
+
+
+def test_bernoulli_step_returns_int_observation():
+    """Bernoulli sensor produces a 0 or 1, never a float."""
+    p = _make_problem(sensor_model=SensorModel.BERNOULLI_BINARY)
+    rng = np.random.default_rng(0)
+    obs, _, _ = p.step(cell_idx=0, drilled=frozenset(), rng=rng)
+    assert obs in (0, 1)
+    assert isinstance(obs, int)
+
+
+def test_bernoulli_step_positive_cell_returns_one_with_prob_1_minus_beta():
+    """Cell 0 has true_grade 0.5 (above cutoff 0.2). With alpha=0.05, beta=0.10:
+    P(obs=1) = 1 - beta = 0.90. Empirical mean over 5000 draws within ~1% of 0.9."""
+    p = CorrelatedDrillingProblem(
+        hypothesis=_make_problem().hypothesis,
+        x_m=_make_problem().x_m, y_m=_make_problem().y_m,
+        true_grade=_make_problem().true_grade,
+        sensor_model=SensorModel.BERNOULLI_BINARY,
+        sensor_alpha=0.05, sensor_beta=0.10,
+        cutoff_grade=0.2,
+    )
+    rng = np.random.default_rng(7)
+    drilled = frozenset()
+    obs = [p.step(0, drilled, rng)[0] for _ in range(5000)]
+    np.testing.assert_allclose(np.mean(obs), 0.90, atol=0.015)
+
+
+def test_bernoulli_step_negative_cell_returns_one_with_prob_alpha():
+    """Cell 1 has true_grade 0.05 (below cutoff). With alpha=0.05, beta=0.10:
+    P(obs=1) = alpha = 0.05. Empirical mean within ~1% of 0.05 over 5000 draws."""
+    p = CorrelatedDrillingProblem(
+        hypothesis=_make_problem().hypothesis,
+        x_m=_make_problem().x_m, y_m=_make_problem().y_m,
+        true_grade=_make_problem().true_grade,
+        sensor_model=SensorModel.BERNOULLI_BINARY,
+        sensor_alpha=0.05, sensor_beta=0.10,
+        cutoff_grade=0.2,
+    )
+    rng = np.random.default_rng(8)
+    obs = [p.step(1, frozenset(), rng)[0] for _ in range(5000)]
+    np.testing.assert_allclose(np.mean(obs), 0.05, atol=0.012)
+
+
+def test_bernoulli_step_reward_uses_true_state_not_observation():
+    """Reward is keyed on truth (true_grade > cutoff), not the noisy observation."""
+    p = CorrelatedDrillingProblem(
+        hypothesis=_make_problem().hypothesis,
+        x_m=_make_problem().x_m, y_m=_make_problem().y_m,
+        true_grade=_make_problem().true_grade,
+        sensor_model=SensorModel.BERNOULLI_BINARY,
+        sensor_alpha=0.05, sensor_beta=0.10,
+        cutoff_grade=0.2, drill_cost=1.0, discovery_value=50.0,
+    )
+    rng = np.random.default_rng(9)
+    _, reward, _ = p.step(0, frozenset(), rng)
+    assert reward == 49.0
+    _, reward, _ = p.step(1, frozenset(), rng)
+    assert reward == -1.0
+
+
+def test_bernoulli_post_init_rejects_alpha_out_of_range():
+    with pytest.raises(ValueError, match="sensor_alpha"):
+        CorrelatedDrillingProblem(
+            hypothesis=_make_problem().hypothesis,
+            x_m=_make_problem().x_m, y_m=_make_problem().y_m,
+            true_grade=_make_problem().true_grade,
+            sensor_model=SensorModel.BERNOULLI_BINARY,
+            sensor_alpha=1.0,    # rejected: must be < 1
+            sensor_beta=0.10,
+        )
+
+
+def test_bernoulli_post_init_rejects_beta_out_of_range():
+    with pytest.raises(ValueError, match="sensor_beta"):
+        CorrelatedDrillingProblem(
+            hypothesis=_make_problem().hypothesis,
+            x_m=_make_problem().x_m, y_m=_make_problem().y_m,
+            true_grade=_make_problem().true_grade,
+            sensor_model=SensorModel.BERNOULLI_BINARY,
+            sensor_alpha=0.05,
+            sensor_beta=-0.1,    # rejected: must be >= 0
+        )

@@ -161,6 +161,7 @@ class BayesianGreedyPolicy:
 
     _pf: ParticleFilter | None = None
     _last_history_len: int = 0
+    _problem: CorrelatedDrillingProblem | None = None
 
     def reset(self, problem: CorrelatedDrillingProblem,
               rng: np.random.Generator) -> None:
@@ -171,7 +172,26 @@ class BayesianGreedyPolicy:
         )
         self._pf.initialize()
         self._last_history_len = 0
+        self._problem = problem
         self.sensor_noise_sigma = problem.sensor_noise_sigma
+
+    def _catch_up_pf(self, history: list[tuple[int, float]]) -> None:
+        problem = self._problem
+        while self._last_history_len < len(history):
+            cell, obs = history[self._last_history_len]
+            if problem.sensor_model is SensorModel.BERNOULLI_BINARY:
+                self._pf.update_bernoulli(
+                    cell_idx=cell, observation=int(obs),
+                    cutoff_grade=problem.cutoff_grade,
+                    alpha=problem.sensor_alpha,
+                    beta=problem.sensor_beta,
+                )
+            else:
+                self._pf.update(
+                    cell_idx=cell, observation=obs,
+                    sensor_noise_sigma=self.sensor_noise_sigma,
+                )
+            self._last_history_len += 1
 
     def choose_action(
         self,
@@ -181,14 +201,7 @@ class BayesianGreedyPolicy:
     ) -> int:
         if self._pf is None:
             raise RuntimeError("BayesianGreedyPolicy not reset; call reset() first")
-        # Catch up the PF with any new observations since the last call.
-        while self._last_history_len < len(history):
-            cell, obs = history[self._last_history_len]
-            self._pf.update(
-                cell_idx=cell, observation=obs,
-                sensor_noise_sigma=self.sensor_noise_sigma,
-            )
-            self._last_history_len += 1
+        self._catch_up_pf(history)
 
         post_mean = self._pf.posterior_mean()
         mask = np.ones(post_mean.size, dtype=bool)
@@ -306,12 +319,21 @@ class CorrelatedPriorPOMCPPolicy:
                 "CorrelatedPriorPOMCPPolicy not reset; call reset() first"
             )
         # Catch up the PF with new observations since last call.
+        problem = self._problem
         while self._last_history_len < len(history):
             cell, obs = history[self._last_history_len]
-            self._pf.update(
-                cell_idx=cell, observation=obs,
-                sensor_noise_sigma=self.sensor_noise_sigma,
-            )
+            if problem.sensor_model is SensorModel.BERNOULLI_BINARY:
+                self._pf.update_bernoulli(
+                    cell_idx=cell, observation=int(obs),
+                    cutoff_grade=problem.cutoff_grade,
+                    alpha=problem.sensor_alpha,
+                    beta=problem.sensor_beta,
+                )
+            else:
+                self._pf.update(
+                    cell_idx=cell, observation=obs,
+                    sensor_noise_sigma=self.sensor_noise_sigma,
+                )
             self._last_history_len += 1
 
         # Candidate actions: unvisited cells.

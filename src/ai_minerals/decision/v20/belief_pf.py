@@ -156,6 +156,61 @@ class ParticleFilter:
         if ess < ESS_RESAMPLING_THRESHOLD * self.n_particles:
             self.resample()
 
+    def update_bernoulli(
+        self,
+        cell_idx: int,
+        observation: int,
+        cutoff_grade: float,
+        alpha: float,
+        beta: float,
+    ) -> None:
+        """Update particle weights given a binary Bernoulli drill observation.
+
+        Sensor model (Mern 2024 v2.0 paper convention):
+            alpha = false-positive rate (true=negative, sensor says positive)
+            beta  = false-negative rate (true=positive, sensor says negative)
+        Each particle implies the truth at cell_idx via thresholding at
+        cutoff_grade. The log-likelihood per particle:
+
+            particle_positive = particle[:, cell_idx] > cutoff_grade
+            P(obs=1 | particle_positive)     = 1 - beta
+            P(obs=1 | not particle_positive) = alpha
+            P(obs=0 | particle_positive)     = beta
+            P(obs=0 | not particle_positive) = 1 - alpha
+        """
+        self._require_initialized()
+        if observation not in (0, 1):
+            raise ValueError(
+                f"Bernoulli observation must be 0 or 1; got {observation}"
+            )
+        if not (0.0 <= alpha < 1.0):
+            raise ValueError(f"alpha must be in [0, 1); got {alpha}")
+        if not (0.0 <= beta < 1.0):
+            raise ValueError(f"beta must be in [0, 1); got {beta}")
+        if not (0 <= cell_idx < self.particles.shape[1]):
+            raise IndexError(
+                f"cell_idx {cell_idx} out of range for "
+                f"{self.particles.shape[1]} cells"
+            )
+
+        is_positive = self.particles[:, cell_idx] > cutoff_grade
+        if observation == 1:
+            p_pos = 1.0 - beta
+            p_neg = alpha
+        else:
+            p_pos = beta
+            p_neg = 1.0 - alpha
+        # log_lik per particle, guarded against log(0) for the alpha=0 / beta=0 edges.
+        eps = 1e-12
+        log_lik_pos = np.log(max(p_pos, eps))
+        log_lik_neg = np.log(max(p_neg, eps))
+        log_lik = np.where(is_positive, log_lik_pos, log_lik_neg)
+        self.log_weights = self.log_weights + log_lik
+
+        ess = self.effective_sample_size()
+        if ess < ESS_RESAMPLING_THRESHOLD * self.n_particles:
+            self.resample()
+
     def effective_sample_size(self) -> float:
         """Kong et al. 1994 ESS: 1 / sum(w_i^2). Range [1, n_particles]."""
         w = self._normalized_weights()

@@ -98,6 +98,29 @@ though the spatial-only GP predicts pay-zone grade poorly in
 absolute terms, because the posterior variance is a faithful map
 of where the data is sparse even when the mean is unreliable.
 
+## How the policies hold up under noisy binary sensors
+
+The B.1 chart at the top uses a Gaussian-continuous sensor (a drill
+returns a grade reading + noise). Real drill assays come back as
+quantified values, but in a hand-mapping or first-look reconnaissance
+the operator decision is often binary: above or below the cutoff.
+Mern et al. 2024 model that case with a Bernoulli sensor with two
+sensitivity parameters, alpha (the false-positive rate) and beta (the
+false-negative rate). C.1 implements that sensor branch and sweeps
+the (alpha, beta) plane on a 3x3 grid.
+
+![Mean discovery rate per policy across 9 (alpha, beta) combinations on the same 30x30 synthetic subarea as the B.1 chart. Random sits at 0.06 across the whole plane and GreedyMean sits at 0.32: neither uses observations, so they don't respond to sensor quality. BayesianGreedy ranges 0.48-0.54 and POMCP ranges 0.43-0.57 depending on the sensor parameters; both policies degrade modestly as the sensor gets noisier, and POMCP holds a small edge over BayesianGreedy at most cells. The within-row variation includes 17-episode Monte Carlo noise; the relative ordering is the chapter point, not the precise cell values.](./data/derived/bcgt/fig_v20_c1_bernoulli_sweep.png)
+
+The reading. Even with substantial sensor noise (10% false positive
+plus 20% false negative, the worst cell), the v2.0 machinery extracts
+most of the value from observations: BayesianGreedy and POMCP land
+roughly 18 to 25 points above the static-prior baseline (0.32). The
+sensitivity to sensor quality is modest: dropping the false-positive
+rate from 10% to 2% buys at most a few discovery-rate points. The
+single-hypothesis B.1 finding holds under the Bernoulli sensor: most
+of the win is correlation-aware belief updating; multi-step lookahead
+is a smaller increment on top.
+
 ## Why v1.0 tied
 
 The 2023 v1.0 paper used independent Bernoulli cells (no correlation
@@ -111,13 +134,10 @@ published a year later, adding correlation and a noisy sensor.
 
 ## Next steps
 
-Two milestones queued. C.1: noisy Bernoulli sensor with a sensitivity
-sweep on the noise parameters; the version of the chart above where
-a drill returns a binary indicator rather than a continuous grade.
-C.2: multi-hypothesis with the falsification check; the main Mern
-2024 contribution, where a drill can falsify a whole hypothesis and
-reshape the posterior over the entire grid. The deeper notebook
-carries the milestone-by-milestone plan and the research notes.
+One milestone queued. C.2: multi-hypothesis with the falsification
+check; the main Mern 2024 contribution, where a drill can falsify a
+whole hypothesis and reshape the posterior over the entire grid.
+The deeper notebook carries the C.2 plan and the research notes.
 
 ## Deeper notebooks
 

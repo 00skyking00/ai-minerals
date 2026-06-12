@@ -87,6 +87,15 @@ class CorrelatedDrillingProblem:
                 f"sensor_noise_sigma must be > 0 for Gaussian sensor; "
                 f"got {self.sensor_noise_sigma}"
             )
+        if self.sensor_model is SensorModel.BERNOULLI_BINARY:
+            if not (0.0 <= self.sensor_alpha < 1.0):
+                raise ValueError(
+                    f"sensor_alpha must be in [0, 1); got {self.sensor_alpha}"
+                )
+            if not (0.0 <= self.sensor_beta < 1.0):
+                raise ValueError(
+                    f"sensor_beta must be in [0, 1); got {self.sensor_beta}"
+                )
 
     def step(
         self,
@@ -126,10 +135,15 @@ class CorrelatedDrillingProblem:
         elif self.sensor_model is SensorModel.NOISELESS:
             obs = true_value
         elif self.sensor_model is SensorModel.BERNOULLI_BINARY:
-            # C.1 milestone; gated to keep B.1 surface narrow.
-            raise NotImplementedError(
-                "Bernoulli sensor model lands in C.1 (issue #8)"
-            )
+            # Mern 2024 convention:
+            #   alpha = false-positive rate (true=negative; sensor reports positive)
+            #   beta  = false-negative rate (true=positive;  sensor reports negative)
+            # Observation is 0 or 1 (int).
+            if is_discovery:
+                p_one = 1.0 - self.sensor_beta
+            else:
+                p_one = self.sensor_alpha
+            obs = int(rng.random() < p_one)
         else:  # pragma: no cover  - enum exhaustiveness
             raise ValueError(f"Unknown SensorModel: {self.sensor_model!r}")
 
