@@ -103,7 +103,7 @@ Every data source used here is open and public-domain. No API keys, no gated dow
 | Optical / alteration | [Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2) 2023 summer mosaic | 10 m | `s2_{iron_oxide,ferrous,clay,ndvi}` |
 | Validation | (deferred to v2 BCGT — see note below) | — | — |
 
-Everything is reprojected to **EPSG:3338 (NAD83 Alaska Albers, equal-area)** and aggregated to a 500 m regular grid. The glue layer is in [`features/assemble.py`](../../src/ai_minerals/features/assemble.py); most of the model-training code lives in [`model.py`](../../src/ai_minerals/model.py) and [`model_rf.py`](../../src/ai_minerals/model_rf.py).
+Everything is reprojected to **EPSG:3338 (NAD83 Alaska Albers, equal-area)** and aggregated to a 500 m regular grid. The glue layer is in [`features/assemble.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/assemble.py); most of the model-training code lives in [`model.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model.py) and [`model_rf.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_rf.py).
 
 ```{python}
 #| label: load-features
@@ -431,7 +431,7 @@ Strict-label model captures 91 % of strict positives in the top 1 %, and 61 % of
 
 ### 7.2 PU-learning baseline {#pu-learning-comparison}
 
-Pseudo-negative sampling assumes cells far from any known occurrence are non-deposits. PU learning (Mordelet & Vert-style bagging, implemented in [`model_pu.py`](../../src/ai_minerals/model_pu.py)) refuses that assumption:
+Pseudo-negative sampling assumes cells far from any known occurrence are non-deposits. PU learning (Mordelet & Vert-style bagging, implemented in [`model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py)) refuses that assumption:
 
 ```{python}
 #| label: pu-bagging
@@ -658,17 +658,17 @@ uv run jupyter nbconvert --to notebook --execute --inplace \
   notebooks/eastak_porphyry_prospectivity.ipynb
 ```
 
-`pyproject.toml` pins Python 3.11+; `uv.lock` pins every transitive dependency. The notebook has no hidden state between cells — restart-and-run-all passes. Raw data is regenerable from the fetch modules in [`src/ai_minerals/data/`](../../src/ai_minerals/data/); nothing large is tracked in git.
+`pyproject.toml` pins Python 3.11+; `uv.lock` pins every transitive dependency. The notebook has no hidden state between cells — restart-and-run-all passes. Raw data is regenerable from the fetch modules in [`src/ai_minerals/data/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/); nothing large is tracked in git.
 
 ## Code + design tour
 
-- [`src/ai_minerals/aoi.py`](../../src/ai_minerals/aoi.py) — AOI and CRS constants.
-- [`src/ai_minerals/grid.py`](../../src/ai_minerals/grid.py) — 500 m EPSG:3338 grid.
-- [`src/ai_minerals/features/`](../../src/ai_minerals/features/) — labels, rasters, geology, geochem, assemble.
-- [`src/ai_minerals/model.py`](../../src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
-- [`src/ai_minerals/model_rf.py`](../../src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
-- [`src/ai_minerals/model_pu.py`](../../src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
-- [`docs/mvp-proposal.md`](../../docs/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
+- [`src/ai_minerals/aoi.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/aoi.py) — AOI and CRS constants.
+- [`src/ai_minerals/grid.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/grid.py) — 500 m EPSG:3338 grid.
+- [`src/ai_minerals/features/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/) — labels, rasters, geology, geochem, assemble.
+- [`src/ai_minerals/model.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
+- [`src/ai_minerals/model_rf.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
+- [`src/ai_minerals/model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
+- [`docs/mvp-proposal.md`](https://github.com/00skyking00/ai-minerals/blob/main/docs/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
 - [`notebooks/day{3,4,5}_*.qmd`](../../notebooks/) — day-by-day build log; audit trail for how the results above came together.
 
 ## References (primary sources)

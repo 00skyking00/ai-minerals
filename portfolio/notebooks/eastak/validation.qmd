@@ -189,7 +189,7 @@ are non-deposits. PU learning (Mordelet & Vert-style bagging) refuses
 that assumption — each bag trains on positives + a random equal-sized
 draw of unlabeled cells treated as "not known positive," and we average
 over bags where a cell was out-of-bag. See
-[`model_pu.py`](../../src/ai_minerals/model_pu.py).
+[`model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py).
 
 ```{python}
 #| label: pu-bag

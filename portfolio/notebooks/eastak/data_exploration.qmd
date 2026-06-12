@@ -89,7 +89,7 @@ Nine layers. Each has its own section below; the short version is:
 
 Every dataset is open and public-domain. No API keys, no gated downloads.
 Raw downloads go to `data/raw/<dataset>/`; the feature pipeline
-([`src/ai_minerals/features/assemble.py`](../../src/ai_minerals/features/assemble.py))
+([`src/ai_minerals/features/assemble.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/assemble.py))
 glues them into a single pixel-level DataFrame for modeling.
 
 ```{python}

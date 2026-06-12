@@ -182,8 +182,7 @@ Worth applying to any future MPM reproduction:
 ## Files
 
 - DEEP-SEAM official source: `third_party/MPM_Curnamona_REE/`
-- Audit writeup: [research/deep_seam_audit_2026-05.md](../../research/deep_seam_audit_2026-05.md)
-- Our PyTorch port: [src/ai_minerals/model_devnet.py](../../src/ai_minerals/model_devnet.py)
+- Our PyTorch port: [src/ai_minerals/model_devnet.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_devnet.py)
 - Companion notebooks:
   [DEEP-SEAM four-region transfer](deep_seam_cross_region.qmd),
   [US Carbonatite REE within-niche](us_carbonatite_ree.qmd),

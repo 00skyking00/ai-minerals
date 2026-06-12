@@ -6,7 +6,7 @@ sidebar: cross_region
 
 [← back to portfolio map](index.html)
 
-## What this chapter is about
+## Setup
 
 DEEP-SEAM (Luo et al. 2026, *Geosci. Model Dev.*) reported a 2-3×
 top-k capture advantage over Random Forest on a Curnamona Province

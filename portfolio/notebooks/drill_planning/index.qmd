@@ -8,7 +8,7 @@ format:
     toc-depth: 3
 ---
 
-## What this chapter is about
+## Setup
 
 A prospectivity model gives you a per-cell probability that a deposit
 exists. It does not tell you where to drill next given what you've
@@ -74,7 +74,7 @@ Two ways the bridge gets crossed in practice:
   patent and outputs two recommended next-hole locations under
   different acquisition criteria.
 
-## What each piece does and doesn't establish
+## Limits
 
 The POMDP work is a methodology demonstration on a regional prior,
 not a production-grade resource model. The path-planning policy is

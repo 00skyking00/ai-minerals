@@ -6,7 +6,7 @@ sidebar: placer
 
 [← back to portfolio map](index.html)
 
-## What this is
+## Setup
 
 A 250 m calibrated probability raster for placer-Au prospectivity
 across the California Mother Lode, built as two per-population
@@ -565,7 +565,7 @@ goldbug consumes them via the same zonal-mean machinery as the
 calibrated raster, producing per-claim P05/P50/P95 sampled against the
 parcel footprint.
 
-## What this doesn't prove
+## Limits
 
 - **The hot cells contain extractable gold.** Hydraulic-pit polygons mark
   where 1850s-1884 miners chose to wash hillsides, not where commercial pay

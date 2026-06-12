@@ -1,21 +1,22 @@
-"""bcgt-v2.0 B.1 baseline benchmark: 17-realization MC, Random vs GreedyMean.
+"""bcgt-v2.0 B.1 four-policy benchmark.
 
 Runs the SyntheticMonteCarloSimulator at paper-matched settings (17
-ground truths, 9 holes per episode) with the two baseline policies
-shipped in v1.2.0 milestone:
+ground truths, 9 holes per episode) with all four policies that ship in
+the v1.2.0 milestone:
 
-    RandomPolicy        uniform pick from unvisited
-    GreedyMeanPolicy    argmax prior_mean over unvisited
+    RandomPolicy                  uniform pick from unvisited
+    GreedyMeanPolicy              argmax prior_mean (v1.0 baseline)
+    BayesianGreedyPolicy          argmax PF posterior mean
+    CorrelatedPriorPOMCPPolicy    particle-rollout Monte Carlo planner
 
-The CorrelatedPriorPOMCPPolicy (true POMCP over the particle-filter
-belief) is the next bcgt-v2.0 milestone (issue queued); this benchmark
-is the validation harness it will plug into.
-
-Synthetic terrain: 30x30 BCGT subarea, Matern v=2.5 kernel, sigma=0.1,
-lengthscale 1500 m, prior mean field shaped as a single anomaly bump
-centered at cell (15, 15) with peak 0.3 and Gaussian falloff matching
-the GP lengthscale. The cutoff grade is 0.2 (paper-matched Cox-Singer
-porphyry-Cu).
+Synthetic terrain: 30x30 BCGT subarea (500 m spacing, ~15 km square),
+Matern v=2.5 GP kernel, sigma=0.1, lengthscale 1500 m. Prior mean field
+is a Gaussian bump centered at (15, 15) with peak 0.18 and spread 3000 m
+(broader than the GP lengthscale so the prior doesn't directly point at
+the discovery cells; the GP variability is the dominant signal).
+Sensor: Gaussian-continuous, sigma=0.05 (a meaningful one-quarter of
+the cutoff distance, so a single observation is informative without
+collapsing belief). Cutoff: 0.2 (Cox-Singer porphyry-Cu).
 
 Output: data/derived/bcgt/fig_v20_b1_baseline_benchmark.png
 """
@@ -37,6 +38,8 @@ from ai_minerals.decision.v20.pomdp import (
     SensorModel,
 )
 from ai_minerals.decision.v20.policies import (
+    BayesianGreedyPolicy,
+    CorrelatedPriorPOMCPPolicy,
     GreedyMeanPolicy,
     RandomPolicy,
 )
@@ -49,6 +52,10 @@ from ai_minerals.decision.v20.simulator import (
 REPO = Path(__file__).resolve().parents[2]
 OUT_PNG = REPO / "data/derived/bcgt/fig_v20_b1_baseline_benchmark.png"
 
+ANOMALY_PEAK = 0.18    # broader / lower than GreedyMean would prefer
+ANOMALY_SPREAD_M = 3000.0
+SENSOR_NOISE_SIGMA = 0.05
+
 
 def _make_problem_template() -> CorrelatedDrillingProblem:
     spacing = 500.0
@@ -57,12 +64,11 @@ def _make_problem_template() -> CorrelatedDrillingProblem:
     xx, yy = np.meshgrid(x, y, indexing="xy")
     coords = np.column_stack([xx.ravel(), yy.ravel()])
 
-    # Prior mean: Gaussian bump at the grid center with peak 0.3 and
-    # spread matching the GP lengthscale. This stands in for the v3 RF
-    # posterior surface that the production BCGT version will use.
     center = np.array([15 * spacing, 15 * spacing])
     distances = np.linalg.norm(coords - center, axis=1)
-    prior_mean = 0.3 * np.exp(-0.5 * (distances / KERNEL_LENGTHSCALE_M_BCGT) ** 2)
+    prior_mean = ANOMALY_PEAK * np.exp(
+        -0.5 * (distances / ANOMALY_SPREAD_M) ** 2
+    )
 
     h = Hypothesis(
         name="porphyry_cu", n_grabens=1, n_domains=1,
@@ -73,9 +79,9 @@ def _make_problem_template() -> CorrelatedDrillingProblem:
     return CorrelatedDrillingProblem(
         hypothesis=h,
         x_m=coords[:, 0], y_m=coords[:, 1],
-        true_grade=np.zeros(coords.shape[0]),  # gets overwritten per-episode
+        true_grade=np.zeros(coords.shape[0]),
         sensor_model=SensorModel.GAUSSIAN_CONTINUOUS,
-        sensor_noise_sigma=0.001,
+        sensor_noise_sigma=SENSOR_NOISE_SIGMA,
         cutoff_grade=0.2,
         drill_cost=1.0,
         discovery_value=50.0,
@@ -89,6 +95,10 @@ def main() -> int:
         policies={
             "random": RandomPolicy(),
             "greedy_mean": GreedyMeanPolicy(),
+            "bayes_greedy": BayesianGreedyPolicy(n_particles=500),
+            "pomcp": CorrelatedPriorPOMCPPolicy(
+                n_particles=500, n_rollouts=120,
+            ),
         },
         n_ground_truths=PAPER_N_GROUND_TRUTHS,
         drill_budget=PAPER_DRILL_BUDGET,
@@ -108,8 +118,6 @@ def main() -> int:
               f"median={metrics['regret_median']:.2f}")
         print()
 
-    # Discovery curve: per step, fraction of episodes in which by-now-drilled
-    # cells include at least one above-cutoff.
     n_steps = PAPER_DRILL_BUDGET
     discovery_curves: dict[str, np.ndarray] = {}
     for name in sim.policies:
@@ -125,28 +133,48 @@ def main() -> int:
         curve /= len(episodes)
         discovery_curves[name] = curve
 
-    fig, (ax_curve, ax_bar) = plt.subplots(1, 2, figsize=(12, 5))
+    fig, (ax_curve, ax_bar) = plt.subplots(1, 2, figsize=(13, 5))
     steps = np.arange(1, n_steps + 1)
+    colors = {
+        "random": "#888888",
+        "greedy_mean": "#d97b00",
+        "bayes_greedy": "#1f77b4",
+        "pomcp": "#2c7c2c",
+    }
+    labels = {
+        "random": "Random",
+        "greedy_mean": "GreedyMean (v1.0 baseline)",
+        "bayes_greedy": "BayesianGreedy (PF posterior)",
+        "pomcp": "POMCP (particle rollouts)",
+    }
     for name, curve in discovery_curves.items():
-        ax_curve.plot(steps, curve, marker="o", label=name)
+        ax_curve.plot(
+            steps, curve, marker="o", label=labels[name],
+            color=colors[name], linewidth=2,
+        )
     ax_curve.set_xlabel("Drill step")
     ax_curve.set_ylabel("Fraction of episodes with >=1 discovery")
     ax_curve.set_title(
         f"Discovery curve over {PAPER_N_GROUND_TRUTHS} episodes\n"
-        f"(30x30 BCGT subarea, Matern v=2.5, sigma_along=1500 m)"
+        f"(30x30 BCGT subarea, Matern v=2.5, sigma_along=1500 m, "
+        f"sensor sigma=0.05)"
     )
     ax_curve.set_ylim(0, 1.05)
-    ax_curve.legend()
+    ax_curve.legend(loc="lower right")
     ax_curve.grid(alpha=0.3)
 
     names = list(agg.keys())
     means = [agg[n]["discovery_rate_mean"] for n in names]
-    ax_bar.bar(names, means, color=["#888", "#2c7"])
-    ax_bar.set_ylim(0, 1.0)
+    ax_bar.bar(
+        [labels[n] for n in names], means,
+        color=[colors[n] for n in names],
+    )
+    ax_bar.set_ylim(0, max(means) * 1.25)
     ax_bar.set_ylabel("Mean discovery rate (across trajectory)")
     ax_bar.set_title("Per-policy mean discovery rate")
+    plt.setp(ax_bar.get_xticklabels(), rotation=15, ha="right")
     for i, v in enumerate(means):
-        ax_bar.text(i, v + 0.02, f"{v:.2f}", ha="center")
+        ax_bar.text(i, v + 0.015, f"{v:.2f}", ha="center")
 
     plt.tight_layout()
     OUT_PNG.parent.mkdir(parents=True, exist_ok=True)

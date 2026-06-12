@@ -383,11 +383,11 @@ The Arizona v4 work does **not** establish:
 
 ## Files and reproduction
 
-- Region config: [src/ai_minerals/regions/arizona.py](../../src/ai_minerals/regions/arizona.py)
+- Region config: [src/ai_minerals/regions/arizona.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/regions/arizona.py)
 - Feature frame: [data/derived/features_arizona_500m.parquet](../../data/derived/features_arizona_500m.parquet)
 - Decomposed feature frame: [data/derived/features_arizona_500m_decomposed.parquet](../../data/derived/features_arizona_500m_decomposed.parquet)
 - 4-cell OOF metrics: [data/derived/arizona/path3_decomposed_metrics.json](../../data/derived/arizona/path3_decomposed_metrics.json)
-- Build scripts: [arizona_fetch_all.py](../../scripts/arizona/fetch_all.py), [arizona_features.py](../../scripts/arizona/features.py), [arizona_decompose_features.py](../../scripts/arizona/decompose_features.py), [arizona_oof_comparison.py](../../scripts/arizona/oof_comparison.py)
+- Build scripts: [arizona_fetch_all.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/arizona/fetch_all.py), [arizona_features.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/arizona/features.py), [arizona_decompose_features.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/arizona/decompose_features.py), [arizona_oof_comparison.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/arizona/oof_comparison.py)
 - Companion notebook: [cross-region four-cell deep dive](../cross_region/four_cell.qmd)
 
 ## Sources

@@ -267,12 +267,11 @@ haven't drilled yet."
 
 ## Files
 
-- Phase 1 driver: [scripts/reproductions/lawley/phase1_gbm.py](../../scripts/reproductions/lawley/phase1_gbm.py)
-- Phase 1b driver (leak-corrected): [scripts/reproductions/lawley/phase1b_leak_corrected.py](../../scripts/reproductions/lawley/phase1b_leak_corrected.py)
-- Phase 2 driver (2-D blocks + cross-continent): [scripts/reproductions/lawley/phase2_eval.py](../../scripts/reproductions/lawley/phase2_eval.py)
-- Phase 3 driver (DevNet head-to-head): [scripts/reproductions/lawley/phase3_devnet.py](../../scripts/reproductions/lawley/phase3_devnet.py)
-- CSV → parquet converter: [scripts/reproductions/lawley/csv_to_parquet.py](../../scripts/reproductions/lawley/csv_to_parquet.py)
-- Audit research synthesis: [research/lawley_audit_2026-05.md](../../research/lawley_audit_2026-05.md)
+- Phase 1 driver: [scripts/reproductions/lawley/phase1_gbm.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/reproductions/lawley/phase1_gbm.py)
+- Phase 1b driver (leak-corrected): [scripts/reproductions/lawley/phase1b_leak_corrected.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/reproductions/lawley/phase1b_leak_corrected.py)
+- Phase 2 driver (2-D blocks + cross-continent): [scripts/reproductions/lawley/phase2_eval.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/reproductions/lawley/phase2_eval.py)
+- Phase 3 driver (DevNet head-to-head): [scripts/reproductions/lawley/phase3_devnet.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/reproductions/lawley/phase3_devnet.py)
+- CSV → parquet converter: [scripts/reproductions/lawley/csv_to_parquet.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/reproductions/lawley/csv_to_parquet.py)
 - Reference code (cloned): `third_party/sri-ta3-baselines/`
 - Companion: [DEEP-SEAM audit](deep_seam_audit.qmd)
 

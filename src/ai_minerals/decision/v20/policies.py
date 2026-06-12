@@ -110,8 +110,9 @@ class GreedyMeanPolicy:
 
     Doesn't incorporate observations into a belief update; just uses the
     static GP prior mean as its ranking. Ties are broken by RNG (uniform
-    over tied indices). The simulator's POMCP baseline (issue #6) will
-    replace this with a particle-filter-driven greedy step.
+    over tied indices). Compare to BayesianGreedyPolicy which uses the
+    particle-filter posterior, and CorrelatedPriorPOMCPPolicy which
+    plans multiple steps ahead.
     """
 
     _prior_mean: np.ndarray | None = None
@@ -133,8 +134,6 @@ class GreedyMeanPolicy:
             mask[idx] = False
         if not mask.any():
             raise RuntimeError("All cells drilled; no action available")
-        # Mask out drilled cells by setting their value to -inf, then argmax
-        # with random tie-break.
         scores = np.where(mask, self._prior_mean, -np.inf)
         top_value = scores.max()
         candidates = np.flatnonzero(scores >= top_value - 1e-12)
@@ -142,42 +141,220 @@ class GreedyMeanPolicy:
 
 
 @dataclass
-class CorrelatedPriorPOMCPPolicy:
-    """B.1 policy: POMCP over correlated-prior particle filter belief.
+class BayesianGreedyPolicy:
+    """Pick the highest PF posterior-mean cell among unvisited.
 
-    Each step:
-    1. Use particle filter posterior mean as the current per-cell belief.
-    2. Run POMCP rollouts from the current belief; each rollout simulates
-       drill -> noisy obs -> particle update -> next-step decision.
-    3. Pick the action with the highest UCB-tuned Q-value.
-    4. Apply action to the environment; update particle filter with the
-       observed (cell_idx, observation) pair.
+    Updates the particle filter after each observation, then picks the
+    cell with the highest current posterior mean. The interesting
+    middle baseline between GreedyMeanPolicy (uses only the static
+    prior) and CorrelatedPriorPOMCPPolicy (uses the PF and plans
+    multiple steps ahead).
 
-    NOT IMPLEMENTED YET. Will wrap pomdp_py.algorithms.pomcp.POMCP.
+    The 'Bayesian' is because the cell selection is now conditioned on
+    the entire observation history through the PF's importance-weighted
+    posterior; the 'Greedy' is because we still pick one step at a time
+    without multi-step lookahead.
     """
-    problem: CorrelatedDrillingProblem
-    particle_filter: ParticleFilter
-    n_sims: int = POMCP_N_SIMS_DEFAULT
-    c_exploration: float = POMCP_C_EXPLORATION
-    max_depth: int = POMCP_MAX_DEPTH
 
-    def plan(self, rng: np.random.Generator) -> int:
-        """Run one POMCP planning step; return the chosen cell_idx.
+    n_particles: int = 500
+    sensor_noise_sigma: float = 0.001
 
-        TODO B.1: implement.
-        """
-        raise NotImplementedError("B.1 milestone")
+    _pf: ParticleFilter | None = None
+    _last_history_len: int = 0
 
-    def step_and_update(
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None:
+        self._pf = ParticleFilter(
+            hypothesis=problem.hypothesis,
+            n_particles=self.n_particles,
+            rng=rng,
+        )
+        self._pf.initialize()
+        self._last_history_len = 0
+        self.sensor_noise_sigma = problem.sensor_noise_sigma
+
+    def choose_action(
         self,
+        history: list[tuple[int, float]],
         drilled: frozenset[int],
         rng: np.random.Generator,
-    ) -> tuple[int, float, frozenset[int]]:
-        """Plan -> act -> update particle filter; return (cell, reward, drilled).
+    ) -> int:
+        if self._pf is None:
+            raise RuntimeError("BayesianGreedyPolicy not reset; call reset() first")
+        # Catch up the PF with any new observations since the last call.
+        while self._last_history_len < len(history):
+            cell, obs = history[self._last_history_len]
+            self._pf.update(
+                cell_idx=cell, observation=obs,
+                sensor_noise_sigma=self.sensor_noise_sigma,
+            )
+            self._last_history_len += 1
 
-        TODO B.1: implement.
-        """
-        raise NotImplementedError("B.1 milestone")
+        post_mean = self._pf.posterior_mean()
+        mask = np.ones(post_mean.size, dtype=bool)
+        for idx in drilled:
+            mask[idx] = False
+        if not mask.any():
+            raise RuntimeError("All cells drilled; no action available")
+        scores = np.where(mask, post_mean, -np.inf)
+        top_value = scores.max()
+        candidates = np.flatnonzero(scores >= top_value - 1e-12)
+        return int(rng.choice(candidates))
+
+
+@dataclass
+class CorrelatedPriorPOMCPPolicy:
+    """Particle-rollout Monte Carlo planning (POMCP-style) over the PF belief.
+
+    For each candidate unvisited cell, run `n_rollouts` simulated episodes
+    where a particle (sampled from the current PF belief) plays the role of
+    hidden ground truth. The rollout drills the candidate cell first, then
+    follows a greedy-on-particle rollout policy for the remaining horizon,
+    summing discounted rewards. The candidate with the best mean rollout
+    return is the chosen action.
+
+    This is not the full UCB-based MCTS tree search of textbook POMCP; it's
+    the "particle filter + Monte Carlo rollouts" core of POMCP without the
+    progressive widening / UCT tree, which captures the multi-step planning
+    benefit at a fraction of the implementation cost. The pomdp_py
+    library-wrapped version (`pomdp_py.algorithms.pomcp`) is the production
+    target if this baseline is not enough; for B.1 the simple version is
+    enough to show whether multi-step planning beats Bayesian greedy on
+    correlated terrain.
+    """
+
+    n_particles: int = 500
+    n_rollouts: int = 60
+    planning_horizon: int = 9       # match drill_budget by default
+    discount: float = 0.95
+    sensor_noise_sigma: float = 0.001
+
+    _pf: ParticleFilter | None = None
+    _last_history_len: int = 0
+    _problem: CorrelatedDrillingProblem | None = None
+
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None:
+        self._pf = ParticleFilter(
+            hypothesis=problem.hypothesis,
+            n_particles=self.n_particles,
+            rng=rng,
+        )
+        self._pf.initialize()
+        self._last_history_len = 0
+        self._problem = problem
+        self.sensor_noise_sigma = problem.sensor_noise_sigma
+
+    def _greedy_rollout_from_particle(
+        self,
+        particle: np.ndarray,
+        first_action: int,
+        already_drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> float:
+        """One full-horizon rollout. The rollout policy after the first
+        action is greedy-on-particle: pick the highest unvisited cell of
+        the particle. Returns the discounted cumulative reward."""
+        problem = self._problem
+        cutoff = problem.cutoff_grade
+        discovery = problem.discovery_value
+        drill_cost = problem.drill_cost
+
+        drilled = set(already_drilled)
+        cumulative = 0.0
+        discount = 1.0
+
+        # Step 1: the candidate first_action.
+        if first_action in drilled:
+            cumulative += -drill_cost   # repeat drill: cost only
+        else:
+            r = -drill_cost + (
+                discovery if particle[first_action] > cutoff else 0.0
+            )
+            cumulative += discount * r
+            drilled.add(first_action)
+        discount *= self.discount
+
+        # Remaining steps: greedy on the (known to the rollout) particle.
+        mask = np.ones(particle.size, dtype=bool)
+        for idx in drilled:
+            mask[idx] = False
+        scores = np.where(mask, particle, -np.inf)
+        # Pre-sort once; pop from the top.
+        order = np.argsort(-scores)
+
+        steps_left = self.planning_horizon - 1
+        for cell in order[:steps_left]:
+            if cell in drilled:
+                continue
+            r = -drill_cost + (
+                discovery if particle[cell] > cutoff else 0.0
+            )
+            cumulative += discount * r
+            drilled.add(int(cell))
+            discount *= self.discount
+        return cumulative
+
+    def choose_action(
+        self,
+        history: list[tuple[int, float]],
+        drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> int:
+        if self._pf is None or self._problem is None:
+            raise RuntimeError(
+                "CorrelatedPriorPOMCPPolicy not reset; call reset() first"
+            )
+        # Catch up the PF with new observations since last call.
+        while self._last_history_len < len(history):
+            cell, obs = history[self._last_history_len]
+            self._pf.update(
+                cell_idx=cell, observation=obs,
+                sensor_noise_sigma=self.sensor_noise_sigma,
+            )
+            self._last_history_len += 1
+
+        # Candidate actions: unvisited cells.
+        n_cells = self._problem.n_cells
+        candidates = np.array(
+            [i for i in range(n_cells) if i not in drilled], dtype=np.int64,
+        )
+        if candidates.size == 0:
+            raise RuntimeError("All cells drilled; no action available")
+
+        # Restrict the candidate search to the top-K cells by PF posterior
+        # mean so we don't waste rollouts on obviously-bad actions. This is
+        # the same shortcut full POMCP gets from UCT.
+        post_mean = self._pf.posterior_mean()
+        cand_scores = post_mean[candidates]
+        top_k = min(15, candidates.size)
+        top_idxs = np.argpartition(-cand_scores, top_k - 1)[:top_k]
+        candidates = candidates[top_idxs]
+
+        # Sample particle indices weighted by PF weights once per rollout.
+        weights = self._pf._normalized_weights()
+        particle_indices = rng.choice(
+            self._pf.n_particles,
+            size=self.n_rollouts,
+            replace=True,
+            p=weights,
+        )
+
+        # Score each candidate via mean rollout return.
+        Q = np.full(candidates.size, -np.inf)
+        for i, cand in enumerate(candidates):
+            returns = np.empty(self.n_rollouts)
+            for j, p_idx in enumerate(particle_indices):
+                returns[j] = self._greedy_rollout_from_particle(
+                    self._pf.particles[p_idx],
+                    int(cand),
+                    drilled,
+                    rng,
+                )
+            Q[i] = returns.mean()
+
+        best_idx = int(np.argmax(Q))
+        return int(candidates[best_idx])
 
 
 @dataclass

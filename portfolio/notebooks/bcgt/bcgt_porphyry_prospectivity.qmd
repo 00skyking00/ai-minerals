@@ -22,7 +22,7 @@ execute:
 5. **The blind-test result is striking.** RF no-count achieves 0.82 ROC-AUC on spatial CV against training labels. On the 241-cell blind-test distribution, though: blind positives median P = 0.87; blind *negatives* median P = 0.98 — **the drilled-nothing cells actually score higher than drilled-ore cells** because both populations cluster in already-explored terrain near training positives. The two distributions differ statistically (K-S p = 1e-4) but the Mann-Whitney test that positives score *higher* than negatives is NOT significant (p = 0.26). At the top-5 % AOI cutoff, 40 % of blind positives and 63 % of blind negatives are flagged — the ordering that matters for real drill targeting doesn't reliably pick winners over losers. This is confirmation-bias at distribution scale — the same three-channel exploration-bias story the EastAK sensitivity pass framed conceptually.
 6. **Feeding drill data back as features doesn't help.** A 50/50 split sensitivity check (training-half drill collars become per-cell features, held-out half is the new blind set) shows the new drill-derived features (`max_cu_drill_5km`, `n_intersected_5km`, etc.) **don't even land in the top-15 RF importance**, and the blind-positive vs blind-negative distributions are statistically identical to the no-drill-features baseline. Drill features ride the same exploration-density axis that the geochem aggregates already do — adding them doesn't introduce an *unbiased* signal axis. See [validation §8](validation.qmd#8-drill-as-feature-sensitivity-does-feeding-drill-data-back-into-the-model-help) for the full result.
 
-The architectural payoff of the v2 plan: **adding a second region with a different jurisdiction's data conventions took ~600 LOC of adapters + fetchers** — all downstream modeling code (spatial CV, SHAP, PU bagging, feature engineering) worked unchanged via the canonical-schema adapter layer. See [`src/ai_minerals/data/adapters/`](../../src/ai_minerals/data/adapters/).
+The architectural payoff of the v2 plan: **adding a second region with a different jurisdiction's data conventions took ~600 LOC of adapters + fetchers** — all downstream modeling code (spatial CV, SHAP, PU bagging, feature engineering) worked unchanged via the canonical-schema adapter layer. See [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/).
 
 ## Context: what this adds to v1
 
@@ -77,7 +77,7 @@ AOI = BCGT.aoi
 | Optical / alteration | Sentinel-2 L2A 2024 summer mean | 60 m | `s2_{iron_oxide,ferrous,clay,ndvi}` |
 | Validation | BCGS GeoFile 2025-11 drillhole DB | 366 post-2015 collars in AOI | **blind-test set** |
 
-All layers reprojected to **EPSG:3005 (BC Albers Equal Area)** and aggregated to a 500 m grid. Adapters in [`src/ai_minerals/data/adapters/`](../../src/ai_minerals/data/adapters/) normalize each source to a canonical internal schema so the feature pipeline is jurisdiction-agnostic.
+All layers reprojected to **EPSG:3005 (BC Albers Equal Area)** and aggregated to a 500 m grid. Adapters in [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/) normalize each source to a canonical internal schema so the feature pipeline is jurisdiction-agnostic.
 
 ```{python}
 #| label: load-features
@@ -427,9 +427,9 @@ print(f"  K-S p-value:     {ks_p:.1e}  (positives-vs-negatives distributions)")
 
 ## Code + design tour
 
-- [`src/ai_minerals/regions/bcgt.py`](../../src/ai_minerals/regions/bcgt.py) — region config (AOI, CRS, deposit classes, pathfinder elements, raw-file paths).
-- [`src/ai_minerals/data/adapters/`](../../src/ai_minerals/data/adapters/) — canonical-schema adapters. New BC entries: `occurrences/bc_minfile.py`, `geochem/bcgs_rgs.py`, `geology/bcgs_digital.py`, `drillholes/bcgs_geofile.py`.
-- [`src/ai_minerals/data/bcgs_*.py`](../../src/ai_minerals/data/) + [`gsc_geophysics.py`](../../src/ai_minerals/data/gsc_geophysics.py) — BC/NRCan fetchers.
+- [`src/ai_minerals/regions/bcgt.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/regions/bcgt.py) — region config (AOI, CRS, deposit classes, pathfinder elements, raw-file paths).
+- [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/) — canonical-schema adapters. New BC entries: `occurrences/bc_minfile.py`, `geochem/bcgs_rgs.py`, `geology/bcgs_digital.py`, `drillholes/bcgs_geofile.py`.
+- [`src/ai_minerals/data/bcgs_*.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/) + [`gsc_geophysics.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/gsc_geophysics.py) — BC/NRCan fetchers.
 - [`notebooks/bcgt/data_exploration.qmd`](data_exploration.qmd) — hands-on walk through the nine BC data layers.
 
 ## References

@@ -536,6 +536,6 @@ uv run python -c "from ai_minerals.decision import *; \
 quarto render notebooks/bcgt/decision_planning.qmd
 ```
 
-The decision module ([`src/ai_minerals/decision/`](../../src/ai_minerals/decision/))
+The decision module ([`src/ai_minerals/decision/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/decision/))
 is ~300 lines split across `pomdp.py` (problem + simulator) and
 `policies.py` (random, greedy, POMCP via pomdp_py).

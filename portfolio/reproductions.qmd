@@ -6,7 +6,7 @@ sidebar: reproductions
 
 [← back to portfolio map](index.html)
 
-## What this chapter is about
+## Setup
 
 Two canonical mineral-prospectivity-mapping publications, each
 re-run from the authors' published code on the authors' published

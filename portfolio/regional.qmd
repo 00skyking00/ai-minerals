@@ -6,7 +6,7 @@ sidebar: regional
 
 [← back to portfolio map](index.html)
 
-## What this chapter is about
+## Setup
 
 This chapter walks through four regional pipelines I built: Eastern
 Alaska (porphyry Cu-Mo), the BC Golden Triangle (multi-deposit), the
@@ -21,7 +21,7 @@ the approach holds up.
 
 ![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 ARDF porphyry positives held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
 
-## Headline results
+## The results
 
 | Region | Commodity | Positives | Top-1% capture | Top-5% capture | Spatial-block CV AUC |
 |---|---|---|---|---|---|

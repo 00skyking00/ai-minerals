@@ -276,9 +276,8 @@ family it was tuned for.
 
 ## Files
 
-- Experiment driver: [scripts/cross_region/us_carbonatite_ree_experiment.py](../../scripts/cross_region/us_carbonatite_ree_experiment.py)
+- Experiment driver: [scripts/cross_region/us_carbonatite_ree_experiment.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/cross_region/us_carbonatite_ree_experiment.py)
 - Metrics: [data/derived/us_carbonatite_ree/metrics.json](../../data/derived/us_carbonatite_ree/metrics.json)
-- Findings writeup: [research/us_carbonatite_ree_findings_2026-05.md](../../research/us_carbonatite_ree_findings_2026-05.md)
 - USGS REE source data: [data/raw/usgs_ree/](../../data/raw/usgs_ree/) (USGS Open File Report 02-189)
 
 ## Sources
