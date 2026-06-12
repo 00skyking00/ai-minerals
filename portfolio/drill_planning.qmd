@@ -18,7 +18,7 @@ This chapter ports the methodology of *Intelligent Prospector* (Mern
 et al., *Geosci. Model Dev.* 16:289, 2023; arXiv 2410.10610, 2024)
 onto the BC Golden Triangle regional prior from Chapter 2.
 
-## The result
+## The result on synthetic terrain
 
 ![Four policies on a synthetic 30x30 stress test matching the 2024 Mern paper's conditions (correlated prior, noisy Gaussian sensor, 9 holes per episode, 17 episodes). Left: fraction of episodes that have found at least one true deposit at each drill step. POMCP finishes at 94%, BayesianGreedy at 82%, GreedyMean (the simplest baseline) saturates at 53% by hole four. Right: mean discovery rate per trajectory.](./data/derived/bcgt/fig_v20_b1_baseline_benchmark.png)
 
@@ -40,31 +40,63 @@ not just the cell that looks best right now. The first effect is the
 big jump (GreedyMean to BayesianGreedy, 53% to 82%). The second is
 the smaller tail win (BayesianGreedy to POMCP, 82% to 94%).
 
+## Real-data check: BCGT retrospective
+
+The chart above is a stress test on synthetic terrain. The real-data
+check is the chart below, run on a 50x50 BCGT cell working area
+(~25 km x 25 km, centered on the KSM cluster). 14 post-2010 BCGS
+drill holes inside that area hit the 0.2% Cox-Singer Cu cutoff;
+those 14 cells are the held-out targets. The 4 pre-2010 drilled
+cells are excluded from the candidate set. Each policy is scored on
+what fraction of the 14 post-2010 Cu+ cells it would have
+recommended in its top-k% picks given a 625-cell trajectory.
+
+![Three prior variants of the B.2 retrospective check. Left: smoothed MINFILE mineral-occurrence prior (informative but likely temporally contaminated since MINFILE is a current snapshot). Center: pre-2010 leak-free prior built only from the three pre-2010 BCGS Cu+ holes in the subarea (sparse but free of temporal leakage). Right: uniform prior (planner starts blind). Bars show percent of the 14 post-2010 Cu+ cells captured in the top-k% of each policy's trajectory. With the informative prior the static recommendation dominates at 86%; with the uniform prior the sparse-positive regime resists all policies; the leak-free prior sits in between.](./data/derived/bcgt/fig_v20_b2_retrospective_capture.png)
+
+The reading. With the informative prior, sorting cells by the prior
+alone (Static prior) captures 86% of the 14 post-2010 Cu+ cells in
+the top 25%. POMCP gets to 79%, BayesianGreedy to 43%. The v2.0
+Bayesian update via GP correlation does NOT improve on a near-perfect
+prior; the particle-filter posterior introduces Monte Carlo noise
+that the static surface doesn't have. With the leak-free pre-2010
+prior the static recommendation still leads at 50%, but the gap to
+POMCP (36%) and BayesianGreedy (29%) is much smaller. With the
+uniform prior, the positives are too sparse (~0.6% of cells) for
+any policy to learn from random observations within the trajectory
+budget; the variance dominates the comparison.
+
+Regional features carry most of the signal at BCGT scale. A planner
+is only as good as the prior it's given, and at single-hypothesis
+B.2 the prior IS most of the answer. The v2.0 machinery's natural
+use case is uncertainty in prior STRUCTURE itself, which is the C.2
+multi-hypothesis case (planned). The retrospective also surfaces a
+methodology caveat: MINFILE is a current snapshot, not a pre-2010
+one, so the informative-prior numbers include some temporal leakage
+from post-2010 discoveries that became MINFILE entries. The
+leak-free panel is the cleaner absolute comparison.
+
 ## Limits
 
-The chart above is a stress test on synthetic terrain matched to the
-2024 paper's parameters, NOT a validation against real drill outcomes.
-The 17 ground-truth scenarios are drawn from the same correlated
-prior the planner sees, which measures whether the planner does what
-it's supposed to do given a correct prior. It does not measure whether
-the prior itself is right for the BC Golden Triangle. The real-data
-check is the next milestone (B.2): replay the planner using the BC
-Geological Survey pre-2010 drill record as the prior, then score it
-against post-2010 drill outcomes.
-
-The planner here is also single-hypothesis: it carries one geological
+The planner here is single-hypothesis: it carries one geological
 story and updates per-cell probability estimates within that story.
-The version that handles "what if the prior is wrong", with competing
-geological hypotheses and a falsification check that fires when none
-of them explain the data, is milestone C.2; that work extends the
-toy demonstration shipped in the deeper notebook to production scale.
+The version that handles "what if the prior is wrong", with
+competing geological hypotheses and a falsification check that
+fires when none of them explain the data, is milestone C.2; that
+work extends the toy demonstration shipped in the deeper notebook
+to production scale.
 
-The property-scale counterpart of this idea, a Gaussian process drill-
-site recommender on the 24 Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
+The retrospective B.2 working area is one 50x50 cell subarea around
+the KSM cluster. Other clusters in the BCGT and other deposit types
+(epithermal Au, skarn, VMS) would each give a separate check; the
+chapter ships one to demonstrate the machinery rather than to
+characterize the planner's behavior across all BCGT terrains.
+
+The property-scale counterpart of this idea, a Gaussian process
+drill-site recommender on the 24 Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
 The Bear Cub recommender produces a workable next-hole pair even
-though the spatial-only GP predicts pay-zone grade poorly in absolute
-terms, because the posterior variance is a faithful map of where the
-data is sparse even when the mean is unreliable.
+though the spatial-only GP predicts pay-zone grade poorly in
+absolute terms, because the posterior variance is a faithful map
+of where the data is sparse even when the mean is unreliable.
 
 ## Why v1.0 tied
 
@@ -73,19 +105,19 @@ between neighbors) and a noiseless sensor. Under those conditions the
 optimal sequential policy IS exactly one-step greedy: drilling reveals
 truth, no observation updates any other cell, and there is nothing
 for multi-step planning to add. An earlier version of this page showed
-that result with POMCP and greedy tying. The chart at the top runs
-the 2024 v2.0 setup that the same authors published a year later,
-adding correlation and a noisy sensor, which is where the planner's
-machinery starts paying off.
+that result with POMCP and greedy tying. The synthetic chart at the
+top of this page runs the 2024 v2.0 setup that the same authors
+published a year later, adding correlation and a noisy sensor.
 
 ## Next steps
 
-Three milestones queued. B.2: retrospective validation against the
-BCGS pre-2010 and post-2010 drill records (the real-data check).
-C.1: noisy Bernoulli sensor with a sensitivity sweep on the noise
-parameters. C.2: multi-hypothesis with the falsification check. The
-deeper notebook carries the milestone-by-milestone plan and the
-research notes.
+Two milestones queued. C.1: noisy Bernoulli sensor with a sensitivity
+sweep on the noise parameters; the version of the chart above where
+a drill returns a binary indicator rather than a continuous grade.
+C.2: multi-hypothesis with the falsification check; the main Mern
+2024 contribution, where a drill can falsify a whole hypothesis and
+reshape the posterior over the entire grid. The deeper notebook
+carries the milestone-by-milestone plan and the research notes.
 
 ## Deeper notebooks
 

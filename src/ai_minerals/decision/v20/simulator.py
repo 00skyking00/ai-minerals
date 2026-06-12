@@ -205,41 +205,131 @@ class SyntheticMonteCarloSimulator:
         return agg
 
 
+CAPTURE_KS = (1, 5, 10, 25)   # percent of cells to evaluate at
+
+
 @dataclass
 class RetrospectiveBCGSValidator:
     """B.2 retrospective validation against historic BCGS drilling.
 
-    Our original contribution beyond Mern 2024. The paper validates only
-    on synthetic Monte Carlo; we additionally show whether the planner
-    would have recommended cells where operators actually found Cu.
+    Original contribution beyond Mern 2024. The paper validates only on
+    synthetic Monte Carlo; this validator additionally scores whether the
+    planner would have recommended cells where operators later found Cu.
 
-    Concrete setup:
-    - Pre-2010 BCGS drill record -> per-cell prior (could be the v3 RF
-      posterior; could be a Hawkes-like aggregate of pre-2010 assays).
-    - Post-2010 BCGS drill record -> held-out ground truth. For each
-      hole, the operator-positive flag is (assay-Cu >= 0.2% Cox-Singer
-      cutoff = 1, else 0).
-    - Score: capture-at-k%. What fraction of post-2010 operator-positives
-      fall in the planner's top k% recommendations? Baselines: random
-      (= k%), v3-RF-prior alone (= no POMDP value-add).
+    Setup:
+    - Pre-2010 BCGS drill record -> per-cell prior (smoothed mineral-occurrence
+      surface or a separately-supplied v3 RF posterior).
+    - Post-2010 BCGS drill record -> held-out ground truth. For each cell,
+      `post_2010_positive` = 1 iff max Cu assay across post-2010 holes in that
+      cell hit the Cox-Singer 0.2 percent porphyry-Cu cutoff.
+    - Score: capture-at-k%. Of the post-2010 positive cells, what fraction
+      sit in the planner's top k% recommendations for k in {1, 5, 10, 25}?
 
-    NOT IMPLEMENTED YET.
+    Each policy is driven sequentially for `drill_budget` steps starting from
+    a `drilled` set initialized to the pre-2010 drilled cells. The cell order
+    in the trajectory IS the policy's ranked recommendation list. Capture-at-k%
+    is computed by taking the first k% of cells from the trajectory (rounded
+    up to at least 1 cell) and counting hits against `post_2010_positives`.
+
+    Cells without post-2010 drill data are assumed barren (the standard
+    retrospective-scoring assumption). The planner-visible observation for a
+    cell drilled during the trajectory follows the CorrelatedDrillingProblem's
+    sensor model; barren cells produce near-zero observations with the
+    configured sensor noise.
     """
-    pre_2010_prior: np.ndarray         # (n_cells,) v3 RF posterior or equivalent
-    post_2010_positives: np.ndarray    # (n_cells,) binary indicator, 1 at operator-positive
-    cells_drilled_pre_2010: np.ndarray  # (n_cells,) binary indicator
-    drill_budget: int = 50              # held-out hole count to allocate
+    pre_2010_prior: np.ndarray         # (n_cells,)
+    post_2010_positives: np.ndarray    # (n_cells,) binary
+    cells_drilled_pre_2010: np.ndarray  # (n_cells,) binary
+    cell_coords_m: np.ndarray          # (n_cells, 2)
+    post_2010_grade: np.ndarray        # (n_cells,) Cu percent, 0 for barren / unknown
+    sensor_noise_sigma: float = 0.05
+    cutoff_grade: float = 0.2
+    drill_budget: int = 250            # top-25 percent of 1000 cells = 250
+    gp_marginal_std: float = 0.1
+    gp_lengthscale_m: float = 1500.0
 
-    def run_policy(self, policy: object, rng: np.random.Generator) -> dict:
-        """Run one policy; return capture-at-k% for k in {1, 5, 10, 25}.
+    def __post_init__(self) -> None:
+        n = len(self.pre_2010_prior)
+        if self.post_2010_positives.shape != (n,):
+            raise ValueError("post_2010_positives shape mismatch")
+        if self.cells_drilled_pre_2010.shape != (n,):
+            raise ValueError("cells_drilled_pre_2010 shape mismatch")
+        if self.cell_coords_m.shape != (n, 2):
+            raise ValueError(
+                f"cell_coords_m must be ({n}, 2); got {self.cell_coords_m.shape}"
+            )
+        if self.post_2010_grade.shape != (n,):
+            raise ValueError("post_2010_grade shape mismatch")
 
-        TODO B.2: implement.
+    def _build_problem(self) -> CorrelatedDrillingProblem:
+        """Build the CorrelatedDrillingProblem the policies will see."""
+        # Lazy import to avoid circular imports at module load.
+        from .hypotheses import Hypothesis
+        from .pomdp import SensorModel
+
+        h = Hypothesis(
+            name="bcgt_retro",
+            n_grabens=1, n_domains=1,
+            cell_coords_m=self.cell_coords_m,
+            prior_mean_field=self.pre_2010_prior,
+            gp_marginal_std=self.gp_marginal_std,
+            gp_lengthscale_m=self.gp_lengthscale_m,
+        )
+        return CorrelatedDrillingProblem(
+            hypothesis=h,
+            x_m=self.cell_coords_m[:, 0],
+            y_m=self.cell_coords_m[:, 1],
+            true_grade=self.post_2010_grade,
+            sensor_model=SensorModel.GAUSSIAN_CONTINUOUS,
+            sensor_noise_sigma=self.sensor_noise_sigma,
+            cutoff_grade=self.cutoff_grade,
+            drill_cost=1.0,
+            discovery_value=50.0,
+        )
+
+    def _capture_at_k_pct(
+        self, trajectory: list[int], k_percent: int,
+    ) -> float:
+        """Fraction of post-2010 positives captured in the top k% of the trajectory."""
+        n_cells = len(self.pre_2010_prior)
+        k_cells = max(1, int(round(k_percent / 100.0 * n_cells)))
+        top = trajectory[:k_cells]
+        total_pos = int(self.post_2010_positives.sum())
+        if total_pos == 0:
+            return 0.0
+        hits = int(self.post_2010_positives[top].sum())
+        return hits / total_pos
+
+    def run_policy(
+        self,
+        policy: object,
+        rng: np.random.Generator,
+    ) -> dict[int, float]:
+        """Drive `policy` for `drill_budget` steps; return capture-at-k% dict."""
+        problem = self._build_problem()
+        policy.reset(problem, rng)
+        drilled = frozenset(np.where(self.cells_drilled_pre_2010 > 0)[0].tolist())
+        history: list[tuple[int, float]] = []
+        trajectory: list[int] = []
+        for _ in range(self.drill_budget):
+            cell_idx = policy.choose_action(history, drilled, rng)
+            obs, _, drilled = problem.step(cell_idx, drilled, rng)
+            history.append((cell_idx, float(obs)))
+            trajectory.append(int(cell_idx))
+        return {k: self._capture_at_k_pct(trajectory, k) for k in CAPTURE_KS}
+
+    def compare(
+        self,
+        policies: dict[str, object],
+        rng: np.random.Generator,
+    ) -> dict[str, dict[int, float]]:
+        """Run every policy; return per-policy capture-at-k% table.
+
+        Each policy gets its own RNG seeded off the master generator so noise
+        and tie-breaks are reproducible across policies that share state.
         """
-        raise NotImplementedError("B.2 milestone")
-
-    def compare(self, policies: dict[str, object], rng: np.random.Generator) -> dict:
-        """Run all policies; return per-policy capture-at-k% table.
-
-        TODO B.2: implement.
-        """
-        raise NotImplementedError("B.2 milestone")
+        seeds = rng.integers(0, 2**31 - 1, size=len(policies))
+        return {
+            name: self.run_policy(p, np.random.default_rng(int(seeds[i])))
+            for i, (name, p) in enumerate(policies.items())
+        }

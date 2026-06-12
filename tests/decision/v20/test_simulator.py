@@ -18,8 +18,10 @@ from ai_minerals.decision.v20.policies import (
     RandomPolicy,
 )
 from ai_minerals.decision.v20.simulator import (
+    CAPTURE_KS,
     PAPER_DRILL_BUDGET,
     PAPER_N_GROUND_TRUTHS,
+    RetrospectiveBCGSValidator,
     SyntheticMonteCarloSimulator,
 )
 
@@ -221,3 +223,159 @@ def test_aggregate_handles_empty_episode_list():
         n_ground_truths=0, drill_budget=4,
     )
     assert sim.aggregate([]) == {}
+
+
+# --- B.2 RetrospectiveBCGSValidator -----------------------------------------
+
+
+def _make_b2_validator(
+    *,
+    n_grid: int = 10,
+    drill_budget: int = 50,
+    positives: list[int] | None = None,
+    pre_drilled: list[int] | None = None,
+) -> RetrospectiveBCGSValidator:
+    spacing = 500.0
+    x = np.arange(n_grid) * spacing
+    y = np.arange(n_grid) * spacing
+    xx, yy = np.meshgrid(x, y, indexing="xy")
+    coords = np.column_stack([xx.ravel(), yy.ravel()])
+    n = n_grid * n_grid
+    prior = np.full(n, 0.1)
+    pos = np.zeros(n, dtype=int)
+    grade = np.zeros(n, dtype=float)
+    if positives is None:
+        positives = [0, 5, 11]
+    for i in positives:
+        pos[i] = 1
+        grade[i] = 0.5    # well above 0.2 cutoff
+    drilled_pre = np.zeros(n, dtype=int)
+    for i in (pre_drilled or []):
+        drilled_pre[i] = 1
+    return RetrospectiveBCGSValidator(
+        pre_2010_prior=prior,
+        post_2010_positives=pos,
+        cells_drilled_pre_2010=drilled_pre,
+        cell_coords_m=coords,
+        post_2010_grade=grade,
+        drill_budget=drill_budget,
+    )
+
+
+def test_b2_validator_construction_shape_check():
+    n = 100
+    coords = np.zeros((n, 2))
+    prior = np.zeros(n)
+    pos = np.zeros(50)   # wrong shape
+    with pytest.raises(ValueError, match="post_2010_positives"):
+        RetrospectiveBCGSValidator(
+            pre_2010_prior=prior,
+            post_2010_positives=pos,
+            cells_drilled_pre_2010=np.zeros(n),
+            cell_coords_m=coords,
+            post_2010_grade=np.zeros(n),
+        )
+
+
+def test_b2_validator_construction_cell_coords_shape():
+    n = 100
+    with pytest.raises(ValueError, match="cell_coords_m"):
+        RetrospectiveBCGSValidator(
+            pre_2010_prior=np.zeros(n),
+            post_2010_positives=np.zeros(n, dtype=int),
+            cells_drilled_pre_2010=np.zeros(n, dtype=int),
+            cell_coords_m=np.zeros((n, 3)),   # wrong second dim
+            post_2010_grade=np.zeros(n),
+        )
+
+
+def test_b2_capture_at_k_pct_definition():
+    """capture-at-k% = (positives in top-k% of trajectory) / total positives."""
+    validator = _make_b2_validator(n_grid=10, positives=[0, 1, 2, 3, 99])
+    # Top 5 by hand: if trajectory[:5] = [0, 1, 2, 3, 50], capture-at-5% = 4/5 = 0.8.
+    traj = [0, 1, 2, 3, 50, 51, 52, 53, 54, 55]
+    cap = validator._capture_at_k_pct(traj, 5)
+    assert abs(cap - 4 / 5) < 1e-9
+
+
+def test_b2_run_policy_returns_one_value_per_k():
+    from ai_minerals.decision.v20.policies import RandomPolicy
+    validator = _make_b2_validator(n_grid=10, drill_budget=30)
+    result = validator.run_policy(RandomPolicy(), np.random.default_rng(0))
+    assert set(result.keys()) == set(CAPTURE_KS)
+    for v in result.values():
+        assert 0.0 <= v <= 1.0
+
+
+def test_b2_run_policy_skips_pre_2010_drilled():
+    """Pre-2010 drilled cells should not appear in the trajectory."""
+    from ai_minerals.decision.v20.policies import RandomPolicy
+    pre_drilled = [10, 20, 30, 40]
+    validator = _make_b2_validator(
+        n_grid=10, drill_budget=20, pre_drilled=pre_drilled,
+    )
+    problem = validator._build_problem()
+    # Run by hand to capture the trajectory.
+    policy = RandomPolicy()
+    rng = np.random.default_rng(0)
+    policy.reset(problem, rng)
+    drilled = frozenset(np.where(validator.cells_drilled_pre_2010 > 0)[0].tolist())
+    traj = []
+    for _ in range(validator.drill_budget):
+        c = policy.choose_action([], drilled, rng)
+        _, _, drilled = problem.step(c, drilled, rng)
+        traj.append(c)
+    for skip_cell in pre_drilled:
+        assert skip_cell not in traj
+
+
+def test_b2_greedy_mean_captures_more_than_random_when_prior_is_informative():
+    """Build a 5x5 grid with prior biased toward where the positives sit;
+    GreedyMeanPolicy should beat RandomPolicy at every k% reported."""
+    from ai_minerals.decision.v20.policies import GreedyMeanPolicy, RandomPolicy
+    n = 25
+    coords = np.column_stack([
+        np.arange(n) % 5 * 500.0,
+        np.arange(n) // 5 * 500.0,
+    ])
+    # Positives clustered at cells 0, 1, 5, 6
+    positives = [0, 1, 5, 6]
+    pos = np.zeros(n, dtype=int)
+    grade = np.zeros(n, dtype=float)
+    for i in positives:
+        pos[i] = 1
+        grade[i] = 0.5
+    prior = np.full(n, 0.05)
+    # Prior is informative: anchor near the positive cluster
+    for i in positives:
+        prior[i] = 0.3
+    validator = RetrospectiveBCGSValidator(
+        pre_2010_prior=prior,
+        post_2010_positives=pos,
+        cells_drilled_pre_2010=np.zeros(n, dtype=int),
+        cell_coords_m=coords,
+        post_2010_grade=grade,
+        drill_budget=10,
+    )
+    rng_g = np.random.default_rng(100)
+    rng_r = np.random.default_rng(101)
+    g = validator.run_policy(GreedyMeanPolicy(), rng_g)
+    r = validator.run_policy(RandomPolicy(), rng_r)
+    # At k=25 (top 25 percent = top 6 cells), GreedyMean should capture all 4 positives
+    # since the top-prior cells coincide with them.
+    assert g[25] >= 0.99
+    assert g[25] >= r[25]
+
+
+def test_b2_compare_returns_per_policy_dict():
+    from ai_minerals.decision.v20.policies import GreedyMeanPolicy, RandomPolicy
+    validator = _make_b2_validator(n_grid=10, drill_budget=30)
+    table = validator.compare(
+        {"random": RandomPolicy(), "greedy": GreedyMeanPolicy()},
+        np.random.default_rng(0),
+    )
+    assert set(table.keys()) == {"random", "greedy"}
+    for policy_name, capture in table.items():
+        assert set(capture.keys()) == set(CAPTURE_KS)
+        for v in capture.values():
+            assert 0.0 <= v <= 1.0
