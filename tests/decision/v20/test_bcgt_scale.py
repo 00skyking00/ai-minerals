@@ -78,6 +78,40 @@ def test_expected_deposit_under_uniform_belief_peaks_at_blob_centers() -> None:
     assert se_hits >= 5
 
 
+def test_policy_rejects_both_deposit_sets_and_pf_none() -> None:
+    """The policy needs at least one source of per-(h, c) signal cells."""
+    hset, _ = make_bcgt_synthetic_hypothesis_set(n_side=30)
+    with pytest.raises(ValueError, match="deposit_sets"):
+        BcgtScaleSARSOPPolicy(
+            hypothesis_set=hset,
+            pomdpsol_path="dummy",
+            deposit_sets=None,
+            particle_filter=None,
+        )
+
+
+def test_policy_accepts_particle_filter_in_lieu_of_deposit_sets() -> None:
+    """The C.3 hardening path: pass a MultiHypothesisESSParticleFilter
+    instead of canonical deposit_sets."""
+    from ai_minerals.decision.v20.belief_ess import (
+        MultiHypothesisESSParticleFilter,
+    )
+    hset, _ = make_bcgt_synthetic_hypothesis_set(n_side=16)
+    pf = MultiHypothesisESSParticleFilter(
+        hypothesis_set=hset, n_particles=8, ess_refresh_steps=0,
+    )
+    pf.initialize(np.random.default_rng(0))
+    policy = BcgtScaleSARSOPPolicy(
+        hypothesis_set=hset,
+        pomdpsol_path="dummy",
+        deposit_sets=None,
+        particle_filter=pf,
+    )
+    np.testing.assert_allclose(
+        policy.belief, hset.initial_prior(), atol=1e-9,
+    )
+
+
 @pytest.mark.skipif(
     not POMDPSOL.exists(),
     reason="pomdpsol binary not built (run scripts/build_pomdpsol.sh)",

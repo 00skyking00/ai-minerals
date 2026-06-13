@@ -70,6 +70,7 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import norm
 
+from .belief_ess import MultiHypothesisESSParticleFilter
 from .hypotheses import (
     KERNEL_LENGTHSCALE_M_BCGT,
     KERNEL_MARGINAL_STD,
@@ -282,8 +283,10 @@ class BcgtScaleSARSOPPolicy:
     grid.
     """
     hypothesis_set: HypothesisSet
-    deposit_sets: dict[int, set[int]]
     pomdpsol_path: str | Path
+    deposit_sets: dict[int, set[int]] | None = None
+    particle_filter: MultiHypothesisESSParticleFilter | None = None
+    sensor_noise_sigma_for_pf: float = 0.05
     top_k: int = DEFAULT_TOP_K
     cutoff: float = DEFAULT_CUTOFF
     alpha_fp: float = 0.10
@@ -293,26 +296,45 @@ class BcgtScaleSARSOPPolicy:
     wrong_commitment_penalty: float = 30.0
     sarsop_timeout_sec: int = 15
     sarsop_precision: float = 0.5
+    signal_cell_threshold: float = 0.5
 
     _belief: np.ndarray = field(init=False, repr=False)
     _drilled: set[int] = field(init=False, default_factory=set, repr=False)
 
     def __post_init__(self) -> None:
-        self._belief = self.hypothesis_set.initial_prior()
+        if self.deposit_sets is None and self.particle_filter is None:
+            raise ValueError(
+                "BcgtScaleSARSOPPolicy needs either deposit_sets "
+                "(canonical-realization legacy path) or particle_filter "
+                "(C.3 hardening path) to derive per-(h, c) signal cells"
+            )
+        self._belief = (
+            self.particle_filter.categorical_belief
+            if self.particle_filter is not None
+            else self.hypothesis_set.initial_prior()
+        )
         self._drilled = set()
 
     @property
     def belief(self) -> np.ndarray:
+        if self.particle_filter is not None:
+            return self.particle_filter.categorical_belief
         return self._belief.copy()
 
     def reset(self, rng: np.random.Generator | None = None) -> None:
-        self._belief = self.hypothesis_set.initial_prior()
+        if self.particle_filter is not None:
+            if rng is None:
+                rng = np.random.default_rng()
+            self.particle_filter.initialize(rng)
+        else:
+            self._belief = self.hypothesis_set.initial_prior()
         self._drilled = set()
 
     def _top_k_candidates(self) -> list[int]:
         """Top-K un-drilled cells by expected deposit probability."""
+        belief = self.belief
         ep = expected_deposit_per_cell(
-            self.hypothesis_set, self._belief, cutoff=self.cutoff,
+            self.hypothesis_set, belief, cutoff=self.cutoff,
         )
         order = np.argsort(-ep)
         candidates: list[int] = []
@@ -325,6 +347,26 @@ class BcgtScaleSARSOPPolicy:
                 break
         return candidates
 
+    def _derive_deposit_sets_from_particle_filter(
+        self,
+    ) -> dict[int, set[int]]:
+        """Threshold the PF's per-(h, c) marginal probability at
+        ``signal_cell_threshold`` to get a binary deposit-set per hypothesis.
+
+        Used by ``_build_subproblem`` to feed the SARSOP small-grid POMDP
+        a binary signal-cell map, which is what its current ObservationModel
+        expects.
+        """
+        assert self.particle_filter is not None
+        marg = self.particle_filter.marginal_probability_above_cutoff(
+            cutoff=self.cutoff,
+        )
+        out: dict[int, set[int]] = {}
+        for h_idx in range(self.hypothesis_set.n_hypotheses):
+            cells = np.where(marg[h_idx] > self.signal_cell_threshold)[0]
+            out[h_idx] = set(int(c) for c in cells)
+        return out
+
     def _build_subproblem(
         self, candidates: list[int],
     ) -> MultiHypothesisSmallGridPOMDP:
@@ -333,9 +375,15 @@ class BcgtScaleSARSOPPolicy:
         if self.hypothesis_set.include_null and self.hypothesis_set.null is not None:
             names = names + ["null"]
 
+        if self.particle_filter is not None:
+            effective_deposit_sets = self._derive_deposit_sets_from_particle_filter()
+        else:
+            assert self.deposit_sets is not None
+            effective_deposit_sets = self.deposit_sets
+
         deposit_cell_by_hypothesis: dict[int, int | None] = {}
         signal_cells_by_hypothesis: dict[int, set[int]] = {}
-        for h_idx, deposit_set in self.deposit_sets.items():
+        for h_idx, deposit_set in effective_deposit_sets.items():
             overlap = deposit_set.intersection(candidates)
             if not overlap:
                 deposit_cell_by_hypothesis[h_idx] = None
@@ -362,7 +410,7 @@ class BcgtScaleSARSOPPolicy:
             hypothesis_names=names,
             deposit_cell_by_hypothesis=deposit_cell_by_hypothesis,
             signal_cells_by_hypothesis=signal_cells_by_hypothesis,
-            initial_prior=self._belief.copy(),
+            initial_prior=self.belief.copy(),
             alpha_fp=self.alpha_fp,
             beta_fn=self.beta_fn,
             drill_cost=self.drill_cost,
@@ -398,17 +446,46 @@ class BcgtScaleSARSOPPolicy:
         sub_action = sub_policy.choose_action()
         return candidates[sub_action]
 
-    def observe(self, cell_idx: int, observation: int) -> None:
-        """Update the categorical belief from one Bernoulli observation."""
-        likelihoods = np.empty(len(self._belief))
-        for i, h in enumerate(self.hypothesis_set.hypotheses):
-            in_signal = cell_idx in self.deposit_sets.get(i, set())
-            p1 = (1.0 - self.beta_fn) if in_signal else self.alpha_fp
-            likelihoods[i] = p1 if observation == 1 else (1.0 - p1)
-        if self.hypothesis_set.include_null and self.hypothesis_set.null is not None:
-            likelihoods[-1] = self.alpha_fp if observation == 1 else (1.0 - self.alpha_fp)
-        unnorm = self._belief * likelihoods
-        s = unnorm.sum()
-        if s > 0:
-            self._belief = unnorm / s
+    def observe(
+        self,
+        cell_idx: int,
+        observation: int | float,
+        rng: np.random.Generator | None = None,
+    ) -> None:
+        """Update the categorical belief from one observation.
+
+        When ``particle_filter`` is set, delegates to the PF: updates
+        the categorical posterior analytically and moves the per-hypothesis
+        particle ensembles via ESS so the per-(h, c) marginal probability
+        queries reflect the updated belief over GP fields.
+
+        When ``deposit_sets`` is set (legacy canonical-realization path),
+        uses the binary Bernoulli signal-cell update.
+        """
+        if self.particle_filter is not None:
+            if rng is None:
+                rng = np.random.default_rng()
+            self.particle_filter.update(
+                cell_idx=cell_idx,
+                observation=float(observation),
+                sensor_noise_sigma=self.sensor_noise_sigma_for_pf,
+                rng=rng,
+            )
+            self._belief = self.particle_filter.categorical_belief
+        else:
+            assert self.deposit_sets is not None
+            likelihoods = np.empty(len(self._belief))
+            for i, h in enumerate(self.hypothesis_set.hypotheses):
+                in_signal = cell_idx in self.deposit_sets.get(i, set())
+                p1 = (1.0 - self.beta_fn) if in_signal else self.alpha_fp
+                likelihoods[i] = p1 if int(observation) == 1 else (1.0 - p1)
+            if self.hypothesis_set.include_null and self.hypothesis_set.null is not None:
+                likelihoods[-1] = (
+                    self.alpha_fp if int(observation) == 1
+                    else (1.0 - self.alpha_fp)
+                )
+            unnorm = self._belief * likelihoods
+            s = unnorm.sum()
+            if s > 0:
+                self._belief = unnorm / s
         self._drilled.add(cell_idx)
