@@ -105,6 +105,124 @@ class RandomPolicy:
 
 
 @dataclass
+class GridDrillingPolicy:
+    """Drill a regular grid pattern, ignoring observations.
+
+    This is the "no information used" baseline Mern et al. 2024
+    compare their POMDP planner against. The paper's specific setup
+    uses a 6x6 sub-grid (36 holes) over the 32x32 working area; we
+    parameterize ``n_per_side`` so the same class works for other
+    grid sizes.
+
+    On a ``grid_n x grid_n`` working area with ``n_per_side``
+    boreholes per side, the policy drills at row/col positions
+    evenly spaced via ``np.linspace(margin, grid_n - 1 - margin,
+    n_per_side)`` and rounded to integer cell indices. The order of
+    drills follows row-major scan: across columns within a row, then
+    next row. Once the grid is exhausted, falls back to uniform
+    random pick from the unvisited cells.
+
+    The fall-back is defensive: a properly configured benchmark
+    drives this policy for exactly ``n_per_side ** 2`` holes, after
+    which scoring stops. The fall-back is there so a benchmark with
+    a longer budget does not crash.
+
+    Parameters
+    ----------
+    n_per_side : int, default 6
+        Number of borehole positions per grid side. 6 reproduces the
+        Mern 2024 baseline (36 holes total).
+    grid_n : int or None
+        Side length of the working grid in cells. When None, inferred
+        from ``problem.n_cells`` as ``int(round(sqrt(n_cells)))`` at
+        reset time.
+    margin : int, default 2
+        Minimum distance from grid edge for any drill position.
+
+    Examples
+    --------
+    >>> # 6x6 grid on a 32x32 working area produces 36 evenly-spaced
+    >>> # drill positions in row-major order.
+    """
+    n_per_side: int = 6
+    grid_n: int | None = None
+    margin: int = 2
+
+    _grid_n_resolved: int = field(default=0, init=False, repr=False)
+    _ordered_indices: list[int] = field(
+        default_factory=list, init=False, repr=False,
+    )
+    _next_position: int = field(default=0, init=False, repr=False)
+
+    def reset(self, problem: CorrelatedDrillingProblem,
+              rng: np.random.Generator) -> None:
+        del rng  # not used; included for protocol compatibility
+        grid_n = self.grid_n
+        if grid_n is None:
+            inferred = int(round(np.sqrt(problem.n_cells)))
+            if inferred * inferred != problem.n_cells:
+                raise ValueError(
+                    f"GridDrillingPolicy needs a square grid; got "
+                    f"{problem.n_cells} cells which is not a perfect square. "
+                    "Pass `grid_n=...` explicitly."
+                )
+            grid_n = inferred
+        if self.n_per_side < 1:
+            raise ValueError(
+                f"n_per_side must be >= 1; got {self.n_per_side}"
+            )
+        if grid_n <= 2 * self.margin:
+            raise ValueError(
+                f"grid_n ({grid_n}) too small for margin {self.margin}"
+            )
+        self._grid_n_resolved = int(grid_n)
+        positions = np.linspace(
+            float(self.margin),
+            float(grid_n - 1 - self.margin),
+            self.n_per_side,
+        )
+        position_indices = np.round(positions).astype(int)
+        # Row-major order: outer loop rows, inner loop columns.
+        ordered: list[int] = []
+        for row in position_indices:
+            for col in position_indices:
+                ordered.append(int(row * grid_n + col))
+        # Dedupe in case of rounding collisions at small grids
+        seen: set[int] = set()
+        deduped: list[int] = []
+        for c in ordered:
+            if c not in seen:
+                seen.add(c)
+                deduped.append(c)
+        self._ordered_indices = deduped
+        self._next_position = 0
+
+    def choose_action(
+        self,
+        history: list[tuple[int, float]],
+        drilled: frozenset[int],
+        rng: np.random.Generator,
+    ) -> int:
+        del history  # not used
+        while self._next_position < len(self._ordered_indices):
+            cell = self._ordered_indices[self._next_position]
+            self._next_position += 1
+            if cell not in drilled:
+                return cell
+        # Grid exhausted; fall back to random.
+        unvisited = np.array(
+            [
+                i for i in range(self._grid_n_resolved ** 2)
+                if i not in drilled
+            ],
+            dtype=np.int64,
+        )
+        if unvisited.size == 0:
+            raise RuntimeError("All cells drilled; no action available")
+        return int(rng.choice(unvisited))
+
+
+@dataclass
 class GreedyMeanPolicy:
     """Pick the highest prior-mean cell among unvisited.
 
