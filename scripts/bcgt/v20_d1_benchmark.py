@@ -350,6 +350,51 @@ def make_sarsop_policy(hset, policy_signal_cells):
     return choose, observe, reset, get_belief
 
 
+def make_sarsop_pf_policy(hset, n_particles: int = 80, ess_refresh_steps: int = 2):
+    """C.3 hardening variant: SARSOP backed by a per-hypothesis particle
+    filter instead of a canonical-realization signal-cell map.
+
+    The PF maintains M GP-field particles per paper hypothesis plus
+    the categorical posterior. Each observe() call advances the PF
+    (categorical update + ESS refresh), and choose_action() reads
+    the current per-(h, c) marginal probability from the PF to build
+    the SARSOP subproblem's signal cells.
+    """
+    from ai_minerals.decision.v20.belief_ess import (
+        MultiHypothesisESSParticleFilter,
+    )
+    pf = MultiHypothesisESSParticleFilter(
+        hypothesis_set=hset,
+        n_particles=n_particles,
+        ess_refresh_steps=ess_refresh_steps,
+    )
+    policy = BcgtScaleSARSOPPolicy(
+        hypothesis_set=hset,
+        pomdpsol_path=POMDPSOL,
+        deposit_sets=None,
+        particle_filter=pf,
+        top_k=DEFAULT_TOP_K,
+        sensor_noise_sigma_for_pf=0.05,
+        signal_cell_threshold=0.35,
+    )
+    pf_rng_state = {"rng": np.random.default_rng(123)}
+
+    def choose():
+        return policy.choose_action()
+
+    def observe(cell, obs):
+        policy.observe(cell, obs, rng=pf_rng_state["rng"])
+
+    def reset():
+        pf_rng_state["rng"] = np.random.default_rng(123)
+        policy.reset(rng=pf_rng_state["rng"])
+
+    def get_belief():
+        return policy.belief
+
+    return choose, observe, reset, get_belief
+
+
 def run_episode(
     truth_deposit_set: set[int], policy_funcs, episode_rng,
 ) -> dict:
@@ -407,6 +452,9 @@ def run_benchmark():
             hset, policy_signal_cells, n_sims=POMCP_N_SIMS,
         ),
         "sarsop_topK": lambda: make_sarsop_policy(hset, policy_signal_cells),
+        "sarsop_pf_topK": lambda: make_sarsop_pf_policy(
+            hset, n_particles=80, ess_refresh_steps=2,
+        ),
     }
 
     results = {name: {
@@ -491,8 +539,12 @@ def run_benchmark():
 
 
 def make_chart(summary, results, per_episode_truth):
-    names = ["random", "greedy_MAP", "pomcp_topK", "sarsop_topK"]
-    colors = ["#9aa0a6", "#1f77b4", "#ff7f0e", "#2ca02c"]
+    names = [
+        "random", "greedy_MAP", "pomcp_topK", "sarsop_topK", "sarsop_pf_topK",
+    ]
+    colors = [
+        "#9aa0a6", "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd",
+    ]
     truth_labels = {0: "H_NW", 1: "H_SE", 2: "H_null"}
 
     fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.5))
