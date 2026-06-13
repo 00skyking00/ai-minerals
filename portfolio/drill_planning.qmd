@@ -1,6 +1,6 @@
 ---
 title: "Chapter 7: Drill planning under uncertainty"
-subtitle: "Sequential drill planning on the BC Golden Triangle regional prior"
+subtitle: "Sequential drill planning on the BC Golden Triangle regional starting map"
 sidebar: drill_planning
 ---
 
@@ -8,196 +8,408 @@ sidebar: drill_planning
 
 ## Setup
 
-The earlier chapters build prospectivity maps. A prospectivity map is
-a per-cell probability surface, and it doesn't tell you where to drill
-*next* given what you've already drilled. Real exploration campaigns
-are sequential: each hole costs money, returns information, and that
+The earlier chapters in this portfolio build prospectivity maps. A
+prospectivity map is a per-cell probability surface, in this case
+"per-250 m grid cell, the model's estimate of how likely an unmined
+porphyry-copper deposit is to be there." That map by itself does not
+tell you where to put the next drill hole. Real exploration campaigns
+are sequential. Each hole costs money, returns information, and that
 information should update the next-hole decision.
 
 This chapter ports the methodology of *Intelligent Prospector* (Mern
 et al., *Geosci. Model Dev.* 16:289, 2023; arXiv 2410.10610, 2024)
-onto the BC Golden Triangle regional prior from Chapter 2.
+onto the BC Golden Triangle regional starting map from Chapter 2.
+Both versions of that paper model drilling as a **POMDP**, which is
+worth a sentence of explanation before we go further.
+
+A **POMDP** ("partially observable Markov decision process") is the
+math framework for making sequential decisions when you cannot see
+the state of the world directly but can pay to gather noisy hints
+about it. Drilling fits the shape naturally: the state of the world
+is the unknown layout of ore underground, the noisy hints are the
+drill assays you get back from each hole, and the decisions are
+where to drill next. Each decision changes what you can learn for
+the next decision, so a good planner has to weigh the immediate
+payoff against the value of the information it would gain.
+
+I'll keep the math light. Where a technical term first appears I'll
+explain it in plain language; the same terms are collected at the
+bottom of the chapter in [Terminology](#terminology) for quick
+reference.
 
 ## The result on synthetic terrain
 
+The first question to settle: does the planning machinery actually
+beat the simplest baseline (drill the cell with the highest
+probability under the starting map) when the conditions are
+favorable to planning? The 2024 paper's headline test runs a 30 by
+30 grid with two features that make planning meaningful:
+neighbor-correlation in the prior (drilling cell A tells you
+something about its neighbors) and noisy sensor readings. Their
+ported version, run here on the BC Golden Triangle starting map:
+
 ![Four policies on a synthetic 30x30 stress test matching the 2024 Mern paper's conditions (correlated prior, noisy Gaussian sensor, 9 holes per episode, 17 episodes). Left: fraction of episodes that have found at least one true deposit at each drill step. POMCP finishes at 94%, BayesianGreedy at 82%, GreedyMean (the simplest baseline) saturates at 53% by hole four. Right: mean discovery rate per trajectory.](./data/derived/bcgt/fig_v20_b1_baseline_benchmark.png)
 
-POMCP, the planner that updates its beliefs after every observation
-and plans several steps ahead, finds at least one deposit in 94% of
-episodes by the last hole. The simplest baseline (GreedyMean), which
-just drills the highest-probability cell from the static prior,
-saturates at 53% by hole four and stops improving. A middle baseline
-(BayesianGreedy) that updates beliefs but doesn't plan ahead reaches
-82%.
+The four policies on the chart are different ways of choosing the
+next hole:
 
-Two things are happening here. First, the prior carries spatial
-correlation: a drill at cell A tells you something about cells B,
-C, D within roughly a kilometer. The static-prior baseline ignores
-that and leaves information on the table after every drill. Second,
-POMCP simulates many possible futures before each pick and chooses
-the action with the best expected total reward across those futures,
-not just the cell that looks best right now. The first effect is the
-big jump (GreedyMean to BayesianGreedy, 53% to 82%). The second is
-the smaller tail win (BayesianGreedy to POMCP, 82% to 94%).
+- **Random** picks any un-drilled cell at random, ignoring everything
+  the prior says. The control case.
+- **GreedyMean** drills the cell with the single highest probability
+  from the starting map, every step. Never updates. It is a static
+  recommendation list, not a planner.
+- **BayesianGreedy** drills the highest-probability cell, but after
+  every observation it updates the probability surface using Bayes'
+  rule. So each step's pick reflects everything seen so far. It
+  thinks one step ahead.
+- **POMCP** ("Partially Observable Monte Carlo Planning", Silver and
+  Veness 2010) does the same update, but before choosing the next
+  hole it simulates many possible futures (its own next several
+  drills plus the imagined observations) and picks the action whose
+  simulated futures look best on average. Think of it as: "imagine
+  the next five rolls of the dice many times, see which opening
+  move tends to come out ahead, do that move."
+
+POMCP finds at least one deposit in 94% of episodes by the last hole.
+GreedyMean stalls at 53% by hole four and never improves: it has no
+mechanism to learn from what it has already drilled. BayesianGreedy
+reaches 82%, getting most of the way to POMCP by belief-updating
+alone.
+
+Two effects are stacked here. The first is **belief updating with
+spatial correlation**. The prior carries the assumption that a drill
+at cell A tells you something about cells B, C, D within roughly a
+kilometer (this is the "GP-correlated" prior, where GP stands for
+**Gaussian process**: a probability distribution over a smoothly-
+varying surface, calibrated so neighboring cells covary the way
+sound-rock geology actually does). GreedyMean ignores that and leaves
+information on the table after every hole. BayesianGreedy uses it.
+The second effect is **multi-step lookahead**: POMCP weighs not just
+"what is the next hole worth in immediate reward" but "what does the
+next hole's observation buy me for the holes after that." The first
+effect is the big jump (53% to 82%). The second effect is the
+smaller tail win (82% to 94%).
+
+A small aside: an older 2023 version of the paper used independent
+Bernoulli cells (no spatial correlation between neighbors) and a
+noiseless sensor. Under those conditions one-step greedy is provably
+optimal, and POMCP ties greedy on this same starting map. The 2024
+paper added the two ingredients that make planning win.
 
 ## Real-data check: BCGT retrospective
 
 The chart above is a stress test on synthetic terrain. The real-data
-check is the chart below, run on a 50x50 BCGT cell working area
-(~25 km x 25 km, centered on the KSM cluster). 14 post-2010 BCGS
-drill holes inside that area hit the 0.2% Cox-Singer Cu cutoff;
-those 14 cells are the held-out targets. The 4 pre-2010 drilled
-cells are excluded from the candidate set. Each policy is scored on
-what fraction of the 14 post-2010 Cu+ cells it would have
-recommended in its top-k% picks given a 625-cell trajectory.
+check is below, run on a 50 by 50 BCGT cell working area (about
+25 km by 25 km, centered on the KSM cluster). 14 post-2010 BCGS
+drill holes inside that area hit the 0.2% Cox-Singer Cu cutoff
+("Cox-Singer" being a USGS porphyry-Cu grade benchmark; we treat
+that cutoff as the line between "drill found ore" and "drill did
+not"). Those 14 cells are the held-out targets. The 4 pre-2010
+drilled cells are excluded from the candidate set. Each policy is
+scored on what fraction of the 14 post-2010 Cu-positive cells it
+would have recommended in its top-k% picks given a 625-cell
+trajectory.
 
-![Three prior variants of the B.2 retrospective check. Left: smoothed MINFILE mineral-occurrence prior (informative but likely temporally contaminated since MINFILE is a current snapshot). Center: pre-2010 leak-free prior built only from the three pre-2010 BCGS Cu+ holes in the subarea (sparse but free of temporal leakage). Right: uniform prior (planner starts blind). Bars show percent of the 14 post-2010 Cu+ cells captured in the top-k% of each policy's trajectory. With the informative prior the static recommendation dominates at 86%; with the uniform prior the sparse-positive regime resists all policies; the leak-free prior sits in between.](./data/derived/bcgt/fig_v20_b2_retrospective_capture.png)
+![Three starting-map variants of the B.2 retrospective check. Left: smoothed MINFILE mineral-occurrence prior (informative but likely temporally contaminated since MINFILE is a current snapshot). Center: pre-2010 leak-free prior built only from the three pre-2010 BCGS Cu+ holes in the subarea (sparse but free of temporal leakage). Right: uniform prior (planner starts blind). Bars show percent of the 14 post-2010 Cu+ cells captured in the top-k% of each policy's trajectory. With the informative prior the static recommendation dominates at 86%; with the uniform prior the sparse-positive regime resists all policies; the leak-free prior sits in between.](./data/derived/bcgt/fig_v20_b2_retrospective_capture.png)
 
-The reading. With the informative prior, sorting cells by the prior
-alone (Static prior) captures 86% of the 14 post-2010 Cu+ cells in
-the top 25%. POMCP gets to 79%, BayesianGreedy to 43%. The v2.0
+The reading. With the informative starting map, sorting cells by the
+map alone (Static prior) captures 86% of the 14 post-2010 Cu+ cells
+in the top 25%. POMCP gets to 79%, BayesianGreedy to 43%. The
 Bayesian update via GP correlation does NOT improve on a near-perfect
-prior; the particle-filter posterior introduces Monte Carlo noise
-that the static surface doesn't have. With the leak-free pre-2010
-prior the static recommendation still leads at 50%, but the gap to
-POMCP (36%) and BayesianGreedy (29%) is much smaller. With the
-uniform prior, the positives are too sparse (~0.6% of cells) for
-any policy to learn from random observations within the trajectory
-budget; the variance dominates the comparison.
+map; the particle-filter posterior introduces Monte Carlo noise that
+the static surface doesn't have. With the leak-free pre-2010 map the
+static recommendation still leads at 50%, but the gap to POMCP (36%)
+and BayesianGreedy (29%) is much smaller. With the uniform map, the
+positives are too sparse (about 0.6% of cells) for any policy to
+learn from random observations within the trajectory budget; the
+variance dominates the comparison.
 
 Regional features carry most of the signal at BCGT scale. A planner
-is only as good as the prior it's given, and at single-hypothesis
-B.2 the prior IS most of the answer. The v2.0 machinery's natural
-use case is uncertainty in prior STRUCTURE itself, which is the C.2
-multi-hypothesis case (planned). The retrospective also surfaces a
-methodology caveat: MINFILE is a current snapshot, not a pre-2010
-one, so the informative-prior numbers include some temporal leakage
-from post-2010 discoveries that became MINFILE entries. The
-leak-free panel is the cleaner absolute comparison.
-
-## Limits
-
-The planner here is single-hypothesis: it carries one geological
-story and updates per-cell probability estimates within that story.
-The version that handles "what if the prior is wrong", with
-competing geological hypotheses and a falsification check that
-fires when none of them explain the data, is milestone C.2; that
-work extends the toy demonstration shipped in the deeper notebook
-to production scale.
-
-The retrospective B.2 working area is one 50x50 cell subarea around
-the KSM cluster. Other clusters in the BCGT and other deposit types
-(epithermal Au, skarn, VMS) would each give a separate check; the
-chapter ships one to demonstrate the machinery rather than to
-characterize the planner's behavior across all BCGT terrains.
-
-The property-scale counterpart of this idea, a Gaussian process
-drill-site recommender on the 24 Bear Cub holes, sits in [Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html).
-The Bear Cub recommender produces a workable next-hole pair even
-though the spatial-only GP predicts pay-zone grade poorly in
-absolute terms, because the posterior variance is a faithful map
-of where the data is sparse even when the mean is unreliable.
+is only as good as the starting map it is given, and at single-
+hypothesis B.2 the starting map IS most of the answer. The version
+that handles "what if the starting map is wrong, with competing
+geological stories and a check that fires when none of them explain
+the data" is the C.2 falsification work later in this chapter. The
+retrospective also surfaces a methodology caveat: MINFILE is a
+current snapshot, not a pre-2010 one, so the informative-map numbers
+include some temporal leakage from post-2010 discoveries that became
+MINFILE entries. The leak-free panel is the cleaner absolute
+comparison.
 
 ## How the policies hold up under noisy binary sensors
 
-The B.1 chart at the top uses a Gaussian-continuous sensor (a drill
-returns a grade reading + noise). Real drill assays come back as
-quantified values, but in a hand-mapping or first-look reconnaissance
-the operator decision is often binary: above or below the cutoff.
-Mern et al. 2024 model that case with a Bernoulli sensor with two
-sensitivity parameters, alpha (the false-positive rate) and beta (the
-false-negative rate). C.1 implements that sensor branch and sweeps
-the (alpha, beta) plane on a 3x3 grid.
+The synthetic chart at the top uses a Gaussian-continuous sensor
+(a drill returns a grade reading plus noise). Real drill assays come
+back as quantified values, but in a hand-mapping or first-look
+reconnaissance the operator decision is often binary: above or below
+the cutoff. The 2024 paper models that case with a **Bernoulli
+sensor** with two sensitivity parameters: $\alpha$ (the false-positive
+rate, how often the sensor says "yes" when there is no deposit) and
+$\beta$ (the false-negative rate, how often it says "no" when there
+is a deposit). The Bernoulli distribution itself is just the math
+name for a single coin flip with a tunable bias: the bias is the
+probability of "heads." For our drill, "heads" is "sensor says ore is
+here." The bias depends on whether there actually IS ore there: the
+bias is $1-\beta$ if there is, $\alpha$ if there isn't. Realistic
+values for porphyry-Cu reconnaissance drilling are $\alpha = 0.05$
+to $0.10$ and $\beta = 0.10$ to $0.20$, based on Mern et al.'s
+calibration against the RC drilling literature.
+
+C.1 sweeps a 3-by-3 grid of $(\alpha, \beta)$ values to see how each
+policy holds up as sensor quality varies.
 
 ![Mean discovery rate per policy across 9 (alpha, beta) combinations on the same 30x30 synthetic subarea as the B.1 chart. Random sits at 0.06 across the whole plane and GreedyMean sits at 0.32: neither uses observations, so they don't respond to sensor quality. BayesianGreedy ranges 0.48-0.54 and POMCP ranges 0.43-0.57 depending on the sensor parameters; both policies degrade modestly as the sensor gets noisier, and POMCP holds a small edge over BayesianGreedy at most cells. The within-row variation includes 17-episode Monte Carlo noise; the relative ordering is the chapter point, not the precise cell values.](./data/derived/bcgt/fig_v20_c1_bernoulli_sweep.png)
 
 The reading. Even with substantial sensor noise (10% false positive
-plus 20% false negative, the worst cell), the v2.0 machinery extracts
-most of the value from observations: BayesianGreedy and POMCP land
-roughly 18 to 25 points above the static-prior baseline (0.32). The
+plus 20% false negative, the worst cell), the machinery extracts most
+of the value from observations: BayesianGreedy and POMCP land roughly
+18 to 25 points above the static-prior baseline (0.32). The
 sensitivity to sensor quality is modest: dropping the false-positive
 rate from 10% to 2% buys at most a few discovery-rate points. The
 single-hypothesis B.1 finding holds under the Bernoulli sensor: most
 of the win is correlation-aware belief updating; multi-step lookahead
 is a smaller increment on top.
 
-## When the prior itself is wrong
+## When the starting map itself is wrong
 
-The B.1, B.2, and C.1 charts assume the planner's prior is a fair
-approximation of the truth, even when noisy. C.2 handles the harder
-case: what if neither of the prior's competing geological hypotheses
-is right? Mern et al. 2024 add a null hypothesis (h_0, a maximum-
-entropy mixture with no spatial structure) alongside the paper
-hypotheses and update a categorical posterior over the whole set
-after every drill. When the null becomes the most-supported
-hypothesis, the planner flags "the geological model doesn't explain
-what we're seeing" rather than continuing to fit a wrong story.
+The B.1, B.2, and C.1 charts all assume the planner's starting map is
+a fair approximation of the truth, even when noisy. C.2 handles the
+harder case: what if NEITHER of the competing geological stories the
+planner considers is right?
+
+This is where the chapter starts using **hypotheses** the way the
+POMDP literature does: a hypothesis is a complete geological story
+about the area (e.g., "the deposit is the upper plume of a porphyry
+system localized at fault X" vs. "the deposit is a skarn body
+attached to intrusion Y"). Each hypothesis comes with its own
+expected probability surface over cells. A **single-hypothesis**
+planner carries one such story. A **multi-hypothesis** planner
+carries several at once and tracks how confident it is in each one
+("the belief over hypotheses") as observations come in.
+
+Mern et al. 2024 add a **null hypothesis** to the set: a
+maximum-entropy mixture with no spatial structure, which corresponds
+to "actually, nothing here resembles any of our geological stories."
+After every drill the planner updates a categorical posterior over
+the whole hypothesis set including the null. When the null becomes
+the most-supported hypothesis, the planner flags "the geological
+model doesn't explain what we're seeing" rather than continuing to
+fit a wrong story. This is the falsification check.
 
 ![Categorical posterior over a 3-hypothesis set across 25 random drills under three ground-truth scenarios. Left: ground truth drawn from hypothesis A; the posterior locks onto h_A by drill 3. Center: ground truth from hypothesis B; h_B wins by drill 5-7. Right: ground truth from the null (no spatial structure); the falsification flag fires at drill 2 because both paper hypotheses immediately fail to explain observations the null predicts.](./data/derived/bcgt/fig_v20_c2_falsification_demo.png)
 
 The reading. The falsification check fires fast when neither paper
 hypothesis matches the data. The two paper-hypothesis scenarios also
-converge cleanly to the correct hypothesis within 5-7 drills, which
-demonstrates that the categorical update mechanism doesn't degrade
-the planner's identification ability.
+converge cleanly to the correct hypothesis within 5 to 7 drills,
+which demonstrates that the categorical update mechanism doesn't
+degrade the planner's identification ability.
 
-## Pre-computed alpha-vector policies under the multi-hypothesis prior
+## SARSOP and alpha vectors
 
-POMCP runs a fresh Monte Carlo tree search at each drill, which works
-but pays the planning cost online and is sensitive to the rollout
-budget. SARSOP (Kurniawati, Hsu, Lee 2008) solves the same POMDP
-once offline and returns a set of alpha vectors that compile to a
-microsecond-per-step online policy. Mern et al. 2024 argue this matters
-at the multi-hypothesis scale: POMCP's value-function variance grows
-with the number of hypotheses, while SARSOP's offline computation is
-amortized.
+The multi-hypothesis machinery raises a planning question: at each
+step, how does the planner USE the current belief over hypotheses to
+pick the next drill? POMCP can do it (the simulated futures sample
+across hypotheses every rollout), but POMCP runs a fresh tree search
+at every step, which can get expensive when the hypothesis set is
+large.
 
-My first attempt at a multi-hypothesis comparison was a 5 by 5 grid
-with 4 corner-deposit hypotheses plus a null, sensor settings matched
-to C.1, and a 9-drill budget. SARSOP, POMCP, and greedy-MAP all tied
-at 74% discovery. The reason was the experiment design: each
-hypothesis placed its deposit at a unique cell with no penalty for
-guessing wrong, so greedy-MAP's "drill the highest-expected-deposit
-cell" policy was already optimal. Multi-step lookahead had nothing to
-add. SARSOP did show its other property: 1.4 milliseconds per
-decision versus POMCP's 16, after a 0.4-second offline solve.
+**SARSOP** is a different solver, attractive when the problem is
+small enough to enumerate. SARSOP stands for **Successive
+Approximations of the Reachable Space under Optimal Policies**, from
+Kurniawati, Hsu, and Lee (2008). It solves the same POMDP that POMCP
+solves, but with a different strategy: it pre-computes a policy once,
+ahead of time, and at decision time it looks up the answer in
+microseconds.
+
+POMCP is a "live" planner. SARSOP is a "pre-computed" planner. The
+POMDP literature calls these "online" and "offline" planning
+respectively, but those words mean something very different in
+everyday computing (internet vs. not), so I'll stick with "live" and
+"pre-computed" through the rest of the chapter.
+
+### What is an alpha vector
+
+The thing SARSOP pre-computes is a collection of objects called
+**alpha vectors**. An alpha vector is just a list of numbers, one per
+hypothesis. Each number says: "if hypothesis $i$ were the truth, what
+would the value of taking this action and then playing optimally
+afterward be." There are typically many alpha vectors, each one tied
+to a particular action plan.
+
+A tiny worked example makes this concrete. Suppose you are choosing
+between two drill sites and you have two competing geological
+stories. Theory A says the ore is in the north. Theory B says the ore
+is in the south. Drilling at the ore location pays +10 (the
+discovery). Drilling at the wrong location costs 2 (a wasted hole).
+
+The reward table:
+
+|  | Truth = A | Truth = B |
+|--|--:|--:|
+| Drill north | +10 | -2 |
+| Drill south | -2 | +10 |
+
+Each action gets an alpha vector. In this one-shot case the alpha
+vector is just the row of the reward table:
+
+- Alpha vector for "drill north": $[+10, -2]$
+- Alpha vector for "drill south": $[-2, +10]$
+
+Read those as: "if I drill north, my reward will be +10 in a world
+where Theory A is the truth, or -2 in a world where Theory B is the
+truth."
+
+### What is a belief, and how does the dot product work
+
+The **belief** is just a list of probabilities, one per hypothesis,
+that sum to 1. It says how confident you are in each story right now.
+
+- $[0.5, 0.5]$: no idea which theory is right. **Uniform belief.**
+- $[0.7, 0.3]$: leaning toward A.
+- $[0.05, 0.95]$: strongly thinking B.
+- $[1.0, 0.0]$: certain it's A.
+
+Belief is built by Bayes' rule. You start with a **starting belief**
+(the prior, which here is $[0.5, 0.5]$ since you have no reason to
+favor either story before any drilling). After each drill, you
+multiply each component of the belief by how likely the reading you
+got would be under each hypothesis, then renormalize so the
+components still sum to 1. Each observation slides the belief
+somewhere.
+
+To pick the next action, take the **dot product** of your current
+belief and each action's alpha vector. The dot product is the
+expected reward of taking that action under your current belief: each
+component of the belief weights the corresponding component of the
+alpha vector.
+
+At belief $[0.5, 0.5]$:
+
+- Drill north: $0.5 \times 10 + 0.5 \times (-2) = +4$
+- Drill south: $0.5 \times (-2) + 0.5 \times 10 = +4$
+- Tie. Either action is fine when you have no information.
+
+At belief $[0.7, 0.3]$ (you lean toward A):
+
+- Drill north: $0.7 \times 10 + 0.3 \times (-2) = +6.4$
+- Drill south: $0.7 \times (-2) + 0.3 \times 10 = +1.6$
+- Drill north wins. Makes sense: you believe A more, so the action
+  whose payoff is high under A is best.
+
+At belief $[0.05, 0.95]$ (you strongly think B):
+
+- Drill north: $0.05 \times 10 + 0.95 \times (-2) = -1.4$
+- Drill south: $0.05 \times (-2) + 0.95 \times 10 = +9.4$
+- Drill south wins big.
+
+The maximum dot product across all alpha vectors at a given belief is
+the expected reward of the best action at that belief. The alpha
+vector that achieves the maximum tells you which action to take. So
+the policy at decision time is: take the dot product of your current
+belief against every alpha vector you have, pick the largest, do its
+action. Microseconds.
+
+### Where do the alpha vectors come from in the multi-step case
+
+In the one-shot example above the alpha vector is just the immediate
+reward table. Easy. In real POMDPs you have a sequence of decisions,
+and each step's choice affects what you can learn for the next step.
+There, an alpha vector encodes "if the truth is hypothesis $i$, and I
+take this action now and **then play optimally afterward**, the
+discounted sum of all my future rewards is this number." That harder
+computation is what SARSOP does.
+
+There is usually more than one alpha vector per action in the
+multi-step case, because the optimal "what to do afterward" depends
+on what observation you get next. So SARSOP can output dozens or
+hundreds of alpha vectors total.
+
+SARSOP builds them by **successive approximation** (the SA in the
+name). Roughly:
+
+1. Start at the last step. The future is empty, so the alpha vectors
+   are just the immediate reward table.
+2. Work backward one step. For each action, combine its immediate
+   reward with the expected best alpha vector at the next step
+   (averaged over all observations you might receive). That gives
+   you new alpha vectors for the current step.
+3. Prune. Many of these new vectors are never the best at any
+   belief. Throw those out.
+4. Iterate. Keep going backward and pruning until the value function
+   stops changing meaningfully.
+
+The surviving alpha vectors collectively define the **value
+function** over the entire belief space: at any belief, the highest
+dot product tells you both the best achievable future value and the
+action that achieves it.
+
+The geometric picture: think of each alpha vector as a flat tilted
+plane over the space of possible beliefs. The maximum of all those
+planes is a piecewise-linear surface, which is the value function.
+SARSOP precomputes that surface once. The policy is a fast lookup
+at decision time.
+
+### Does SARSOP help in practice
+
+The 2024 paper argues SARSOP matters at multi-hypothesis scale because
+POMCP's value-function variance grows with the hypothesis count,
+while SARSOP's pre-computation is amortized. To check that, I needed
+a problem where the planning advantage is actually present. My first
+attempt was a 5-by-5 grid with 4 corner-deposit hypotheses plus a
+null. SARSOP, POMCP, and greedy-MAP all tied at 74% discovery on
+that one. The reason: each hypothesis placed its deposit at a unique
+cell with no penalty for guessing wrong, so the one-step-greedy
+policy "drill the highest-expected-deposit cell" was already optimal.
+Multi-step lookahead had nothing to add.
 
 To actually expose the planning advantage I rebuilt the experiment as
-a Tiger-style problem. Two hypotheses, A and B, each with a "claim"
-cell that pays +50 when right and -30 when wrong, and two "marker"
-cells that return an informative sensor reading but no reward. A
-claim cell stands in for a drill target each competing geological
-model would recommend: Hypothesis A says "the ore is here," and
-claim A is the cell you would drill under that model. The
-wrong-commitment penalty represents what happens in real exploration
-when you burn a $1M hole on the wrong target while the actual
-deposit sits undrilled. A marker cell stands in for a piece of
-discriminating evidence the two models predict differently: a
-magnetic anomaly, a geochemical halo, a structural feature, a
-logging response. The two models disagree about where the deposit
-is, and they also disagree about what you would see at certain other
-cells. The claims are pure commit actions; the markers are pure
-information. A uniform prior, a 5-drill budget, and the same
-Bernoulli sensor noise as the earlier experiment. This is the case
-where the wiring earns its keep: greedy under uniform belief picks
-one of the claim cells immediately and pays the wrong-commitment
-penalty on half the episodes, while a smart planner spends one drill
-on the appropriate marker and commits only after the posterior
-concentrates.
+a **Tiger-style** problem. The original Tiger problem (Kaelbling,
+Littman, and Cassandra 1998) is the textbook POMDP where you choose
+between opening one of two doors (committing to a guess, with a big
+reward if right and a big penalty if wrong) and listening (gathering
+information at a small cost). The optimal play is usually to listen
+a few times to build confidence before committing. My drilling
+analog of Tiger has four cells:
+
+Two **"claim"** cells, one for each competing geological story. A
+claim cell stands in for a drill target each story would recommend:
+Story A says "the ore is here," and claim A is the cell you would
+drill under that story. Drilling a claim pays +50 if the matching
+story is the truth and -30 if the other one is. The -30 represents
+what happens in real exploration when you burn a $1M hole on the
+wrong target while the actual deposit sits undrilled. Claim cells do
+not give you informative sensor readings: the sensor at a claim
+cell fires the same way regardless of which story is true.
+
+Two **"marker"** cells, one per story. A marker stands in for a
+piece of discriminating evidence the two stories predict differently:
+a magnetic anomaly, a geochemical halo, a structural feature, a
+logging response. Marker A reads positive when Story A is true and
+stays quiet when Story B is true; Marker B is the opposite. Drilling
+a marker costs the same drill cost (-1) but pays no discovery reward
+and no penalty. Markers are pure information.
+
+A uniform starting belief over A and B, a 5-drill budget, and the
+same Bernoulli sensor noise as the earlier experiments. This is the
+case where the wiring earns its keep: greedy under uniform belief
+picks one of the claim cells immediately and pays the
+wrong-commitment penalty on half the episodes, while a smart planner
+spends one drill on the appropriate marker and commits only after
+the belief concentrates.
 
 ![Three-panel comparison on the Tiger-style problem. Left: mean discounted reward with one-standard-error bars. Center: how often each policy drilled the wrong claim cell. Right: discovery rate (right claim eventually drilled within the budget). 200 episodes, gamma=0.95, sensor (alpha, beta) = (0.10, 0.10), wrong-commitment penalty 30.](./data/derived/bcgt/fig_v20_sarsop_marker_advantage.png)
 
-The reading. Greedy-MAP averages +1 reward, drills the wrong claim on
-56% of episodes, and discovers the right claim on only 45% (it
-commits early and gets stuck drilling the wrong cell for the rest of
-the budget). POMCP and SARSOP both use the markers to disambiguate
-first: POMCP averages +31 with a 28% wrong-commit rate, and SARSOP
-averages +37 with a 2% wrong-commit rate. SARSOP comes out ahead of
-POMCP here because the alpha-vector policy is computed against the
-full belief space rather than an MCTS sample of it; on a small
-problem with a high penalty for committing under uncertainty, that
-extra precision matters. The gap closes on harder problems where the
-offline solve becomes the bottleneck.
+The reading. Greedy-MAP averages +1 reward, drills the wrong claim
+on 56% of episodes, and finds the right claim on only 45% of them.
+It commits early and gets stuck drilling the wrong cell for the rest
+of the budget. POMCP and SARSOP both use the markers to
+disambiguate first. POMCP averages +31 with a 28% wrong-commit rate;
+SARSOP averages +37 with a 2% wrong-commit rate. SARSOP comes out
+ahead of POMCP here because the alpha-vector policy is computed
+against the full belief space rather than an MCTS sample of it; on a
+small problem with a high penalty for committing under uncertainty,
+that extra precision matters. The gap closes on harder problems
+where the pre-computation becomes the bottleneck.
 
 The widget below plays one episode at a time so the mechanism is
 visible turn-by-turn. Each panel shows the same 4 cells (two claims,
@@ -205,11 +417,11 @@ two markers), each policy's belief over Hypothesis A vs B as a
 colored bar, the cell currently being drilled, and the running
 reward. Press Play, then step backward or forward by drill. Greedy
 locks onto a claim cell and stays there because drilling a claim
-returns no information about which hypothesis is true. SARSOP picks
-the appropriate marker first, the belief swings, then it commits.
-You will see SARSOP sometimes drill the same marker twice before
-committing: a single positive reading at a marker still leaves a
-10% chance the sensor false-positived, and a second positive reading
+returns no information about which story is true. SARSOP picks the
+appropriate marker first, the belief swings, then it commits. You
+will sometimes see SARSOP drill the same marker twice before
+committing: a single positive reading at a marker still leaves a 10%
+chance the sensor false-positived, and a second positive reading
 cuts that to about 1%. The solver decides the extra drill is worth
 it because it reduces the cost of a wrong commit on the next step.
 You will also see policies re-drill cells after they have already
@@ -221,98 +433,342 @@ least-bad use of leftover budget.
 
 ## Scaling up to the BCGT grid
 
-The Tiger problem proved the machinery works on a 4-cell toy. The
-next question is whether the same approach scales onto the actual
-BCGT subarea: a 30 by 30 grid (15 km by 15 km at 500 m per cell),
-with the same GP kernel parameters the rest of the chapter uses
-(Matern v=2.5, sigma=0.1, l=1500 m). Directly handing SARSOP a 900-
-cell action space would not terminate in any reasonable time: the
-alpha-vector count grows fast with state and action dimensionality,
-and 900 actions are too many.
+The Tiger problem proved the SARSOP machinery works on a 4-cell toy
+problem where the planning advantage is engineered to be present.
+The next question is whether it scales onto the actual BCGT subarea:
+a 30 by 30 grid (15 km by 15 km at 500 m per cell), with the same
+GP kernel parameters the rest of the chapter uses (Matern smoothness
+parameter $\nu=2.5$, marginal standard deviation $\sigma=0.1$,
+correlation length $\ell=1500$ m). Directly handing SARSOP a 900-cell
+action space would not terminate in any reasonable time. The
+alpha-vector count grows fast with state and action dimensionality.
+900 actions are too many.
 
-The fix is belief-conditioned action pruning. At each drill step the
+The fix is **top-K candidate pruning**. At each drill step the
 planner computes the expected deposit probability per cell under its
-current categorical belief over hypotheses, picks the top K = 20
-un-drilled cells by that expectation, compresses those cells into a
-small POMDP (K actions, N hypothesis states, binary observations),
-and solves it with SARSOP. The candidate set changes every step as
-the belief updates; the offline solve runs each step on the new
-subproblem. On the 30 by 30 setup with 3 hypotheses, that subproblem
-solves in 0.02 seconds. A full 9-drill episode costs under a second
-of planning time.
+current belief over hypotheses, picks the top K = 20 un-drilled
+cells by that expectation, compresses those cells into a small POMDP
+(K actions, $N$ hypothesis states, binary observations), and solves
+it with SARSOP. The candidate set changes every step as the belief
+updates; the pre-computation runs fresh on each step's subproblem.
+On the 30-by-30 setup with 3 hypotheses, that subproblem solves in
+0.02 seconds. A full 9-drill episode costs under a second of
+planning time.
 
 To probe the scale-up I built two synthetic GP-correlated hypotheses
 on the BCGT grid plus the null. H_NW places a Gaussian deposit
 anomaly in the northwest quadrant; H_SE places one in the southeast
-quadrant. Both share the same kernel parameters; only the prior mean
-fields differ.
+quadrant. Both share the same kernel parameters; only the prior
+mean fields differ.
 
-![D.1.A: the three priors on the BCGT subarea, plus the expected deposit probability under a uniform belief over the three hypotheses. Red markers show the top 20 candidate cells SARSOP would consider first under the uniform belief: they split between the two blob centers, because the planner has no reason yet to favor either hypothesis.](./data/derived/bcgt/fig_v20_d1_priors_setup.png)
+![D.1.A: the three starting maps on the BCGT subarea, plus the expected deposit probability under a uniform belief over the three hypotheses. Red markers show the top 20 candidate cells SARSOP would consider first under the uniform belief: they split between the two blob centers, because the planner has no reason yet to favor either hypothesis.](./data/derived/bcgt/fig_v20_d1_priors_setup.png)
 
-The benchmark runs 30 episodes with truth drawn uniformly from
-{H_NW, H_SE, H_null}, a 9-drill budget, gamma = 0.95, and the same
-Bernoulli sensor noise as the earlier experiments. Both planners
-(POMCP and SARSOP) operate on the same top-K=20 candidate set per
-step, so the comparison isolates decision quality rather than
-candidate-pool composition.
+The benchmark runs 60 episodes. For each episode, a fresh GP
+realization is drawn under whichever hypothesis is the chosen truth,
+and the deposit cells are the cells where that realization exceeds
+the cutoff. This is the per-episode-resampling fix; an earlier
+version of this benchmark reused one canonical realization across
+all episodes, which artificially reduced variance and gave the
+planners more knowledge of the truth than they would have in real
+exploration. The truth distribution is uniform across H_NW, H_SE,
+and H_null. A 9-drill budget, $\gamma = 0.95$, and the same Bernoulli
+sensor noise as the earlier experiments. The reward is **one-shot
+discovery**: each episode pays the +50 discovery bonus once, on the
+first deposit cell drilled. Subsequent drills only pay the -1 drill
+cost. This matches the Tiger experiment's "did you find it" semantic
+and the real-exploration intuition that finding the deposit is the
+milestone, not the count of deposit-region cells drilled. Both
+planners (POMCP and SARSOP) operate on the same top-K=20 candidate
+set per step, with POMCP running 10,000 simulations per step.
 
-![D.1.C: BCGT-scale benchmark. Left: overall cumulative reward across the 30 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: posterior weight on the true hypothesis at the end of each episode.](./data/derived/bcgt/fig_v20_d1_benchmark.png)
+![D.1.C: BCGT-scale benchmark. Left: overall cumulative reward across the 60 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: fraction of episodes where the policy found the deposit within the 9-drill budget; the dashed line is the ceiling (the fraction of episodes that have a deposit to find at all).](./data/derived/bcgt/fig_v20_d1_benchmark.png)
 
-The reading. Overall, SARSOP averages +189, POMCP +181, greedy +132,
-and random +99. The 57-point gap between SARSOP and greedy lives
-entirely in the middle panel's H_SE column. Under H_NW truth (10
-episodes) greedy ties SARSOP at +361, because greedy's
-uniform-prior-tiebreaking happens to send it to NW candidate cells,
-which are exactly where the deposit lives. Under H_SE truth (7
-episodes) greedy collapses to +61: it still commits to NW first,
-spends 3-4 drills there getting negative readings without updating
-the belief much (each negative is small evidence), and runs out of
-budget before reaching the SE blob. SARSOP and POMCP belief-update
-fast enough that one or two informative negatives are sufficient to
-switch their next pick to the SE candidate set; they recover to
-+307 and +330 respectively. Under H_null truth (13 episodes) every
-policy loses the same 7-point floor: nine drills' worth of
-discounted cost without ever finding a deposit, because no deposit
-exists.
+The reading, and an honest correction from an earlier draft of this
+chapter. All four policies tie within one standard error of the
+mean: random +17.5, greedy +16.7, POMCP +16.6, SARSOP +16.1. The
+SARSOP-wins-by-57-points narrative an earlier version of this page
+reported was an artifact of two methodology shortcuts I have since
+fixed. First, that version reused one canonical GP realization for
+the truth across all episodes, which gave the planners exact
+knowledge of where deposits would be under each hypothesis. Second,
+it paid +50 for every new deposit cell drilled, so policies that
+correctly identified the right region collected many +50 rewards per
+episode. Per-episode resampling and one-shot discovery together
+remove both artifacts. With those fixes, on this setup, planning and
+greedy come out the same.
 
-Per-step planning latency at this scale: SARSOP 9.7 ms, POMCP 18.5
-ms. SARSOP runs about twice as fast as POMCP because the alpha-
-vector policy compiles to a dot product against the belief, while
-POMCP runs 200 simulations per step. Greedy is 0.2 ms.
+SARSOP does still win on **belief-tracking accuracy**: the final
+posterior probability it assigns to the true hypothesis averages 0.82
+across episodes, against POMCP's 0.77, greedy's 0.67, and random's
+0.51. SARSOP knows which story is true with high confidence by the
+end of the budget. But the immediate-reward metric doesn't reward
+that knowledge, because the budget is over by then and finding a
+single deposit cell is the only payoff. SARSOP's superior posterior
+would translate to better decisions in a longer campaign where the
+identified hypothesis informs follow-up drilling.
 
-One caveat to read this fairly: the synthetic priors I built have
-well-separated blobs (no overlap between H_NW and H_SE deposit
-cells), which is the easy case for any planner that can
-disambiguate hypotheses. Real BCGS deposit-type-split priors will
-overlap heavily, because an alteration halo can sit inside two
-competing geological model domains at once. The next extension
-swaps the synthetic priors for real ones derived from the dh2loop
-deposit-type labels and re-runs the same comparison.
+Two sensitivity checks against the methodology choices:
 
-## Why v1.0 tied
+![D.1.C K-sweep. Mean discounted reward for the four policies as the top-K candidate set is varied across {5, 10, 20, 50}. 30 episodes per condition, POMCP at 1000 simulations per step, per-episode truth realization, one-shot discovery reward.](./data/derived/bcgt/fig_v20_d1_k_sweep.png)
 
-The 2023 v1.0 paper used independent Bernoulli cells (no correlation
-between neighbors) and a noiseless sensor. Under those conditions the
-optimal sequential policy IS exactly one-step greedy: drilling reveals
-truth, no observation updates any other cell, and there is nothing
-for multi-step planning to add. An earlier version of this page showed
-that result with POMCP and greedy tying. The synthetic chart at the
-top of this page runs the 2024 v2.0 setup that the same authors
-published a year later, adding correlation and a noisy sensor.
+![D.1.C POMCP-sims sweep. Mean discounted reward for POMCP across {200, 1000, 5000, 10000} simulations per step, at K=20. Random, greedy, and SARSOP shown as constant references (they don't depend on POMCP's simulation count).](./data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png)
+
+The reading on both. The K choice barely moves the needle, which
+says the candidate pool is informative enough at small K. The POMCP
+simulation count plateaus by about 1000 sims and does not catch
+SARSOP at any tested value, but the gap is within SEM throughout
+(see [Findings](#findings) for the full caveat list).
+
+### Why doesn't SARSOP win here when it won in the Tiger experiment?
+
+The Tiger problem had two specific ingredients that the BCGT
+setup does not. First, **cost asymmetry between exploration and
+commitment**: claim cells could pay you nothing or lose you 30 points;
+marker cells only ever cost the drill cost. So information was cheap
+relative to commitment risk. Second, **claim cells had zero
+information value**: drilling them taught you nothing about which
+story was true, only whether you got lucky. In the BCGT setup,
+drilling ANY cell gives you Bernoulli evidence about which hypothesis
+matches the data, and there is no extra penalty for drilling the
+wrong region beyond just not collecting the +50 discovery. So the
+greedy strategy (drill the highest-expected cell, get either a
+discovery or a Bernoulli signal that updates your belief) is hard
+to beat. The planning advantage that showed up in Tiger is not
+universal; it depends on the structure of the reward and observation
+model.
+
+A future extension would re-introduce the Tiger structure at scale:
+each hypothesis has a small "claim region" (drilling cells outside
+the truth's claim region under truth=h gives a penalty), plus
+explicit marker cells. Whether that structure exists in real BCGT
+exploration is a domain question I will take on in D.1.D, where the
+hypothesis set is replaced with real BCGS deposit-type splits from
+the dh2loop labels covered in Chapter 2.
+
+## Findings
+
+A consolidated list of caveats from this chapter, by milestone.
+
+**B.1 (synthetic).** The 30-by-30 stress test uses GP-correlated
+priors with one true geological story per episode. POMCP wins at 94%
+discovery vs greedy's 53%. This is the planning advantage as
+described in the paper. The win is largely driven by belief updating
+with spatial correlation; multi-step lookahead is a smaller tail
+gain.
+
+**B.2 (real-data retrospective).** The check is on one 50-by-50 cell
+subarea around the KSM cluster. Other clusters in the BCGT and other
+deposit types (epithermal Au, skarn, VMS) each give a separate
+check; this chapter does one to demonstrate the machinery, not to
+characterize planner behavior across all BCGT terrains. The
+informative starting map has likely temporal leakage (MINFILE
+includes post-2010 discoveries); the leak-free panel is the cleaner
+absolute comparison.
+
+**C.1 (noisy sensor).** The 3-by-3 $(\alpha, \beta)$ sweep covers
+realistic reconnaissance values but not extreme cases (e.g., $\beta >
+0.3$). The sensitivity to sensor quality is mild within the swept
+range.
+
+**C.2 (falsification).** Three hypotheses on a 20-by-20 toy subarea.
+The falsification flag fires reliably; the categorical update
+converges on the truth in 5 to 7 drills under matching-truth
+scenarios. Production-scale falsification on real BCGT terrain is
+the C.2 work integrated into the chapter rather than the
+toy-only version that lived in the deeper notebook earlier.
+
+**SARSOP and Tiger.** The Tiger-style problem was engineered to
+expose the SARSOP advantage. Whether that structure (cost asymmetry
+between exploration and commitment, claim cells with zero
+information value) reflects real BCGT exploration is open; D.1.D
+addresses it by replacing the synthetic priors with BCGS deposit-type
+splits.
+
+**D.1 (BCGT scale).** Two synthetic GP-correlated hypotheses
+(non-overlapping NW and SE blobs) plus null. Per-episode truth
+realization, one-shot discovery reward, top-K=20 candidate pruning.
+All four policies tie within SEM on immediate reward. SARSOP wins on
+belief-tracking accuracy (final posterior on truth: 0.82 vs greedy
+0.67). The earlier draft of this chapter reported SARSOP winning by
+57 points; that was an artifact of one canonical-realization and
+aggregate-reward shortcuts now removed. The honest finding is that
+the alpha-vector machinery scales (0.02 s solve per step at K=20),
+but the planning advantage at scale depends on problem structure
+that the synthetic priors do not produce.
+
+The property-scale counterpart of this kind of decision-theoretic
+drill recommendation, a Gaussian process drill-site recommender on
+the 24 Bear Cub holes, sits in
+[Chapter 1](https://johnsondevco.com/bearcub/bear_cub.html). The
+Bear Cub recommender produces a workable next-hole pair even though
+the spatial-only GP predicts pay-zone grade poorly in absolute terms,
+because the posterior variance is a faithful map of where the data
+is sparse even when the mean is unreliable.
 
 ## Next steps
 
-The Mern 2024 port is now feature-complete through C.2 and validated
-at BCGT scale with synthetic priors. The one remaining piece is
-swapping the synthetic NW-blob-vs-SE-blob hypotheses for real BCGS
+D.1.D replaces the synthetic NW-vs-SE-blob hypotheses with real BCGS
 deposit-type splits derived from the dh2loop labels covered in
 Chapter 2. Real deposit-type priors will overlap heavily across
-hypotheses (an alteration halo can sit inside two competing model
-domains at once), which is the harder test the synthetic priors do
-not pose. The deeper notebook carries the implementation roadmap.
+hypotheses (an alteration halo can sit inside two competing
+geological model domains at once), which is a harder test than the
+non-overlapping synthetic case. If real BCGT exploration has the
+cost-asymmetry structure the Tiger experiment relies on (e.g.,
+because drilling outside a claim type's expected geology wastes the
+budget), the SARSOP advantage may transfer at scale; if not, the
+honest finding will be that planning and greedy are equivalent on
+real BCGT data. The deeper notebook carries the implementation
+roadmap.
 
 ## Deeper notebooks
 
 - [BCGT POMDP decision planning](./notebooks/bcgt/decision_planning.html): full implementation, GP kernel choice, particle-filter mechanics, the four-policy benchmark code, and the milestone roadmap details.
+
+## Terminology
+
+In order of first appearance in this chapter.
+
+**POMDP** ("partially observable Markov decision process"). The math
+framework for sequential decisions under uncertainty about the state
+of the world, with noisy observations available at a cost. Drilling
+is a textbook example.
+
+**Prospectivity map / starting map / prior.** The per-cell probability
+surface a planner starts with before any drilling. "Prior" is the
+statistical term; "starting map" is the same thing in plain language.
+
+**Gaussian process (GP).** A probability distribution over a
+smoothly-varying surface, parameterized so neighboring cells covary
+in a way calibrated to the geology. A GP-correlated prior says
+"drilling cell A gives you partial information about cells B, C, D
+within a calibrated correlation length."
+
+**Discount factor ($\gamma$).** A number in $(0, 1)$ that down-weights
+future rewards relative to immediate ones. We use $\gamma = 0.95$
+throughout: a reward one step away is worth 95% of the same reward
+right now.
+
+**Bernoulli sensor.** A binary noisy sensor with two parameters:
+$\alpha$ (false-positive rate) and $\beta$ (false-negative rate).
+Returns 1 ("ore here") or 0 ("no ore here") on each drill, with
+probabilities $1-\beta$ if there really is ore and $\alpha$ if there
+isn't.
+
+**Cox-Singer cutoff.** A USGS porphyry-Cu grade-tonnage benchmark
+(0.2% Cu) that separates "this drill hit ore" from "this drill did
+not." Used in the real-data retrospective.
+
+**Belief.** A list of probabilities, one per hypothesis, that sum to
+1. Says how confident the planner is in each geological story right
+now. Starts at the prior and updates by Bayes' rule after every
+observation.
+
+**Uniform belief.** Belief where every hypothesis has equal
+probability. The planner has no reason to favor any story.
+
+**Hypothesis (in this chapter).** A complete geological story about
+the area, with its own expected probability surface over cells.
+**Single-hypothesis** carries one story; **multi-hypothesis** carries
+several at once and tracks confidence in each one.
+
+**Null hypothesis ($h_0$).** A special hypothesis in the multi-
+hypothesis set representing "none of the geological stories on the
+table fits the data." Added to the set so the planner can detect
+when its whole hypothesis space is wrong.
+
+**Random / GreedyMean / BayesianGreedy / POMCP / SARSOP.** Five
+policies the chapter compares.
+
+- **Random** picks any un-drilled cell uniformly at random.
+- **GreedyMean** drills the highest-probability cell from the starting
+  map. Never updates.
+- **BayesianGreedy** drills the highest-probability cell under its
+  current belief, which it updates after every drill. Thinks one
+  step ahead.
+- **POMCP** ("Partially Observable Monte Carlo Planning"). Same
+  belief update as BayesianGreedy, plus simulated lookahead: before
+  each drill it imagines many possible futures and picks the action
+  whose simulated futures average best. Live planner (does work at
+  decision time).
+- **SARSOP** ("Successive Approximations of the Reachable Space under
+  Optimal Policies"). Pre-computes a policy ahead of time and looks
+  it up at decision time in microseconds. The policy is stored as a
+  collection of alpha vectors.
+
+**Alpha vector.** A list of numbers, one per hypothesis. Each number
+says "if hypothesis $i$ were the truth, what would the value of
+taking this action and then playing optimally afterward be." Each
+alpha vector is tied to a particular action plan. SARSOP outputs
+many of them.
+
+**Dot product (of belief and alpha vector).** The expected reward of
+taking the action associated with the alpha vector, under the
+current belief. Computed as
+$\sum_i \text{belief}[i] \times \alpha[i]$. The action whose alpha
+vector gives the highest dot product is what the policy picks.
+
+**Value function.** The function from beliefs to expected total
+future reward under the optimal policy. SARSOP represents it as a
+piecewise-linear surface (the maximum of all the alpha vector planes).
+
+**Live planner / pre-computed planner.** "Live" planners do their
+planning at decision time (POMCP). "Pre-computed" planners do their
+planning once ahead of time and look up the answer fast at each step
+(SARSOP). The POMDP literature uses "online" and "offline" for these,
+but those words conflict with everyday computing usage.
+
+**Tiger problem.** The textbook POMDP introduced by Kaelbling,
+Littman, and Cassandra (1998): you are in a room with two doors; a
+tiger is behind one and a reward is behind the other; you can listen
+(noisy, cheap) to learn which is which, or you can commit by
+opening a door (decisive, expensive if wrong). The optimal play is
+usually to listen a few times to build confidence before committing.
+The Tiger structure is the smallest POMDP that has a genuine
+exploration-vs-exploitation tradeoff.
+
+**Top-K candidate pruning.** A trick for running SARSOP on large
+action spaces. At each step, only the K cells with the highest
+expected deposit probability under the current belief are kept; the
+rest are dropped for that step's solve. The subproblem is small
+enough for SARSOP to solve fast; the candidate set is re-computed
+at every step.
+
+**One-shot discovery reward.** A reward semantic where the +50
+discovery bonus is paid once per episode, on the first deposit cell
+drilled. Subsequent drills only pay the drill cost. Matches the
+real-exploration intuition that finding the deposit is the milestone,
+not the count of deposit-region cells drilled.
+
+## References
+
+In order of first appearance.
+
+- Mern, J., Yel, E., Caers, J., Kochenderfer, M. J. (2023).
+  "Intelligent Prospector: implementing
+  multi-step optimal sequential decision making for mineral
+  exploration." *Geosci. Model Dev.* 16:289–307.
+  [DOI 10.5194/gmd-16-289-2023](https://doi.org/10.5194/gmd-16-289-2023)
+- Mern, J., Corso, A., Burch, T., House, M., Caers, J. (2024).
+  "Intelligent Prospector v2.0: exploration drill
+  planning under epistemic model uncertainty." arXiv 2410.10610.
+  [arXiv:2410.10610](https://arxiv.org/abs/2410.10610)
+- Silver, D., Veness, J. (2010). "Monte-Carlo planning in large POMDPs."
+  *Advances in Neural Information Processing Systems* 23.
+  [NeurIPS PDF](https://proceedings.neurips.cc/paper_files/paper/2010/file/edfbe1afcf9246bb0d40eb4d8027d90f-Paper.pdf)
+- Kurniawati, H., Hsu, D., Lee, W. S. (2008). "SARSOP: Efficient
+  point-based POMDP planning by approximating optimally reachable
+  belief spaces." *Robotics: Science and Systems IV.*
+  [RSS PDF](https://www.roboticsproceedings.org/rss04/p9.pdf)
+- Kaelbling, L. P., Littman, M. L., Cassandra, A. R. (1998).
+  "Planning and acting in partially observable stochastic domains."
+  *Artificial Intelligence* 101:99–134.
+  [DOI 10.1016/S0004-3702(98)00023-X](https://doi.org/10.1016/S0004-3702(98)00023-X)
+- Singer, D. A., Berger, V. I., Moring, B. C. (2008). "Porphyry copper
+  deposits of the world: database and grade and tonnage models."
+  USGS Open-File Report 2008-1155.
+  [USGS report](https://pubs.usgs.gov/of/2008/1155/)
+
+A consolidated repository-wide references page lives at
+[references.html](references.html).
 
 [← back to portfolio map](index.html)

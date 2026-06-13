@@ -169,7 +169,7 @@ cells. The fused Phase 2 P-A AUC is 1.000 against the anchor set; Phase
 active stream alluvium where Tertiary returns near-zero, which is exactly
 where modern-channel placers should rank above the deep-gravel signal.
 
-## What we learned
+## Findings
 
 **v1: a fixed weighted index is the diagnostic, not the model.** Phase 1
 puts 7 of 7 anchors in the top decile, but the eleven weights are
@@ -490,7 +490,7 @@ held-out gate failure above, and goldbug shows an amber "placer
 is marginal here" badge on every Mariposa parcel popup until
 v3.7.0.1 lands.
 
-### What we learned in v3.7.0
+### Findings (v3.7.0)
 
 The model now produces real placer probability across the full
 Mother Lode rather than a floor of 0.0004 everywhere south of

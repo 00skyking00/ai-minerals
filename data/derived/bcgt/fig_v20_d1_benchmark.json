@@ -1,38 +1,38 @@
 {
   "random": {
-    "mean_reward": 98.68163433186194,
-    "sem_reward": 17.620019500566684,
-    "discovery_rate": 0.5666666666666667,
-    "mean_first_discovery_step": 1.411764705882353,
-    "mean_decision_ms": 0.12432932120713372,
-    "mean_final_belief_truth": 0.95667174281707
+    "mean_reward": 17.51744682730469,
+    "sem_reward": 2.956496438177282,
+    "discovery_rate": 0.55,
+    "mean_discovery_step_when_found": 2.0,
+    "mean_decision_ms": 0.1281957989299877,
+    "mean_final_belief_truth": 0.5140618123223207
   },
   "greedy_MAP": {
-    "mean_reward": 131.67737075373697,
-    "sem_reward": 30.716531757171087,
-    "discovery_rate": 0.5666666666666667,
-    "mean_first_discovery_step": 1.2352941176470589,
-    "mean_decision_ms": 0.23745986357055326,
-    "mean_final_belief_truth": 0.8683530860950298
+    "mean_reward": 16.65821555126302,
+    "sem_reward": 3.1449474787752503,
+    "discovery_rate": 0.5,
+    "mean_discovery_step_when_found": 0.8,
+    "mean_decision_ms": 0.32086253588743235,
+    "mean_final_belief_truth": 0.6735698548728452
   },
   "pomcp_topK": {
-    "mean_reward": 181.25635393388015,
-    "sem_reward": 31.247254512188245,
-    "discovery_rate": 0.5666666666666667,
-    "mean_first_discovery_step": 0.7058823529411765,
-    "mean_decision_ms": 18.50094028998649,
-    "mean_final_belief_truth": 0.9893290666140281
+    "mean_reward": 16.585722569492187,
+    "sem_reward": 3.128679744699761,
+    "discovery_rate": 0.5,
+    "mean_discovery_step_when_found": 0.8333333333333334,
+    "mean_decision_ms": 1429.6663391261568,
+    "mean_final_belief_truth": 0.7740433764692032
   },
   "sarsop_topK": {
-    "mean_reward": 189.10614560054682,
-    "sem_reward": 32.164655224326545,
-    "discovery_rate": 0.5666666666666667,
-    "mean_first_discovery_step": 0.4117647058823529,
-    "mean_decision_ms": 9.670244359532026,
-    "mean_final_belief_truth": 0.9922972340043507
+    "mean_reward": 16.071139236158853,
+    "sem_reward": 3.065061934156711,
+    "discovery_rate": 0.5,
+    "mean_discovery_step_when_found": 1.2666666666666666,
+    "mean_decision_ms": 10.879590619502038,
+    "mean_final_belief_truth": 0.8177323020987878
   },
   "_meta": {
-    "n_episodes": 30,
+    "n_episodes": 60,
     "drill_budget": 9,
     "discount": 0.95,
     "alpha_fp": 0.1,
@@ -40,11 +40,12 @@
     "drill_cost": 1.0,
     "discovery_value": 50.0,
     "top_k": 20,
-    "pomcp_n_sims": 200,
+    "pomcp_n_sims": 10000,
     "truth_distribution": [
-      10,
-      7,
-      13
-    ]
+      20,
+      15,
+      25
+    ],
+    "reward_semantic": "one_shot_discovery"
   }
 }

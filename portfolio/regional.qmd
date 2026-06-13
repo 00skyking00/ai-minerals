@@ -239,7 +239,7 @@ modern-channel components are separately calibrated rasters that
 get fused per-cell with `np.maximum` into the single deliverable
 goldbug consumes. Methods for the placer side are in Chapter 4.
 
-## What the four regions together show
+## Findings
 
 **The methodology reproduces across deposit type and region.** Top-1%
 capture of 22% on Tanacross (porphyry-Cu) and 23% on Arizona

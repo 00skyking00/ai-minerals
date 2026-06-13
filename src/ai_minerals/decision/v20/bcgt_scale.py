@@ -1,30 +1,65 @@
-"""bcgt-v2.0 D.1 BCGT-scale multi-hypothesis machinery.
+"""BCGT-scale multi-hypothesis POMDP machinery (D.1).
 
-The earlier C.2 SARSOP demo ran on a hand-built 4-cell Tiger problem.
-This module scales the multi-hypothesis machinery onto the real
-30 by 30 BCGT working subarea (15 km x 15 km at 500 m/cell), with
-the same GP kernel parameters locked in the spec
-(Matern v=2.5, sigma=0.1, l=1500 m).
+This module scales the C.2 multi-hypothesis SARSOP machinery from the
+hand-built 4-cell Tiger demonstration up to the BC Golden Triangle
+working subarea: a 30 by 30 grid (15 km by 15 km at 500 m per cell).
+The grid size, Gaussian-process (GP) kernel choice, and kernel
+parameters match the v2.0 spec
+(Matern smoothness :math:`\\nu = 2.5`, marginal standard deviation
+:math:`\\sigma = 0.1`, correlation length :math:`\\ell = 1500` m).
 
-D.1 has four sub-pieces:
+The module exposes three pieces a caller will compose:
 
-  D.1.A: build a HypothesisSet on the BCGT grid: two GP-correlated
-         synthetic hypotheses (deposit blob in different quadrants)
-         plus the null. Real BCGS deposit-type-split priors are the
-         D.1.D follow-up if dh2loop labels cooperate.
+`make_bcgt_synthetic_hypothesis_set`
+    Build a HypothesisSet with two synthetic GP-correlated hypotheses
+    (deposit blob in NW and SE quadrants of the grid) plus a null.
+    Returns the HypothesisSet and the per-cell coordinates.
 
-  D.1.B: belief-conditioned top-K SARSOP wrapper. Each drill step
-         picks the top K candidate cells by expected deposit
-         probability under the current categorical belief, builds a
-         small POMDP over those K cells, and solves it with SARSOP.
+`expected_deposit_per_cell`
+    Per-cell marginal expected deposit probability under any
+    categorical belief over the hypothesis set. The aggregation that
+    drives top-K candidate selection.
 
-  D.1.C: synthetic Monte Carlo benchmark of the per-step-SARSOP
-         policy against POMCP and a Bayesian-greedy baseline.
+`BcgtScaleSARSOPPolicy`
+    The belief-conditioned top-K SARSOP planner. At each drill step
+    it computes the top-K candidate cells under the current belief,
+    compresses them into a small POMDP, solves it with SARSOP, and
+    returns the recommended cell.
 
-  D.1.D: real BCGS deposit-type-split prior.
+Tractability at BCGT scale relies on the top-K subproblem trick: the
+full 900-cell action space is intractable for SARSOP, but the K=20
+subproblem rebuilt at every step solves in about 0.02 seconds and
+preserves SARSOP's alpha-vector machinery.
 
-This module currently ships D.1.A and the D.1.B per-step solver.
-The D.1.C benchmark and D.1.D real-data prior land in follow-up commits.
+Examples
+--------
+Build the hypothesis set and inspect a per-step solve:
+
+>>> import numpy as np
+>>> from pathlib import Path
+>>> from ai_minerals.decision.v20.bcgt_scale import (
+...     make_bcgt_synthetic_hypothesis_set,
+...     realize_deposit_sets,
+...     BcgtScaleSARSOPPolicy,
+... )
+>>> hset, coords = make_bcgt_synthetic_hypothesis_set(n_side=30)
+>>> deposit_sets = realize_deposit_sets(hset, np.random.default_rng(0))
+>>> policy = BcgtScaleSARSOPPolicy(
+...     hypothesis_set=hset,
+...     deposit_sets=deposit_sets,
+...     pomdpsol_path=Path("vendor/sarsop/pomdpsol"),
+... )
+>>> first_drill = policy.choose_action()
+>>> policy.observe(first_drill, observation=1)
+
+See also
+--------
+ai_minerals.decision.v20.sarsop_policy
+    The underlying small-grid POMDP class and SARSOP wrapper this
+    module composes onto.
+ai_minerals.decision.v20.hypotheses
+    Hypothesis and HypothesisSet primitives, including the
+    Gaussian-process priors and the null-hypothesis class.
 """
 
 from __future__ import annotations
@@ -33,6 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
+from scipy.stats import norm
 
 from .hypotheses import (
     KERNEL_LENGTHSCALE_M_BCGT,
@@ -47,6 +83,18 @@ from .sarsop_policy import (
     solve_sarsop,
 )
 
+__all__ = [
+    "make_bcgt_synthetic_hypothesis_set",
+    "realize_deposit_sets",
+    "expected_deposit_per_cell",
+    "BcgtScaleSARSOPPolicy",
+    "DEFAULT_N_SIDE",
+    "DEFAULT_SPACING_M",
+    "DEFAULT_ANOMALY_PEAK",
+    "DEFAULT_ANOMALY_SPREAD_M",
+    "DEFAULT_CUTOFF",
+    "DEFAULT_TOP_K",
+]
 
 DEFAULT_N_SIDE = 30
 DEFAULT_SPACING_M = 500.0
@@ -150,25 +198,64 @@ def expected_deposit_per_cell(
     belief: np.ndarray,
     cutoff: float = DEFAULT_CUTOFF,
 ) -> np.ndarray:
-    """Per-cell expected deposit probability under the current categorical
-    belief.
+    """Per-cell expected deposit probability under a categorical belief.
 
-    P(deposit at c) = sum_h belief[h] * P(GP draw at c > cutoff | h)
+    For each cell `c`, returns the marginal probability that the
+    underlying GP draw exceeds the cutoff, averaged across hypotheses
+    according to the current belief:
 
-    Uses the Gaussian tail at each cell: P(N(mean_h, sigma_h^2) > cutoff).
+    .. math::
+        P(\\text{deposit at } c)
+        = \\sum_h \\text{belief}[h] \\cdot P(\\text{GP draw at } c > \\text{cutoff} \\mid h)
+
+    The per-hypothesis term uses the Gaussian-tail probability at each
+    cell. Under each hypothesis the GP is :math:`N(\\mu_h(c), \\sigma_h^2)`
+    where :math:`\\mu_h(c)` is the hypothesis's prior mean field and
+    :math:`\\sigma_h` is its marginal standard deviation. The null
+    hypothesis contributes the cutoff tail of :math:`N(0, \\sigma_0^2)`
+    at every cell.
+
+    Parameters
+    ----------
+    hypothesis_set : HypothesisSet
+        Multi-hypothesis prior over the working area.
+    belief : np.ndarray, shape (n_hypotheses,)
+        Categorical belief over hypotheses. Must sum to 1. Paper
+        hypotheses come first in `hypothesis_set` ordering; the null
+        is at the final index if present.
+    cutoff : float, default DEFAULT_CUTOFF
+        Threshold separating "this cell has ore" from "this cell does
+        not." A GP draw above the cutoff counts as a deposit cell.
+
+    Returns
+    -------
+    np.ndarray, shape (n_cells,)
+        Per-cell expected deposit probability under the belief.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from ai_minerals.decision.v20.bcgt_scale import (
+    ...     make_bcgt_synthetic_hypothesis_set,
+    ...     expected_deposit_per_cell,
+    ... )
+    >>> hset, _ = make_bcgt_synthetic_hypothesis_set(n_side=30)
+    >>> belief = hset.initial_prior()  # uniform
+    >>> deposit_probabilities = expected_deposit_per_cell(hset, belief)
+    >>> deposit_probabilities.shape
+    (900,)
     """
     n_cells = hypothesis_set.hypotheses[0].n_cells
-    p = np.zeros(n_cells, dtype=np.float64)
-    from scipy.stats import norm
-    for i, h in enumerate(hypothesis_set.hypotheses):
-        z = (cutoff - h.prior_mean_field) / h.gp_marginal_std
-        p_above = 1.0 - norm.cdf(z)
-        p += belief[i] * p_above
+    expected = np.zeros(n_cells, dtype=np.float64)
+    for hypothesis_index, hypothesis in enumerate(hypothesis_set.hypotheses):
+        z_score = (cutoff - hypothesis.prior_mean_field) / hypothesis.gp_marginal_std
+        probability_above_cutoff = 1.0 - norm.cdf(z_score)
+        expected += belief[hypothesis_index] * probability_above_cutoff
     if hypothesis_set.include_null and hypothesis_set.null is not None:
-        z0 = cutoff / hypothesis_set.null.marginal_std
-        p_above_null = 1.0 - norm.cdf(z0)
-        p += belief[-1] * p_above_null
-    return p
+        z_score_null = cutoff / hypothesis_set.null.marginal_std
+        probability_above_cutoff_null = 1.0 - norm.cdf(z_score_null)
+        expected += belief[-1] * probability_above_cutoff_null
+    return expected
 
 
 @dataclass

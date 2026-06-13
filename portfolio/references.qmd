@@ -1,0 +1,90 @@
+---
+title: "References"
+subtitle: "Consolidated bibliography across the ai-minerals portfolio"
+---
+
+[← back to portfolio map](index.html)
+
+This page collects the primary literature this portfolio cites,
+across all chapters. Each entry includes a public URL where one
+exists. Papers without a public URL are hosted under
+[/ai-minerals/papers/](https://johnsondevco.com/ai-minerals/papers/).
+
+## POMDP and decision-theoretic drill planning
+
+- Mern, J., Yel, E., Caers, J., Kochenderfer, M. J. (2023).
+  "Intelligent Prospector: implementing multi-step optimal
+  sequential decision making for mineral exploration." *Geosci.
+  Model Dev.* 16:289–307.
+  [DOI 10.5194/gmd-16-289-2023](https://doi.org/10.5194/gmd-16-289-2023)
+- Mern, J., Corso, A., Burch, T., House, M., Caers, J. (2024).
+  "Intelligent Prospector v2.0: exploration drill planning under
+  epistemic model uncertainty." arXiv 2410.10610.
+  [arXiv:2410.10610](https://arxiv.org/abs/2410.10610)
+- Silver, D., Veness, J. (2010). "Monte-Carlo planning in large
+  POMDPs." *Advances in Neural Information Processing Systems* 23.
+  [NeurIPS PDF](https://proceedings.neurips.cc/paper_files/paper/2010/file/edfbe1afcf9246bb0d40eb4d8027d90f-Paper.pdf)
+- Kurniawati, H., Hsu, D., Lee, W. S. (2008). "SARSOP: Efficient
+  point-based POMDP planning by approximating optimally reachable
+  belief spaces." *Robotics: Science and Systems IV.*
+  [RSS PDF](https://www.roboticsproceedings.org/rss04/p9.pdf)
+- Kaelbling, L. P., Littman, M. L., Cassandra, A. R. (1998).
+  "Planning and acting in partially observable stochastic domains."
+  *Artificial Intelligence* 101:99–134.
+  [DOI 10.1016/S0004-3702(98)00023-X](https://doi.org/10.1016/S0004-3702(98)00023-X)
+- Murray, I., Adams, R. P., MacKay, D. J. C. (2010). "Elliptical
+  slice sampling." *AISTATS.*
+  [PMLR PDF](https://proceedings.mlr.press/v9/murray10a/murray10a.pdf)
+- Corso, A. (2024). *HierarchicalMineralExploration.jl* (reference
+  Julia implementation of Mern v2.0).
+  [GitHub](https://github.com/ancorso/HierarchicalMineralExploration.jl)
+- Caers, J., Park, J., Scheidt, C. (2022). "Efficacy of Information."
+  *Mathematical Geosciences.*
+  [DOI 10.1007/s11053-022-10030-1](https://doi.org/10.1007/s11053-022-10030-1)
+
+## Mineral-prospectivity modeling
+
+- Lawley, C. J. M., et al. (2022). "Data-driven prospectivity
+  modelling of sediment-hosted Zn-Pb mineral systems and their
+  critical raw materials." *Ore Geol. Rev.* 141:104635.
+  [DOI 10.1016/j.oregeorev.2021.104635](https://doi.org/10.1016/j.oregeorev.2021.104635)
+- Singer, D. A., Berger, V. I., Moring, B. C. (2008). "Porphyry copper
+  deposits of the world: database and grade and tonnage models."
+  USGS Open-File Report 2008-1155.
+  [USGS report](https://pubs.usgs.gov/of/2008/1155/)
+- Joshi, R., et al. (2021). "dh2loop: a Python library for
+  preprocessing drillhole data for downstream modelling." *Geosci.
+  Model Dev.* 14:6711–6725.
+  [DOI 10.5194/gmd-14-6711-2021](https://doi.org/10.5194/gmd-14-6711-2021)
+- Yin, Z., Pan, S., Wang, X., et al. (2020). "AutoBEL v1.0:
+  Bayesian evidential learning for sequential subsurface
+  characterization." *Geosci. Model Dev.* 13:651–672.
+  [DOI 10.5194/gmd-13-651-2020](https://doi.org/10.5194/gmd-13-651-2020)
+- Scheidt, C., Caers, J., et al. (2024). "Anomaly detection for
+  pathfinder geochemistry via MAF networks." *Natural Resources
+  Research.*
+  [DOI 10.1007/s11053-024-10409-2](https://doi.org/10.1007/s11053-024-10409-2)
+
+## Geological reference data
+
+- USGS USMIN (United States Mineral Deposit Database).
+  [Landing page](https://www.usgs.gov/centers/gggsc/science/usgs-mineral-deposit-database-usmin)
+- USGS MRDS (Mineral Resources Data System).
+  [Landing page](https://mrdata.usgs.gov/mrds/)
+- BCGS (British Columbia Geological Survey) MINFILE.
+  [Landing page](https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/british-columbia-geological-survey/mineralinventory)
+
+## Software and tooling
+
+- `pomdp_py` Python POMDP library.
+  [Docs](https://h2r.cs.brown.edu/pomdp-py-documentation/)
+- AdaCompNUS APPL toolkit (SARSOP / `pomdpsol`).
+  [GitHub](https://github.com/AdaCompNUS/sarsop)
+- `quarto` scientific publishing system.
+  [Site](https://quarto.org)
+- `george` Gaussian-process library.
+  [GitHub](https://github.com/dfm/george)
+- `scikit-learn` Gaussian processes module.
+  [Docs](https://scikit-learn.org/stable/modules/gaussian_process.html)
+
+[← back to portfolio map](index.html)

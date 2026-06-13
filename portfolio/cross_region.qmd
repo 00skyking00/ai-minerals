@@ -39,7 +39,7 @@ The numbers are out-of-fold capture rates: fraction of held-out
 positive cells in the top 1% of cells the model ranks most
 prospective.
 
-## What this means
+## Findings
 
 The "DEEP-SEAM works on REE" reading of the published result is
 falsified by row 2 of the table. The US Western Carbonatite Belt
@@ -80,7 +80,7 @@ any form of spatial isolation (LOO on a different REE province,
 OOF on porphyry-Cu, 2-D blocked OOF on continental MVT), the
 advantage disappears.
 
-## What this implies for the field
+## Implications for the field
 
 The deep-anomaly-detection architectures (DEEP-SEAM, DevNet,
 related deviation-loss methods) are being proposed in the recent

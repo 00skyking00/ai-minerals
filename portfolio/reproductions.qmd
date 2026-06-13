@@ -119,7 +119,7 @@ applying to any future MPM reproduction:
    probability, normalized rank, raw score, sigmoid of normalized
    rank?
 
-## What this implies for the field
+## Implications for the field
 
 Both papers report headline numbers that are reproducible but
 partly inflated by evaluation choices the paper text doesn't fully

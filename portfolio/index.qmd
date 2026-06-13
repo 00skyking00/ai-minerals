@@ -182,25 +182,30 @@ result.
 ### [7. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
-drill hole. I built a POMDP planner with Monte Carlo Tree Search on
-the BC Golden Triangle regional prospectivity prior, ported from
-Mern et al.'s Intelligent Prospector (GMD 2023 and arXiv 2024) and
-extended with the v2.0 machinery: GP-correlated priors, a noisy
-Bernoulli sensor, multi-hypothesis belief with a null-hypothesis
-falsification check, and an offline SARSOP solver. On the synthetic
-v2.0 stress test POMCP finds the deposit in 94% of episodes vs
-greedy's 53%. On the real-data check at the BCGT Golden Triangle the
-BCGS pre-2010 prior alone captured 86% of post-2010 copper hits in
-its top 25%, and the planner did not improve on it (the planner can
-only be as good as the prior). On a small Tiger-style multi-
-hypothesis problem where greedy gets fooled, SARSOP cuts the
-wrong-commitment rate from 56% to 2%. Scaled up to the full 30 by 30
-BCGT grid with belief-conditioned top-K=20 action pruning, SARSOP
-averages +189 reward against greedy's +132, with the gap living
-entirely in the episodes where the wrong-hypothesis-first
-tiebreaking traps greedy. The chapter ends with an interactive step-
-through widget where you can watch each policy play turn-by-turn
-and see why greedy fails while SARSOP succeeds.
+drill hole. I built a POMDP planner (POMDP being "partially
+observable Markov decision process", the math framework for
+sequential decisions under uncertain world state) ported from Mern
+et al.'s Intelligent Prospector (GMD 2023 and arXiv 2024). The
+chapter ports the v1.0 single-hypothesis machinery and the v2.0
+extensions: GP-correlated priors, noisy Bernoulli sensors, multi-
+hypothesis belief with a null-hypothesis falsification check, and
+SARSOP, a pre-computed alpha-vector solver. On the synthetic v2.0
+stress test POMCP finds the deposit in 94% of episodes vs greedy's
+53%. On the real-data check at the BCGT Golden Triangle the BCGS
+pre-2010 prior alone captured 86% of post-2010 copper hits in its
+top 25%, and the planner did not improve on it (the planner is only
+as good as the prior). On a small Tiger-style multi-hypothesis toy
+where greedy gets fooled, SARSOP cuts the wrong-commitment rate from
+56% to 2%. Scaled up to the full 30 by 30 BCGT grid with belief-
+conditioned top-K candidate pruning, the SARSOP wiring solves in
+0.02 s per step, but on synthetic priors with non-overlapping
+deposit blobs and a one-shot discovery reward, all four policies
+tie within standard error of the mean on immediate reward. SARSOP
+wins on belief-tracking accuracy (final posterior on the truth: 0.82
+vs greedy 0.67). The chapter explains why and what structure real
+BCGT exploration would need for the Tiger advantage to transfer at
+scale. An interactive step-through widget at the chapter end lets
+you watch each policy play the Tiger toy turn by turn.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch7_drill_planning.png)](drill_planning.qmd)

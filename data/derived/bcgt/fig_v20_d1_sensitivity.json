@@ -1,0 +1,158 @@
+{
+  "k_sweep": {
+    "pomcp_n_sims": 1000,
+    "n_episodes": 30,
+    "results": {
+      "5": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 16.867279861158853,
+          "sem_reward": 4.512494253699072
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.169623090325523,
+          "sem_reward": 4.39591314443577
+        }
+      },
+      "10": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 17.56779449657552,
+          "sem_reward": 4.373555112348632
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      },
+      "20": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 16.697842021315104,
+          "sem_reward": 4.504844009537541
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      },
+      "50": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 17.049998611158852,
+          "sem_reward": 4.551658870908495
+        },
+        "sarsop_topK": {
+          "mean_reward": 17.846599678867186,
+          "sem_reward": 4.407996529411605
+        }
+      }
+    }
+  },
+  "pomcp_sims_sweep": {
+    "top_k": 20,
+    "n_episodes": 30,
+    "results": {
+      "200": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 16.513266345533854,
+          "sem_reward": 4.465123165243616
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      },
+      "1000": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 15.822772246640625,
+          "sem_reward": 4.346200198110495
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      },
+      "5000": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 17.454110095533853,
+          "sem_reward": 4.342926720060161
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      },
+      "10000": {
+        "random": {
+          "mean_reward": 17.06895332470052,
+          "sem_reward": 4.279126992111062
+        },
+        "greedy_MAP": {
+          "mean_reward": 16.94665486115885,
+          "sem_reward": 4.526045845566369
+        },
+        "pomcp_topK": {
+          "mean_reward": 16.335873090325524,
+          "sem_reward": 4.428084983848714
+        },
+        "sarsop_topK": {
+          "mean_reward": 16.237498611158856,
+          "sem_reward": 4.404481569608326
+        }
+      }
+    }
+  }
+}

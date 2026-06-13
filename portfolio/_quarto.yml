@@ -20,6 +20,7 @@ project:
     - reproductions.qmd
     - cross_region.qmd
     - drill_planning.qmd
+    - references.qmd
     - posts.qmd
     - posts/*/index.qmd
     # Deep-review notebooks. Listed explicitly (not globbed) so retired or
