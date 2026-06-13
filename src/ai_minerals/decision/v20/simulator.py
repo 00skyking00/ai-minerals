@@ -206,6 +206,7 @@ class SyntheticMonteCarloSimulator:
 
 
 CAPTURE_KS = (1, 5, 10, 25)   # percent of cells to evaluate at
+CAPTURE_NS = (10, 25, 50, 100, 250, 500)  # absolute drill counts to evaluate at
 
 
 @dataclass
@@ -300,12 +301,60 @@ class RetrospectiveBCGSValidator:
         hits = int(self.post_2010_positives[top].sum())
         return hits / total_pos
 
+    def _capture_at_n_drills(
+        self, trajectory: list[int], n_drills: int,
+    ) -> float:
+        """Fraction of post-2010 positives captured in the first N drills.
+
+        Complements ``_capture_at_k_pct`` for small absolute budgets,
+        where a fixed-percentage-of-grid cutoff scales with grid size
+        rather than with what an exploration program could actually
+        drill. For a 50x50 = 2500-cell subarea, capture@25% means the
+        top 625 picks; capture@N=50 means the top 50 picks regardless
+        of grid size.
+
+        ``n_drills`` is clamped to the trajectory length: if the policy
+        was run with a budget smaller than ``n_drills``, the metric
+        evaluates over whatever the policy produced. Returns 0.0 when
+        there are no positives to find.
+        """
+        total_positives = int(self.post_2010_positives.sum())
+        if total_positives == 0:
+            return 0.0
+        n_drills_effective = min(int(n_drills), len(trajectory))
+        if n_drills_effective <= 0:
+            return 0.0
+        top = trajectory[:n_drills_effective]
+        hits = int(self.post_2010_positives[top].sum())
+        return hits / total_positives
+
     def run_policy(
         self,
         policy: object,
         rng: np.random.Generator,
     ) -> dict[int, float]:
-        """Drive `policy` for `drill_budget` steps; return capture-at-k% dict."""
+        """Drive `policy` for `drill_budget` steps; return capture-at-k% dict.
+
+        Legacy entry point. Use ``run_policy_full`` to also recover the
+        ``capture@N-drills`` metric in a single run.
+        """
+        return self.run_policy_full(policy, rng)["capture_at_k_pct"]
+
+    def run_policy_full(
+        self,
+        policy: object,
+        rng: np.random.Generator,
+        n_drills_values: tuple[int, ...] = CAPTURE_NS,
+        k_percent_values: tuple[int, ...] = CAPTURE_KS,
+    ) -> dict[str, dict[int, float]]:
+        """Drive `policy` for ``drill_budget`` steps; return both metrics.
+
+        Returns
+        -------
+        dict[str, dict[int, float]]
+            ``{"capture_at_k_pct": {k: fraction, ...},
+               "capture_at_n_drills": {n: fraction, ...}}``
+        """
         problem = self._build_problem()
         policy.reset(problem, rng)
         drilled = frozenset(np.where(self.cells_drilled_pre_2010 > 0)[0].tolist())
@@ -316,7 +365,16 @@ class RetrospectiveBCGSValidator:
             obs, _, drilled = problem.step(cell_idx, drilled, rng)
             history.append((cell_idx, float(obs)))
             trajectory.append(int(cell_idx))
-        return {k: self._capture_at_k_pct(trajectory, k) for k in CAPTURE_KS}
+        return {
+            "capture_at_k_pct": {
+                k: self._capture_at_k_pct(trajectory, k)
+                for k in k_percent_values
+            },
+            "capture_at_n_drills": {
+                n: self._capture_at_n_drills(trajectory, n)
+                for n in n_drills_values
+            },
+        }
 
     def compare(
         self,
