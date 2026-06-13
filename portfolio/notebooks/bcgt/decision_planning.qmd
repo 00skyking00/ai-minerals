@@ -399,15 +399,18 @@ Intelligent Prospector v2.0 ([Mern, Corso, Burch, House, Caers 2024,
 arXiv 2410.10610][mern2]) extends v1.0 by maintaining a belief over
 multiple competing geological hypotheses instead of a single fixed
 prior. After each drill, the hypothesis posterior updates by Bayes'
-rule. The trajectory of that posterior exposes two regimes — one
+rule. The trajectory of that posterior exposes two regimes: one
 hypothesis converging to certainty (correctly identified), or no
 hypothesis converging (all wrong, the falsification signal).
 
 This section is a toy demonstration of the v2.0 belief-update
-mechanics on a synthetic 3-hypothesis prior. The full
-production-scale falsification on the real BCGT prior is queued at
-section D.2.3 of the
-[long-term plan](../../../research/kobold_integration_longterm.md).
+mechanics on a synthetic 3-hypothesis prior. The production version
+of this machinery is in the chapter itself: the C.2 falsification
+demo runs on the real BCGT prior with the GP-correlated
+single-hypothesis B.1 setup as its backbone, and the SARSOP solver
+extension adds an offline alpha-vector policy for multi-hypothesis
+action selection. See [Chapter 7](../../drill_planning.html) for the
+charts, numbers, and an interactive step-through widget.
 
 ```{python}
 #| label: hypothesis-setup
