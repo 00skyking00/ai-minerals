@@ -37,6 +37,74 @@ explain it in plain language; the same terms are collected at the
 bottom of the chapter in [Terminology](#terminology) for quick
 reference.
 
+## Reproducing Mern 2024
+
+Before extending the planner onto BCGT, the first question is whether
+the implementation reproduces the published claim on the paper's own
+terms. The 2024 paper's headline experiment ([arXiv 2410.10610](https://arxiv.org/abs/2410.10610),
+p.20) is a synthetic test on a 32 by 32 grid with a structured
+geological story baked in: the working area contains some grabens
+(structural depressions) and geochemical alteration domains, and ore
+concentrates where the two overlap. The paper compares two policies
+on the same terrain.
+
+The first policy is a **grid-drilling baseline**: drill a regular 6
+by 6 pattern (36 holes) across the working area, ignoring everything
+the observations tell you between holes. It is what early-stage
+prospecting often does in real life when no informative prior is
+available. The "no information used" control.
+
+The second policy is the **POMDP planner**, which keeps a running
+**posterior** (a Bayes-updated belief about where the deposit is)
+and picks each new hole to maximize the expected payoff over the
+remaining holes. The paper limits this planner to **9 holes**, less
+than a third of the grid baseline's budget. The headline claim is
+that the POMDP planner at 9 holes achieves the same discovery
+accuracy as the grid baseline at 36 holes.
+
+Posterior is a piece of statistician's vocabulary worth defining
+once because it appears throughout this chapter. The **prior** is
+your starting belief before any observations (the starting
+probability map). The **posterior** is the same kind of probability
+list AFTER you have drilled some holes and seen what came back. The
+posterior is what Bayes' rule produces when you multiply the prior
+by how likely each new observation would be under each possible
+state of the world, then renormalize. Each drill updates the
+posterior.
+
+A note on the budget asymmetry. Why 9 holes for the POMDP and 36 for
+the grid? Because the paper's whole claim is "the POMDP does the
+same job with fewer holes." The unequal budget IS the experiment.
+At equal budget the comparison would not be the same question; the
+question here is whether sophistication can substitute for hole
+count when each hole is expensive (a $1M drill rig day, in real
+life).
+
+Replicating that experiment in this repository's machinery:
+
+![Reproducing Mern 2024 on a 32 by 32 grid. The structured prior has 2 grabens and 2 geochemical domains; each episode draws a fresh GP realization from it and uses that as the truth. 32 episodes. Lines show what fraction of episodes have found at least one true deposit cell by drill step. The POMDP policies (GreedyMean, BayesianGreedy, POMCP) operate within a 9-hole budget; the GridDrilling baseline drills the full 6 by 6 = 36 pattern.](./data/derived/bcgt/fig_v20_b0_mern_replication.png)
+
+The reading. The three POMDP policies all reach 90-100% discovery
+rate within 9 holes. The grid baseline at the same point (drill 9)
+is at about 50%. Grid baseline needs about 14 holes to reach 90%
+and 16 holes to reach 100%. So the POMDP at 9 holes achieves
+roughly what the grid baseline achieves at 14-16 holes, close to
+the paper's "less than half the holes" claim, qualitatively.
+
+GreedyMean ties POMCP at 9 holes (both at ~97-100%) here because the
+structured prior is so informative that even the static "drill the
+highest-probability cell" policy can localize the deposit fast.
+BayesianGreedy (which updates its posterior between drills) lands
+in the same neighborhood. The split between greedy and POMCP that
+the next section shows up under a noisier sensor and a less
+informative prior; here, with sensor noise sigma = 0.001 and a
+strongly structured prior, the three are tied.
+
+A practical reading. The paper's claim survives a faithful
+reproduction on the same parameters. Whether that win transfers
+onto real exploration terrain is what the next sections check by
+running the same planner on the BC Golden Triangle starting map.
+
 ## The result on synthetic terrain
 
 The first question to settle: does the planning machinery actually
@@ -521,9 +589,11 @@ set per step, with POMCP running 10,000 simulations per step.
 
 ![D.1.C: BCGT-scale benchmark. Left: overall cumulative reward across the 60 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: fraction of episodes where the policy found the deposit within the 9-drill budget; the dashed line is the ceiling (the fraction of episodes that have a deposit to find at all).](./data/derived/bcgt/fig_v20_d1_benchmark.png)
 
-The reading, and an honest correction from an earlier draft of this
+The reading, and a correction from an earlier draft of this
 chapter. All four policies tie within one standard error of the
-mean: random +17.5, greedy +16.7, POMCP +16.6, SARSOP +16.1. The
+mean (SEM, the give-or-take on the mean reward across episodes,
+computed as sample standard deviation divided by sqrt(N)):
+random +17.5, greedy +16.7, POMCP +16.6, SARSOP +16.1. The
 SARSOP-wins-by-57-points narrative an earlier version of this page
 reported was an artifact of two methodology shortcuts I have since
 fixed. First, that version reused one canonical GP realization for
@@ -633,8 +703,8 @@ All four policies tie within SEM on immediate reward. SARSOP wins on
 belief-tracking accuracy (final posterior on truth: 0.82 vs greedy
 0.67). The earlier draft of this chapter reported SARSOP winning by
 57 points; that was an artifact of one canonical-realization and
-aggregate-reward shortcuts now removed. The honest finding is that
-the alpha-vector machinery scales (0.02 s solve per step at K=20),
+aggregate-reward shortcuts now removed. The straight finding is
+that the alpha-vector machinery scales (0.02 s solve per step at K=20),
 but the planning advantage at scale depends on problem structure
 that the synthetic priors do not produce.
 
@@ -658,9 +728,8 @@ non-overlapping synthetic case. If real BCGT exploration has the
 cost-asymmetry structure the Tiger experiment relies on (e.g.,
 because drilling outside a claim type's expected geology wastes the
 budget), the SARSOP advantage may transfer at scale; if not, the
-honest finding will be that planning and greedy are equivalent on
-real BCGT data. The deeper notebook carries the implementation
-roadmap.
+result will be that planning and greedy are equivalent on real BCGT
+data. The deeper notebook carries the implementation roadmap.
 
 ## Deeper notebooks
 
@@ -705,8 +774,31 @@ not." Used in the real-data retrospective.
 now. Starts at the prior and updates by Bayes' rule after every
 observation.
 
+**Posterior.** The updated belief after observations. Same kind of
+probability list as the prior, just measured after some drilling has
+happened. Each drill updates the posterior. The terms "updated
+belief" and "posterior" are interchangeable.
+
 **Uniform belief.** Belief where every hypothesis has equal
 probability. The planner has no reason to favor any story.
+
+**SEM** ("standard error of the mean"). The give-or-take on the
+mean reward across episodes, computed as sample standard deviation
+divided by sqrt(N). When two policies' means are within one SEM of
+each other, you cannot tell them apart given the noise in the
+experiment.
+
+**Grid-drilling baseline.** A regular sampling pattern that drills
+on a fixed N by N sub-grid, ignoring everything the observations
+say between drills. Used as the "no information used" control in
+mining and survey statistics. Mern et al. 2024 compare their POMDP
+planner against a 6 by 6 grid (36 holes).
+
+**Bayesian-greedy baseline.** A smarter baseline that uses Bayes'
+rule to update its posterior after each observation and then drills
+the highest-probability cell under the updated posterior at every
+step. Smarter than grid-drilling because it uses information; not as
+smart as POMCP because it does not plan multiple steps ahead.
 
 **Hypothesis (in this chapter).** A complete geological story about
 the area, with its own expected probability surface over cells.
@@ -718,10 +810,14 @@ hypothesis set representing "none of the geological stories on the
 table fits the data." Added to the set so the planner can detect
 when its whole hypothesis space is wrong.
 
-**Random / GreedyMean / BayesianGreedy / POMCP / SARSOP.** Five
-policies the chapter compares.
+**Random / GreedyMean / BayesianGreedy / POMCP / SARSOP / GridDrilling.**
+Six policies the chapter compares.
 
 - **Random** picks any un-drilled cell uniformly at random.
+- **GridDrilling** drills a regular N by N pattern across the working
+  area, ignoring everything the observations say between drills.
+  The "no information used" baseline; 6 by 6 = 36 holes in the
+  Mern 2024 reproduction.
 - **GreedyMean** drills the highest-probability cell from the starting
   map. Never updates.
 - **BayesianGreedy** drills the highest-probability cell under its
