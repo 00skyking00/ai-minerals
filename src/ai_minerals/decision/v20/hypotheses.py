@@ -468,3 +468,88 @@ def porphyry_cu_hypothesis_from_v3_rf(
         gp_marginal_std=gp_marginal_std,
         gp_lengthscale_m=gp_lengthscale_m,
     )
+
+
+def make_mern_2x2_hypothesis_set(
+    grid_n: int = 32,
+    rng: np.random.Generator | None = None,
+    include_null: bool = True,
+    cell_spacing_m: float = 1.0,
+    gp_marginal_std: float = KERNEL_MARGINAL_STD,
+    gp_lengthscale_m: float | None = None,
+    seed: int | None = None,
+) -> HypothesisSet:
+    """Build the Mern 2024 paper's 2x2 hypothesis grid plus an optional null.
+
+    The paper (arXiv 2410.10610, p.2 and p.20) defines the hypothesis
+    set as four geological models indexed by (n_grabens, n_domains)
+    in {(1, 1), (1, 2), (2, 1), (2, 2)}, plus a null hypothesis
+    representing "none of the above; maximum-entropy mixture with no
+    spatial structure."
+
+    Each of the four paper hypotheses is built via
+    ``Hypothesis.from_domain_config`` with its own seed so the four
+    polygon realizations are distinct and reproducible. The null
+    hypothesis (if ``include_null=True``) is a ``NullHypothesis``
+    instance with the same marginal variance.
+
+    Parameters
+    ----------
+    grid_n : int, default 32
+        Side length of the working grid in cells. Paper uses 32.
+    rng : np.random.Generator or None
+        Master random state. When None and ``seed`` is also None, uses
+        the default RNG. When None and ``seed`` is set, builds an RNG
+        from the seed.
+    include_null : bool, default True
+        Add the NullHypothesis to the set.
+    cell_spacing_m : float, default 1.0
+        Physical spacing between cell centers.
+    gp_marginal_std : float
+        GP marginal standard deviation.
+    gp_lengthscale_m : float or None
+        GP correlation length. When None, defaults to
+        ``3 * cell_spacing_m`` (paper p.28).
+    seed : int or None
+        Convenience for callers that don't want to build an RNG
+        themselves. Ignored when ``rng`` is set.
+
+    Returns
+    -------
+    HypothesisSet
+        Four paper hypotheses indexed H_1_1, H_1_2, H_2_1, H_2_2, plus
+        the null when ``include_null=True``.
+
+    Examples
+    --------
+    >>> hset = make_mern_2x2_hypothesis_set(grid_n=32, seed=0)
+    >>> hset.n_hypotheses
+    5
+    >>> [h.name for h in hset.hypotheses]
+    ['H_1_1', 'H_1_2', 'H_2_1', 'H_2_2']
+    >>> hset.hypotheses[0].n_grabens, hset.hypotheses[0].n_domains
+    (1, 1)
+    """
+    if rng is None:
+        rng = np.random.default_rng(seed)
+    paper_configs = ((1, 1), (1, 2), (2, 1), (2, 2))
+    hypotheses: list[Hypothesis] = []
+    for n_g, n_d in paper_configs:
+        # Spawn a fresh independent generator per hypothesis so the four
+        # realizations are decorrelated yet deterministic given the master rng.
+        sub_seed = int(rng.integers(0, 2**31 - 1))
+        sub_rng = np.random.default_rng(sub_seed)
+        hypotheses.append(Hypothesis.from_domain_config(
+            name=f"H_{n_g}_{n_d}",
+            n_grabens=n_g, n_domains=n_d,
+            grid_n=grid_n, rng=sub_rng,
+            cell_spacing_m=cell_spacing_m,
+            gp_marginal_std=gp_marginal_std,
+            gp_lengthscale_m=gp_lengthscale_m,
+        ))
+    null = NullHypothesis(marginal_std=gp_marginal_std) if include_null else None
+    return HypothesisSet(
+        hypotheses=tuple(hypotheses),
+        null=null,
+        include_null=include_null,
+    )
