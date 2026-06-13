@@ -187,6 +187,126 @@ class Hypothesis:
         """
         raise NotImplementedError("B.1 milestone")
 
+    @classmethod
+    def from_domain_config(
+        cls,
+        name: str,
+        n_grabens: int,
+        n_domains: int,
+        grid_n: int,
+        rng: np.random.Generator,
+        cell_spacing_m: float = 1.0,
+        gp_marginal_std: float = KERNEL_MARGINAL_STD,
+        gp_lengthscale_m: float | None = None,
+        gp_kernel_nu: float = KERNEL_NU,
+        base_mean: float | None = None,
+        graben_boost: float | None = None,
+        domain_boost: float | None = None,
+    ) -> "Hypothesis":
+        """Build a Hypothesis with a structured Mern 2024-style prior.
+
+        Samples ``n_grabens`` rotated rectangular structural strips and
+        ``n_domains`` blob-shaped geochemical regions on a
+        ``grid_n`` x ``grid_n`` grid, computes binary inside-outside
+        masks per the polygon sample, and combines them additively into
+        the per-cell GP prior mean field.
+
+        Cell coordinates are laid out on a regular ``grid_n`` x
+        ``grid_n`` lattice with spacing ``cell_spacing_m``. The default
+        ``gp_lengthscale_m`` (None) is set to ``3 * cell_spacing_m`` to
+        match the paper's 3-grid-cell correlation length on the 32x32
+        synthetic grid (p.28).
+
+        Parameters
+        ----------
+        name : str
+            Hypothesis label.
+        n_grabens, n_domains : int
+            Counts feeding into the 2x2 paper hypothesis grid
+            {(1,1), (1,2), (2,1), (2,2)}.
+        grid_n : int
+            Side length of the working grid. Mern 2024 uses 32.
+        rng : np.random.Generator
+            Random state controlling polygon sampling.
+        cell_spacing_m : float, default 1.0
+            Physical spacing between cell centers. 1.0 matches the
+            paper's normalized units; for BCGT we use 500.0.
+        gp_marginal_std : float, default KERNEL_MARGINAL_STD (0.1)
+            GP marginal standard deviation; Mern 2024 p.28 normalized.
+        gp_lengthscale_m : float or None, default None
+            GP correlation length. When None, defaults to 3 *
+            cell_spacing_m (matches paper p.28 normalized).
+        gp_kernel_nu : float, default 2.5
+            Matern smoothness parameter.
+        base_mean, graben_boost, domain_boost : float or None
+            Per-cell prior-mean field parameters; pass through to
+            ``prior_mean_field_from_masks``. Defaults match
+            ``BASE_MEAN``, ``GRABEN_MEAN_BOOST``, ``DOMAIN_MEAN_BOOST``
+            from the domains module.
+
+        Returns
+        -------
+        Hypothesis
+            Frozen dataclass with the structured prior baked in.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> rng = np.random.default_rng(0)
+        >>> h = Hypothesis.from_domain_config(
+        ...     name="H_1_1", n_grabens=1, n_domains=1, grid_n=32, rng=rng,
+        ... )
+        >>> h.n_cells
+        1024
+        >>> h.n_grabens, h.n_domains
+        (1, 1)
+        """
+        from .domains import (
+            BASE_MEAN, DOMAIN_MEAN_BOOST, GRABEN_MEAN_BOOST,
+            domain_mask_from_polygons, prior_mean_field_from_masks,
+            sample_geochem_domain_polygons, sample_graben_polygons,
+        )
+        graben_polygons = sample_graben_polygons(
+            n_grabens=n_grabens, grid_n=grid_n, rng=rng,
+        )
+        domain_polygons = sample_geochem_domain_polygons(
+            n_domains=n_domains, grid_n=grid_n, rng=rng,
+        )
+        graben_mask = domain_mask_from_polygons(graben_polygons, grid_n)
+        domain_mask = domain_mask_from_polygons(domain_polygons, grid_n)
+        prior_mean_field = prior_mean_field_from_masks(
+            graben_mask, domain_mask,
+            base_mean=BASE_MEAN if base_mean is None else base_mean,
+            graben_boost=(
+                GRABEN_MEAN_BOOST if graben_boost is None else graben_boost
+            ),
+            domain_boost=(
+                DOMAIN_MEAN_BOOST if domain_boost is None else domain_boost
+            ),
+        )
+        row_grid, col_grid = np.meshgrid(
+            np.arange(grid_n) * cell_spacing_m,
+            np.arange(grid_n) * cell_spacing_m,
+            indexing="ij",
+        )
+        cell_coords_m = np.column_stack([
+            row_grid.ravel(), col_grid.ravel(),
+        ]).astype(np.float64)
+        gp_ell = (
+            3.0 * cell_spacing_m if gp_lengthscale_m is None
+            else gp_lengthscale_m
+        )
+        return cls(
+            name=name,
+            n_grabens=n_grabens,
+            n_domains=n_domains,
+            cell_coords_m=cell_coords_m,
+            prior_mean_field=prior_mean_field,
+            gp_kernel_nu=gp_kernel_nu,
+            gp_marginal_std=gp_marginal_std,
+            gp_lengthscale_m=gp_ell,
+        )
+
 
 @dataclass(frozen=True)
 class NullHypothesis:
