@@ -182,25 +182,21 @@ result.
 ### [7. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself doesn't tell you where to put the next
-drill hole. I built a POMDP planner with Monte Carlo Tree Search,
-run on the BC Golden Triangle regional prospectivity prior and
-ported from Mern et al.'s Intelligent Prospector (GMD, 2023).
-Four policies side-by-side: random, greedy, Efficacy of Information
-(Caers et al. 2022), and POMCP. The result on this prior: greedy
-and EOI tie and both outperform POMCP, which beats random only
-slightly. That ranking is what one-step optimality looks like under
-v1.0 assumptions. With i.i.d. Bernoulli cells and a noiseless
-sensor, the optimal policy IS one-step greedy. POMCP's MCTS
-exploration is paying a planning cost for lookahead value that
-doesn't exist in this regime, and EOI overlaps with greedy because
-every cell sits below 50% where binary entropy is monotone in p.
-POMCP starts paying its way once the v2.0 assumptions activate:
-correlated draws make multi-step lookahead meaningful, noisy
-sensors break the cell-collapses-to-truth shortcut greedy relies on,
-and multi-hypothesis falsification lets the planner detect a wrong
-geological model and stop drilling early. The deeper notebook ships
-a toy v2.0 demonstration of multi-hypothesis belief updates
-including the all-hypotheses-wrong falsification case.
+drill hole. I built a POMDP planner with Monte Carlo Tree Search on
+the BC Golden Triangle regional prospectivity prior, ported from
+Mern et al.'s Intelligent Prospector (GMD 2023 and arXiv 2024) and
+extended with the v2.0 machinery: GP-correlated priors, a noisy
+Bernoulli sensor, multi-hypothesis belief with a null-hypothesis
+falsification check, and an offline SARSOP solver. On the synthetic
+v2.0 stress test POMCP finds the deposit in 94% of episodes vs
+greedy's 53%. On the real-data check at the BCGT Golden Triangle the
+BCGS pre-2010 prior alone captured 86% of post-2010 copper hits in
+its top 25%, and the planner did not improve on it (the planner can
+only be as good as the prior). On a small Tiger-style multi-
+hypothesis problem where greedy gets fooled, SARSOP cuts the
+wrong-commitment rate from 56% to 2%. The chapter ends with an
+interactive step-through widget where you can watch each policy play
+turn-by-turn and see why greedy fails while SARSOP succeeds.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch7_drill_planning.png)](drill_planning.qmd)
