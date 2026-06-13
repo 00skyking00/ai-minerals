@@ -152,30 +152,41 @@ at the multi-hypothesis scale: POMCP's value-function variance grows
 with the number of hypotheses, while SARSOP's offline computation is
 amortized.
 
-To check the wiring on the multi-hypothesis prior, I built a small
-discretized POMDP: 5 by 5 grid (25 cells), 4 corner-deposit hypotheses
-plus the null, the same Bernoulli sensor as C.1 (alpha=0.05, beta=0.10),
-and a 9-drill budget. I solved it once with the APPL `pomdpsol` binary
-(0.4 seconds, 958 alpha vectors) and ran the resulting policy against
-random, greedy-MAP, and POMCP (200 simulations per drill) across 50
-Monte Carlo episodes.
+My first attempt at a multi-hypothesis comparison was a 5 by 5 grid
+with 4 corner-deposit hypotheses plus a null, sensor settings matched
+to C.1, and a 9-drill budget. SARSOP, POMCP, and greedy-MAP all tied
+at 74% discovery. The reason was the experiment design: each
+hypothesis placed its deposit at a unique cell with no penalty for
+guessing wrong, so greedy-MAP's "drill the highest-expected-deposit
+cell" policy was already optimal. Multi-step lookahead had nothing to
+add. SARSOP did show its other property: 1.4 milliseconds per
+decision versus POMCP's 16, after a 0.4-second offline solve.
 
-![Three-panel comparison. Left: discovery rate (fraction of episodes whose ground-truth deposit cell was drilled within the budget). Center: mean discounted reward with one-standard-error bars. Right: per-decision planning time on a log scale.](./data/derived/bcgt/fig_v20_sarsop_vs_pomcp.png)
+To actually expose the planning advantage I rebuilt the experiment as
+a Tiger-style problem. Two hypotheses, A and B, each with a "claim"
+cell that pays +50 when right and -30 when wrong, and two "marker"
+cells that return an informative sensor reading but no reward. The
+claims are pure commit actions; the markers are pure information. A
+uniform prior, a 5-drill budget, and the same Bernoulli sensor noise
+as the earlier experiment. This is the case where the wiring earns
+its keep: greedy under uniform belief picks one of the claim cells
+immediately and pays the wrong-commitment penalty on half the
+episodes, while a smart planner spends one drill on the appropriate
+marker and commits only after the posterior concentrates.
 
-The reading. SARSOP, POMCP, and greedy-MAP tie at 74% discovery on
-this small problem (the upper bound is 80%, since 20% of episodes
-draw the null hypothesis and have no deposit to find). The prior
-structure is informative enough that the one-step-greedy policy
-already plays optimally; multi-step lookahead has nothing to add at
-this scale. The difference shows up on the right panel: SARSOP runs
-at about 1.4 milliseconds per decision once the offline solve is
-done, against POMCP's 16 milliseconds; greedy-MAP is essentially
-free. The case for SARSOP is not "wins this experiment" but "the
-same alpha-vector machinery scales to harder cases where greedy is
-suboptimal (exploration-vs-exploitation tradeoffs across hypotheses),
-and runs at microsecond online latency". On problems large enough
-that the offline solve becomes the bottleneck, POMCP regains the
-advantage; the choice is not universal.
+![Three-panel comparison on the Tiger-style problem. Left: mean discounted reward with one-standard-error bars. Center: how often each policy drilled the wrong claim cell. Right: discovery rate (right claim eventually drilled within the budget). 200 episodes, gamma=0.95, sensor (alpha, beta) = (0.10, 0.10), wrong-commitment penalty 30.](./data/derived/bcgt/fig_v20_sarsop_marker_advantage.png)
+
+The reading. Greedy-MAP averages +1 reward, drills the wrong claim on
+56% of episodes, and discovers the right claim on only 45% (it
+commits early and gets stuck drilling the wrong cell for the rest of
+the budget). POMCP and SARSOP both use the markers to disambiguate
+first: POMCP averages +31 with a 28% wrong-commit rate, and SARSOP
+averages +37 with a 2% wrong-commit rate. SARSOP comes out ahead of
+POMCP here because the alpha-vector policy is computed against the
+full belief space rather than an MCTS sample of it; on a small
+problem with a high penalty for committing under uncertainty, that
+extra precision matters. The gap closes on harder problems where the
+offline solve becomes the bottleneck.
 
 ## Why v1.0 tied
 

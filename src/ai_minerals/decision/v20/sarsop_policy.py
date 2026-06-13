@@ -104,24 +104,28 @@ class _StaticTransitionModel(pomdp_py.TransitionModel):
 
 
 class _BernoulliObservationModel(pomdp_py.ObservationModel):
-    """P(obs=1 | hypothesis h, drill cell c) = (1 - beta) if c is the
-    deposit cell for h, else alpha.
+    """P(obs=1 | hypothesis h, drill cell c) = (1 - beta) if c is one of
+    h's signal cells, else alpha. Signal cells include the deposit cell
+    by default; "marker" cells (signal-but-no-reward) are added by
+    listing them in signal_cells_by_hypothesis without a matching entry
+    in deposit_cell_by_hypothesis.
     """
 
     def __init__(
         self,
-        deposit_cell_by_hypothesis: dict[int, int | None],
+        signal_cells_by_hypothesis: dict[int, set[int]],
         alpha: float,
         beta: float,
     ):
-        self._deposit_cell = dict(deposit_cell_by_hypothesis)
+        self._signal_cells = {
+            i: set(cells) for i, cells in signal_cells_by_hypothesis.items()
+        }
         self._alpha = float(alpha)
         self._beta = float(beta)
         self._all_obs = [BinaryObs(0), BinaryObs(1)]
 
     def _p_one(self, hypothesis_idx: int, cell_idx: int) -> float:
-        deposit_cell = self._deposit_cell.get(hypothesis_idx)
-        if deposit_cell is not None and deposit_cell == cell_idx:
+        if cell_idx in self._signal_cells.get(hypothesis_idx, set()):
             return 1.0 - self._beta
         return self._alpha
 
@@ -138,22 +142,37 @@ class _BernoulliObservationModel(pomdp_py.ObservationModel):
 
 
 class _DepositRewardModel(pomdp_py.RewardModel):
-    """Reward = -drill_cost + discovery_value if drilling the deposit cell."""
+    """Reward structure:
+      -drill_cost                             (every drill)
+      +discovery_value                        (drilling true h's deposit cell)
+      -wrong_commitment_penalty               (drilling another h's deposit
+                                               cell when truth is not that h)
+    The wrong-commitment penalty models the Tiger-style case where
+    drilling a "claim" cell that belongs to a competing hypothesis
+    burns part of the budget on the wrong target.
+    """
 
     def __init__(
         self,
         deposit_cell_by_hypothesis: dict[int, int | None],
+        claimed_cells: set[int],
         drill_cost: float,
         discovery_value: float,
+        wrong_commitment_penalty: float,
     ):
         self._deposit_cell = dict(deposit_cell_by_hypothesis)
+        self._claimed_cells = set(claimed_cells)
         self._drill_cost = float(drill_cost)
         self._discovery_value = float(discovery_value)
+        self._penalty = float(wrong_commitment_penalty)
 
     def _reward(self, state, action) -> float:
-        deposit_cell = self._deposit_cell.get(state.idx)
-        if deposit_cell is not None and deposit_cell == action.cell_idx:
+        true_deposit = self._deposit_cell.get(state.idx)
+        drilled = action.cell_idx
+        if true_deposit is not None and true_deposit == drilled:
             return -self._drill_cost + self._discovery_value
+        if drilled in self._claimed_cells:
+            return -self._drill_cost - self._penalty
         return -self._drill_cost
 
     def sample(self, state, action, next_state):
@@ -190,14 +209,17 @@ class MultiHypothesisSmallGridPOMDP:
     hypothesis_names: list[str]
     deposit_cell_by_hypothesis: dict[int, int | None]
     initial_prior: np.ndarray
+    signal_cells_by_hypothesis: dict[int, set[int]] | None = None
     alpha_fp: float = DEFAULT_BERNOULLI_ALPHA
     beta_fn: float = DEFAULT_BERNOULLI_BETA
     drill_cost: float = DEFAULT_DRILL_COST
     discovery_value: float = DEFAULT_DISCOVERY_VALUE
+    wrong_commitment_penalty: float = 0.0
 
     states: list[HypothesisState] = field(init=False)
     actions: list[CellAction] = field(init=False)
     observations: list[BinaryObs] = field(init=False)
+    claimed_cells: set[int] = field(init=False)
 
     def __post_init__(self) -> None:
         if len(self.hypothesis_names) != len(self.initial_prior):
@@ -214,6 +236,20 @@ class MultiHypothesisSmallGridPOMDP:
         self.actions = [CellAction(c) for c in range(self.n_cells)]
         self.observations = [BinaryObs(0), BinaryObs(1)]
 
+        if self.signal_cells_by_hypothesis is None:
+            self.signal_cells_by_hypothesis = {
+                i: ({d} if d is not None else set())
+                for i, d in self.deposit_cell_by_hypothesis.items()
+            }
+        else:
+            self.signal_cells_by_hypothesis = {
+                i: set(cells) for i, cells in self.signal_cells_by_hypothesis.items()
+            }
+
+        self.claimed_cells = {
+            d for d in self.deposit_cell_by_hypothesis.values() if d is not None
+        }
+
     def build_agent(self, belief: np.ndarray | None = None) -> pomdp_py.Agent:
         """Returns a pomdp_py.Agent ready to hand to sarsop()."""
         if belief is None:
@@ -225,13 +261,15 @@ class MultiHypothesisSmallGridPOMDP:
 
         transition = _StaticTransitionModel(self.states)
         observation = _BernoulliObservationModel(
-            self.deposit_cell_by_hypothesis,
+            self.signal_cells_by_hypothesis,
             alpha=self.alpha_fp, beta=self.beta_fn,
         )
         reward = _DepositRewardModel(
             self.deposit_cell_by_hypothesis,
+            claimed_cells=self.claimed_cells,
             drill_cost=self.drill_cost,
             discovery_value=self.discovery_value,
+            wrong_commitment_penalty=self.wrong_commitment_penalty,
         )
         policy = _EnumerablePolicyModel(self.actions)
 
@@ -253,11 +291,8 @@ class MultiHypothesisSmallGridPOMDP:
         """Bayesian categorical update given one binary observation."""
         likelihoods = np.empty(len(self.states))
         for i in range(len(self.states)):
-            p1 = (
-                1.0 - self.beta_fn
-                if self.deposit_cell_by_hypothesis.get(i) == cell_idx
-                else self.alpha_fp
-            )
+            signal = self.signal_cells_by_hypothesis.get(i, set())
+            p1 = (1.0 - self.beta_fn) if cell_idx in signal else self.alpha_fp
             likelihoods[i] = p1 if observation == 1 else (1.0 - p1)
         unnorm = belief * likelihoods
         s = unnorm.sum()
