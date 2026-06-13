@@ -86,13 +86,20 @@ OUT_PNG = REPO / "data/derived/bcgt/fig_v20_d1_benchmark.png"
 OUT_JSON = REPO / "data/derived/bcgt/fig_v20_d1_benchmark.json"
 POMDPSOL = REPO / "vendor/sarsop/pomdpsol"
 
-N_EPISODES = 60
+N_EPISODES = 100
 DRILL_BUDGET = 9
 DISCOUNT = 0.95
 ALPHA_FP = 0.10
 BETA_FN = 0.10
 DRILL_COST = 1.0
 DISCOVERY_VALUE = 50.0
+WRONG_COMMITMENT_PENALTY = 30.0
+# Porphyry-Cu economics regime: raise cutoff above the previous 0.10 default
+# so deposits are sparser than the GP prior mean would suggest. 0.15 maps
+# roughly to the 0.4 percent Cu economic floor in the paper's normalized
+# units (the cutoff is on the same scale as the prior mean field, which
+# tops out at about 0.16 for the two-graben-two-domain hypothesis).
+TRUTH_CUTOFF = 0.15
 POMCP_N_SIMS = 10000
 
 
@@ -206,7 +213,7 @@ def build_subproblem(
         initial_prior=belief.copy(),
         alpha_fp=ALPHA_FP, beta_fn=BETA_FN,
         drill_cost=DRILL_COST, discovery_value=DISCOVERY_VALUE,
-        wrong_commitment_penalty=0.0,
+        wrong_commitment_penalty=WRONG_COMMITMENT_PENALTY,
     )
 
 
@@ -333,6 +340,8 @@ def make_sarsop_policy(hset, policy_signal_cells):
         deposit_sets=policy_signal_cells,
         pomdpsol_path=POMDPSOL,
         top_k=DEFAULT_TOP_K,
+        cutoff=TRUTH_CUTOFF,
+        wrong_commitment_penalty=WRONG_COMMITMENT_PENALTY,
     )
 
     def choose():
@@ -376,6 +385,8 @@ def make_sarsop_pf_policy(hset, n_particles: int = 80, ess_refresh_steps: int = 
         top_k=DEFAULT_TOP_K,
         sensor_noise_sigma_for_pf=0.05,
         signal_cell_threshold=0.35,
+        cutoff=TRUTH_CUTOFF,
+        wrong_commitment_penalty=WRONG_COMMITMENT_PENALTY,
     )
     pf_rng_state = {"rng": np.random.default_rng(123)}
 
@@ -434,7 +445,9 @@ def run_benchmark():
     hset, _ = make_bcgt_synthetic_hypothesis_set(n_side=30)
 
     canonical_rng = np.random.default_rng(20260613)
-    policy_signal_cells = realize_deposit_sets(hset, canonical_rng)
+    policy_signal_cells = realize_deposit_sets(
+        hset, canonical_rng, cutoff=TRUTH_CUTOFF,
+    )
     print("policy's canonical signal-cell counts per hypothesis: "
           f"{[len(policy_signal_cells[i]) for i in policy_signal_cells]}")
 
@@ -469,7 +482,7 @@ def run_benchmark():
 
         truth_realization_rng = np.random.default_rng(80000 + episode_index)
         truth_deposit_set = sample_truth_deposit_set(
-            hset, truth_idx, truth_realization_rng,
+            hset, truth_idx, truth_realization_rng, cutoff=TRUTH_CUTOFF,
         )
 
         for name, factory in policy_factories.items():
@@ -622,11 +635,13 @@ def make_chart(summary, results, per_episode_truth):
     ax.grid(axis="y", alpha=0.3)
 
     fig.suptitle(
-        "D.1.C: BCGT-scale benchmark. 30x30 grid, 3 hypotheses "
-        "(NW deposit, SE deposit, null), per-episode truth realization, "
+        "D.1.C: BCGT-scale benchmark, porphyry-Cu economics regime. "
+        "30x30 grid, 3 hypotheses (NW deposit, SE deposit, null), "
+        "per-episode truth realization, "
+        f"cutoff={TRUTH_CUTOFF}, wrong-commit penalty={WRONG_COMMITMENT_PENALTY}, "
         f"top-K={DEFAULT_TOP_K} candidate cells per step, "
         f"POMCP={POMCP_N_SIMS} sims/step.",
-        fontsize=10,
+        fontsize=9,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.92))
 
