@@ -21,7 +21,13 @@ benchmark's methodology.
 Outputs:
     data/derived/bcgt/fig_v20_d1_k_sweep.png
     data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png
+    data/derived/bcgt/fig_v20_d1_regime_sweep.png
     data/derived/bcgt/fig_v20_d1_sensitivity.json
+
+Regime sweep covers (cutoff, wrong_commitment_penalty) on a 3x3 grid
+to verify that the porphyry-Cu economics regime is not parameter-
+cherrypicked: SARSOP's lead over greedy should persist across the
+neighborhood of the central (0.15, 30) cell.
 """
 
 from __future__ import annotations
@@ -45,18 +51,28 @@ from ai_minerals.decision.v20.bcgt_scale import (
 REPO = Path(__file__).resolve().parents[2]
 OUT_K_PNG = REPO / "data/derived/bcgt/fig_v20_d1_k_sweep.png"
 OUT_SIMS_PNG = REPO / "data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png"
+OUT_REGIME_PNG = REPO / "data/derived/bcgt/fig_v20_d1_regime_sweep.png"
 OUT_JSON = REPO / "data/derived/bcgt/fig_v20_d1_sensitivity.json"
 
 N_EPISODES_PER_CONDITION = 30
 DRILL_BUDGET = 9
 K_VALUES = [5, 10, 20, 50]
 POMCP_SIMS_VALUES = [200, 1000, 5000, 10000]
+REGIME_CUTOFF_VALUES = [0.12, 0.15, 0.18]
+REGIME_PENALTY_VALUES = [15.0, 30.0, 50.0]
 
 
-def setup_problem():
+def setup_problem(cutoff: float | None = None):
+    """Build the hypothesis set, canonical signal-cell map, and per-episode
+    truth assignment for the sensitivity sweeps. The cutoff defaults to
+    bench.TRUTH_CUTOFF so the legacy K/sims sweeps match the main
+    benchmark's regime; the regime sweep passes an explicit value per
+    condition."""
+    if cutoff is None:
+        cutoff = bench.TRUTH_CUTOFF
     hset, _ = make_bcgt_synthetic_hypothesis_set(n_side=30)
     policy_signal_cells = realize_deposit_sets(
-        hset, np.random.default_rng(20260613),
+        hset, np.random.default_rng(20260613), cutoff=cutoff,
     )
     truth_per_episode = np.random.default_rng(7777).choice(
         hset.n_hypotheses, size=N_EPISODES_PER_CONDITION,
@@ -149,6 +165,101 @@ def run_k_sweep(hset, policy_signal_cells, truth_per_episode):
                   for n in out[k]
               ]))
     return out, pomcp_sims
+
+
+def run_regime_sweep():
+    """3x3 sweep over (cutoff, wrong_commitment_penalty). For each cell,
+    rebuilds policy_signal_cells at the cell's cutoff, patches the
+    benchmark module's TRUTH_CUTOFF and WRONG_COMMITMENT_PENALTY so the
+    factories pick up the regime, then runs random / greedy / POMCP /
+    SARSOP (no PF variant, to keep wall-clock manageable). Per-cell
+    output is mean reward per policy.
+    """
+    out: dict[tuple[float, float], dict] = {}
+    saved_cutoff = bench.TRUTH_CUTOFF
+    saved_penalty = bench.WRONG_COMMITMENT_PENALTY
+    try:
+        for cutoff in REGIME_CUTOFF_VALUES:
+            for penalty in REGIME_PENALTY_VALUES:
+                t0 = time.perf_counter()
+                bench.TRUTH_CUTOFF = cutoff
+                bench.WRONG_COMMITMENT_PENALTY = penalty
+                hset, policy_signal_cells, truth_per_episode = setup_problem(
+                    cutoff=cutoff,
+                )
+                summary = run_policies_for_condition(
+                    hset, policy_signal_cells, truth_per_episode,
+                    top_k=20, pomcp_n_sims=1000,
+                )
+                elapsed = time.perf_counter() - t0
+                out[(cutoff, penalty)] = summary
+                print(f"cutoff={cutoff:.2f}, penalty={penalty:.0f}  "
+                      f"done in {elapsed:.1f} s: "
+                      + ", ".join([
+                          f"{n}={summary[n]['mean_reward']:+5.2f}"
+                          for n in summary
+                      ]))
+    finally:
+        bench.TRUTH_CUTOFF = saved_cutoff
+        bench.WRONG_COMMITMENT_PENALTY = saved_penalty
+    return out
+
+
+def chart_regime_sweep(regime_results: dict[tuple[float, float], dict]) -> None:
+    """Three heatmaps side-by-side: (a) SARSOP - greedy reward gap, (b)
+    SARSOP absolute reward, (c) greedy absolute reward. Positive gap
+    means SARSOP is winning in that (cutoff, penalty) cell."""
+    cutoffs = REGIME_CUTOFF_VALUES
+    penalties = REGIME_PENALTY_VALUES
+    n_c = len(cutoffs)
+    n_p = len(penalties)
+    gap = np.full((n_c, n_p), np.nan)
+    sarsop_mean = np.full((n_c, n_p), np.nan)
+    greedy_mean = np.full((n_c, n_p), np.nan)
+    for i, c in enumerate(cutoffs):
+        for j, p in enumerate(penalties):
+            r = regime_results[(c, p)]
+            gap[i, j] = r["sarsop_topK"]["mean_reward"] - r["greedy_MAP"]["mean_reward"]
+            sarsop_mean[i, j] = r["sarsop_topK"]["mean_reward"]
+            greedy_mean[i, j] = r["greedy_MAP"]["mean_reward"]
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+
+    def render(ax, matrix, title, cmap="RdBu_r", center_zero=False):
+        if center_zero:
+            vmax = float(np.nanmax(np.abs(matrix)))
+            vmin = -vmax
+        else:
+            vmin, vmax = None, None
+        im = ax.imshow(matrix, cmap=cmap, vmin=vmin, vmax=vmax, origin="lower")
+        ax.set_xticks(range(n_p))
+        ax.set_xticklabels([f"{p:.0f}" for p in penalties])
+        ax.set_yticks(range(n_c))
+        ax.set_yticklabels([f"{c:.2f}" for c in cutoffs])
+        ax.set_xlabel("Wrong-commit penalty")
+        ax.set_ylabel("Truth cutoff")
+        ax.set_title(title, fontsize=10)
+        for i in range(n_c):
+            for j in range(n_p):
+                ax.text(j, i, f"{matrix[i, j]:+.1f}",
+                        ha="center", va="center", fontsize=9,
+                        color="black")
+        fig.colorbar(im, ax=ax, fraction=0.046)
+
+    render(axes[0], gap, "SARSOP - Greedy reward gap\n(positive = SARSOP wins)",
+           cmap="RdBu_r", center_zero=True)
+    render(axes[1], sarsop_mean, "SARSOP mean reward", cmap="viridis")
+    render(axes[2], greedy_mean, "Greedy mean reward", cmap="viridis")
+
+    fig.suptitle(
+        "D.1 regime robustness: porphyry-Cu economics cell (0.15, 30) "
+        "and 8 neighbors. 30 episodes per cell, K=20, POMCP=1000 sims.",
+        fontsize=10,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    OUT_REGIME_PNG.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT_REGIME_PNG, dpi=140, bbox_inches="tight")
+    print(f"wrote {OUT_REGIME_PNG}")
 
 
 def run_pomcp_sims_sweep(hset, policy_signal_cells, truth_per_episode):
@@ -246,6 +357,10 @@ def main() -> int:
     )
     chart_pomcp_sims_sweep(sims_results, k_in_sims_sweep)
 
+    print("\nRegime robustness sweep (cutoff, penalty):")
+    regime_results = run_regime_sweep()
+    chart_regime_sweep(regime_results)
+
     output = {
         "k_sweep": {
             "pomcp_n_sims": pomcp_sims_in_k_sweep,
@@ -256,6 +371,16 @@ def main() -> int:
             "top_k": k_in_sims_sweep,
             "n_episodes": N_EPISODES_PER_CONDITION,
             "results": {str(s): sims_results[s] for s in POMCP_SIMS_VALUES},
+        },
+        "regime_sweep": {
+            "cutoff_values": REGIME_CUTOFF_VALUES,
+            "penalty_values": REGIME_PENALTY_VALUES,
+            "n_episodes": N_EPISODES_PER_CONDITION,
+            "results": {
+                f"{c}_{p}": regime_results[(c, p)]
+                for c in REGIME_CUTOFF_VALUES
+                for p in REGIME_PENALTY_VALUES
+            },
         },
     }
     with open(OUT_JSON, "w") as f:
