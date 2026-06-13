@@ -1,0 +1,92 @@
+{
+  "dbscan_eps_m": 12000.0,
+  "dbscan_min_samples": 2,
+  "n_cells_total": 47,
+  "n_clusters": 7,
+  "clusters": {
+    "Brucejack": {
+      "cluster_id": 0,
+      "center_row": 67,
+      "center_col": 199,
+      "center_x_m": 757250.0,
+      "center_y_m": 1261850.0,
+      "center_lat": 56.289067408541506,
+      "center_lon": -129.93071924503056,
+      "n_post2010_cuplus_cells": 5,
+      "n_post2010_cuplus_holes": 10,
+      "max_cu_ppm": 22100.0
+    },
+    "Brucejack_2": {
+      "cluster_id": 1,
+      "center_row": 104,
+      "center_col": 169,
+      "center_x_m": 742250.0,
+      "center_y_m": 1280250.0,
+      "center_lat": 56.4459785269926,
+      "center_lon": -130.19067460467855,
+      "n_post2010_cuplus_cells": 2,
+      "n_post2010_cuplus_holes": 2,
+      "max_cu_ppm": 7340.0
+    },
+    "KSM": {
+      "cluster_id": 2,
+      "center_row": 131,
+      "center_col": 101,
+      "center_x_m": 708367.6470588235,
+      "center_y_m": 1293720.5882352942,
+      "center_lat": 56.54728813785559,
+      "center_lon": -130.7546901604365,
+      "n_post2010_cuplus_cells": 17,
+      "n_post2010_cuplus_holes": 42,
+      "max_cu_ppm": 59700.0
+    },
+    "Snip": {
+      "cluster_id": 3,
+      "center_row": 198,
+      "center_col": 75,
+      "center_x_m": 695250.0,
+      "center_y_m": 1327500.0,
+      "center_lat": 56.84122929588069,
+      "center_lon": -131.00675067250344,
+      "n_post2010_cuplus_cells": 2,
+      "n_post2010_cuplus_holes": 6,
+      "max_cu_ppm": 25910.000000000004
+    },
+    "UnnamedCluster_lat56p9_lonneg130p7": {
+      "cluster_id": 4,
+      "center_row": 220,
+      "center_col": 119,
+      "center_x_m": 717416.6666666666,
+      "center_y_m": 1338083.3333333333,
+      "center_lat": 56.94942614330823,
+      "center_lon": -130.65507778535476,
+      "n_post2010_cuplus_cells": 3,
+      "n_post2010_cuplus_holes": 6,
+      "max_cu_ppm": 67500.0
+    },
+    "UnnamedCluster_lat57p2_lonneg130p5": {
+      "cluster_id": 5,
+      "center_row": 277,
+      "center_col": 141,
+      "center_x_m": 728250.0,
+      "center_y_m": 1366750.0,
+      "center_lat": 57.21216784738202,
+      "center_lon": -130.50713088851666,
+      "n_post2010_cuplus_cells": 3,
+      "n_post2010_cuplus_holes": 9,
+      "max_cu_ppm": 12450.000000000002
+    },
+    "Red_Chris": {
+      "cluster_id": 6,
+      "center_row": 406,
+      "center_col": 203,
+      "center_x_m": 759134.6153846154,
+      "center_y_m": 1431442.3076923077,
+      "center_lat": 57.80802792951816,
+      "center_lon": -130.05749769567876,
+      "n_post2010_cuplus_cells": 13,
+      "n_post2010_cuplus_holes": 61,
+      "max_cu_ppm": 128000.0
+    }
+  }
+}
