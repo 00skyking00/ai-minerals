@@ -308,16 +308,16 @@ class BcgtScaleSARSOPPolicy:
                 "(canonical-realization legacy path) or particle_filter "
                 "(C.3 hardening path) to derive per-(h, c) signal cells"
             )
-        self._belief = (
-            self.particle_filter.categorical_belief
-            if self.particle_filter is not None
-            else self.hypothesis_set.initial_prior()
-        )
+        # Initial belief is the hypothesis-set prior; the PF may not be
+        # initialized yet at construction time (callers should call reset()
+        # to seed particles).
+        self._belief = self.hypothesis_set.initial_prior()
         self._drilled = set()
 
     @property
     def belief(self) -> np.ndarray:
-        if self.particle_filter is not None:
+        if (self.particle_filter is not None
+                and self.particle_filter._categorical_belief is not None):
             return self.particle_filter.categorical_belief
         return self._belief.copy()
 

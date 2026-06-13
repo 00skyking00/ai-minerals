@@ -587,13 +587,14 @@ milestone, not the count of deposit-region cells drilled. Both
 planners (POMCP and SARSOP) operate on the same top-K=20 candidate
 set per step, with POMCP running 10,000 simulations per step.
 
-![D.1.C: BCGT-scale benchmark. Left: overall cumulative reward across the 60 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: fraction of episodes where the policy found the deposit within the 9-drill budget; the dashed line is the ceiling (the fraction of episodes that have a deposit to find at all).](./data/derived/bcgt/fig_v20_d1_benchmark.png)
+![D.1.C: BCGT-scale benchmark with the methodology hardening that the C.3 sub-milestone added. Left: overall cumulative reward across the 60 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: fraction of episodes where the policy found the deposit within the 9-drill budget; the dashed line is the ceiling (the fraction of episodes that have a deposit to find at all). The 5th policy `sarsop_pf_topK` is the methodology-hardening variant described after the chart.](./data/derived/bcgt/fig_v20_d1_benchmark.png)
 
 The reading, and a correction from an earlier draft of this
-chapter. All four policies tie within one standard error of the
+chapter. All five policies tie within one standard error of the
 mean (SEM, the give-or-take on the mean reward across episodes,
 computed as sample standard deviation divided by sqrt(N)):
-random +17.5, greedy +16.7, POMCP +16.6, SARSOP +16.1. The
+random +17.5, greedy +16.7, POMCP +16.3, SARSOP +16.1, and the
+methodology-hardened SARSOP-with-particle-filter +15.5. The
 SARSOP-wins-by-57-points narrative an earlier version of this page
 reported was an artifact of two methodology shortcuts I have since
 fixed. First, that version reused one canonical GP realization for
@@ -604,6 +605,44 @@ correctly identified the right region collected many +50 rewards per
 episode. Per-episode resampling and one-shot discovery together
 remove both artifacts. With those fixes, on this setup, planning and
 greedy come out the same.
+
+### Methodology hardening: replacing a canonical realization with a particle filter
+
+Even after per-episode resampling, the original D.1 setup still had a
+methodology shortcut that a careful reviewer would flag. The
+canonical-SARSOP policy uses a single pre-sampled GP realization per
+hypothesis to decide which cells are "signal cells" under each story.
+That sample tells the planner exactly where deposits would be under
+hypothesis A and where they would be under hypothesis B. In real
+exploration the planner never has that ground truth; it has a
+probability distribution over possible realizations.
+
+The C.3 sub-milestone replaces that shortcut with a proper particle
+filter over GP fields per hypothesis. Each hypothesis carries 80
+sampled fields. The categorical posterior over hypotheses updates
+analytically on each observation (using the prior-marginal Gaussian
+likelihood, which is what Mern's paper uses too). The per-hypothesis
+particles are refreshed by Elliptical Slice Sampling (Murray, Adams,
+MacKay, 2010 AISTATS) so each hypothesis's particle ensemble stays
+representative of its current posterior. When SARSOP needs to know
+which cells are signal cells under hypothesis A, the policy thresholds
+the empirical per-cell probability over A's particles at 35%; the
+binary signal-cell set goes into the SARSOP sub-POMDP as before.
+
+The fifth bar in the chart (purple, `sarsop_pf_topK`) is the policy
+that runs this way. It is the version of SARSOP at this scale that
+treats per-hypothesis uncertainty the way the literature expects it
+to be treated.
+
+The bottom line: the hardened policy lands at +15.5, indistinguishable
+from the four others within SEM. The new variant has lower
+truth-belief accuracy at episode end (0.58 vs the canonical SARSOP's
+0.82), which is the cost of not having the truth realization baked
+into the policy's signal-cell model. But the cumulative-reward
+ordering does not change: planning still does not beat greedy at this
+scale under one-shot discovery, even when the methodology is
+unimpeachable. The earlier "all four tie" finding holds; now there
+are five.
 
 SARSOP does still win on **belief-tracking accuracy**: the final
 posterior probability it assigns to the true hypothesis averages 0.82
@@ -699,14 +738,18 @@ splits.
 **D.1 (BCGT scale).** Two synthetic GP-correlated hypotheses
 (non-overlapping NW and SE blobs) plus null. Per-episode truth
 realization, one-shot discovery reward, top-K=20 candidate pruning.
-All four policies tie within SEM on immediate reward. SARSOP wins on
-belief-tracking accuracy (final posterior on truth: 0.82 vs greedy
-0.67). The earlier draft of this chapter reported SARSOP winning by
-57 points; that was an artifact of one canonical-realization and
-aggregate-reward shortcuts now removed. The straight finding is
-that the alpha-vector machinery scales (0.02 s solve per step at K=20),
-but the planning advantage at scale depends on problem structure
-that the synthetic priors do not produce.
+All five policies tie within SEM on immediate reward (including the
+C.3 methodology-hardened SARSOP-with-particle-filter variant that
+replaces the canonical-realization shortcut with a proper
+Elliptical-Slice-Sampling particle filter over GP fields per
+hypothesis). The earlier draft of this chapter reported SARSOP
+winning by 57 points; that was an artifact of one
+canonical-realization and aggregate-reward shortcuts now removed.
+The plain finding is that the alpha-vector machinery scales (0.02 s
+solve per step at K=20), but the planning advantage at scale depends
+on problem structure that the synthetic priors do not produce. The
+C.3 hardening confirms this: even with the methodology shortcut
+removed, the tie holds.
 
 The property-scale counterpart of this kind of decision-theoretic
 drill recommendation, a Gaussian process drill-site recommender on
