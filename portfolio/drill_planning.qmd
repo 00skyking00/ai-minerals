@@ -165,14 +165,25 @@ decision versus POMCP's 16, after a 0.4-second offline solve.
 To actually expose the planning advantage I rebuilt the experiment as
 a Tiger-style problem. Two hypotheses, A and B, each with a "claim"
 cell that pays +50 when right and -30 when wrong, and two "marker"
-cells that return an informative sensor reading but no reward. The
-claims are pure commit actions; the markers are pure information. A
-uniform prior, a 5-drill budget, and the same Bernoulli sensor noise
-as the earlier experiment. This is the case where the wiring earns
-its keep: greedy under uniform belief picks one of the claim cells
-immediately and pays the wrong-commitment penalty on half the
-episodes, while a smart planner spends one drill on the appropriate
-marker and commits only after the posterior concentrates.
+cells that return an informative sensor reading but no reward. A
+claim cell stands in for a drill target each competing geological
+model would recommend: Hypothesis A says "the ore is here," and
+claim A is the cell you would drill under that model. The
+wrong-commitment penalty represents what happens in real exploration
+when you burn a $1M hole on the wrong target while the actual
+deposit sits undrilled. A marker cell stands in for a piece of
+discriminating evidence the two models predict differently: a
+magnetic anomaly, a geochemical halo, a structural feature, a
+logging response. The two models disagree about where the deposit
+is, and they also disagree about what you would see at certain other
+cells. The claims are pure commit actions; the markers are pure
+information. A uniform prior, a 5-drill budget, and the same
+Bernoulli sensor noise as the earlier experiment. This is the case
+where the wiring earns its keep: greedy under uniform belief picks
+one of the claim cells immediately and pays the wrong-commitment
+penalty on half the episodes, while a smart planner spends one drill
+on the appropriate marker and commits only after the posterior
+concentrates.
 
 ![Three-panel comparison on the Tiger-style problem. Left: mean discounted reward with one-standard-error bars. Center: how often each policy drilled the wrong claim cell. Right: discovery rate (right claim eventually drilled within the budget). 200 episodes, gamma=0.95, sensor (alpha, beta) = (0.10, 0.10), wrong-commitment penalty 30.](./data/derived/bcgt/fig_v20_sarsop_marker_advantage.png)
 
@@ -196,6 +207,15 @@ reward. Press Play, then step backward or forward by drill. Greedy
 locks onto a claim cell and stays there because drilling a claim
 returns no information about which hypothesis is true. SARSOP picks
 the appropriate marker first, the belief swings, then it commits.
+You will see SARSOP sometimes drill the same marker twice before
+committing: a single positive reading at a marker still leaves a
+10% chance the sensor false-positived, and a second positive reading
+cuts that to about 1%. The solver decides the extra drill is worth
+it because it reduces the cost of a wrong commit on the next step.
+You will also see policies re-drill cells after they have already
+found the deposit: the toy problem fixes the budget at 5 drills
+without a "stop" action, so re-drilling a known-good cell is the
+least-bad use of leftover budget.
 
 {{< include _widget_v20_marker_animation.qmd >}}
 
