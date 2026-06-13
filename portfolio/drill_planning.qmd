@@ -188,6 +188,17 @@ problem with a high penalty for committing under uncertainty, that
 extra precision matters. The gap closes on harder problems where the
 offline solve becomes the bottleneck.
 
+The widget below plays one episode at a time so the mechanism is
+visible turn-by-turn. Each panel shows the same 4 cells (two claims,
+two markers), each policy's belief over Hypothesis A vs B as a
+colored bar, the cell currently being drilled, and the running
+reward. Press Play, then step backward or forward by drill. Greedy
+locks onto a claim cell and stays there because drilling a claim
+returns no information about which hypothesis is true. SARSOP picks
+the appropriate marker first, the belief swings, then it commits.
+
+{{< include _widget_v20_marker_animation.qmd >}}
+
 ## Why v1.0 tied
 
 The 2023 v1.0 paper used independent Bernoulli cells (no correlation
