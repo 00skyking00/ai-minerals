@@ -678,16 +678,25 @@ and finding a single deposit cell is the only payoff. The superior
 posterior would translate to better decisions in a longer campaign
 where the identified hypothesis informs follow-up drilling.
 
-Two sensitivity checks against the methodology choices:
+Three sensitivity checks against the methodology choices:
 
 ![D.1.C K-sweep. Mean discounted reward for the four policies as the top-K candidate set is varied across {5, 10, 20, 50}. 30 episodes per condition, POMCP at 1000 simulations per step, per-episode truth realization, one-shot discovery reward.](./data/derived/bcgt/fig_v20_d1_k_sweep.png)
 
 ![D.1.C POMCP-sims sweep. Mean discounted reward for POMCP across {200, 1000, 5000, 10000} simulations per step, at K=20. Random, greedy, and SARSOP shown as constant references (they don't depend on POMCP's simulation count).](./data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png)
 
-The reading on both. The K choice barely moves the needle, which
+![D.1.C regime robustness sweep. Three heatmaps over a 3x3 grid of (truth cutoff, wrong-commitment penalty) values around the porphyry-Cu base case: SARSOP minus greedy gap (left), SARSOP absolute reward (center), greedy absolute reward (right). 30 episodes per cell. The (cutoff=0.15, penalty=30) center cell is the base regime; the eight surrounding cells perturb each axis by one step.](./data/derived/bcgt/fig_v20_d1_regime_sweep.png)
+
+The reading on all three. The K choice barely moves the needle, which
 says the candidate pool is informative enough at small K. The POMCP
 simulation count plateaus by about 1000 sims and does not catch
-SARSOP at any tested value, but the gap is within SEM throughout
+SARSOP at any tested value, but the gap is within SEM throughout.
+The regime sweep is the most informative of the three. SARSOP beats
+greedy in 9 out of 9 (cutoff, penalty) cells by between +0.82 and
++2.11 points, averaging +1.49. The per-cell SEM is around 4.3 across
+30 episodes so no single cell is SEM-separated, but the consistent
+ordering across the whole grid says the small SARSOP advantage in
+this regime is not parameter-cherrypicked: it holds across a
+neighborhood of plausible porphyry-Cu economic assumptions
 (see [Findings](#findings) for the full caveat list).
 
 ### Why doesn't SARSOP win here when it won in the Tiger experiment?
