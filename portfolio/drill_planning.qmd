@@ -219,6 +219,76 @@ least-bad use of leftover budget.
 
 {{< include _widget_v20_marker_animation.qmd >}}
 
+## Scaling up to the BCGT grid
+
+The Tiger problem proved the machinery works on a 4-cell toy. The
+next question is whether the same approach scales onto the actual
+BCGT subarea: a 30 by 30 grid (15 km by 15 km at 500 m per cell),
+with the same GP kernel parameters the rest of the chapter uses
+(Matern v=2.5, sigma=0.1, l=1500 m). Directly handing SARSOP a 900-
+cell action space would not terminate in any reasonable time: the
+alpha-vector count grows fast with state and action dimensionality,
+and 900 actions are too many.
+
+The fix is belief-conditioned action pruning. At each drill step the
+planner computes the expected deposit probability per cell under its
+current categorical belief over hypotheses, picks the top K = 20
+un-drilled cells by that expectation, compresses those cells into a
+small POMDP (K actions, N hypothesis states, binary observations),
+and solves it with SARSOP. The candidate set changes every step as
+the belief updates; the offline solve runs each step on the new
+subproblem. On the 30 by 30 setup with 3 hypotheses, that subproblem
+solves in 0.02 seconds. A full 9-drill episode costs under a second
+of planning time.
+
+To probe the scale-up I built two synthetic GP-correlated hypotheses
+on the BCGT grid plus the null. H_NW places a Gaussian deposit
+anomaly in the northwest quadrant; H_SE places one in the southeast
+quadrant. Both share the same kernel parameters; only the prior mean
+fields differ.
+
+![D.1.A: the three priors on the BCGT subarea, plus the expected deposit probability under a uniform belief over the three hypotheses. Red markers show the top 20 candidate cells SARSOP would consider first under the uniform belief: they split between the two blob centers, because the planner has no reason yet to favor either hypothesis.](./data/derived/bcgt/fig_v20_d1_priors_setup.png)
+
+The benchmark runs 30 episodes with truth drawn uniformly from
+{H_NW, H_SE, H_null}, a 9-drill budget, gamma = 0.95, and the same
+Bernoulli sensor noise as the earlier experiments. Both planners
+(POMCP and SARSOP) operate on the same top-K=20 candidate set per
+step, so the comparison isolates decision quality rather than
+candidate-pool composition.
+
+![D.1.C: BCGT-scale benchmark. Left: overall cumulative reward across the 30 episodes, one-standard-error bars. Center: reward broken down by ground truth (H_NW, H_SE, H_null). Right: posterior weight on the true hypothesis at the end of each episode.](./data/derived/bcgt/fig_v20_d1_benchmark.png)
+
+The reading. Overall, SARSOP averages +189, POMCP +181, greedy +132,
+and random +99. The 57-point gap between SARSOP and greedy lives
+entirely in the middle panel's H_SE column. Under H_NW truth (10
+episodes) greedy ties SARSOP at +361, because greedy's
+uniform-prior-tiebreaking happens to send it to NW candidate cells,
+which are exactly where the deposit lives. Under H_SE truth (7
+episodes) greedy collapses to +61: it still commits to NW first,
+spends 3-4 drills there getting negative readings without updating
+the belief much (each negative is small evidence), and runs out of
+budget before reaching the SE blob. SARSOP and POMCP belief-update
+fast enough that one or two informative negatives are sufficient to
+switch their next pick to the SE candidate set; they recover to
++307 and +330 respectively. Under H_null truth (13 episodes) every
+policy loses the same 7-point floor: nine drills' worth of
+discounted cost without ever finding a deposit, because no deposit
+exists.
+
+Per-step planning latency at this scale: SARSOP 9.7 ms, POMCP 18.5
+ms. SARSOP runs about twice as fast as POMCP because the alpha-
+vector policy compiles to a dot product against the belief, while
+POMCP runs 200 simulations per step. Greedy is 0.2 ms.
+
+One caveat to read this fairly: the synthetic priors I built have
+well-separated blobs (no overlap between H_NW and H_SE deposit
+cells), which is the easy case for any planner that can
+disambiguate hypotheses. Real BCGS deposit-type-split priors will
+overlap heavily, because an alteration halo can sit inside two
+competing geological model domains at once. The next extension
+swaps the synthetic priors for real ones derived from the dh2loop
+deposit-type labels and re-runs the same comparison.
+
 ## Why v1.0 tied
 
 The 2023 v1.0 paper used independent Bernoulli cells (no correlation
@@ -232,15 +302,14 @@ published a year later, adding correlation and a noisy sensor.
 
 ## Next steps
 
-The Mern 2024 port is now feature-complete through C.2. The natural
-extension is scale: run SARSOP on a full BCGT-sized grid rather than
-the 5 by 5 demo, which requires belief-conditioned action pruning
-(top-K candidate cells per step) so the action space stays tractable
-for the offline solve. A second extension is replacing the
-demonstration-scale corner-deposit hypotheses with real BCGS deposit-
-type splits, which depends on the dh2loop deposit-type labels
-already covered in Chapter 2. The deeper notebook carries the
-roadmap.
+The Mern 2024 port is now feature-complete through C.2 and validated
+at BCGT scale with synthetic priors. The one remaining piece is
+swapping the synthetic NW-blob-vs-SE-blob hypotheses for real BCGS
+deposit-type splits derived from the dh2loop labels covered in
+Chapter 2. Real deposit-type priors will overlap heavily across
+hypotheses (an alteration halo can sit inside two competing model
+domains at once), which is the harder test the synthetic priors do
+not pose. The deeper notebook carries the implementation roadmap.
 
 ## Deeper notebooks
 
