@@ -204,6 +204,118 @@ class SyntheticMonteCarloSimulator:
             }
         return agg
 
+    def run_multihypothesis(
+        self,
+        rng: np.random.Generator,
+        truth_hypothesis_set,
+        n_episodes_per_truth: int | None = None,
+    ) -> list[SimulationEpisode]:
+        """Multi-hypothesis truth-sampling variant.
+
+        Generates ground truth from one of several hypotheses each
+        episode. This reproduces Mern 2024's paper-faithful setup:
+        truth is sampled uniformly across {H_1_1, H_1_2, H_2_1, H_2_2}
+        and a realization is drawn from whichever hypothesis was
+        selected.
+
+        The policies still see the simulator's ``problem_template``
+        hypothesis as their planning prior. The asymmetry between
+        what the planner believes (single hypothesis) and what the
+        world actually is (one of N hypotheses chosen per episode) is
+        a feature of this benchmark, not a bug; it tests how well a
+        single-hypothesis policy holds up against a structurally
+        diverse truth distribution. Multi-hypothesis policies that
+        observe the full ``truth_hypothesis_set`` belong in a
+        different benchmark stack.
+
+        Parameters
+        ----------
+        rng : np.random.Generator
+            Master RNG controlling truth-hypothesis selection AND
+            per-episode noise.
+        truth_hypothesis_set : HypothesisSet
+            The 4-hypothesis set (and optional null) the truth is
+            sampled from. The null hypothesis is skipped during
+            truth sampling because the simulator's
+            CorrelatedDrillingProblem assumes a finite ``true_grade``
+            field; null-truth episodes can be modeled by passing a
+            HypothesisSet built with include_null=False or by a
+            separate code path.
+        n_episodes_per_truth : int or None
+            When set, runs exactly this many episodes per paper
+            hypothesis (so total episodes is n_paper_hypotheses * this).
+            When None, uses ``self.n_ground_truths`` total episodes
+            with truth distributed uniformly at random.
+
+        Returns
+        -------
+        list[SimulationEpisode]
+            One per episode. The ``realization_seed`` field encodes
+            the truth hypothesis index in its low byte for
+            traceability (see ``_episode_truth_metadata``).
+        """
+        paper_hs = truth_hypothesis_set.hypotheses
+        if len(paper_hs) == 0:
+            raise ValueError(
+                "truth_hypothesis_set must contain at least one paper hypothesis"
+            )
+        if n_episodes_per_truth is not None:
+            truth_indices = np.repeat(
+                np.arange(len(paper_hs)), n_episodes_per_truth,
+            )
+            total = len(truth_indices)
+        else:
+            total = self.n_ground_truths
+            truth_indices = rng.integers(0, len(paper_hs), size=total)
+        episode_seeds = rng.integers(0, 2**31 - 1, size=total)
+
+        episodes: list[SimulationEpisode] = []
+        for ep_idx, (seed, truth_idx) in enumerate(zip(
+            episode_seeds, truth_indices,
+        )):
+            truth_hypothesis = paper_hs[int(truth_idx)]
+            ep_rng = np.random.default_rng(int(seed))
+            true_grade = truth_hypothesis.sample_realization(
+                ep_rng, n_samples=1,
+            )[0]
+            problem = CorrelatedDrillingProblem(
+                hypothesis=self.problem_template.hypothesis,
+                x_m=self.problem_template.x_m,
+                y_m=self.problem_template.y_m,
+                true_grade=true_grade,
+                sensor_model=self.problem_template.sensor_model,
+                sensor_noise_sigma=self.problem_template.sensor_noise_sigma,
+                sensor_alpha=self.problem_template.sensor_alpha,
+                sensor_beta=self.problem_template.sensor_beta,
+                drill_cost=self.problem_template.drill_cost,
+                discovery_value=self.problem_template.discovery_value,
+                cutoff_grade=self.problem_template.cutoff_grade,
+            )
+            trajectories: dict[str, list[int]] = {}
+            observations_d: dict[str, list[float]] = {}
+            discovery_rates: dict[str, float] = {}
+            regrets: dict[str, float] = {}
+            for name, policy in self.policies.items():
+                policy_rng = np.random.default_rng(
+                    int(seed) + hash(name) % (2**31 - 1)
+                )
+                traj, obs, dr, regret = self._run_episode_for_policy(
+                    policy, problem, policy_rng,
+                )
+                trajectories[name] = traj
+                observations_d[name] = obs
+                discovery_rates[name] = dr
+                regrets[name] = regret
+            episodes.append(SimulationEpisode(
+                realization_seed=int(seed),
+                true_grade_field=true_grade.copy(),
+                policy_trajectories=trajectories,
+                policy_observations=observations_d,
+                policy_discovery_rates=discovery_rates,
+                policy_regrets=regrets,
+            ))
+        return episodes
+
 
 CAPTURE_KS = (1, 5, 10, 25)   # percent of cells to evaluate at
 CAPTURE_NS = (10, 25, 50, 100, 250, 500)  # absolute drill counts to evaluate at
