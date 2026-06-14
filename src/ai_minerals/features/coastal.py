@@ -49,18 +49,30 @@ from ai_minerals.grid import Grid
 _FT_PER_M = 1.0 / 0.3048
 
 #: Documented Nome paleo-shoreline stand elevations (feet above modern sea
-#: level). Source: "Geological Dynamics of Nome Coastal Placer Gold Deposits"
-#: in ``research/``; values are stand midpoints where the literature gives
-#: a range.
+#: level). Sources: "Geological Dynamics of Nome Coastal Placer Gold Deposits"
+#: in ``research/`` for the named-beach stands (Submarine through Fourth);
+#: Metcalfe and Tuck 1942 (``research/nome_tuck_1942_prepass_findings.md``)
+#: for the three higher un-named stands at +200 / +300 / +600 ft, evidenced
+#: by Anvil Creek Left Limit Channels, the bench cut in limestone at
+#: Anvil Creek's left limit, the Newton Creek gravel ridge terrace, the
+#: Sledge Island (604 ft) and Cape Nome (620 ft) flat tops, and the
+#: Dexter Creek head high-gravel deposits at ~ +600 ft. The +600 ft stand
+#: is the documented setting for the Dexter Divide high-gravel deposits
+#: (Tuck Localities F / G / H) which are the architectural analog for the
+#: Molasses (MS 1179) and Honey (MS 1181) buried multi-bench claims.
+#: Values are stand midpoints where the literature gives a range.
 STAND_ELEVATIONS_FT: dict[str, float] = {
-    "submarine_deep":  -70.0,   # Pliocene marine, -70 ft
-    "submarine_inner": -35.0,   # Beringian Transgression inner wave-bench
-    "submarine_outer": -20.0,   # Beringian Transgression outer wave-bench
-    "intermediate":    +20.0,   # Yarmouth Interglacial intermediate
-    "second":          +37.5,   # Sangamon Interglacial Second Beach, midpoint of 35-40 ft
-    "monroeville":     +40.0,   # Yarmouth Monroeville
-    "third":           +74.5,   # Yarmouth Third Beach, midpoint of 70-79 ft (high-grade exemplar)
-    "fourth":         +122.5,   # Aftonian Fourth Beach, midpoint of 120-125 ft
+    "submarine_deep":  -70.0,    # Pliocene marine, -70 ft
+    "submarine_inner": -35.0,    # Beringian Transgression inner wave-bench
+    "submarine_outer": -20.0,    # Beringian Transgression outer wave-bench
+    "intermediate":    +20.0,    # Yarmouth Interglacial intermediate
+    "second":          +37.5,    # Sangamon Interglacial Second Beach (35-40 ft midpoint)
+    "monroeville":     +40.0,    # Yarmouth Monroeville
+    "third":           +74.5,    # Yarmouth Third Beach (70-79 ft midpoint; high-grade exemplar)
+    "fourth":         +122.5,    # Aftonian Fourth Beach (120-125 ft midpoint)
+    "tuck_high_200":  +200.0,    # Tuck 1942: sea rise to at least +200 ft inferred from Anvil Creek Left Limit Channels
+    "tuck_high_300":  +300.0,    # Tuck 1942: Anvil Creek left-limit limestone bench; Newton Creek gravel ridge terrace
+    "tuck_high_600":  +600.0,    # Tuck 1942: Sledge Island top (604), Cape Nome top (620), Dexter Divide high-gravel (Molasses / Honey setting)
 }
 
 
