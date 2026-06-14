@@ -5,10 +5,51 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Dates are when work landed on `main`; the live site usually goes out
 the same day.
 
-## 2026-06-14 — Portfolio polish, Iteration 4 (in progress)
+## 2026-06-14 — Portfolio polish, Iterations 4-11
 
-`regional.qmd` polish. See in-flight notes at
-`/tmp/portfolio_polish_review.html` while the iteration is open.
+Light-asides pass across the remaining ai-minerals chapters,
+two sibling-repo HANDOFFs, and one stale-notebook cleanup.
+
+- **Iteration 4 (`regional.qmd`).** Heading renamed to
+  "Regional mineral-prospectivity pipelines." Inline definitions
+  for USGS, NRCan, ARDF, MRDS, NGDB, RGS, MINFILE, CRS, CONUS,
+  Cox-Singer, AUC, out-of-fold scoring, KS / Mann-Whitney tests,
+  SHAP, PU learning, RBF interpolator. Magnetic-field derivatives
+  (1VD, HGM, analytic signal, tilt) spelled out.
+- **Iteration 5 (`reproductions.qmd`).** Inline definitions for
+  MVT, H3, AUC, GBM, REE, Pang 2019 deviation network,
+  leave-one-out cross-validation. Audit-table prose now gives the
+  plain-language reason each spatial-block scheme leaks.
+  Methodology checklist item 1 expands 0-D / 1-D / 2-D / LOO into
+  operational descriptions.
+- **Iteration 6 (`cross_region.qmd`).** Inline definitions for
+  REE, DevNet, top-1% capture, ILR, PCA, GLCM, MVT, MPM.
+  Scorecard table footnotes now define leave-one-out and
+  spatial-block out-of-fold in plain language.
+- **Iteration 7 (`placer.qmd`).** Light-asides pass on the chapter
+  with the heaviest jargon load (12 figures, 6.6k words). New
+  "Reading the metric names" primer at the end of Setup defines
+  AUC, AUC-PA, PR-AUC, OOF, SHAP for standalone readers. Inline
+  definitions for REM, GMI/geomorphon, TPI, Hawkes catchment, NURE,
+  MRDS, CGS PTYPE, ECE, ksn, spi_band, NHD HR, PU learning,
+  isotonic calibration.
+- **Iteration 8 (`drill_planning.qmd`).** Banned-word fixes:
+  "more honest particle filter" replaced with "methodologically
+  tighter particle filter"; "regime robustness sweep" replaced
+  with "regime-sensitivity sweep" ("robust" and morphological
+  variants are banned in user-facing prose). Inline definitions
+  for BCGT, BCGS, DBSCAN, MCTS on first use. New Terminology
+  entry for particle filter (PF) covering the C.3 methodology
+  hardening.
+- **Iterations 9 + 10 (sibling repo HANDOFFs).** Bear Cub
+  (`~/src/learning/bearcub/`) and goldbug (`~/src/learning/gldbg/`)
+  each get a HANDOFF note (`handoff/outbox/2026-06-14-*.md`) with
+  the per-chapter jargon list and voice-rule reminders. Each repo
+  manages its own beta+prod deploy. Acks expected back in
+  `handoff/inbox/`.
+- **Iteration 11.** Removed `portfolio/notebooks/motherlode/data_exploration_v3p1.qmd`
+  (superseded by `v3p1_improvements.qmd`; already excluded from the
+  public render).
 
 ## 2026-06-13 — Portfolio polish, Iterations 1-3
 
