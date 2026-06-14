@@ -10,16 +10,19 @@ sidebar: cross_region
 
 DEEP-SEAM (Luo et al. 2026, *Geosci. Model Dev.*) reported a 2-3×
 top-k capture advantage over Random Forest on a Curnamona Province
-REE dataset with seven known deposits. The natural follow-up
-question: does that advantage transfer? To other deposit types? To
-other REE provinces?
+rare-earth-element (REE) dataset with seven known deposits. The
+natural follow-up question: does that advantage transfer? To other
+deposit types? To other REE provinces?
 
 This chapter answers both. I ran the same DEEP-SEAM architecture on
 five independent regions covering four deposit types and two
-continents. The deviation-network architecture wins on exactly one:
+continents. The deviation-network architecture (or DevNet, the
+neural-network family DEEP-SEAM is built on) wins on exactly one:
 its tuning dataset. Classical tree-based methods (Random Forest or
 gradient boosting) win on the other four by 7 to 37 percentage
-points of top-1% capture.
+points of top-1% capture (the fraction of held-out positives the
+model places in the top 1% of cells, which is the standard score
+mining geologists use when ranking exploration targets).
 
 ![Top-1% capture rate by region: tree-based methods (green) win four of five regions; DEEP-SEAM (red) wins only its tuning dataset.](./data/derived/portfolio_charts/cross_region_top1.png)
 
@@ -28,16 +31,19 @@ points of top-1% capture.
 ::: {.striped-table}
 | Region | Commodity | Positives | RF/GBM top-1% | DevNet top-1% | Winner |
 |---|---|---|---|---|---|
-| Curnamona REE (LOO, original tuning data) | REE | 7 | 0% | **43%** | DevNet (matches publication) |
-| **US Western Carbonatite Belt (LOO)** | **REE carbonatite** | **14** | **85.7%** | **71.4%** | **RF** |
-| Tanacross porphyry-Cu (OOF) | Cu-Mo | 45 | **22.2%** | 13.3% | RF |
-| Arizona porphyry-Cu (OOF) | Cu | 191 | **23.0%** | 8.9% | RF |
-| Lawley continental MVT (2-D blocked OOF) | Zn-Pb | 2,027 | **28.4%** | 0.0% | GBM |
+| Curnamona REE (leave-one-out, original tuning data) | REE | 7 | 0% | **43%** | DevNet (matches publication) |
+| **US Western Carbonatite Belt (leave-one-out)** | **REE carbonatite** | **14** | **85.7%** | **71.4%** | **RF** |
+| Tanacross porphyry-Cu (spatial-block out-of-fold) | Cu-Mo | 45 | **22.2%** | 13.3% | RF |
+| Arizona porphyry-Cu (spatial-block out-of-fold) | Cu | 191 | **23.0%** | 8.9% | RF |
+| Lawley continental MVT (2-D blocked out-of-fold) | Zn-Pb | 2,027 | **28.4%** | 0.0% | GBM |
 :::
 
 The numbers are out-of-fold capture rates: fraction of held-out
 positive cells in the top 1% of cells the model ranks most
-prospective.
+prospective. "Leave-one-out" means hold one positive at a time and
+train on the rest; "spatial-block out-of-fold" means hold out
+spatially contiguous tiles so the model can't memorize from a
+neighboring cell.
 
 ## Findings
 
@@ -56,13 +62,19 @@ pushes positive cells far above a Gaussian-distributed reference
 distribution. The assumption is that positive cells are
 feature-space *anomalies*: points that look different from the
 bulk of the data. That assumption fits Curnamona because the
-published preprocessing pipeline (isometric log-ratio plus PCA on
-geochem, GLCM textural features on geophysics) compresses the data
-into something approximately Gaussian with the seven deposits
-sitting in the tails.
+published preprocessing pipeline (isometric log-ratio plus
+principal-component analysis on geochemistry, gray-level co-
+occurrence matrix textural features on geophysics) compresses the
+data into something approximately Gaussian with the seven deposits
+sitting in the tails. Isometric log-ratio is the standard
+transformation for compositional data (element percentages that
+sum to a fixed total); the gray-level co-occurrence matrix captures
+textural patterns by counting how often adjacent pixels take each
+pair of values.
 
-It does not fit regional MPM on standard public-data feature
-stacks. Lawley's MVT cube encodes prospectivity through
+It does not fit regional mineral-prospectivity mapping on standard
+public-data feature stacks. Lawley's Mississippi Valley Type
+(sediment-hosted Pb-Zn) cube encodes prospectivity through
 proximity-to-feature columns (distance to black shale, distance to
 passive margin, distance to fault) and presence-flag dictionaries
 (sedimentary host, igneous host). A prospective cell *fits the
@@ -73,21 +85,22 @@ RF can learn the recipe via multivariate conditional splits;
 DevNet can't.
 
 This is also strictly consistent with the
-[Chapter 4 audits](reproductions.qmd): the published Curnamona 86%
-top-2% capture is measured under 0-D spatial blocking (no spatial
-isolation at all). When the same architecture is evaluated under
-any form of spatial isolation (LOO on a different REE province,
-OOF on porphyry-Cu, 2-D blocked OOF on continental MVT), the
-advantage disappears.
+[Chapter 5 audits](reproductions.qmd): the published Curnamona 86%
+top-2% capture is measured under a non-spatial train/test split (no
+spatial isolation at all). When the same architecture is evaluated
+under any form of spatial isolation (leave-one-out on a different
+REE province, spatial-block out-of-fold on porphyry-Cu, 2-D blocked
+out-of-fold on continental MVT), the advantage disappears.
 
 ## Implications for the field
 
 The deep-anomaly-detection architectures (DEEP-SEAM, DevNet,
 related deviation-loss methods) are being proposed in the recent
-MPM literature as the next step beyond classical tree-based machine
-learning. The five-region experiment says, concretely, that they
-are not yet ready as a drop-in replacement for Random Forest or
-gradient boosting on standard regional prospectivity workflows.
+mineral-prospectivity-mapping literature as the next step beyond
+classical tree-based machine learning. The five-region experiment
+says, concretely, that they are not yet ready as a drop-in
+replacement for Random Forest or gradient boosting on standard
+regional prospectivity workflows.
 They have a specific niche (small-positive datasets with heavy
 upstream feature decomposition that genuinely shapes the data into
 anomaly form), and outside that niche they lose by a wide margin.
