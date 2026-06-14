@@ -49,15 +49,30 @@ cells immediately adjacent to a positive inherit the same feature
 values, and the model learns that neighborhood. The leak-free
 Tertiary AUC sits in the 0.85 to 0.97 range. Second, the v3.7.0
 Quaternary retrain (the [v3.7.0 section](#v3.7.0-mother-lode-wide-quaternary-retrain)
-below) broadened training labels from MRDS to USMIN and expanded
-geography from the northern Sierra to the full Mother Lode. The
-stacked out-of-fold ROC-AUC dropped from v3.6's 0.832 to v3.7.0's
-0.802 (a 3-pp regression on a harder problem); the PR-AUC
-improved from 0.004 to 0.071 (a 17x precision gain on the
-high-confidence cells). The Mariposa held-out gate against MRDS
-fails because four USMIN records is not enough to teach the
+below) broadened training labels from the MRDS database to USMIN
+and expanded geography from the northern Sierra to the full
+Mother Lode. The stacked out-of-fold ROC-AUC dropped from v3.6's
+0.832 to v3.7.0's 0.802 (a 3-pp regression on a harder problem);
+the PR-AUC improved from 0.004 to 0.071 (a 17x precision gain on
+the high-confidence cells). The Mariposa held-out gate against
+MRDS fails because four USMIN records is not enough to teach the
 model southern-Mariposa Quaternary signal; v3.7.0.1 will patch
 Mariposa with MRDS supplements and is queued.
+
+**Reading the metric names.** AUC is area under the receiver-
+operating-characteristic curve, the standard ranking-quality score
+where 1.0 is perfect and 0.5 is random. AUC-PA (area under the
+success-rate / prediction-area curve) is the same idea adapted to
+mineral prospectivity, asking what fraction of held-out positives
+the model captures as a function of how much of the AOI you select
+at the highest scores. PR-AUC (area under the precision-recall
+curve) up-weights performance on the high-confidence cells, which
+is what a per-claim ranking tool actually consumes. OOF (out-of-
+fold) means each cell is scored by a model that did not train on
+its block, so the score is leak-free. SHAP (SHapley Additive
+exPlanations) attributes each prediction back to its input
+features, useful for spotting when the model is leaning on a
+proxy for the answer instead of a real geological signal.
 
 ## What got built
 
@@ -66,11 +81,17 @@ to the northern Sierra at 250 m grid resolution and added Sierra-specific
 features for deep-gravel geometry (hillside benches above modern drainage,
 not channel bottoms). Eleven features combine into a p1/p99-clipped
 min-max-normalized weighted sum: `distance_to_lode_m`,
-`paleochannel_likelihood` (a composite of NHDPlus HR REM, local relief, and
-geomorphon GMI), `hydraulic_pit_proximity_m`, `tertiary_terrace_likelihood`
-(TPI-high ∧ slope-low ∧ not-Qa geometric mean), `catchment_au_hawkes` (Hawkes
-1976 dual-decay catchment aggregation of NGDB + NURE stream-sediment Au), and
-six others. Seven historic hydraulic-mining districts (Malakoff Diggins,
+`paleochannel_likelihood` (a composite of relative elevation model (REM, the
+height of each cell above its nearest channel) computed from NHDPlus HR
+flowlines, local relief, and the geomorphon (GMI) classifier that labels
+each cell by terrain shape: ridge, valley, slope, etc.),
+`hydraulic_pit_proximity_m`, `tertiary_terrace_likelihood` (TPI-high ∧
+slope-low ∧ not-Qa geometric mean, where TPI = topographic position
+index, the height of a cell relative to its neighborhood),
+`catchment_au_hawkes` (Hawkes 1976 dual-decay catchment aggregation that
+sums upstream stream-sediment gold values with a distance-and-time decay,
+applied to NGDB + the USGS National Uranium Resource Evaluation NURE
+stream-sediment geochemistry archive), and six others. Seven historic hydraulic-mining districts (Malakoff Diggins,
 North San Juan, Dutch Flat, You Bet, Forest Hill, Iowa Hill, Michigan Bluff)
 define the validation gate: each must land in the top decile of the score,
 and none appears in the training label set. The Phase 1 model gets 7 of 7. A
@@ -81,15 +102,20 @@ of 13 in the top quintile at median decile 0.
 **Phase 2 supervised, per population.** I trained one classifier stack per
 geomorphic placer population. Three base learners run under 20 km
 spatial-block cross-validation with per-fold Hawkes catchment-geochem
-recompute: Random Forest, LightGBM, XGBoost. A logistic-regression
-meta-learner combines the spatial-block out-of-fold predictions. Isotonic
-calibration via `CalibratedClassifierCV` produces the final probability
-scale. The two populations train on disjoint feature stacks (17 features for
-Tertiary, 22 for Quaternary) and fuse per-cell via `np.maximum` into the
-deliverable raster. Quaternary uses the Kiryo et al. 2017 non-negative PU
+recompute: Random Forest, LightGBM, XGBoost (three different tree-ensemble
+implementations whose errors are decorrelated enough to combine usefully).
+A logistic-regression meta-learner combines the spatial-block out-of-fold
+predictions. Isotonic calibration via `CalibratedClassifierCV` produces the
+final probability scale (calibration means a 0.8 raster value really
+corresponds to an 80% positive rate in the data, which a raw classifier
+score does not). The two populations train on disjoint feature stacks (17
+features for Tertiary, 22 for Quaternary) and fuse per-cell via
+`np.maximum` into the deliverable raster. Quaternary uses positive-
+unlabeled learning since "negatives" are just cells where no placer record
+has been published yet; specifically the Kiryo et al. 2017 non-negative PU
 loss (`nnPU`) instead of the Mordelet-Vert PU bagging the Tertiary side
-uses, because the 0.054% Quaternary positive rate sits inside nnPU's design
-range. Anchor districts and Lindgren secondary cells are masked out of
+uses, because the 0.054% Quaternary positive rate sits inside nnPU's
+design range. Anchor districts and Lindgren secondary cells are masked out of
 training (label-side and pseudo-negative-side) so the validation gates stay
 real held-out tests.
 
@@ -101,8 +127,9 @@ so the model cannot trivially identify positives by zero-distance lookup.
 Distance-to-lode and distance-to-fault features switched from v2's hard 30
 km caps to Gaussian falloffs (σ = 12 km and 3 km, respectively), so
 districts like Forest Hill at 12 km from the nearest mapped lode source get
-a non-zero score instead of v2's hard zero. MRDS placer records
-reclassified per CGS 2010 PTYPE plus 500 m pit-proximity: 136 records that
+a non-zero score instead of v2's hard zero. Placer records from the USGS Mineral Resources Data System (MRDS, a national
+point-occurrence database) reclassified per the California Geological Survey
+2010 PTYPE (deposit-type) field plus 500 m pit-proximity: 136 records that
 v2 assigned to Quaternary moved to Tertiary because they sit on Tertiary
 auriferous-gravel mapped units within pit-proximity range. Final v3 positive
 counts: 292 Tertiary cells and 437 Quaternary cells across an 805,294-cell
@@ -115,8 +142,10 @@ calibrated raster (median decile 1), all 500 m de-duped from any training
 pit. v2 put 8 of those 13 in the zero bin. Anchor districts hit 7 of 7 in
 the top decile of the v3 raster, with capture@1% of 71.4% (5 of 7 anchors in
 the top 1% of cells, enrichment 71x) and capture@5% of 85.7%. Calibration
-ECE measured pre-isotonic at 0.0002 and post-isotonic at 0.0002; the input
-stack arrives well-calibrated and isotonic doesn't have room to move it.
+ECE (expected calibration error, the average distance between predicted
+probability and observed positive rate) measured pre-isotonic at 0.0002
+and post-isotonic at 0.0002; the input stack arrives well-calibrated and
+isotonic doesn't have room to move it.
 
 ![The v3 Tertiary calibrated probability raster, displayed as percentile rank across the AOI because the calibrated probability has a long zero tail that linear color stretching would wash out. Cyan outlines are the 158 Orlando 2016 hydraulic-mine pit polygons that supplied the training labels. Red dots mark the seven anchor districts, none of which appear in the training labels; all seven land in the top decile. The hot zone traces the Mother Lode trend through the western half of the AOI; the eastern half toward the Sierra crest is mostly zero-probability black.](data/derived/northern_sierra_placer/v3_calibrated_tertiary_map.png)
 
@@ -141,7 +170,9 @@ average 50-500 cells at 250 m, with broad geomorphic signatures
 model can learn directly. Quaternary placer targets are MRDS placer
 records (point occurrences with median 555 m positional offset per a
 v3.5 recon) sitting in modern stream channels 10-50 m wide. The features
-that should encode the Quaternary physics (`spi_band`, `ksn`,
+that should encode the Quaternary physics (`spi_band` is a bandpass of
+the stream power index, the rate at which a stream is doing erosion work;
+`ksn` is the normalized channel steepness, a standard knickpoint indicator;
 `distance_downstream_from_lode_m`, `paleochannel_likelihood`) are
 computed from a 250 m DEM that smears them across the channel + gravel
 bar + valley wall. SHAP on the Quaternary fullfit confirms the model
@@ -311,10 +342,11 @@ better catalogued in the original MRDS compilation than the
 southern stream-placer ground.
 
 v3.7.0 swaps the Quaternary label source and broadens the
-training geography. The label source change is from MRDS to USMIN,
-the USGS Mineral Resources Mine Inventory. USMIN traces historic
-USGS topographic-map symbols for placer mines, gravel pits, sand
-pits, diggings, and tailings into a point dataset. Sub-cell
+training geography. The label source change is from MRDS to USMIN
+(the USGS Mineral Resources Mine Inventory, distinct from MRDS).
+USMIN traces historic USGS topographic-map symbols for placer
+mines, gravel pits, sand pits, diggings, and tailings into a
+point dataset. Sub-cell
 positional accuracy at named anchors: the surveyor in 1924 knew
 where the pit was when they drew the symbol, so the median offset
 against a modern plat overlay is 0 m for named records. MRDS, by
@@ -328,7 +360,8 @@ The kernel change converts each USMIN point into a multi-cell
 weighted positive via an anisotropic 2D Gaussian centered on the
 point, with along-channel σ = 1500 m (Singer and Menzie 2010 USGS
 Bulletin 1693 placer-run length scale) and cross-channel σ = 250 m,
-oriented along the nearest stream-order-≥-3 NHD HR reach. Cells
+oriented along the nearest stream-order-≥-3 reach in the National
+Hydrography Dataset (NHD) high-resolution flowline layer. Cells
 inside the kernel footprint take weighted positive labels capped
 at 1.0 via per-cell max aggregation over overlapping kernels. The
 436 AOI-clipped USMIN placer/gravel records turn into 8,333 binary
