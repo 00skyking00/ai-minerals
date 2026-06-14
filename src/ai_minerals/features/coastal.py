@@ -56,10 +56,12 @@ _FT_PER_M = 1.0 / 0.3048
 #: by Anvil Creek Left Limit Channels, the bench cut in limestone at
 #: Anvil Creek's left limit, the Newton Creek gravel ridge terrace, the
 #: Sledge Island (604 ft) and Cape Nome (620 ft) flat tops, and the
-#: Dexter Creek head high-gravel deposits at ~ +600 ft. The +600 ft stand
-#: is the documented setting for the Dexter Divide high-gravel deposits
-#: (Tuck Localities F / G / H) which are the architectural analog for the
-#: Molasses (MS 1179) and Honey (MS 1181) buried multi-bench claims.
+#: high bench gravel at the head of Dexter Creek at ~ +600 ft. The +600 ft
+#: stand is the documented setting for the Dexter Creek head high-gravel
+#: deposits (Tuck Localities F / G / H, separately from the Dexter Creek
+#: channel deposits Tuck discusses on p.146); this is the architectural
+#: analog for the Molasses (MS 1179) and Honey (MS 1181) buried multi-
+#: bench claims at the head of Dexter Creek.
 #: Values are stand midpoints where the literature gives a range.
 STAND_ELEVATIONS_FT: dict[str, float] = {
     "submarine_deep":  -70.0,    # Pliocene marine, -70 ft
@@ -72,7 +74,7 @@ STAND_ELEVATIONS_FT: dict[str, float] = {
     "fourth":         +122.5,    # Aftonian Fourth Beach (120-125 ft midpoint)
     "tuck_high_200":  +200.0,    # Tuck 1942: sea rise to at least +200 ft inferred from Anvil Creek Left Limit Channels
     "tuck_high_300":  +300.0,    # Tuck 1942: Anvil Creek left-limit limestone bench; Newton Creek gravel ridge terrace
-    "tuck_high_600":  +600.0,    # Tuck 1942: Sledge Island top (604), Cape Nome top (620), Dexter Divide high-gravel (Molasses / Honey setting)
+    "tuck_high_600":  +600.0,    # Tuck 1942: Sledge Island top (604), Cape Nome top (620), high bench gravel at head of Dexter Creek (Molasses / Honey setting)
 }
 
 
