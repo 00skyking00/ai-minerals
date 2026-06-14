@@ -66,16 +66,19 @@ The OCR-cleaned records will export to [dh2loop](https://gmd.copernicus.org/arti
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [2. Regional MPM pipelines](regional.qmd)
+### [2. Regional mineral-prospectivity pipelines](regional.qmd)
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
-porphyry-Cu), I built the same kind of pipeline: pull public USGS,
-NRCan, and state-survey data onto a common grid, train a Random
-Forest, and hold out spatial blocks during validation so the model
-can't cheat by memorizing neighbors. The chapter walks through each
-region's data, the model output, and which features it leaned on
-most.
+porphyry-Cu), I built the same kind of pipeline: pull public data
+from the US Geological Survey, Natural Resources Canada, and state
+surveys onto a common grid, train a Random Forest (a tree-ensemble
+classifier that votes across hundreds of decision trees), and hold
+out spatial blocks during validation so the model can't cheat by
+memorizing neighbors. The two porphyry-Cu regions (Tanacross and
+Arizona) both land at roughly 22 to 23 percent top-1% capture on
+their held-out positives, the same regime despite a continent
+between them.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Tanacross (eastern Alaska) porphyry-Cu prospectivity, random forest output](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
@@ -90,14 +93,15 @@ The Mother Lode model from Chapter 2 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
 closes that gap. It takes the per-cell probabilities and filters
 them to federal land that's actually open for an individual
-prospector to file a notice of location on. The hard part isn't
-the modeling. It's that BLM publishes the relevant data across
-roughly a dozen different endpoints with inconsistent schemas,
-and several of the obvious filters are subtly wrong. The chapter
-has the live map embedded plus a writeup of what the tool does,
-how the open-land calculation is built, and what it still doesn't
-catch (historic mineral patents, split estate, placer-specific
-modeling).
+prospector to stake a claim on (the 1872 Mining Law calls this
+filing a notice of location). The hard part isn't the modeling.
+It's that the Bureau of Land Management publishes the relevant
+data across roughly a dozen different endpoints with inconsistent
+schemas, and several of the obvious filters are subtly wrong. The
+chapter has the live map embedded plus a writeup of what the tool
+does, how the open-land calculation is built, and what it still
+doesn't catch (historic mineral patents, split estate, placer-
+specific modeling).
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![goldbug live map: topo basemap, federal gap parcels (yellow), active mining claims (red), with a parcel popup showing the score breakdown and the layer-toggle panel on the right](data/derived/portfolio_charts/thumbs/ch3_goldbug.png)](https://johnsondevco.com/goldbug/goldbug.html)
@@ -108,25 +112,18 @@ modeling).
 ::: {.g-col-12 .g-col-md-9}
 ### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
-Placer prospectivity modeling sits about a decade behind lode in
-the published literature. The only production-grade transferable
-model is the USGS Alaska watershed scorer. I ported it to the
-California Mother Lode at 250 m, then layered a supervised pass
-(PU bagging + Random Forest + LightGBM + stacking + isotonic
-calibration) on top, run as two classifiers because Tertiary
-deep-gravel and Quaternary modern-channel placer have different
-geomorphic signatures. The v3.6 Tertiary stack reaches OOF AUC
-0.993 with 7 to 15 percentage points of polygon-rasterization
-inflation (leak-free range 0.85 to 0.97); Quaternary at AUC-PA
-0.840 is the read on transferability. The v3.7.0 retrain
-broadened Quaternary from the northern Sierra to the full Mother
-Lode by swapping MRDS for USMIN plus a channel-aligned kernel
-along NHD; ROC drops 3 pp, PR-AUC climbs 17x, and southern
-districts get 8 to 13 times more probability mass per cell.
-One per-county MRDS-held-out gate (Mariposa, 4 USMIN records)
-fails and is queued for a v3.7.0.1 augmentation patch. The
-calibrated raster feeds the goldbug live tool for per-claim
-sampling.
+Placer modeling (hunting for gold loose in streambeds and old
+gravel beds, rather than locked in solid rock) sits about a decade
+behind lode prospectivity in the published literature. I built a
+two-population model over the California Mother Lode at 250 m grid
+spacing, training Tertiary deep-gravel and Quaternary modern-channel
+placer separately because they leave different geomorphic
+signatures. The latest expansion extended the Quaternary classifier
+from the northern Sierra to the full Mother Lode by adding a
+channel-aligned kernel along the National Hydrography Dataset
+flowlines; previously near-zero southern districts now get 8 to 13
+times more probability mass per cell. The calibrated raster feeds
+the goldbug live tool for per-claim sampling.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![v3.6 vs v3.7.0 Quaternary placer-Au prospectivity, percentile rank against the AOI. Left: v3.6, MRDS-derived labels concentrated north of 39°N. Right: v3.7.0, USMIN + channel-aligned kernel across the full Mother Lode.](data/derived/portfolio_charts/thumbs/ch4_placer.png)](placer.qmd)
@@ -139,18 +136,20 @@ sampling.
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
-(continental Zn-Pb, published AUC 0.983) reproduces cleanly, but the
-published number includes a label leak (2.4 pp), a 1-D vs 2-D
-spatial-blocking gap (9.0 pp), and a cross-continent transfer
-collapse (~16 pp). Properly validated, the AUC drops to 0.71-0.87.
-The published code also had a performance problem: a critical piece
-used an O(N²) algorithm that didn't finish after half an hour. I
-rewrote it as O(N) and got the runtime down to a few minutes.
-**DEEP-SEAM** (Curnamona REE, published 86% top-2% capture) is
-measured under a 0-D random split with no spatial blocking at all,
-and the implementation diverges from the paper text in two places. I
-tried to find a charitable read of each and report what I actually
-saw.
+(continental Zn-Pb, published area-under-the-ROC-curve of 0.983, a
+standard model-quality score where 1.0 is perfect ranking and 0.5
+is random) reproduces cleanly, but the published number includes a
+label leak (2.4 percentage points), a spatial-blocking gap (9.0 pp),
+and a cross-continent transfer collapse (around 16 pp). Properly
+validated, the AUC drops to 0.71 to 0.87. The published code also
+had a performance problem: a critical piece used an O(N²) algorithm
+that did not finish after half an hour; I rewrote it as O(N) and
+got the runtime down to a few minutes. **DEEP-SEAM** (Curnamona
+rare-earth-element deposit, published 86% top-2% capture) is
+measured under a non-spatial random train/test split (no spatial
+blocking at all), and the implementation diverges from the paper
+text in two places. I tried to find a charitable read of each and
+report what I actually saw.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Waterfall chart of Lawley 2022 AUC stages](data/derived/portfolio_charts/thumbs/ch5_reproductions.png)](reproductions.qmd)
@@ -162,15 +161,16 @@ saw.
 ### [6. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
-deviation-network architecture. The 2-3× advantage over Random
-Forest that the paper reports holds on its tuning dataset (Curnamona
-REE, 7 positives) and nowhere else. The most pointed test was on the
-US Western Carbonatite REE Belt (14 positives, the same deposit
-type as Curnamona): DEEP-SEAM still loses to Random Forest. On the
-other three regions (Tanacross porphyry-Cu, Arizona porphyry-Cu,
-Lawley continental MVT under 2-D blocked CV), the gap widens to 7-37
-percentage points in favor of tree-based methods. Useful negative
-result.
+deviation-network architecture (a deep-learning approach that the
+paper reports beats Random Forest by 2 to 3 times on top-k capture).
+The advantage holds on its tuning dataset (Curnamona, Australia, a
+rare-earth deposit with only 7 known positives) and nowhere else.
+The most pointed test was on the US Western Carbonatite belt (14
+positives, the same deposit type as Curnamona): DEEP-SEAM still
+loses to Random Forest. On three other regions covering porphyry-Cu
+and sediment-hosted Zn-Pb under spatially-blocked cross-validation,
+the gap widens to 7 to 37 percentage points in favor of tree-based
+methods. Useful negative result.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![DEEP-SEAM vs Random Forest across 5 regions](data/derived/portfolio_charts/thumbs/ch6_cross_region.png)](cross_region.qmd)
@@ -181,31 +181,27 @@ result.
 ::: {.g-col-12 .g-col-md-9}
 ### [7. Drill planning under uncertainty](drill_planning.qmd)
 
-A prospectivity map by itself doesn't tell you where to put the next
-drill hole. I built a POMDP planner (POMDP being "partially
-observable Markov decision process", the math framework for
-sequential decisions under uncertain world state) ported from Mern
-et al.'s Intelligent Prospector (GMD 2023 and arXiv 2024). The
-chapter ports the v1.0 single-hypothesis machinery and the v2.0
-extensions: GP-correlated priors, noisy Bernoulli sensors, multi-
-hypothesis belief with a null-hypothesis falsification check, and
-SARSOP, a pre-computed alpha-vector solver. On the synthetic v2.0
-stress test POMCP finds the deposit in 94% of episodes vs greedy's
-53%. On the real-data check at the BCGT Golden Triangle the BCGS
-pre-2010 prior alone captured 86% of post-2010 copper hits in its
-top 25%, and the planner did not improve on it (the planner is only
-as good as the prior). On a small Tiger-style multi-hypothesis toy
-where greedy gets fooled, SARSOP cuts the wrong-commitment rate from
-56% to 2%. Scaled up to the full 30 by 30 BCGT grid with belief-
-conditioned top-K candidate pruning, the SARSOP wiring solves in
-0.02 s per step, but on synthetic priors with non-overlapping
-deposit blobs and a one-shot discovery reward, all four policies
-tie within standard error of the mean on immediate reward. SARSOP
-wins on belief-tracking accuracy (final posterior on the truth: 0.82
-vs greedy 0.67). The chapter explains why and what structure real
-BCGT exploration would need for the Tiger advantage to transfer at
-scale. An interactive step-through widget at the chapter end lets
-you watch each policy play the Tiger toy turn by turn.
+A prospectivity map by itself does not tell you where to put the
+next drill hole. I built a POMDP planner (Partially Observable
+Markov Decision Process, the math framework for sequential
+decisions when the true state of the world is hidden behind noisy
+observations) ported from Mern et al.'s Intelligent Prospector
+(2023 + 2024) and tested it against simpler baselines. On a
+synthetic stress test POMCP finds the deposit in 94% of episodes
+within a 9-hole budget; the greedy baseline gets there in 53%. On
+the real BC Golden Triangle data a leak-free starting prior already
+captures 86% of post-2010 copper hits in its top quarter, so the
+planner cannot improve on a good prior; the planning advantage
+shows up against weak priors, not strong ones. Scaled up to the
+full BCGT grid with real BCGS deposit-type priors, four policies
+tie within experimental noise on immediate reward, but SARSOP ends
+each episode about seven points more confident in the true
+geological hypothesis than greedy does (0.71 vs 0.64). The chapter
+walks through where multi-step planning helps, where it does not,
+and what real BCGT exploration would need to look like for the
+planning advantage to transfer at scale. An interactive widget at
+the end lets you step a small four-cell Tiger-style problem turn
+by turn.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![POMCP discovery curves on BC Golden Triangle](data/derived/portfolio_charts/thumbs/ch7_drill_planning.png)](drill_planning.qmd)
@@ -221,19 +217,23 @@ Federal and state surveys publish a lot of mineral data: occurrence
 records, geologic maps, magnetics and gravity, stream-sediment
 geochemistry, satellite imagery. I pull these onto a common grid and
 each cell of land becomes a feature vector. I train a Random Forest
-to recognize cells with known deposits, holding out spatial blocks
-so the model can't cheat by memorizing neighbors. The output is a
-per-cell score across the region: the model's guess at where the
-unknown deposits are.
+(an ensemble of decision trees that vote together; well-studied,
+fast to fit, hard to beat on tabular geoscience data) to recognize
+cells with known deposits, holding out spatial blocks so the model
+can't cheat by memorizing neighbors. The output is a per-cell score
+across the region: the model's guess at where the unknown deposits
+are.
 
 The part I've spent the most time on isn't the training, it's the
 validation afterward. The methodology has four well-known traps:
 inflated training positives, spatial leakage, exploration bias in
 the labels, and cross-region transfer failure. All four show up in
 this portfolio. Chapter 5 is the most explicit about quantifying
-them, showing how much of two published AUC numbers each trap
-accounts for. The same issues are flagged in the within-region work
-where I noticed them, and I'm sure I missed some.
+them, showing how much of two published AUC numbers (area under the
+receiver-operating-characteristic curve, a standard model-quality
+score for ranked predictions) each trap accounts for. The same
+issues are flagged in the within-region work where I noticed them,
+and I'm sure I missed some.
 
 ## Stack
 
