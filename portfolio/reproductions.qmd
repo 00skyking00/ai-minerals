@@ -27,23 +27,29 @@ number came from.
 
 **Paper.** Lawley et al. 2022 (*Ore Geology Reviews* 141, 104635)
 trained a gradient-boosted-trees model to predict sediment-hosted
-lead-zinc mineralization across the US, Canada, and Australia on a
-5.16-million-hexagon Uber H3 data cube. Reported AUC: **0.983**.
+lead-zinc mineralization (the Mississippi Valley Type or MVT family,
+where Pb-Zn ore precipitates in carbonate host rocks) across the US,
+Canada, and Australia on a 5.16-million-hexagon Uber H3 data cube
+(H3 is Uber's open-source hierarchical hex grid, increasingly used
+for continental-scale geoscience). Reported area-under-the-ROC-curve
+on the held-out test fold: **0.983** (where 1.0 is perfect ranking
+and 0.5 is random).
 
 **Reproduction.** I cloned SRI International's public
 re-implementation
 ([DARPA-CRITICALMAAS/sri-ta3-baselines](https://github.com/DARPA-CRITICALMAAS/sri-ta3-baselines),
 MIT license) and ran the `H3_MVT_GBM_preferred` configuration
-end-to-end on a 32 GB laptop. Test AUC on the held-out fold:
-**0.9965**. Reproduces the published number within 0.014.
+end-to-end on a 32 GB laptop (GBM is gradient-boosted machines, the
+model class). Test AUC on the held-out fold: **0.9965**. Reproduces
+the published number within 0.014.
 
 **Audit.** Three sources of optimism, each measured:
 
 | Source | AUC loss |
 |---|---|
-| Label leak: `Training_MVT_Occurrence` is in the feature set and arithmetically defines half the target | 2.4 pp |
-| 1-D latitude-band CV doesn't isolate cells across longitude (2-D quantile-block CV vs 1-D) | 9.0 pp |
-| Within-continent vs cross-continent transfer (US/Canada → Australia, the conservative direction) | ~16 pp |
+| Label leak: `Training_MVT_Occurrence` is in the feature set and arithmetically defines half the target (a label leak: an input feature derived from the answer the model is being asked to predict) | 2.4 pp |
+| 1-D latitude-band cross-validation does not isolate cells across longitude (folds drawn as horizontal bands instead of lat-lon blocks, so a model trained on the top of a band can still memorize the bottom) | 9.0 pp |
+| Within-continent vs cross-continent transfer (train on US/Canada, test on Australia, the conservative direction) | ~16 pp |
 
 After all three corrections the AUC range under proper validation
 is **0.71 to 0.87**, not 0.983. The 0.87 number under 2-D spatial
@@ -74,14 +80,19 @@ the CSV-to-parquet load went from hours of swap-bound thrashing to
 **Paper.** Luo et al. 2026 (*Geoscientific Model Development*
 19:2593) introduced DEEP-SEAM, a semi-supervised
 deep-anomaly-detection architecture (deviation network from Pang et
-al. 2019, plus heavy upstream feature engineering) for mineral
-prospectivity. Reported top-2% capture on the Curnamona REE dataset
-(7 known deposits across 870 feature cells): **86%**, with the
-deviation network beating Random Forest by a 2-3× factor.
+al. 2019, a neural-network family that learns to flag outliers by
+comparing each sample's score to a reference distribution; the
+DEEP-SEAM paper bolts heavy upstream feature engineering on top) for
+mineral prospectivity. Reported top-2% capture on the Curnamona REE
+(rare-earth-element) dataset (7 known deposits across 870 feature
+cells): **86%**, with the deviation network beating Random Forest
+by a 2-3× factor.
 
 **Reproduction.** I re-implemented the deviation network in PyTorch
 from the paper alone (Pang 2019 plus Luo 2026), without consulting
-the authors' code. Under leave-one-out training on the seven
+the authors' code. Under leave-one-out training (hold one positive
+out at a time, train on the rest, see whether the held-out positive
+ranks high in the model's score over all cells) on the seven
 positives, the re-implemented model places three of seven held-out
 positives in the top 1% of cells and matches the published top-30%
 number. Curnamona top-1% capture: 43%, vs Random Forest's 0%. The
@@ -104,8 +115,11 @@ Both audits surfaced findings via the same questions. Worth
 applying to any future MPM reproduction:
 
 1. **What spatial-block scheme does the published evaluation use?**
-   0-D (random), 1-D (latitude band), 2-D (lat-lon block), region
-   transfer, or LOO. Each level up tightens the leakage. Lawley
+   0-D (purely random train/test split, no spatial structure), 1-D
+   (latitude band: folds are horizontal strips), 2-D (lat-lon block:
+   folds are 2D tiles), region transfer (train on one continent,
+   test on another), or leave-one-out (hold one positive at a time
+   from a small dataset). Each level up tightens the leakage. Lawley
    uses 1-D; DEEP-SEAM uses 0-D.
 2. **Are the input features computed in a way that can be evaluated
    separately from the target?** Lawley's `Training_MVT_Occurrence`
