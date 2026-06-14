@@ -553,3 +553,83 @@ def make_mern_2x2_hypothesis_set(
         null=null,
         include_null=include_null,
     )
+
+
+def make_bcgt_deposit_type_hypothesis_set(
+    features_path: str | None = None,
+    n_side: int = 30,
+    spacing_m: float = 500.0,
+    include_null: bool = True,
+    gp_marginal_std: float = KERNEL_MARGINAL_STD,
+    gp_lengthscale_m: float = KERNEL_LENGTHSCALE_M_BCGT,
+) -> tuple[HypothesisSet, np.ndarray]:
+    """Build a 4-hypothesis BCGT prior set from real BCGS deposit-type labels.
+
+    Each hypothesis carries a prior mean field aggregated from the
+    BCGT 500 m feature parquet over one of four deposit classes
+    (porphyry, skarn, epithermal, VMS). The four surfaces share the
+    same (0, 0)-anchored ``n_side x n_side`` coordinate grid, matching
+    the D.1 synthetic setup so the SARSOP / particle-filter / greedy
+    stack does not need to know the priors came from real data.
+
+    Parameters
+    ----------
+    features_path : str or None
+        Path to the BCGT 500 m feature parquet. When None, falls back
+        to ``data/derived/features_bcgt_500m.parquet`` relative to the
+        repository root.
+    n_side : int, default 30
+        Side length of the output grid. Default 30 matches D.1.
+    spacing_m : float, default 500
+        Cell spacing in meters.
+    include_null : bool, default True
+        Append a NullHypothesis with the same GP marginal std.
+    gp_marginal_std : float
+        GP marginal standard deviation, default KERNEL_MARGINAL_STD.
+    gp_lengthscale_m : float
+        GP correlation length, default KERNEL_LENGTHSCALE_M_BCGT.
+
+    Returns
+    -------
+    hypothesis_set : HypothesisSet
+        Four real-prior hypotheses (porphyry, skarn, epithermal, VMS)
+        plus the null when ``include_null=True``.
+    coords : np.ndarray
+        (n_side ** 2, 2) cell coordinates in meters.
+    """
+    from ai_minerals.decision.v20.real_priors import (
+        bcgs_deposit_type_prior_surfaces,
+    )
+
+    if features_path is None:
+        from pathlib import Path
+        repo_root = Path(__file__).resolve().parents[4]
+        features_path = str(
+            repo_root / "data/derived/features_bcgt_500m.parquet"
+        )
+
+    surfaces, coords = bcgs_deposit_type_prior_surfaces(
+        features_path=features_path,
+        n_side=n_side,
+        spacing_m=spacing_m,
+    )
+
+    hypotheses: list[Hypothesis] = []
+    for type_name in ("porphyry", "skarn", "epithermal", "vms"):
+        surf = surfaces[type_name]
+        centered = surf - float(surf.mean())
+        hypotheses.append(Hypothesis(
+            name=f"H_{type_name}",
+            n_grabens=1, n_domains=1,
+            cell_coords_m=coords,
+            prior_mean_field=centered.astype(np.float64),
+            gp_marginal_std=gp_marginal_std,
+            gp_lengthscale_m=gp_lengthscale_m,
+        ))
+
+    null = NullHypothesis(marginal_std=gp_marginal_std) if include_null else None
+    return HypothesisSet(
+        hypotheses=tuple(hypotheses),
+        null=null,
+        include_null=include_null,
+    ), coords

@@ -699,6 +699,24 @@ this regime is not parameter-cherrypicked: it holds across a
 neighborhood of plausible porphyry-Cu economic assumptions
 (see [Findings](#findings) for the full caveat list).
 
+A careful reader will notice that the regime-sweep center cell
+(cutoff=0.15, penalty=30) reports a +0.82 point SARSOP-greedy gap,
+while the main D.1 benchmark above at the same regime reports +0.6
+points for canonical SARSOP and the particle-filter variant lands at
+roughly tied with greedy. The two numbers come from different
+configurations of the same experiment. The regime sweep runs the
+canonical-realization SARSOP at K=10 over 30 episodes; the main
+benchmark runs both the canonical and the particle-filter SARSOP at
+K=20 over 100 episodes. The K=20 to K=10 change shifts SARSOP down
+roughly half a point (visible in the K-sweep chart at K=10 vs K=20).
+The particle filter shifts it down another third of a point. Add the
+two methodology hardenings together and the +1-2 point ordering from
+the canonical regime sweep narrows to the within-SEM result in the
+main benchmark. The hardening costs roughly one reward point at
+BCGT scale; the ordering remains in SARSOP's favor across the regime
+neighborhood but the cost erases the gap's SEM separation at 100
+episodes.
+
 ### Why doesn't SARSOP win here when it won in the Tiger experiment?
 
 The Tiger problem had two specific ingredients that the BCGT
@@ -721,9 +739,93 @@ A future extension would re-introduce the Tiger structure at scale:
 each hypothesis has a small "claim region" (drilling cells outside
 the truth's claim region under truth=h gives a penalty), plus
 explicit marker cells. Whether that structure exists in real BCGT
-exploration is a domain question I will take on in D.1.D, where the
-hypothesis set is replaced with real BCGS deposit-type splits from
-the dh2loop labels covered in Chapter 2.
+exploration is a domain question; the section below replaces the
+synthetic blobs with real BCGS deposit-type splits and asks the same
+question on real priors.
+
+### Real BCGS deposit-type priors
+
+D.1.A through D.1.C used synthetic priors: a Gaussian blob in the
+northwest quadrant and another in the southeast, plus a flat-zero
+null. That was a clean setup for measuring policy mechanics but a
+weak test of whether the multi-hypothesis machinery does anything
+useful when the hypotheses come from real geology.
+
+D.1.D replaces the synthetic blobs with four real-prior surfaces
+aggregated from the BCGS MINFILE deposit-type cell labels. Each of
+the four BCGT deposit classes (porphyry-Cu, Cu-skarn, epithermal
+Au-Ag, and volcanogenic massive sulphide) becomes one hypothesis.
+The MINFILE per-cell binary labels on the BCGT 460-by-270 native
+500 m grid are aggregated by block-average onto the same 30-by-30
+target grid the D.1 SARSOP stack uses, Gaussian-smoothed at
+sigma=1.5 cells, and renormalized so each surface peaks at 0.4
+(matching the B.2 informative-prior convention). The null hypothesis
+remains as before. The factory is at
+[`src/ai_minerals/decision/v20/real_priors.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/decision/v20/real_priors.py).
+
+![D.1.D priors setup. Per-cell prior mean field for each of the four BCGT deposit-class hypotheses (porphyry, skarn, epithermal, VMS), plus the expected-deposit-per-cell map under a uniform belief with the top-20 candidate cells flagged in red. All four hypotheses share the same (0, 0)-anchored 30-by-30 coordinate grid; absolute geographic position is dropped because the GP kernel only sees pairwise distances.](./data/derived/bcgt/fig_v20_d1d_priors_setup.png)
+
+The pairwise correlation across the four prior surfaces:
+
+| | porphyry | skarn | epithermal | VMS |
+|---|---:|---:|---:|---:|
+| **porphyry** | 1.00 | 0.35 | 0.39 | 0.26 |
+| **skarn** | 0.35 | 1.00 | -0.04 | 0.17 |
+| **epithermal** | 0.39 | -0.04 | 1.00 | 0.70 |
+| **VMS** | 0.26 | 0.17 | 0.70 | 1.00 |
+
+Porphyry/skarn/epithermal/VMS are mostly distinct from each other
+(r between 0.17 and 0.39) with one exception: epithermal and VMS
+correlate at 0.70. Geologically that is reasonable. The major VMS
+occurrence in BCGT is Eskay Creek; the epithermal Au-Ag deposits
+include Brucejack and Snip. All three sit in the Stikine Terrane
+arc belt, so the spatial footprint of MINFILE points labeled VMS
+overlaps heavily with the footprint of points labeled epithermal.
+The chapter does not try to engineer the overlap away. The 0.70
+correlation IS the data, and the question becomes whether the
+falsification machinery can still distinguish them with enough
+drills.
+
+![D.1.D falsification on real priors. Categorical posterior over the five real-prior hypotheses (porphyry, skarn, epithermal, VMS, null) across 25 random drills under three ground-truth scenarios: truth=porphyry (left), truth=epithermal (center), truth=null (right). Falsification trigger fires when at least one hypothesis falls below the 0.5-likelihood floor AND null becomes the argmax.](./data/derived/bcgt/fig_v20_c2_real_falsification.png)
+
+Three findings from the falsification chart.
+
+**Truth = porphyry.** The posterior on H_porphyry climbs from the
+uniform 0.20 starting point to 1.00 within roughly 10 random drills.
+Porphyry has the most spatially extensive prior surface (562 out of
+900 cells with non-trivial mean), so random drills hit signal cells
+frequently and the categorical update concentrates fast. The
+falsification flag stays off because all hypotheses retain non-zero
+likelihood under at least some observations.
+
+**Truth = null.** The falsification flag fires at drill 8, exactly
+the design intent. The posterior on the null hypothesis rises to
+0.78 by drill 25, with skarn lingering at 0.20 because the few
+spurious positive signals from sensor noise happen to land in
+skarn-like spots.
+
+**Truth = epithermal.** This is the test the prior correlation
+matrix predicted. The posterior cannot decide between H_epithermal,
+H_skarn, and the null. Final posterior: skarn 0.46, null 0.38,
+epithermal 0.11. Falsification does not fire because the null does
+not become argmax, but the planner is also not confident the truth
+is epithermal. Two factors drive this: epithermal has only 70 of
+900 cells with non-trivial prior mean (the sparsest of the four
+real priors), and random drilling rarely lands on enough of them
+inside the budget to overcome the 5% sensor noise. The interpretation
+is that the falsification machinery does what it was designed to do
+(it does not lock onto a wrong answer when the evidence is weak) but
+it correctly does not pretend to discriminate when the prior is
+sparse and the drilling is uninformed. A planner that targets the
+spatially-distinctive cells under each hypothesis, instead of
+drilling randomly, would do better here. That is the question D.1.D's
+benchmark addresses.
+
+::: {.callout-note appearance="simple"}
+D.1.D benchmark chart and per-truth breakdown to follow once the
+60-episode run completes. The chapter prose above will be updated in
+place with the same chart-then-finding pattern as D.1.C.
+:::
 
 ## Findings
 
