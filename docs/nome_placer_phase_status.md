@@ -124,7 +124,7 @@ data/tuck1942_bedrock_contours.py
 - District drill-planner: deferred to Phase 3 (bearcub greenlit
   this in 2026-06-14 reply).
 - Bear Cub BC: documented partial (BC = 0.249, top quintile not top
-  decile). Honest signal from the product structure.
+  decile). Direct signal from the product structure.
 - Tuck map georeferencing: rough-affine v1 (~+/-200-500 m error)
   using 4 visually estimated GCPs. Survey-grade georeferencing
   queued for Phase 1.5.
