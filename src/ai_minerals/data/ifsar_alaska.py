@@ -2,8 +2,8 @@
 
 USGS National Map distributes Alaska elevation under several products. The
 2010-onwards Interferometric Synthetic Aperture Radar (IfSAR) collections
-feed the 1 and 1/3 arc-second seamless layers where coverage is flown; the
-rest of Alaska falls back to the 2 arc-second (~60 m) seamless layer.
+feed the 1 and 1/3 arc-second statewide layers where coverage is flown; the
+rest of Alaska falls back to the 2 arc-second (~60 m) statewide layer.
 
 At Nome (64.5 deg N), 1/3 arc-second is ~10 m in latitude and ~4.5 m in
 longitude. The Seward Peninsula has IfSAR coverage; the 1/3 arc-second
@@ -18,12 +18,12 @@ Same path the CONUS 10 m fetcher uses; only the AOI selects Alaska tiles.
 The 5 m IfSAR DTM is published at the per-project, per-cell level under
 `OPR/Projects/AK_IFSAR_*` and `OPR/Projects/AK_TyphoonMerbok_*` (the 2022
 Norton Sound storm recollect, which covers Nome). That higher resolution
-is a future enhancement; this fetcher targets the 1/3 arc-second seamless
+is a future enhancement; this fetcher targets the 1/3 arc-second statewide
 mosaic which is enough for the v1 25 m model grid.
 
 Output: a single mosaicked GeoTIFF at
 `data/raw/ifsar_alaska/ifsar_5m_nome_placer.tif` (named for the eventual
-5 m upgrade target; v1 content is the 10 m IfSAR-derived seamless layer)
+5 m upgrade target; v1 content is the 10 m IfSAR-derived statewide layer)
 plus a sidecar `*_meta.json` recording the actual resolution and the
 tile manifest.
 """
@@ -93,7 +93,7 @@ def fetch(aoi: AOI = NOME_PLACER, *, force: bool = False) -> Path:
         "out_basename": OUT_BASENAME,
         "aoi": aoi.name,
         "aoi_bbox": list(aoi.bbox),
-        "source_tier": "TNM 1/3 arc-second seamless (Alaska IfSAR-derived)",
+        "source_tier": "TNM 1/3 arc-second statewide (Alaska IfSAR-derived)",
         "source_url_pattern": f"{TNM_BASE}/{{tile}}/USGS_13_{{tile}}.tif",
         "tiles_fetched": [p.name for p in tile_paths],
         "tiles_gap": gaps,
@@ -103,7 +103,7 @@ def fetch(aoi: AOI = NOME_PLACER, *, force: bool = False) -> Path:
     meta_path.write_text(json.dumps(meta, indent=2))
     write_source_md(
         NAME,
-        title="Alaska IfSAR-derived 1/3 arc-second seamless elevation",
+        title="Alaska IfSAR-derived 1/3 arc-second statewide elevation",
         url=f"{TNM_BASE}/n65w166/USGS_13_n65w166.tif",
         license="Public domain (USGS 3DEP)",
         notes=(
