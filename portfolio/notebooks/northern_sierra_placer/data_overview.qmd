@@ -139,6 +139,39 @@ precision is identical (both calibrators rank the same cells as
 positives), but isotonic's probability scale matches observed
 frequencies more closely.
 
+## MAF anomaly detection on Au pathfinder geochem (preview, queued for v3.5.LF)
+
+A separate exploratory thread, not part of the v3 deliverable that
+feeds gldbg: I ported the Scheidt, Mathieu, Yin, Wang, Caers (2024)
+[Masked Autoregressive Flow framework](https://doi.org/10.1007/s11053-024-10409-2)
+for geochemical anomaly detection to the Northern Sierra placer AOI, with
+Au pathfinder elements (As, Sb, Bi, W, Cu) substituted for the original
+paper's Li-Cs-Ta pegmatite chemistry. The MAF normalizing flow learns
+the joint distribution of pathfinder values across NGDB stream-sediment
+samples; samples with low log-density under the fitted flow are flagged
+as candidate anomalies. The Scheidt paper uses this to surface
+LCT-pegmatite candidates from continental-scale databases. Here it
+surfaces samples whose 5-element pathfinder fingerprint deviates from
+the regional baseline.
+
+The training set is 482 NGDB samples with complete-case measurements
+across all 5 pathfinder elements. That is much smaller than Scheidt's
+~10k pegmatite-region samples, so the fitted MAF density is noisier
+than the paper's; the relative anomaly ranking holds but absolute
+scores should not be over-interpreted. Median anomaly score lands at
+5.6 (in nats), p90 at 8.9, p99 at 13.3, max at 22.2, a long-tail
+distribution where a small set of strongly anomalous samples stands
+out cleanly from the bulk.
+
+![Per-sample MAF anomaly score over the Northern Sierra NGDB stream-sediment AOI (482 samples × 5 elements: As, Sb, Bi, W, Cu). Color is the anomaly score (negative log-density) clipped at the p99; white-circled samples are the top decile (n=49). The strongest anomalies cluster around the Tertiary deep-gravel belt south of Forest Hill and along the Yuba and American river systems. Method follows Scheidt et al. 2024, DOI 10.1007/s11053-024-10409-2.](../../data/derived/northern_sierra_placer/fig_maf_anomaly_map.png)
+
+The per-sample anomaly scores are exported to
+`maf_geochem_anomaly_scores.parquet` for downstream use. In v3.5.LF, the
+MAF score becomes a `geochem_maf_anomaly` feature on the 250 m grid
+via inverse-distance interpolation from the 482 sample points; the
+ablation will measure how much it adds over the current Hawkes-Au
+catchment feature.
+
 ## Where to look
 
 [← back to chapter](../../placer.html) for the v2-to-v3 narrative,

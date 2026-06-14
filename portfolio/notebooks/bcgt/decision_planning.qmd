@@ -529,6 +529,50 @@ the planner can use that signal to STOP and re-elicit hypotheses
 from the geological team instead of drilling further at high
 per-hole cost.
 
+## D.1.C sensitivity appendix
+
+The drill-planning chapter's headline finding at BCGT scale (three
+non-random policies tied within SEM on cumulative reward) is supported
+by three sensitivity sweeps. The chapter prose summarizes all three
+and keeps the regime sweep inline; the K-sweep, POMCP-simulation
+sweep, and Bernoulli sensor sweep live here.
+
+### C.1 Bernoulli sensor sweep
+
+A 3-by-3 grid over $(\alpha, \beta)$ where $\alpha$ is the
+false-positive rate (sensor reports ore when there isn't any) and
+$\beta$ is the false-negative rate (sensor reports nothing when there
+is ore). 17 episodes per cell on the same 30x30 synthetic subarea as
+B.1.
+
+![Mean discovery rate per policy across 9 (alpha, beta) combinations on the same 30x30 synthetic subarea as the B.1 chart. Random sits at 0.06 across the whole plane and GreedyMean sits at 0.32: neither uses observations, so they don't respond to sensor quality. BayesianGreedy ranges 0.48-0.54 and POMCP ranges 0.43-0.57 depending on the sensor parameters; both policies degrade modestly as the sensor gets noisier, and POMCP holds a small edge over BayesianGreedy at most cells. The within-row variation includes 17-episode Monte Carlo noise; the relative ordering is the chapter point, not the precise cell values.](../../data/derived/bcgt/fig_v20_c1_bernoulli_sweep.png)
+
+### D.1.C top-K candidate sweep
+
+The chapter's main D.1 benchmark uses K=20 (the planner builds a
+SARSOP sub-POMDP over the top-20 belief-weighted candidate cells per
+step). This sweep checks whether the K choice affects the ordering:
+K in {5, 10, 20, 50}, 30 episodes per condition, POMCP at 1000
+simulations per step.
+
+![D.1.C K-sweep. Mean discounted reward for the four policies as the top-K candidate set is varied across {5, 10, 20, 50}. 30 episodes per condition, POMCP at 1000 simulations per step, per-episode truth realization, one-shot discovery reward.](../../data/derived/bcgt/fig_v20_d1_k_sweep.png)
+
+The K choice barely moves the needle, which says the candidate pool
+is informative enough at small K. The ordering across policies stays
+flat as K rises.
+
+### D.1.C POMCP simulation count sweep
+
+The main benchmark runs POMCP at 1000 simulations per step. This
+sweep checks whether more simulations would let POMCP overtake the
+other policies: simulations in {200, 1000, 5000, 10000} at K=20.
+
+![D.1.C POMCP-sims sweep. Mean discounted reward for POMCP across {200, 1000, 5000, 10000} simulations per step, at K=20. Random, greedy, and SARSOP shown as constant references (they don't depend on POMCP's simulation count).](../../data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png)
+
+POMCP plateaus by about 1000 simulations and does not catch SARSOP
+at any tested value. The gap stays within SEM throughout, consistent
+with the chapter's all-tied result.
+
 ## Reproducing
 
 ```bash

@@ -264,17 +264,15 @@ calibration against the RC drilling literature.
 C.1 sweeps a 3-by-3 grid of $(\alpha, \beta)$ values to see how each
 policy holds up as sensor quality varies.
 
-![Mean discovery rate per policy across 9 (alpha, beta) combinations on the same 30x30 synthetic subarea as the B.1 chart. Random sits at 0.06 across the whole plane and GreedyMean sits at 0.32: neither uses observations, so they don't respond to sensor quality. BayesianGreedy ranges 0.48-0.54 and POMCP ranges 0.43-0.57 depending on the sensor parameters; both policies degrade modestly as the sensor gets noisier, and POMCP holds a small edge over BayesianGreedy at most cells. The within-row variation includes 17-episode Monte Carlo noise; the relative ordering is the chapter point, not the precise cell values.](./data/derived/bcgt/fig_v20_c1_bernoulli_sweep.png)
-
-The reading. Even with substantial sensor noise (10% false positive
-plus 20% false negative, the worst cell), the machinery extracts most
-of the value from observations: BayesianGreedy and POMCP land roughly
-18 to 25 points above the static-prior baseline (0.32). The
-sensitivity to sensor quality is modest: dropping the false-positive
-rate from 10% to 2% buys at most a few discovery-rate points. The
-single-hypothesis B.1 finding holds under the Bernoulli sensor: most
-of the win is correlation-aware belief updating; multi-step lookahead
-is a smaller increment on top.
+The reading. Even at the worst-case sensor (10% false positive plus
+20% false negative), BayesianGreedy and POMCP land roughly 18 to 25
+discovery-rate points above the GreedyMean static-prior baseline
+(0.32). The sensitivity to sensor quality is modest: tightening the
+false-positive rate from 10% to 2% buys at most a few discovery-rate
+points. The B.1 finding holds under the Bernoulli sensor: most of the
+win is correlation-aware belief updating; multi-step lookahead is a
+smaller increment on top. The full 3-by-3 sweep chart lives in the
+[deeper notebook](./notebooks/bcgt/decision_planning.html).
 
 ## When the starting map itself is wrong
 
@@ -678,26 +676,27 @@ and finding a single deposit cell is the only payoff. The superior
 posterior would translate to better decisions in a longer campaign
 where the identified hypothesis informs follow-up drilling.
 
-Three sensitivity checks against the methodology choices:
-
-![D.1.C K-sweep. Mean discounted reward for the four policies as the top-K candidate set is varied across {5, 10, 20, 50}. 30 episodes per condition, POMCP at 1000 simulations per step, per-episode truth realization, one-shot discovery reward.](./data/derived/bcgt/fig_v20_d1_k_sweep.png)
-
-![D.1.C POMCP-sims sweep. Mean discounted reward for POMCP across {200, 1000, 5000, 10000} simulations per step, at K=20. Random, greedy, and SARSOP shown as constant references (they don't depend on POMCP's simulation count).](./data/derived/bcgt/fig_v20_d1_pomcp_sims_sweep.png)
+The robustness check the chapter relies on is a 3-by-3 sweep over
+the regime parameters: truth cutoff in {0.12, 0.15, 0.18} crossed with
+wrong-commitment penalty in {15, 30, 50}. The base case is the center
+cell (0.15, 30).
 
 ![D.1.C regime robustness sweep. Three heatmaps over a 3x3 grid of (truth cutoff, wrong-commitment penalty) values around the porphyry-Cu base case: SARSOP minus greedy gap (left), SARSOP absolute reward (center), greedy absolute reward (right). 30 episodes per cell. The (cutoff=0.15, penalty=30) center cell is the base regime; the eight surrounding cells perturb each axis by one step.](./data/derived/bcgt/fig_v20_d1_regime_sweep.png)
 
-The reading on all three. The K choice barely moves the needle, which
-says the candidate pool is informative enough at small K. The POMCP
-simulation count plateaus by about 1000 sims and does not catch
-SARSOP at any tested value, but the gap is within SEM throughout.
-The regime sweep is the most informative of the three. SARSOP beats
-greedy in 9 out of 9 (cutoff, penalty) cells by between +0.82 and
-+2.11 points, averaging +1.49. The per-cell SEM is around 4.3 across
-30 episodes so no single cell is SEM-separated, but the consistent
-ordering across the whole grid says the small SARSOP advantage in
-this regime is not parameter-cherrypicked: it holds across a
-neighborhood of plausible porphyry-Cu economic assumptions
-(see [Findings](#findings) for the full caveat list).
+SARSOP beats greedy in 9 out of 9 (cutoff, penalty) cells by between
++0.82 and +2.11 points, averaging +1.49. The per-cell standard error
+of the mean is around 4.3 across 30 episodes so no single cell is
+SEM-separated, but the consistent ordering across the whole grid says
+the small SARSOP advantage in this regime is not parameter-
+cherrypicked: it holds across a neighborhood of plausible porphyry-Cu
+economic assumptions (see [Findings](#findings) for the full caveat
+list).
+
+Two finer-grained sensitivity checks (top-K candidate count and POMCP
+simulation count) confirm the K choice barely moves the needle and
+the POMCP simulation count plateaus by about 1000 sims, neither
+flipping the ordering. The charts for both live in the
+[deeper notebook](./notebooks/bcgt/decision_planning.html).
 
 A careful reader will notice that the regime-sweep center cell
 (cutoff=0.15, penalty=30) reports a +0.82 point SARSOP-greedy gap,
@@ -849,17 +848,22 @@ lookahead has no headroom to convert into reward because the reward
 is bounded by a single discovery event per episode.
 
 What does change between D.1.C and D.1.D is the **truth-belief**
-metric. On the real-prior set SARSOP ends each episode with a
-0.71-confidence posterior on the true deposit type, against greedy's
-0.64 and POMCP's 0.61. That seven-point gap means the planner is
-actively choosing drill targets that separate competing hypotheses
-beyond just chasing the highest-expected cell. The advantage does
-not show up in cumulative reward at the 9-drill budget but it would
-matter in a longer campaign where the next decision (which area to
-follow up on, which deposit type to model in detail) depends on the
-final categorical belief. The Tiger experiment's "knowing which
-behind the door is the tiger" payoff is real on the real-prior set;
-the chapter just does not measure it in the +reward column.
+metric: the final posterior probability the planner assigns to the
+actual ground-truth hypothesis at the end of the 9-drill episode.
+
+![Final truth-belief by policy on both prior sets. Left panel: D.1.C synthetic NW/SE blob priors over 100 episodes. SARSOP 0.74, POMCP 0.72, greedy 0.60, random 0.43, SARSOP+PF 0.60. Right panel: D.1.D real BCGS deposit-type priors over 30 episodes. SARSOP 0.71, greedy 0.64, POMCP 0.61, random 0.27. Dashed gray line is the uniform prior baseline (the belief at episode start). The gap between SARSOP and greedy is roughly seven points on real priors, larger on synthetic. The planning advantage that does not show up in cumulative reward at the 9-drill budget shows up here.](./data/derived/bcgt/fig_v20_d1_belief_accuracy.png)
+
+On the real-prior set SARSOP ends each episode with a 0.71-confidence
+posterior on the true deposit type, against greedy's 0.64 and POMCP's
+0.61. The seven-point gap means the planner is actively choosing
+drill targets that separate competing hypotheses beyond just chasing
+the highest-expected cell. The advantage does not show up in
+cumulative reward at the 9-drill budget but it would matter in a
+longer campaign where the next decision (which area to follow up on,
+which deposit type to model in detail) depends on the final
+categorical belief. The Tiger experiment's "knowing which behind the
+door is the tiger" payoff is real on the real-prior set; the chapter
+just does not measure it in the +reward column.
 
 The per-truth breakdown in the middle panel of the chart shows where
 the tie comes from. Under H_porphyry or H_VMS truth (the two
