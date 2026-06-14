@@ -39,7 +39,10 @@ reference.
 
 ## Reproducing Mern 2024
 
-Before extending the planner onto BCGT, the first question is whether
+Before extending the planner onto the BC Golden Triangle (BCGT, the
+chapter's regional study area; the BCGT priors come from the British
+Columbia Geological Survey, abbreviated BCGS), the first question is
+whether
 the implementation reproduces the published claim on the paper's own
 terms. The 2024 paper's headline experiment ([arXiv 2410.10610](https://arxiv.org/abs/2410.10610),
 p.20) is a synthetic test on a 32 by 32 grid with a structured
@@ -174,8 +177,10 @@ landed on cells where post-2010 operators eventually found ore (Cu
 assays above the 0.2% Cox-Singer porphyry-Cu cutoff)?
 
 I identified the seven BCGS mining districts where post-2010 Cu+
-drilling actually happened by running DBSCAN on the 47 post-2010 Cu+
-cells in the 500 m BCGT grid. Four matched named public districts by
+drilling actually happened by running DBSCAN (a density-based
+clustering algorithm: groups points that are tightly packed and
+flags isolated ones as noise) on the 47 post-2010 Cu+ cells in the
+500 m BCGT grid. Four matched named public districts by
 lat/lon proximity (KSM, Brucejack, Red Chris, Snip); three are
 unnamed exploration corridors between named districts. For each, I
 took a 50 by 50 cell working area (25 km by 25 km) centered on the
@@ -510,8 +515,9 @@ of the budget. POMCP and SARSOP both use the markers to
 disambiguate first. POMCP averages +31 with a 28% wrong-commit rate;
 SARSOP averages +37 with a 2% wrong-commit rate. SARSOP comes out
 ahead of POMCP here because the alpha-vector policy is computed
-against the full belief space rather than an MCTS sample of it; on a
-small problem with a high penalty for committing under uncertainty,
+against the full belief space rather than a Monte Carlo tree search
+sample of it (MCTS is POMCP's lookahead engine); on a small problem
+with a high penalty for committing under uncertainty,
 that extra precision matters. The gap closes on harder problems
 where the pre-computation becomes the bottleneck.
 
@@ -664,7 +670,8 @@ at episode end (0.60 vs the canonical SARSOP's 0.74), which is the
 cost of not having the truth realization baked into the policy's
 signal-cell model. The cumulative-reward ordering does not change:
 the all-tied result holds whether the planner uses a canonical
-realization shortcut or the more honest particle filter.
+realization shortcut or the methodologically tighter particle filter
+that drops the shortcut.
 
 SARSOP and POMCP do still win on **belief-tracking accuracy**: the
 final posterior probability they assign to the true hypothesis
@@ -676,12 +683,13 @@ and finding a single deposit cell is the only payoff. The superior
 posterior would translate to better decisions in a longer campaign
 where the identified hypothesis informs follow-up drilling.
 
-The robustness check the chapter relies on is a 3-by-3 sweep over
-the regime parameters: truth cutoff in {0.12, 0.15, 0.18} crossed with
+The check the chapter relies on for whether the ordering holds across
+a neighborhood of plausible regime choices is a 3-by-3 sweep over the
+regime parameters: truth cutoff in {0.12, 0.15, 0.18} crossed with
 wrong-commitment penalty in {15, 30, 50}. The base case is the center
 cell (0.15, 30).
 
-![D.1.C regime robustness sweep. Three heatmaps over a 3x3 grid of (truth cutoff, wrong-commitment penalty) values around the porphyry-Cu base case: SARSOP minus greedy gap (left), SARSOP absolute reward (center), greedy absolute reward (right). 30 episodes per cell. The (cutoff=0.15, penalty=30) center cell is the base regime; the eight surrounding cells perturb each axis by one step.](./data/derived/bcgt/fig_v20_d1_regime_sweep.png)
+![D.1.C regime-sensitivity sweep. Three heatmaps over a 3x3 grid of (truth cutoff, wrong-commitment penalty) values around the porphyry-Cu base case: SARSOP minus greedy gap (left), SARSOP absolute reward (center), greedy absolute reward (right). 30 episodes per cell. The (cutoff=0.15, penalty=30) center cell is the base regime; the eight surrounding cells perturb each axis by one step.](./data/derived/bcgt/fig_v20_d1_regime_sweep.png)
 
 SARSOP beats greedy in 9 out of 9 (cutoff, penalty) cells by between
 +0.82 and +2.11 points, averaging +1.49. The per-cell standard error
@@ -1119,6 +1127,15 @@ expected deposit probability under the current belief are kept; the
 rest are dropped for that step's solve. The subproblem is small
 enough for SARSOP to solve fast; the candidate set is re-computed
 at every step.
+
+**Particle filter (PF).** A way to represent a probability
+distribution over possible worlds with a finite ensemble of sampled
+worlds (the particles). Each new observation reweights the
+ensemble; periodic resampling keeps the particles representative.
+In this chapter the multi-hypothesis particle filter from C.3
+replaces the canonical-realization shortcut so each hypothesis
+carries its own per-cell uncertainty, not just a single fixed truth
+assignment.
 
 **One-shot discovery reward.** A reward semantic where the +50
 discovery bonus is paid once per episode, on the first deposit cell
