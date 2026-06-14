@@ -771,3 +771,89 @@ if __name__ == "__main__":
     print(f"ksn.shape={ksn.shape}, range=({np.nanmin(ksn):.3f}, {np.nanmax(ksn):.3f})")
     print(f"tpi.shape={tpi_arr.shape}, range=({np.nanmin(tpi_arr):.3f}, {np.nanmax(tpi_arr):.3f})")
     print("OK")
+
+
+# ---------------------------------------------------------------------------
+# Stream network derivation from a DEM (no NHD required)
+# ---------------------------------------------------------------------------
+
+def streams_from_flow_accumulation(
+    flow_acc: np.ndarray,
+    *,
+    transform: Affine,
+    crs: str,
+    min_accumulation_cells: int = 500,
+) -> "gpd.GeoDataFrame":
+    """Derive a stream-cell point dataset from a Whitebox flow-accumulation raster.
+
+    Cells with ``flow_acc >= min_accumulation_cells`` are treated as
+    stream cells. The default threshold (500 upstream cells) at the
+    IfSAR ~7 m resolution corresponds to roughly 0.025 km^2 of drainage
+    area, which produces a fine-grained stream network appropriate for
+    the small Cape Nome AOI. At this threshold the Cape Nome AOI yields
+    ~50,000 stream cells (~360 km of total length) covering main-stem
+    and tributary drainages including Bear Cub / Anvil / Snake / Bourbon
+    Creeks. A higher threshold (5,000+) yields only main-stem channels.
+
+    The result is a GeoDataFrame of Point geometries at the centroid of
+    each stream cell, in the supplied CRS. Used by
+    ``distance_to_stream_m`` as the input geometry.
+    """
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    mask = np.nan_to_num(flow_acc, nan=0.0) >= float(min_accumulation_cells)
+    ys, xs = np.where(mask)
+    if ys.size == 0:
+        return gpd.GeoDataFrame({"geometry": []}, geometry="geometry", crs=crs)
+    # transform * (col, row) -> (x, y) in map coords
+    map_xs, map_ys = transform * (xs, ys)
+    geoms = [Point(x, y) for x, y in zip(map_xs, map_ys)]
+    return gpd.GeoDataFrame({"geometry": geoms}, geometry="geometry", crs=crs)
+
+
+def distance_to_stream_m(
+    streams: "gpd.GeoDataFrame",
+    grid: "Grid",
+    *,
+    max_distance_m: float = 25_000.0,
+) -> "pd.Series":
+    """Per-grid-cell Euclidean distance (m) to nearest stream point.
+
+    ``streams`` is the point-geometry frame from
+    ``streams_from_flow_accumulation`` (or any other source providing
+    point or line geometries in the working CRS). Cells with no stream
+    within ``max_distance_m`` get the cap.
+
+    Result is indexed identically to ``grid.centroid_gdf()``.
+    """
+    import geopandas as gpd
+    import pandas as pd
+
+    centroids = grid.centroid_gdf()
+    if streams.crs != centroids.crs:
+        streams = streams.to_crs(centroids.crs)
+
+    if len(streams) == 0:
+        return pd.Series(
+            np.full(grid.n_cells, max_distance_m, dtype=np.float32),
+            index=centroids.index,
+            name="distance_to_stream_m",
+        )
+
+    joined = gpd.sjoin_nearest(
+        centroids,
+        streams[["geometry"]],
+        how="left",
+        max_distance=max_distance_m,
+        distance_col="_dist_m",
+    )
+    # sjoin_nearest can emit ties; drop dupes keeping the first.
+    joined = joined.loc[~joined.index.duplicated(keep="first")]
+    dist = (
+        joined["_dist_m"]
+        .fillna(max_distance_m)
+        .astype(np.float32)
+        .to_numpy()
+    )
+    return pd.Series(dist, index=centroids.index, name="distance_to_stream_m")

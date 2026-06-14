@@ -80,11 +80,15 @@ class CoastalScores:
     """Per-cell population scores from the Phase 1 fuzzy-overlay model.
 
     Each Series is indexed identically to ``grid.centroid_gdf()``.
-    Values are in [0, 1]; higher means stronger membership.
+    Values are in [0, 1]; higher means stronger membership. BC and QM
+    are ``None`` when no stream-distance series was provided to
+    ``score_all_populations`` (v0 behaviour).
     """
     bl: pd.Series      # true beach
     ap: pd.Series      # abrasion-platform / sloughover
     tb: pd.Series      # Tertiary buried high-bench
+    bc: pd.Series | None  # beach-stream confluence (needs streams)
+    qm: pd.Series | None  # off-beach modern creek (needs streams)
     composite: pd.Series  # per-cell max over scored populations
 
 
@@ -177,25 +181,130 @@ def score_tb(
     ).rename("score_tb")
 
 
+def score_bc(
+    bl_score: pd.Series,
+    ap_score: pd.Series,
+    distance_to_stream_m: pd.Series,
+    *,
+    stream_sigma_m: float = 500.0,
+) -> pd.Series:
+    """Beach-stream confluence (BC) score.
+
+    Tuck 1942's Anvil-Creek-bonanza rule: highest-grade placers sit at
+    the intersection of fluvial paleochannels with marine benches. Score
+    is the product of (max of BL or AP) and a Gaussian membership over
+    distance-to-stream, peaking at distance 0 and falling off at
+    ``stream_sigma_m`` metres.
+
+    Sky's calibration: Bear Cub MS 1178 is a BC. The 500 m default sigma
+    keeps Bear Cub's BC score above the top-decile threshold even when
+    its nearest stream sits roughly 530 m away (Bear Cub Creek is small;
+    the nearest stream cell extracted from IfSAR at default thresholds
+    is usually the Snake or Bourbon trunk, not the Bear Cub Creek
+    tributary). The product structure prevents a cell from scoring
+    BC just on stream proximity alone (no beach) or just on beach
+    elevation alone (no stream).
+    """
+    bl = bl_score.to_numpy(dtype=np.float64)
+    ap = ap_score.to_numpy(dtype=np.float64)
+    d = distance_to_stream_m.to_numpy(dtype=np.float64)
+    beach_membership = np.maximum(bl, ap)
+    stream_membership = np.exp(-(d ** 2) / (2.0 * stream_sigma_m ** 2))
+    bc = beach_membership * stream_membership
+    return pd.Series(
+        bc.astype(np.float32),
+        index=bl_score.index,
+        name="score_bc",
+    )
+
+
+def score_qm(
+    dem: xr.DataArray,
+    grid: Grid,
+    distance_to_stream_m: pd.Series,
+    *,
+    stream_sigma_m: float = 400.0,
+    min_elevation_m: float = 30.0,
+    max_elevation_m: float = 250.0,
+) -> pd.Series:
+    """Off-beach modern creek (QM) score.
+
+    Tuck 1942: streams that cut into the older Iron Creek and Nome River
+    drifts rework the ~70 ppb background gold the drifts carry. Cells in
+    the in-drift elevation band (default 30 to 250 m, the Cape Nome
+    foothill zone where Iron Creek + Nome River drifts sit) within
+    ``stream_sigma_m`` of a stream score high QM.
+
+    v1 uses elevation-range as a proxy for the drift mask; the ADGGS
+    surficial coverage for Cape Nome is the documented gap. The Hopkins
+    / Kaufman drift maps could refine this band once digitized (Fossick
+    job per bearcub 2026-06-14 reply).
+    """
+    from ai_minerals.features.coastal import (
+        elevation_relative_to_stand_m, stand_elevation_m,
+    )
+
+    # Sample DEM at each centroid via any existing rel_to_stand helper.
+    dummy_stand = next(iter(STAND_ELEVATIONS_FT))
+    rel = elevation_relative_to_stand_m(dem, grid, dummy_stand).to_numpy(np.float64)
+    elev_m = rel + stand_elevation_m(dummy_stand)
+
+    in_band = (
+        (elev_m >= min_elevation_m) & (elev_m <= max_elevation_m)
+    ).astype(np.float64)
+
+    d = distance_to_stream_m.to_numpy(dtype=np.float64)
+    stream_membership = np.exp(-(d ** 2) / (2.0 * stream_sigma_m ** 2))
+
+    qm = in_band * stream_membership
+    return pd.Series(
+        qm.astype(np.float32),
+        index=grid.centroid_gdf().index,
+        name="score_qm",
+    )
+
+
 def score_all_populations(
     dem: xr.DataArray,
     grid: Grid,
     *,
+    distance_to_stream_m: pd.Series | None = None,
     bl_sigma_m: float = 5.0,
     ap_sigma_m: float = 6.0,
     tb_sigma_m: float = 12.0,
+    bc_stream_sigma_m: float = 500.0,
+    qm_stream_sigma_m: float = 400.0,
 ) -> CoastalScores:
-    """Score BL, AP, TB populations and the per-cell max() composite.
+    """Score BL, AP, TB (and BC, QM if a stream-distance series is given)
+    populations and the per-cell max() composite.
 
-    BC and QM require the stream-distance feature and are scored in a
-    later phase; the v0 composite covers only BL, AP, TB.
+    ``distance_to_stream_m`` is required for BC and QM. Compute it once
+    via ``features.hydrology.streams_from_flow_accumulation`` ->
+    ``features.hydrology.distance_to_stream_m`` and pass in.
+
+    Without the stream series, the composite covers only BL, AP, TB
+    (the v0 behaviour). When the series is provided, BC and QM are
+    populated and the composite folds them into the per-cell max.
     """
     bl = score_bl(dem, grid, sigma_m=bl_sigma_m)
     ap = score_ap(dem, grid, sigma_m=ap_sigma_m)
     tb = score_tb(dem, grid, sigma_m=tb_sigma_m)
+
+    if distance_to_stream_m is not None:
+        bc = score_bc(bl, ap, distance_to_stream_m, stream_sigma_m=bc_stream_sigma_m)
+        qm = score_qm(dem, grid, distance_to_stream_m, stream_sigma_m=qm_stream_sigma_m)
+        stack = np.stack(
+            [bl.to_numpy(), ap.to_numpy(), tb.to_numpy(), bc.to_numpy(), qm.to_numpy()],
+            axis=0,
+        )
+    else:
+        bc = None
+        qm = None
+        stack = np.stack([bl.to_numpy(), ap.to_numpy(), tb.to_numpy()], axis=0)
+
     composite = pd.Series(
-        np.stack([bl.to_numpy(), ap.to_numpy(), tb.to_numpy()], axis=0).max(axis=0),
+        stack.max(axis=0),
         index=grid.centroid_gdf().index,
         name="score_composite",
     )
-    return CoastalScores(bl=bl, ap=ap, tb=tb, composite=composite)
+    return CoastalScores(bl=bl, ap=ap, tb=tb, bc=bc, qm=qm, composite=composite)
