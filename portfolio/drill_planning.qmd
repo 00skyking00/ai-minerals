@@ -821,11 +821,56 @@ spatially-distinctive cells under each hypothesis, instead of
 drilling randomly, would do better here. That is the question D.1.D's
 benchmark addresses.
 
-::: {.callout-note appearance="simple"}
-D.1.D benchmark chart and per-truth breakdown to follow once the
-60-episode run completes. The chapter prose above will be updated in
-place with the same chart-then-finding pattern as D.1.C.
-:::
+The D.1.D benchmark applies the same porphyry-Cu economics regime
+(cutoff=0.15, wrong-commitment penalty=30, K=20 candidate cells per
+step) as D.1.C, but with the real-prior hypothesis set instead of
+the synthetic NW/SE blobs. 30 episodes, drill budget of 9, truth
+drawn uniformly from the 5 hypotheses, POMCP at 1000 simulations
+per step, canonical SARSOP at K=20. The PF variant is omitted; the
+canonical SARSOP at this scale is enough to answer the ordering
+question.
+
+![D.1.D BCGT real-prior benchmark. Left: overall discounted reward by policy. Middle: reward broken down by ground truth. Right: discovery rate (the dashed gray line marks the ceiling, the fraction of episodes whose ground truth was not the null). 30 episodes, top-K=20, POMCP=1000 sims, cutoff=0.15, wrong-commit penalty=30.](./data/derived/bcgt/fig_v20_d1d_benchmark.png)
+
+| Policy | Reward (mean ± SEM) | Discovery rate | Truth-belief at end |
+|---|---:|---:|---:|
+| random | +11.3 ± 4.3 | 0.40 | 0.27 |
+| greedy_MAP | +26.3 ± 4.1 | 0.70 | 0.64 |
+| pomcp_topK | +26.1 ± 4.1 | 0.70 | 0.61 |
+| sarsop_topK | +25.6 ± 4.1 | 0.70 | 0.71 |
+
+The pattern from D.1.C holds on the real-prior set. Greedy, POMCP,
+and SARSOP land within one SEM of each other on cumulative reward.
+Random is well behind. The one-shot discovery reward structure
+remains the binding constraint: once any policy lands its first
+positive signal on the highest-prior cell, the +50 discovery is
+collected and the remaining drills can only pay -1. The multi-step
+lookahead has no headroom to convert into reward because the reward
+is bounded by a single discovery event per episode.
+
+What does change between D.1.C and D.1.D is the **truth-belief**
+metric. On the real-prior set SARSOP ends each episode with a
+0.71-confidence posterior on the true deposit type, against greedy's
+0.64 and POMCP's 0.61. That seven-point gap means the planner is
+actively choosing drill targets that separate competing hypotheses
+beyond just chasing the highest-expected cell. The advantage does
+not show up in cumulative reward at the 9-drill budget but it would
+matter in a longer campaign where the next decision (which area to
+follow up on, which deposit type to model in detail) depends on the
+final categorical belief. The Tiger experiment's "knowing which
+behind the door is the tiger" payoff is real on the real-prior set;
+the chapter just does not measure it in the +reward column.
+
+The per-truth breakdown in the middle panel of the chart shows where
+the tie comes from. Under H_porphyry or H_VMS truth (the two
+hypotheses with the most spatially-extensive prior surfaces), every
+non-random policy gets to the discovery within roughly one drill
+and pays +43. Under H_skarn or H_epithermal truth (sparser priors)
+greedy slightly outperforms POMCP and SARSOP because the noise
+contribution to the belief update is larger and SARSOP's
+information-gathering plan can take a step that doesn't pay off
+inside the budget. The null cases pay -7.4 across the board: no
+deposit to find, just nine drill costs.
 
 ## Findings
 
@@ -902,19 +947,34 @@ the spatial-only GP predicts pay-zone grade poorly in absolute terms,
 because the posterior variance is a faithful map of where the data
 is sparse even when the mean is unreliable.
 
+**D.1.D (real BCGS deposit-type priors).** The four real-prior
+hypotheses (porphyry, skarn, epithermal, VMS) are mostly distinct
+on the BCGT 30-by-30 grid (r between 0.17 and 0.39) except the
+epithermal-VMS pair at r=0.70, geologically reasonable because
+Eskay Creek (VMS) and Brucejack/Snip (epithermal) sit in the same
+Stikine arc-belt footprint. C.2 falsification correctly identifies
+porphyry truth (1.00 confidence within 10 random drills) and null
+truth (falsified at step 8) but cannot separate epithermal from
+skarn or null under random drilling because the epithermal prior
+is the sparsest of the four. The D.1.D 30-episode benchmark holds
+the same ordering as D.1.C: greedy +26.3, POMCP +26.1, SARSOP +25.6,
+tied within SEM. Truth-belief at episode end is where SARSOP earns
+its keep on the real-prior set: 0.71 vs greedy's 0.64 vs POMCP's
+0.61. The information-gathering advantage is real, but the one-shot
+discovery reward at a 9-drill budget does not measure it.
+
 ## Next steps
 
-D.1.D replaces the synthetic NW-vs-SE-blob hypotheses with real BCGS
-deposit-type splits derived from the dh2loop labels covered in
-Chapter 2. Real deposit-type priors will overlap heavily across
-hypotheses (an alteration halo can sit inside two competing
-geological model domains at once), which is a harder test than the
-non-overlapping synthetic case. If real BCGT exploration has the
-cost-asymmetry structure the Tiger experiment relies on (e.g.,
-because drilling outside a claim type's expected geology wastes the
-budget), the SARSOP advantage may transfer at scale; if not, the
-result will be that planning and greedy are equivalent on real BCGT
-data. The deeper notebook carries the implementation roadmap.
+A natural follow-up to D.1.D is a longer-horizon scoring metric. The
+one-shot discovery reward truncates the planner's payoff at the first
+positive signal; replacing it with a campaign-level score (e.g.,
+"final categorical posterior accuracy weighted by the cost of being
+wrong on the deposit type when committing follow-up budget") would
+let SARSOP's truth-belief edge show up in the reward column. That
+extension lives outside the chapter's current scope but is the
+cleanest test for whether the planning advantage transfers at BCGT
+scale on real priors. The deeper notebook carries the implementation
+roadmap.
 
 ## Deeper notebooks
 

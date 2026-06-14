@@ -1,0 +1,56 @@
+{
+  "random": {
+    "mean_reward": 11.24691113720052,
+    "sem_reward": 4.2824436855463865,
+    "discovery_rate": 0.4,
+    "mean_discovery_step_when_found": 1.5,
+    "mean_decision_ms": 0.15420174076333987,
+    "mean_final_belief_truth": 0.2717608726320066
+  },
+  "greedy_MAP": {
+    "mean_reward": 26.320415277825518,
+    "sem_reward": 4.120262494288419,
+    "discovery_rate": 0.7,
+    "mean_discovery_step_when_found": 0.7619047619047619,
+    "mean_decision_ms": 0.545371566692699,
+    "mean_final_belief_truth": 0.6372442500661606
+  },
+  "pomcp_topK": {
+    "mean_reward": 26.06068891330729,
+    "sem_reward": 4.109403549586998,
+    "discovery_rate": 0.7,
+    "mean_discovery_step_when_found": 0.9523809523809523,
+    "mean_decision_ms": 132.95300851113333,
+    "mean_final_belief_truth": 0.6099588672601968
+  },
+  "sarsop_topK": {
+    "mean_reward": 25.552458704973958,
+    "sem_reward": 4.069154202218935,
+    "discovery_rate": 0.7,
+    "mean_discovery_step_when_found": 1.2857142857142858,
+    "mean_decision_ms": 947.5219095888759,
+    "mean_final_belief_truth": 0.710661469372459
+  },
+  "_meta": {
+    "n_episodes": 30,
+    "drill_budget": 9,
+    "discount": 0.95,
+    "alpha_fp": 0.1,
+    "beta_fn": 0.1,
+    "drill_cost": 1.0,
+    "discovery_value": 50.0,
+    "wrong_commitment_penalty": 30.0,
+    "truth_cutoff": 0.15,
+    "top_k": 20,
+    "pomcp_n_sims": 1000,
+    "truth_distribution": [
+      5,
+      6,
+      3,
+      7,
+      9
+    ],
+    "reward_semantic": "one_shot_discovery",
+    "prior_source": "BCGS_MINFILE_deposit_type_per_cell_labels"
+  }
+}
