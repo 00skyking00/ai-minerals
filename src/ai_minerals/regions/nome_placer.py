@@ -94,7 +94,14 @@ NOME_PLACER_REGION = Region(
 
     occurrences_source="ardf",
     geochem_source="agdb4",
-    geology_source="adggs_surficial",
+    # v1 geology uses the Wilson et al. 2015 SIM 3340 statewide map, same
+    # as eastak. The Cape Nome / Nome C-6 sub-quadrangle has no DGGS
+    # digital surficial-geology publication; AOF 125 (Tolstoi Point) and
+    # USGS OF 72-321/322 (Nome C-2/C-3) cover the eastern Seward
+    # Peninsula and are ~40-80 km east of the AOI. The ADGGS adapter is
+    # wired through `surficial_seward` for v2 AOI expansion and stays out
+    # of the v1 geology slot.
+    geology_source="usgs_sgmc",
     geophysics_source="usgs",
     drillhole_source="bearcub_nome",
 
@@ -121,15 +128,22 @@ NOME_PLACER_REGION = Region(
         # Same source as eastak.
         "geochem":       DATA_RAW / "agdb4" / "agdb4_samples_nome_placer.parquet",
 
-        # Surficial geology: ADGGS Seward Peninsula surficial-geology
-        # compilation. Delineates Iron Creek drift, Nome River drift,
-        # younger marine and alluvial units. Drives the QM in-drift mask
-        # and the TB high-elevation old-drift mask.
-        "geology":       DATA_RAW / "adggs" / "adggs_surficial_seward_peninsula.gpkg",
+        # Geology: Wilson et al. 2015 SIM 3340 statewide compilation
+        # (same source eastak uses). Quaternary surficial units are
+        # coarsely classified; Iron Creek vs Nome River drift is NOT
+        # split at this scale. v1 accepts this as the coverage available
+        # for the Cape Nome AOI.
+        "geology":       DATA_RAW / "geology_ak" / "geology_nome_placer.gpkg",
 
         # Structural / fault layer: AKStategeol arcs from the
         # statewide compilation (same source eastak uses for faults).
         "geology_arcs":  DATA_RAW / "geology_ak/sim3340/sim3340_gdb/AKgeol_web_gdb/geologic_data/AKStategeol.gdb",
+
+        # Eastern Seward Peninsula surficial geology (ADGGS AOF 125,
+        # Tolstoi Point area). Reserved for v2 AOI expansion east of the
+        # current bbox; not used by v1 since AOF 125 does NOT cover the
+        # Cape Nome AOI itself. See data/adggs_surficial.py docstring.
+        "surficial_seward": DATA_RAW / "adggs" / "adggs_surficial_seward_peninsula.gpkg",
 
         # Elevation: IfSAR Alaska 5 m DEM, mosaicked to the Cape Nome
         # AOI. Used by features/coastal.py for beach-line contour

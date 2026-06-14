@@ -101,17 +101,21 @@ def fetch(aoi: AOI = NOME_PLACER, *, force: bool = False) -> Path:
     }
     meta_path = out_path.with_name(out_path.stem + "_meta.json")
     meta_path.write_text(json.dumps(meta, indent=2))
-    write_source_md(NAME, lines=[
-        f"# {NAME} ({OUT_BASENAME})",
-        "",
-        f"USGS National Map 1/3 arc-second seamless Alaska elevation, IfSAR-derived where flown.",
-        f"AOI: {aoi.name} = {tuple(aoi.bbox)}",
-        f"Resolution: ~{res_m} m",
-        f"Tiles fetched: {[p.name for p in tile_paths]}",
-        f"Gaps: {gaps}",
-        "",
-        f"5 m IfSAR DTM (per-project at OPR/Projects/AK_IFSAR_*) is a future upgrade path; v1 uses the 1/3 arc-second mosaic.",
-    ])
+    write_source_md(
+        NAME,
+        title="Alaska IfSAR-derived 1/3 arc-second seamless elevation",
+        url=f"{TNM_BASE}/n65w166/USGS_13_n65w166.tif",
+        license="Public domain (USGS 3DEP)",
+        notes=(
+            f"AOI: {aoi.name} = {tuple(aoi.bbox)}\n"
+            f"Resolution: ~{res_m} m\n"
+            f"Tiles fetched: {[p.name for p in tile_paths]}\n"
+            f"Gaps: {gaps}\n\n"
+            "5 m IfSAR DTM (per-project at "
+            "OPR/Projects/AK_IFSAR_* and AK_TyphoonMerbok_*) is a future "
+            "upgrade path; v1 uses the 1/3 arc-second mosaic."
+        ),
+    )
     print(f"Wrote {out_path} ({out_path.stat().st_size:,} B); resolution ~{res_m} m.")
     return out_path
 
