@@ -23,6 +23,16 @@ rationale.
 
 from __future__ import annotations
 
+__all__ = [
+    "HypothesisState",
+    "CellAction",
+    "BinaryObs",
+    "MultiHypothesisSmallGridPOMDP",
+    "solve_sarsop",
+    "MultiHypothesisSARSOPPolicy",
+]
+
+
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path

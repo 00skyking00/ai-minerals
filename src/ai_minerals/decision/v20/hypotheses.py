@@ -37,6 +37,16 @@ B.1 IMPLEMENTATION STATUS (2026-06-11):
 
 from __future__ import annotations
 
+__all__ = [
+    "Hypothesis",
+    "NullHypothesis",
+    "HypothesisSet",
+    "porphyry_cu_hypothesis_from_v3_rf",
+    "make_mern_2x2_hypothesis_set",
+    "make_bcgt_deposit_type_hypothesis_set",
+]
+
+
 from dataclasses import dataclass, field
 
 import numpy as np

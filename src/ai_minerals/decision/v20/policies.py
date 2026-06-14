@@ -29,6 +29,17 @@ B.1 IMPLEMENTATION STATUS (2026-06-11):
 
 from __future__ import annotations
 
+__all__ = [
+    "Policy",
+    "RandomPolicy",
+    "GridDrillingPolicy",
+    "GreedyMeanPolicy",
+    "BayesianGreedyPolicy",
+    "CorrelatedPriorPOMCPPolicy",
+    "MultiHypothesisFalsificationPolicy",
+]
+
+
 from dataclasses import dataclass, field
 from typing import Protocol
 

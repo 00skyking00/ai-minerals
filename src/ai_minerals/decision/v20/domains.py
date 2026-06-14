@@ -33,6 +33,14 @@ References
 
 from __future__ import annotations
 
+__all__ = [
+    "sample_graben_polygons",
+    "sample_geochem_domain_polygons",
+    "domain_mask_from_polygons",
+    "prior_mean_field_from_masks",
+]
+
+
 import numpy as np
 from matplotlib.path import Path
 

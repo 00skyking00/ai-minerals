@@ -98,6 +98,18 @@ v20/
                        the real 30 by 30 grid via per-step action
                        pruning.
 
+  domains.py           Graben and geochemical-domain polygon
+                       generation for the Mern 2024 structured-prior
+                       2-by-2 hypothesis grid (B.0 reproduction).
+
+  real_priors.py       BCGS deposit-type prior surfaces (D.1.D).
+                       Aggregates BCGT 500m per-cell binary deposit-
+                       type labels onto a target n_side x n_side grid
+                       by block-averaging, Gaussian smoothing, and
+                       per-surface renormalization. Drop-in replacement
+                       for make_bcgt_synthetic_hypothesis_set in the
+                       D.1 SARSOP stack.
+
 README.md              You are here.
 ```
 
@@ -124,6 +136,16 @@ The module landed in five steps, each its own ai-minerals minor tag.
   advantage on a 4-cell toy problem.
 - **D.1 (v1.7.0).** BCGT-scale wrapper. Belief-conditioned top-K
   pruning so SARSOP stays tractable on the 900-cell action space.
+- **B.0 (v1.8.0).** Mern 2024 reproduction. Structured graben +
+  geochemical-domain polygon priors over the 2-by-2 hypothesis grid,
+  6-by-6 grid-drilling baseline at 36 holes vs the POMDP at 9.
+- **B.1 hardening (v1.9.0).** Multi-hypothesis ESS particle filter
+  with Rao-Blackwellized categorical update; SARSOP+PF variant in the
+  D.1 benchmark stack.
+- **D.1.D + C.2 real priors (v1.10.0).** Four BCGS deposit-type
+  hypotheses (porphyry, skarn, epithermal, VMS) plus null, aggregated
+  from the BCGT 500m feature parquet. Falsification demo on the real-
+  prior 5-hypothesis set; D.1 benchmark on real priors.
 
 ## Conventions
 

@@ -32,6 +32,14 @@ Slice Sampling. AISTATS Proceedings.
 
 from __future__ import annotations
 
+__all__ = [
+    "log_gaussian_observation_likelihood",
+    "elliptical_slice_step",
+    "EllipticalSliceSampler",
+    "MultiHypothesisESSParticleFilter",
+]
+
+
 from dataclasses import dataclass, field
 
 import numpy as np

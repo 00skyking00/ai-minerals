@@ -34,6 +34,12 @@ B.1 IMPLEMENTATION STATUS (2026-06-11):
 
 from __future__ import annotations
 
+__all__ = [
+    "ParticleFilter",
+    "elliptical_slice_sample",
+]
+
+
 from dataclasses import dataclass
 
 import numpy as np
