@@ -1,5 +1,5 @@
 ---
-title: "Chapter 2: Regional MPM pipelines"
+title: "Chapter 2: Regional mineral-prospectivity pipelines"
 subtitle: "Mineral prospectivity on public open data: four regions, four deposit types"
 sidebar: regional
 ---
@@ -11,15 +11,20 @@ sidebar: regional
 This chapter walks through four regional pipelines I built: Eastern
 Alaska (porphyry Cu-Mo), the BC Golden Triangle (multi-deposit), the
 California Mother Lode (orogenic Au), and the Arizona porphyry-Cu
-belt. The stack is the same in each one: USGS, NRCan, and
-state-survey open data; feature-frame assembly with
-`build_feature_frame()`; Random Forest classification with 20-km
-spatial-block cross-validation; leak-free out-of-fold scoring; and
-bootstrap confidence intervals on AUC and top-k% capture rates. Each
-region is its own geologically distinct problem and tests whether
-the approach holds up.
+belt. The stack is the same in each one: open data from the
+US Geological Survey (USGS), Natural Resources Canada (NRCan), and
+state surveys; feature-frame assembly with `build_feature_frame()`;
+Random Forest classification (a tree-ensemble model that's the
+working horse for tabular geoscience data) with 20-km spatial-block
+cross-validation; leak-free out-of-fold scoring (each cell predicted
+by a model that did not train on its block, so it cannot memorize
+the answer); and bootstrap confidence intervals on AUC (area under
+the receiver-operating-characteristic curve, where 1.0 is perfect
+ranking and 0.5 is random) and top-k% capture rates. Each region is
+its own geologically distinct problem and tests whether the approach
+holds up.
 
-![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 ARDF porphyry positives held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
+![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 porphyry positives from the Alaska Resource Data File (ARDF), held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
 
 ## The results
 
@@ -44,35 +49,45 @@ Federal and state agencies publish decades of geophysical,
 geochemical, and geological data on national grids. My pipeline:
 
 1. **Fetch** raw rasters and shapefiles from public APIs: USGS
-   aeromagnetic and Bouguer/isostatic gravity, USGS State Geologic
-   Map Compilation (SGMC) lithology and structural faults, USGS
-   Mineral Resources Data System (MRDS) occurrence records, USGS
-   National Geochemical Database (NGDB) stream-sediment chemistry,
-   USGS 30-m DEM, Sentinel-2 SWIR alteration indices, plus
-   region-specific feeds (Alaska Geochemical Database AGDB4 v4 for
-   Tanacross; British Columbia Geological Survey RGS/MINFILE for
-   BCGT).
-2. **Reproject** every layer onto a common equal-area CRS
-   (California Albers EPSG:3310 for the CONUS work; NAD83/Alaska
-   Albers for Tanacross). Resample onto a 500-m grid.
+   aeromagnetic and Bouguer/isostatic gravity (measurements of the
+   Earth's magnetic and gravity fields, sensitive to different
+   rock types at depth), USGS State Geologic Map Compilation (SGMC)
+   lithology and structural faults, USGS Mineral Resources Data
+   System (MRDS) occurrence records (a national database of known
+   mineral deposits and showings), USGS National Geochemical
+   Database (NGDB) stream-sediment chemistry, USGS 30-m digital
+   elevation model, Sentinel-2 satellite short-wave-infrared
+   alteration indices, plus region-specific feeds (Alaska
+   Geochemical Database AGDB4 v4 for Tanacross; British Columbia
+   Geological Survey RGS regional geochemistry and the MINFILE
+   mineral-occurrence database for BCGT).
+2. **Reproject** every layer onto a common equal-area coordinate
+   reference system (California Albers EPSG:3310 for the contiguous
+   US work; NAD83/Alaska Albers for Tanacross). Resample onto a
+   500-m grid.
 3. **Assemble** the per-cell feature vector: geophysics columns,
-   four magnetic-field derivatives (1VD, HGM, analytic signal,
-   tilt), pathfinder geochemistry by element (5-km radius mean,
-   max, count, has-data flag), SGMC top-level lithology and
-   MAJOR1/2/3 fine-grained lithology, distance-to-fault, Sentinel-2
-   indices, slope, aspect, and terrain ruggedness from the DEM.
+   four magnetic-field derivatives (first vertical derivative, horizontal
+   gradient magnitude, analytic signal, tilt; each emphasizes a
+   different aspect of the magnetic anomaly shape), pathfinder
+   geochemistry by element (5-km radius mean, max, count, has-data
+   flag), SGMC top-level lithology and MAJOR1/2/3 fine-grained
+   lithology, distance-to-fault, Sentinel-2 indices, slope, aspect,
+   and terrain ruggedness from the DEM.
 4. **Clean labels** via Cox-Singer-aware filtering of the MRDS
-   free-text deposit-type field. For Mother Lode this drops placer,
-   epithermal, and skarn-Au records and keeps in-place orogenic-Au;
-   for Tanacross it keeps porphyry-Cu plus distal-porphyry; for
+   free-text deposit-type field (the USGS Cox & Singer 1986
+   grade-tonnage models give canonical names for each deposit type;
+   the filter keeps only records that match the target type for
+   each region). For Mother Lode this drops placer, epithermal,
+   and skarn-Au records and keeps in-place orogenic-Au; for
+   Tanacross it keeps porphyry-Cu plus distal-porphyry; for
    Arizona it keeps porphyry-Cu while excluding porphyry-Mo and
    skarn-Cu (tracked for diagnostics).
 5. **Train** Random Forest with `class_weight='balanced_subsample'`,
    pseudo-negatives sampled with a 5-km exclusion zone around any
    known occurrence.
-6. **Score** with 20-km spatial-block CV. Every cell is predicted
-   by a model that did not train on its block. Bootstrap CIs on AUC
-   and top-k% capture.
+6. **Score** with 20-km spatial-block cross-validation. Every cell
+   is predicted by a model that did not train on its block.
+   Bootstrap confidence intervals on AUC and top-k% capture.
 
 ## Eastern Alaska: three channels of exploration bias
 
@@ -93,21 +108,23 @@ correlates with sampling density even on non-NaN rows.
 ## BCGT: the 366-collar blind test inversion
 
 The BC Golden Triangle gave me a clean external test the other
-regions could not. BCGS GeoFile 2025-11 publishes 366 post-2015 drill
-collars in the AOI with per-hole element maxima. After restricting
-to cells the training labels know nothing about, the blind subset is
-241 cells: 154 drilled-positive and 87 drilled-negative. That lets me
-build distributions of model probability at drilled-positive versus
+regions could not. The BC Geological Survey GeoFile 2025-11
+publishes 366 post-2015 drill collars in the area of interest with
+per-hole element maxima. After restricting to cells the training
+labels know nothing about, the blind subset is 241 cells: 154
+drilled-positive and 87 drilled-negative. That lets me build
+distributions of model probability at drilled-positive versus
 drilled-negative cells on a truly held-out set. The result inverts
-the expected direction. The Kolmogorov-Smirnov test rejects equality
-of the two distributions, but the Mann-Whitney one-sided test
-(positives greater than negatives) fails. At the top-5% cutoff the
-model flags 63% of drilled-negative cells against 40% of
-drilled-positive cells, so the negatives get flagged 1.57x as often
-as the positives. Both populations sit in the same already-explored
-terrain near training positives, so they look equally prospective to
-a model that learned exploration history as much as it learned ore
-geology.
+the expected direction. Two standard non-parametric tests applied
+here: a Kolmogorov-Smirnov test asks whether the two probability
+distributions are different at all (it says yes), and a Mann-Whitney
+one-sided test asks whether the positives score higher than the
+negatives (it says no). At the top-5% cutoff the model flags 63% of
+drilled-negative cells against 40% of drilled-positive cells, so the
+negatives get flagged 1.57x as often as the positives. Both
+populations sit in the same already-explored terrain near training
+positives, so they look equally prospective to a model that learned
+exploration history as much as it learned ore geology.
 
 ## Going wider on BCGT: dh2loop and the Loop3D bridge
 
@@ -178,7 +195,11 @@ tool for the "estimate z from scattered (x, y, z) observations
 without orientation data" problem this dataset actually presents.
 LoopStructural becomes the right tool when the next iteration on
 this thread adds correlated-prior and multi-hypothesis machinery
-(D.6.B in the project's long-term plan).
+(D.6.B in the project's long-term plan). The thin-plate-spline RBF
+interpolator is a standard fit-a-smooth-surface-through-scattered-
+points method (RBF = radial basis function); think of it as drawing
+the smoothest possible surface that passes through every contact
+elevation measurement.
 
 The forward-looking value of the converted dataset is the pre/post-2010
 collar split it enables. Inside the BCGT AOI, 230 collars were
@@ -200,14 +221,22 @@ Mother Lode shipped as v3 in April 2026 with an AUC of 0.85 under
 spatial-block CV, then iterated through eight v3.1 experiments that
 either improved or tightened the result:
 
-- **B1.** Magnetic-field derivatives (1VD, HGM, analytic signal,
-  tilt) added. About 1 pp AUC gain.
+- **B1.** Magnetic-field derivatives (first vertical derivative,
+  horizontal gradient magnitude, analytic signal, tilt) added. About
+  1 pp AUC gain.
 - **B2.** SGMC MAJOR1/2/3 fine-grained lithology one-hots
   factorized and encoded. Modest gain, mostly improves SHAP
-  feature-attribution interpretability.
-- **C1.** Weighted-PU port from Hajihosseinlou et al. 2025 with
-  Optuna TPE search on the weight ratio. Implemented and scored
-  alongside the bagging-PU baseline.
+  feature-attribution interpretability (SHAP = SHapley Additive
+  exPlanations, a model-agnostic way to attribute a prediction
+  back to its input features).
+- **C1.** Weighted positive-unlabeled (PU) learning port from
+  Hajihosseinlou et al. 2025 with Optuna TPE search on the weight
+  ratio. PU learning treats the unlabeled cells as a mix of true
+  negatives and unannounced positives rather than assuming all
+  unlabeled cells are negative; it is the right framing for mineral
+  prospectivity since the "negatives" are just cells where nobody
+  has reported a deposit yet. Implemented and scored alongside the
+  bagging-PU baseline.
 - **C2.** Geology-only model plus Klamath cross-region transfer.
   Klamath AUC 0.58, barely above random. Documented as a known
   limit, not hidden.
@@ -219,7 +248,8 @@ either improved or tightened the result:
 The C2 experiment is worth pulling out. I trained a Sierra model
 on geology only (lithology one-hots, MAJOR1/2/3 fields, age, distance
 to fault, basic topography) and dropped the regionally-shifting
-features (magnetic, gravity, NGDB geochemistry, Sentinel-2). On
+features (magnetic, gravity, NGDB stream-sediment geochemistry,
+Sentinel-2). On
 Klamath the geology-only model captures 1.27x more positives in the
 top 1% than a random sample would, where the full-feature v3 model
 captured only 0.41x as many (worse than random). Past the top 1%
