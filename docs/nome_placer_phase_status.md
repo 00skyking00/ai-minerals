@@ -1,7 +1,7 @@
 # Nome placer build: phase status + integration points
 
 Roll-up across ai-minerals, bearcub, goldbug. Updated 2026-06-14 at
-end of Phase 1 v3.
+end of Phase 1.5 v1 autonomous run (post-Phase-1-v3).
 
 ## Phase status
 
@@ -12,7 +12,8 @@ end of Phase 1 v3.
 | 1 v1 | ai-minerals | CLOSED | 2026-06-14 | Stream-distance feature; BC / QM scorers; beach-contour GeoJSONs exported to bearcub |
 | 1 v2 | ai-minerals | CLOSED | 2026-06-14 | Tuck 1942 Map B1 dredge-cleanup polygons vectorized (3,383 polygons, rough-georeferenced); v1 auxiliary positive labels |
 | 1 v3 | ai-minerals | CLOSED | 2026-06-14 | Tuck 1942 Nome District bedrock-contour lines vectorized (2,358 segments); elevation-label OCR queued for Phase 2 |
-| 1 wrap-up | ai-minerals | in progress | -- | Integration tests + retrospective |
+| 1 wrap-up | ai-minerals | CLOSED | 2026-06-14 | Integration tests + retrospective |
+| 1.5 v1.1 | ai-minerals | CLOSED | 2026-06-14 | features/lithology.py buried-BL detection; Bear Cub MS 1178 passes BC top decile (6/6 gate); Phase 1 prospectivity raster (7-band GeoTIFF) delivered to goldbug; Tuck overlays re-delivered with rotation in raster header; stream-distance KDTree (100x speedup) |
 | 1 sibling | bearcub | not started | -- | Janin 1912 cross-sections check (per Sky 2026-06-14: bearcub already has them; needs confirmation) |
 | 1 sibling | goldbug | not started | -- | Historical-map overlay viewer (transparency slider; per ai-minerals 2026-06-14 handoff) |
 | 1 sibling | bearcub (deferred) | queued | -- | Chapter jargon polish (deferred; bearcub kept focus on Nome thread) |
@@ -57,10 +58,36 @@ Use case: bearcub's single-claim GP recommender consumes per-stand
 distance-to-shoreline as a covariate; missing this is what produces
 the negative leave-one-out R^2 bearcub flagged.
 
-### ai-minerals -> goldbug (planned Phase 1.5 / Phase 2)
+### ai-minerals -> goldbug (delivered Phase 1.5 v1.1)
 
-Not yet delivered. When Phase 1.5 ships the survey-grade georeferenced
-Tuck maps and Phase 2 ships the prospectivity raster:
+Three packages dropped in goldbug's inbox:
+
+```
+gldbg/handoff/inbox/2026-06-14-from-ai-minerals-tuck1942-overlay-v1p5/
+  8 sheets x (.tif full affine embedded + 300 DPI)
+  tuck1942_overlay_metadata_v1p5.json
+gldbg/handoff/inbox/2026-06-14-from-ai-minerals-nome-prospectivity-v1p5/
+  nome_placer_prospectivity_v1p5_3338.tif  (7-band working CRS)
+  nome_placer_prospectivity_v1p5_4326.tif  (7-band delivery CRS)
+  bands.json                                (Nome-specific schema)
+gldbg/handoff/inbox/2026-06-14-from-ai-minerals-tuck-v1p5-v1p1-rotation-embedded.md
+gldbg/handoff/inbox/2026-06-14-from-ai-minerals-overlay-ack-confirm.md
+```
+
+The prospectivity raster carries 7 bands:
+1. bl  -- true beach
+2. ap  -- abrasion-platform / sloughover
+3. tb  -- Tertiary buried high-bench
+4. bc  -- beach-stream confluence
+5. qm  -- off-beach modern creek
+6. buried_bl  -- buried true beach (Phase 1.5 addition)
+7. composite  -- per-cell max across populations
+
+Goldbug samples band 7 (composite) for the v1 prospectivity overlay
+and bands 1-6 for per-population analytic drill-down. The bands.json
+sidecar carries the v1.5 v1 validation-gate results (6/6 PASS).
+
+Future v1.5 v2 / Phase 2 packages (still to deliver):
 
 ```
 data/derived/nome_placer/
