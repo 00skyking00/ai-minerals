@@ -81,15 +81,17 @@ class CoastalScores:
 
     Each Series is indexed identically to ``grid.centroid_gdf()``.
     Values are in [0, 1]; higher means stronger membership. BC and QM
-    are ``None`` when no stream-distance series was provided to
-    ``score_all_populations`` (v0 behaviour).
+    are ``None`` when no stream-distance series was provided. The
+    buried_bl field is ``None`` when no bedrock surface was provided
+    (Phase 1.5 addition).
     """
-    bl: pd.Series      # true beach
-    ap: pd.Series      # abrasion-platform / sloughover
-    tb: pd.Series      # Tertiary buried high-bench
-    bc: pd.Series | None  # beach-stream confluence (needs streams)
-    qm: pd.Series | None  # off-beach modern creek (needs streams)
-    composite: pd.Series  # per-cell max over scored populations
+    bl: pd.Series           # true beach (surface elevation matches stand)
+    ap: pd.Series           # abrasion-platform / sloughover
+    tb: pd.Series           # Tertiary buried high-bench
+    bc: pd.Series | None    # beach-stream confluence (needs streams)
+    qm: pd.Series | None    # off-beach modern creek (needs streams)
+    buried_bl: pd.Series | None  # buried true beach (bedrock elev matches stand, Phase 1.5)
+    composite: pd.Series    # per-cell max over scored populations
 
 
 def _gaussian_membership(
@@ -269,42 +271,81 @@ def score_all_populations(
     grid: Grid,
     *,
     distance_to_stream_m: pd.Series | None = None,
+    bedrock_elevation_m: pd.Series | None = None,
     bl_sigma_m: float = 5.0,
     ap_sigma_m: float = 6.0,
     tb_sigma_m: float = 12.0,
     bc_stream_sigma_m: float = 500.0,
     qm_stream_sigma_m: float = 400.0,
+    buried_bl_sigma_m: float = 5.0,
 ) -> CoastalScores:
-    """Score BL, AP, TB (and BC, QM if a stream-distance series is given)
-    populations and the per-cell max() composite.
+    """Score BL, AP, TB (and BC, QM if streams given, buried_BL if
+    bedrock_elevation given) populations and the per-cell max composite.
 
     ``distance_to_stream_m`` is required for BC and QM. Compute it once
     via ``features.hydrology.streams_from_flow_accumulation`` ->
     ``features.hydrology.distance_to_stream_m`` and pass in.
 
-    Without the stream series, the composite covers only BL, AP, TB
-    (the v0 behaviour). When the series is provided, BC and QM are
-    populated and the composite folds them into the per-cell max.
+    ``bedrock_elevation_m`` enables buried-beach detection at Bear Cub
+    style claims where Third Beach is buried 80-90 ft under the modern
+    surface (Sky 2026-06-14 calibration). Compute via
+    ``features.lithology.load_bedrock_surface`` +
+    ``features.lithology.elevation_of_bedrock_m``. When provided, the
+    buried_bl score reflects cells where BEDROCK sits at a documented
+    true-beach stand elevation. BC then uses max(BL, buried_BL, AP) as
+    the beach factor, so buried beaches contribute to BC scoring.
+
+    Without the optional inputs, the scorer falls back to surface-only
+    BL/AP/TB (Phase 1 v0 behaviour).
     """
+    from ai_minerals.features.lithology import buried_population_score
+
     bl = score_bl(dem, grid, sigma_m=bl_sigma_m)
     ap = score_ap(dem, grid, sigma_m=ap_sigma_m)
     tb = score_tb(dem, grid, sigma_m=tb_sigma_m)
 
-    if distance_to_stream_m is not None:
-        bc = score_bc(bl, ap, distance_to_stream_m, stream_sigma_m=bc_stream_sigma_m)
-        qm = score_qm(dem, grid, distance_to_stream_m, stream_sigma_m=qm_stream_sigma_m)
-        stack = np.stack(
-            [bl.to_numpy(), ap.to_numpy(), tb.to_numpy(), bc.to_numpy(), qm.to_numpy()],
-            axis=0,
+    if bedrock_elevation_m is not None:
+        buried_bl = buried_population_score(
+            bedrock_elevation_m, BL_STANDS, sigma_m=buried_bl_sigma_m
         )
+        # Where bedrock coverage is absent the score is NaN; fill with 0
+        # so the per-cell max() composite ignores it cleanly.
+        buried_bl = buried_bl.fillna(0.0)
+        # BL effective = max over surface and buried (the BC scorer uses
+        # this combined view as the "beach factor").
+        bl_effective = pd.Series(
+            np.maximum(bl.to_numpy(), buried_bl.to_numpy()),
+            index=bl.index,
+            name="score_bl_effective",
+        )
+    else:
+        buried_bl = None
+        bl_effective = bl
+
+    if distance_to_stream_m is not None:
+        bc = score_bc(
+            bl_effective, ap, distance_to_stream_m,
+            stream_sigma_m=bc_stream_sigma_m,
+        )
+        qm = score_qm(
+            dem, grid, distance_to_stream_m, stream_sigma_m=qm_stream_sigma_m,
+        )
+        score_arrays = [bl.to_numpy(), ap.to_numpy(), tb.to_numpy(),
+                       bc.to_numpy(), qm.to_numpy()]
     else:
         bc = None
         qm = None
-        stack = np.stack([bl.to_numpy(), ap.to_numpy(), tb.to_numpy()], axis=0)
+        score_arrays = [bl.to_numpy(), ap.to_numpy(), tb.to_numpy()]
+
+    if buried_bl is not None:
+        score_arrays.append(buried_bl.to_numpy())
 
     composite = pd.Series(
-        stack.max(axis=0),
+        np.stack(score_arrays, axis=0).max(axis=0),
         index=grid.centroid_gdf().index,
         name="score_composite",
     )
-    return CoastalScores(bl=bl, ap=ap, tb=tb, bc=bc, qm=qm, composite=composite)
+    return CoastalScores(
+        bl=bl, ap=ap, tb=tb, bc=bc, qm=qm,
+        buried_bl=buried_bl, composite=composite,
+    )

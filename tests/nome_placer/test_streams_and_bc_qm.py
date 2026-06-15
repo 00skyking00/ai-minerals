@@ -192,25 +192,21 @@ def test_validation_gate_5_landmarks_pass_in_natural_populations(
     assert honey_tb >= p90_tb, f"Honey TB {honey_tb:.3f} below {p90_tb:.3f}"
 
 
-def test_bear_cub_partial_bc_score_documented(
+def test_bear_cub_bc_surface_only_documented(
     scores_with_streams, nome_grid_25m, family_claim_polygons,
 ):
-    """Bear Cub MS 1178 is a BC per Sky's calibration. With the v1
-    stream threshold lowered to 100 cells (captures the seasonal
-    Bear Creek + Dry Creek that go through the polygon), Bear Cub's
-    stream-distance factor saturates near 1.0 so BC = max(BL, AP).
-    The BL score is capped near 0.38 because Bear Cub's modern
-    surface elevation (+48-59 m) matches Fourth Beach (+37 m), not
-    Third Beach. Sky's 2026-06-14 clarification: Third Beach is
-    BURIED 80-90 ft below the Bear Cub surface; the modern-surface-
-    matches-paleo-stand heuristic the v1 BL scorer uses doesn't see
-    buried beaches. The proper fix is Tuck Map B1's plan-view Third
-    Beach line; queued for Phase 1.5."""
+    """Surface-only BC scoring (NO buried-BL feed) leaves Bear Cub
+    capped near 0.36 because the BL score is capped at ~0.38 (Bear
+    Cub's modern surface matches Fourth Beach, not Third Beach).
+    The full fix is in test_lithology.py: with buried-BL feeding BC,
+    Bear Cub jumps to ~0.98 and PASSES the top-decile gate."""
     centroids = nome_grid_25m.centroid_gdf()
     bc = _max_in_poly(
         centroids, family_claim_polygons["bear_cub"].geometry,
         scores_with_streams.bc,
     )
     assert 0.20 <= bc <= 0.50, (
-        f"Bear Cub BC {bc:.3f} outside documented partial range [0.20, 0.50]"
+        f"Bear Cub surface-only BC {bc:.3f} outside expected [0.20, 0.50]; "
+        "the surface-only BC ceiling is documented at ~0.38 and the buried "
+        "BL feature lifts it to top-decile (see test_lithology.py)."
     )
