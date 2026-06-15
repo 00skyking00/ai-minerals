@@ -137,26 +137,54 @@ def _render_pdf(pdf_path: Path, png_path: Path, dpi: int) -> tuple[int, int]:
 def _png_to_geotiff(
     png_path: Path,
     tif_path: Path,
-    bounds_4326: tuple[float, float, float, float],
+    affine: tuple[float, ...],
 ) -> None:
-    """Embed bounds_4326 + EPSG:4326 into a GeoTIFF via gdal_translate.
+    """Embed the FULL affine + EPSG:4326 into a GeoTIFF via rasterio.
 
-    bounds_4326 = (min_lon, min_lat, max_lon, max_lat). gdal_translate
-    -a_ullr takes UPPER LEFT / LOWER RIGHT corners, so we pass
-    (min_lon, max_lat, max_lon, min_lat). Compression LZW; tiled.
+    Goldbug 2026-06-14 v1.5 v1 ack: ``gdal_translate -a_ullr`` only
+    embeds an axis-aligned bounding box (``gt[2] = gt[4] = 0``), losing
+    the rotation/shear that the source rough-affine carries. Switching
+    to rasterio.open writes the full 6-parameter affine including
+    non-zero shear/rotation in the GeoTIFF header.
+
+    ``affine`` is ``(a, b, d, e, xoff, yoff)`` in shapely convention:
+      x = a*col + b*row + xoff
+      y = d*col + e*row + yoff
+
+    Translated to rasterio.transform.Affine which uses (a, b, c, d, e, f):
+      x = a*col + b*row + c
+      y = d*col + e*row + f
     """
-    ulx, uly = bounds_4326[0], bounds_4326[3]
-    lrx, lry = bounds_4326[2], bounds_4326[1]
-    cmd = [
-        "gdal_translate",
-        "-a_srs", "EPSG:4326",
-        "-a_ullr", str(ulx), str(uly), str(lrx), str(lry),
-        "-co", "COMPRESS=LZW",
-        "-co", "TILED=YES",
-        str(png_path),
-        str(tif_path),
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    import rasterio
+    from rasterio.transform import Affine
+    from rasterio.crs import CRS
+
+    a, b, d, e, xoff, yoff = affine
+
+    img = Image.open(png_path).convert("RGB")
+    arr = np.asarray(img)
+    height, width = arr.shape[0], arr.shape[1]
+
+    transform = Affine(a, b, xoff, d, e, yoff)
+
+    profile = {
+        "driver": "GTiff",
+        "height": height,
+        "width": width,
+        "count": 3,
+        "dtype": "uint8",
+        "crs": CRS.from_epsg(4326),
+        "transform": transform,
+        "compress": "lzw",
+        "tiled": True,
+        "blockxsize": 256,
+        "blockysize": 256,
+    }
+    with rasterio.open(tif_path, "w", **profile) as dst:
+        # Write each band (rasterio uses (band, row, col) ordering)
+        dst.write(arr[..., 0], 1)
+        dst.write(arr[..., 1], 2)
+        dst.write(arr[..., 2], 3)
 
 
 def _measure_rms_landmark(
@@ -222,8 +250,9 @@ def redo_one_sheet(
         max(ul_lat, ur_lat),
     )
 
-    # Convert PNG -> GeoTIFF with embedded affine + CRS
-    _png_to_geotiff(png_path, tif_path, bounds_4326)
+    # Convert PNG -> GeoTIFF with the FULL affine (incl. rotation/shear)
+    # embedded in the raster header per goldbug 2026-06-14 ack.
+    _png_to_geotiff(png_path, tif_path, affine)
 
     # Compute the per-landmark offset (currently placeholder; needs
     # interactive landmark identification for the real measurement)
