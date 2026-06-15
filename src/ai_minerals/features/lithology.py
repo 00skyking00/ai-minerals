@@ -183,6 +183,169 @@ def buried_stand_membership(
     )
 
 
+def load_all_drillhole_depths(
+    drillholes_path: Path,
+    cross_sections_path: Path | None = None,
+) -> pd.DataFrame:
+    """Combine drillholes + cross_sections into a unified depth dataset.
+
+    Output schema:
+      hole_id, lon, lat, easting_3338, northing_3338, source,
+      bedrock_depth_ft, pay_top_ft, pay_bottom_ft, grade_oz_cuyd
+
+    For Bear Cub Murray holes (which have ``pay_zone_thickness_ft`` but
+    not ``pay_top_ft``), we derive ``pay_top_ft = bedrock_depth_ft -
+    pay_zone_thickness_ft`` (placer convention: pay sits at the base
+    of the gravel column, on bedrock).
+
+    For Janin Pioneer holes that also appear in cross_sections_path,
+    the parsed ``pay_top_ft`` / ``pay_bottom_ft`` from the side-elevation
+    diagrams replaces the bedrock-derived estimate where available.
+    """
+    dh = pd.read_parquet(drillholes_path)
+    valid = dh.dropna(subset=["lon", "lat", "bedrock_depth_ft"]).copy()
+
+    # Default: derive pay-zone from bedrock - thickness
+    valid["pay_bottom_ft"] = valid["bedrock_depth_ft"]
+    valid["pay_top_ft"] = (
+        valid["bedrock_depth_ft"] - valid["pay_zone_thickness_ft"]
+    )
+
+    # Janin cross-sections override (where parsed)
+    if cross_sections_path is not None and cross_sections_path.exists():
+        cs = pd.read_parquet(cross_sections_path)
+        cs_valid = cs.dropna(subset=["pay_top_ft", "pay_bottom_ft"])[
+            ["hole_id", "pay_top_ft", "pay_bottom_ft"]
+        ].rename(columns={
+            "pay_top_ft": "pay_top_ft_cs",
+            "pay_bottom_ft": "pay_bottom_ft_cs",
+        })
+        valid = valid.merge(cs_valid, on="hole_id", how="left")
+        cs_present = valid["pay_top_ft_cs"].notna()
+        valid.loc[cs_present, "pay_top_ft"] = valid.loc[cs_present, "pay_top_ft_cs"]
+        valid.loc[cs_present, "pay_bottom_ft"] = valid.loc[cs_present, "pay_bottom_ft_cs"]
+        valid = valid.drop(columns=["pay_top_ft_cs", "pay_bottom_ft_cs"])
+
+    if "grade_oz_cuyd" not in valid.columns:
+        valid["grade_oz_cuyd"] = valid.get(
+            "pay_zone_average_oz_cuyd",
+            pd.Series([float("nan")] * len(valid), index=valid.index),
+        )
+
+    out_cols = [
+        "hole_id", "lon", "lat", "easting_3338", "northing_3338", "source",
+        "bedrock_depth_ft", "pay_top_ft", "pay_bottom_ft", "grade_oz_cuyd",
+    ]
+    return valid[out_cols].reset_index(drop=True)
+
+
+def interpolate_depth_surface(
+    holes: pd.DataFrame,
+    grid: Grid,
+    *,
+    field_name: str = "bedrock_depth_ft",
+    method: str = "linear",
+    max_distance_m: float = 1500.0,
+) -> "pd.Series":
+    """Interpolate a per-cell depth surface (feet) from hole data.
+
+    Uses ``scipy.interpolate.griddata`` with the specified method
+    (``linear``, ``cubic``, or ``nearest``). Cells more than
+    ``max_distance_m`` from any hole are masked NaN -- prevents wild
+    extrapolation outside the drilled envelope.
+
+    ``holes`` must carry ``easting_3338`` + ``northing_3338`` (EPSG:3338
+    metres, the working CRS) and the field-name column.
+    """
+    from scipy.interpolate import griddata
+    from scipy.spatial import cKDTree
+
+    valid = holes.dropna(subset=["easting_3338", "northing_3338", field_name])
+    if len(valid) < 3:
+        return pd.Series(
+            np.full(grid.n_cells, np.nan, dtype=np.float32),
+            index=grid.centroid_gdf().index,
+            name=f"interp_{field_name}",
+        )
+
+    points = valid[["easting_3338", "northing_3338"]].to_numpy(dtype=np.float64)
+    values = valid[field_name].to_numpy(dtype=np.float64)
+
+    centroids = grid.centroid_gdf()
+    targets = np.column_stack([
+        centroids.geometry.x.to_numpy(dtype=np.float64),
+        centroids.geometry.y.to_numpy(dtype=np.float64),
+    ])
+
+    interp = griddata(points, values, targets, method=method)
+
+    # Mask cells too far from any drillhole
+    tree = cKDTree(points)
+    nearest_d, _ = tree.query(targets, k=1)
+    interp = np.where(nearest_d <= max_distance_m, interp, np.nan)
+
+    return pd.Series(
+        interp.astype(np.float32),
+        index=centroids.index,
+        name=f"interp_{field_name}",
+    )
+
+
+def combined_bedrock_elevation_m(
+    dem: xr.DataArray,
+    grid: Grid,
+    *,
+    drillholes_path: Path,
+    cross_sections_path: Path | None,
+    bearcub_field: BedrockField | None = None,
+    max_distance_m: float = 1500.0,
+) -> pd.Series:
+    """Per-cell bedrock elevation (m above modern sea level), combining:
+
+    1. **Bearcub GP surface** within the Bear Cub envelope where
+       variance is acceptable. Sub-cell precision; trusted.
+    2. **Interpolated surface** from the wider 99-hole network (Janin
+       Pioneer + Bear Cub Murray) elsewhere within ``max_distance_m``
+       of any drillhole. Linear interpolation via scipy.griddata; less
+       precise than the GP but covers ~15x the area.
+    3. **NaN** outside both coverage zones.
+
+    Result is bedrock elevation (modern surface - depth) in metres.
+    Buried-BL scoring uses this to detect paleo-beach lines below the
+    modern surface across the wider district, not just the Bear Cub
+    family-claim envelope.
+    """
+    centroids = grid.centroid_gdf()
+    surface_m = _surface_elevation_m(dem, grid)
+    out = np.full(grid.n_cells, np.nan, dtype=np.float32)
+
+    # Layer 1: bearcub GP elevation (where coverage_mask is True)
+    if bearcub_field is not None:
+        in_cov = bearcub_field.coverage_mask.to_numpy()
+        depth_m_bc = bearcub_field.depth_m.to_numpy()
+        out[in_cov] = (surface_m[in_cov] - depth_m_bc[in_cov]).astype(np.float32)
+
+    # Layer 2: wider-hole-network interpolation where bearcub is missing
+    holes = load_all_drillhole_depths(drillholes_path, cross_sections_path)
+    interp_depth_ft = interpolate_depth_surface(
+        holes, grid, field_name="bedrock_depth_ft",
+        max_distance_m=max_distance_m,
+    ).to_numpy()
+    # Convert ft to m
+    interp_depth_m = interp_depth_ft / _FT_PER_M
+    fill_mask = np.isnan(out) & np.isfinite(interp_depth_m)
+    out[fill_mask] = (surface_m[fill_mask] - interp_depth_m[fill_mask]).astype(np.float32)
+
+    return pd.Series(out, index=centroids.index, name="combined_bedrock_elevation_m")
+
+
+def _surface_elevation_m(dem: xr.DataArray, grid: Grid) -> np.ndarray:
+    """Sample DEM at each grid centroid; return surface elevation (m, numpy)."""
+    dummy_stand = next(iter(STAND_ELEVATIONS_FT))
+    rel = elevation_relative_to_stand_m(dem, grid, dummy_stand).to_numpy(np.float32)
+    return rel + stand_elevation_m(dummy_stand)
+
+
 def buried_population_score(
     bedrock_elev_m: pd.Series,
     stand_names: tuple[str, ...],

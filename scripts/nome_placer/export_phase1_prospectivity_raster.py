@@ -44,7 +44,7 @@ from ai_minerals.features.hydrology import (
     distance_to_stream_m, flow_accumulation, streams_from_flow_accumulation,
 )
 from ai_minerals.features.lithology import (
-    elevation_of_bedrock_m, load_bedrock_surface,
+    combined_bedrock_elevation_m, load_bedrock_surface,
 )
 from ai_minerals.grid import build_grid
 from ai_minerals.regions.nome_placer import NOME_PLACER_REGION
@@ -85,7 +85,14 @@ def main() -> None:
         Path(NOME_PLACER_REGION.raw_paths["bedrock_topo_variance"]),
         grid,
     )
-    bedrock_elev = elevation_of_bedrock_m(dem, grid, bedrock)
+
+    print("Combining bearcub GP + 99-hole interpolation for district buried-BL ...")
+    bedrock_elev = combined_bedrock_elevation_m(
+        dem, grid,
+        drillholes_path=Path(NOME_PLACER_REGION.raw_paths["drillholes"]),
+        cross_sections_path=Path("data/raw/bearcub_nome/cross_sections_nome_placer.parquet"),
+        bearcub_field=bedrock,
+    )
 
     print("Scoring all populations ...")
     scores = score_all_populations(

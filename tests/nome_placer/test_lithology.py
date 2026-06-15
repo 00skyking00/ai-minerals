@@ -147,6 +147,94 @@ def test_buried_bl_population_score_uses_max_over_stands(
 # Integration: full validation gate now passes 6 of 6 with buried-BL
 # ---------------------------------------------------------------------------
 
+def test_combined_bedrock_surface_extends_beyond_bearcub_envelope(
+    ifsar_dem_aoi_proj, nome_grid_25m, bedrock_field, nome_region,
+):
+    """Phase 1.5 v2 addition: combined_bedrock_elevation_m fills in
+    bedrock elevation from the wider 99-hole network (Janin + Bear
+    Cub) outside the bearcub GP envelope. Coverage should expand by
+    >= 10x relative to bearcub-only."""
+    from pathlib import Path
+    from ai_minerals.features.lithology import (
+        combined_bedrock_elevation_m, elevation_of_bedrock_m,
+    )
+
+    bearcub_only = elevation_of_bedrock_m(
+        ifsar_dem_aoi_proj, nome_grid_25m, bedrock_field,
+    )
+    combined = combined_bedrock_elevation_m(
+        ifsar_dem_aoi_proj, nome_grid_25m,
+        drillholes_path=Path(nome_region.raw_paths["drillholes"]),
+        cross_sections_path=Path("data/raw/bearcub_nome/cross_sections_nome_placer.parquet"),
+        bearcub_field=bedrock_field,
+    )
+    bearcub_cov = int(bearcub_only.notna().sum())
+    combined_cov = int(combined.notna().sum())
+    assert combined_cov >= 10 * bearcub_cov, (
+        f"Combined coverage {combined_cov} not >= 10x bearcub-only "
+        f"{bearcub_cov}; the wider hole-network interpolation isn't "
+        "filling in as expected"
+    )
+
+
+def test_load_all_drillhole_depths_combines_janin_and_bear_cub(nome_region):
+    """The combined hole dataset should contain both Janin Pioneer and
+    Bear Cub Murray records with non-null bedrock_depth_ft + lat/lon."""
+    from pathlib import Path
+    from ai_minerals.features.lithology import load_all_drillhole_depths
+
+    holes = load_all_drillhole_depths(
+        Path(nome_region.raw_paths["drillholes"]),
+        Path("data/raw/bearcub_nome/cross_sections_nome_placer.parquet"),
+    )
+    assert len(holes) >= 80, f"Expected >= 80 combined holes; got {len(holes)}"
+    sources = holes["source"].value_counts().to_dict()
+    assert "janin_pioneer_1912" in sources, f"No Janin holes in combined dataset; {sources}"
+    assert "bear_cub_murray" in sources, f"No Bear Cub holes in combined dataset; {sources}"
+    assert holes["bedrock_depth_ft"].notna().all()
+
+
+def test_interpolated_bedrock_surface_covers_janin_area(
+    ifsar_dem_aoi_proj, nome_grid_25m, nome_region,
+):
+    """Janin Little Creek + Moonlight (NW of Bear Cub) should have
+    interpolated bedrock coverage at the Janin hole locations. Take
+    one Janin hole position and verify it lands in the interpolated
+    coverage."""
+    from pathlib import Path
+    import geopandas as gpd
+    from shapely.geometry import Point
+    from ai_minerals.features.lithology import (
+        interpolate_depth_surface, load_all_drillhole_depths,
+    )
+
+    holes = load_all_drillhole_depths(
+        Path(nome_region.raw_paths["drillholes"]),
+        Path("data/raw/bearcub_nome/cross_sections_nome_placer.parquet"),
+    )
+    janin = holes[holes["source"] == "janin_pioneer_1912"].iloc[0]
+
+    interp = interpolate_depth_surface(
+        holes, nome_grid_25m, field_name="bedrock_depth_ft", max_distance_m=1500.0,
+    )
+    centroids = nome_grid_25m.centroid_gdf()
+    pt = gpd.GeoSeries(
+        [Point(janin["lon"], janin["lat"])], crs="EPSG:4326",
+    ).to_crs(centroids.crs).iloc[0]
+    idx = centroids.distance(pt).idxmin()
+    val = interp.iloc[idx]
+    assert pd.notna(val), (
+        f"Interpolated bedrock-depth at Janin hole {janin['hole_id']} is NaN; "
+        "expected coverage at a hole position"
+    )
+    # The interpolation at a hole position should be near the hole's measured
+    # bedrock depth (within ~10 ft of the local pattern)
+    assert abs(val - janin["bedrock_depth_ft"]) < 20, (
+        f"Interpolated {val:.1f} ft vs measured {janin['bedrock_depth_ft']:.1f} ft "
+        "at the same hole position is too far off"
+    )
+
+
 def test_bear_cub_bc_passes_top_decile_with_buried_bl(
     ifsar_dem_aoi_proj, nome_grid_25m, bedrock_elev_series, family_claim_polygons,
 ):
