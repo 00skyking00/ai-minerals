@@ -782,18 +782,22 @@ def streams_from_flow_accumulation(
     *,
     transform: Affine,
     crs: str,
-    min_accumulation_cells: int = 500,
+    min_accumulation_cells: int = 100,
 ) -> "gpd.GeoDataFrame":
     """Derive a stream-cell point dataset from a Whitebox flow-accumulation raster.
 
     Cells with ``flow_acc >= min_accumulation_cells`` are treated as
-    stream cells. The default threshold (500 upstream cells) at the
-    IfSAR ~7 m resolution corresponds to roughly 0.025 km^2 of drainage
-    area, which produces a fine-grained stream network appropriate for
-    the small Cape Nome AOI. At this threshold the Cape Nome AOI yields
-    ~50,000 stream cells (~360 km of total length) covering main-stem
-    and tributary drainages including Bear Cub / Anvil / Snake / Bourbon
-    Creeks. A higher threshold (5,000+) yields only main-stem channels.
+    stream cells. The default threshold (100 upstream cells) at the
+    IfSAR ~7 m resolution corresponds to roughly 5,000 m^2 of drainage
+    area, which captures the seasonal creeks at Cape Nome (Bear Creek,
+    Dry Creek, the small tributaries that go through Bear Cub MS 1178)
+    in addition to the main-stem Snake / Anvil / Bourbon drainages. At
+    threshold 100 the Cape Nome AOI yields ~350,000 stream cells; at
+    threshold 500 it falls to ~50,000 stream cells, which loses the
+    seasonal creeks that matter for the BC population at Bear Cub
+    (Sky's 2026-06-14 calibration: "Bear Creek and Dry Creek went
+    through Bear Cub or very close to it"). A higher threshold
+    (5,000+) yields only perennial main-stem channels.
 
     The result is a GeoDataFrame of Point geometries at the centroid of
     each stream cell, in the supplied CRS. Used by

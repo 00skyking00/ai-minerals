@@ -65,12 +65,12 @@ def scores_with_streams(ifsar_dem_aoi_proj, nome_grid_25m, d_stream):
 # ---------------------------------------------------------------------------
 
 def test_stream_extraction_yields_reasonable_count(streams_gdf):
-    """At the default 500-cell flow-accumulation threshold the Cape Nome
-    AOI should yield tens of thousands of stream cells (not the ~1000
-    of a 5000-cell threshold and not the ~hundreds of thousands of a
-    100-cell threshold)."""
-    assert 10_000 <= len(streams_gdf) <= 100_000, (
-        f"Expected 10k to 100k stream cells; got {len(streams_gdf)}. "
+    """At the default 100-cell flow-accumulation threshold the Cape Nome
+    AOI should yield a few hundred thousand stream cells. Higher
+    thresholds (500+) lose seasonal creeks like Bear Creek and Dry
+    Creek that go through Bear Cub MS 1178."""
+    assert 100_000 <= len(streams_gdf) <= 800_000, (
+        f"Expected 100k to 800k stream cells; got {len(streams_gdf)}. "
         "Threshold may be off."
     )
 
@@ -195,18 +195,22 @@ def test_validation_gate_5_landmarks_pass_in_natural_populations(
 def test_bear_cub_partial_bc_score_documented(
     scores_with_streams, nome_grid_25m, family_claim_polygons,
 ):
-    """Bear Cub MS 1178 is a BC per Sky's calibration but its position
-    (+8 m above Fourth Beach AND ~530 m from streams) lands it at
-    around BC = 0.25, which is top-quintile but not top-decile. This
-    is honest signal from the BC product structure, not a scorer bug.
-    A higher BC sigma or per-stand BL sigma would lift Bear Cub above
-    the top-decile bar, but the v1 baseline records this as the
-    documented Bear Cub state."""
+    """Bear Cub MS 1178 is a BC per Sky's calibration. With the v1
+    stream threshold lowered to 100 cells (captures the seasonal
+    Bear Creek + Dry Creek that go through the polygon), Bear Cub's
+    stream-distance factor saturates near 1.0 so BC = max(BL, AP).
+    The BL score is capped near 0.38 because Bear Cub's modern
+    surface elevation (+48-59 m) matches Fourth Beach (+37 m), not
+    Third Beach. Sky's 2026-06-14 clarification: Third Beach is
+    BURIED 80-90 ft below the Bear Cub surface; the modern-surface-
+    matches-paleo-stand heuristic the v1 BL scorer uses doesn't see
+    buried beaches. The proper fix is Tuck Map B1's plan-view Third
+    Beach line; queued for Phase 1.5."""
     centroids = nome_grid_25m.centroid_gdf()
     bc = _max_in_poly(
         centroids, family_claim_polygons["bear_cub"].geometry,
         scores_with_streams.bc,
     )
-    assert 0.10 <= bc <= 0.45, (
-        f"Bear Cub BC {bc:.3f} outside documented partial range [0.10, 0.45]"
+    assert 0.20 <= bc <= 0.50, (
+        f"Bear Cub BC {bc:.3f} outside documented partial range [0.20, 0.50]"
     )
