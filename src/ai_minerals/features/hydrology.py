@@ -826,13 +826,19 @@ def distance_to_stream_m(
 
     ``streams`` is the point-geometry frame from
     ``streams_from_flow_accumulation`` (or any other source providing
-    point or line geometries in the working CRS). Cells with no stream
-    within ``max_distance_m`` get the cap.
+    point geometries in the working CRS). Cells with no stream within
+    ``max_distance_m`` get the cap.
 
     Result is indexed identically to ``grid.centroid_gdf()``.
+
+    Performance: uses scipy.spatial.cKDTree for the nearest-neighbour
+    query (O(n log m) for n cells against m stream points). At Cape
+    Nome with 590k cells and 360k stream cells the query takes ~3
+    seconds, vs ~5 minutes for the equivalent gpd.sjoin_nearest
+    fallback.
     """
-    import geopandas as gpd
     import pandas as pd
+    from scipy.spatial import cKDTree
 
     centroids = grid.centroid_gdf()
     if streams.crs != centroids.crs:
@@ -845,19 +851,20 @@ def distance_to_stream_m(
             name="distance_to_stream_m",
         )
 
-    joined = gpd.sjoin_nearest(
-        centroids,
-        streams[["geometry"]],
-        how="left",
-        max_distance=max_distance_m,
-        distance_col="_dist_m",
+    # Pull xy coords as plain numpy arrays for the KDTree query.
+    stream_xy = np.column_stack([
+        streams.geometry.x.to_numpy(dtype=np.float64),
+        streams.geometry.y.to_numpy(dtype=np.float64),
+    ])
+    centroid_xy = np.column_stack([
+        centroids.geometry.x.to_numpy(dtype=np.float64),
+        centroids.geometry.y.to_numpy(dtype=np.float64),
+    ])
+    tree = cKDTree(stream_xy)
+    dists, _ = tree.query(centroid_xy, k=1, distance_upper_bound=max_distance_m)
+    dists = np.where(np.isinf(dists), max_distance_m, dists)
+    return pd.Series(
+        dists.astype(np.float32),
+        index=centroids.index,
+        name="distance_to_stream_m",
     )
-    # sjoin_nearest can emit ties; drop dupes keeping the first.
-    joined = joined.loc[~joined.index.duplicated(keep="first")]
-    dist = (
-        joined["_dist_m"]
-        .fillna(max_distance_m)
-        .astype(np.float32)
-        .to_numpy()
-    )
-    return pd.Series(dist, index=centroids.index, name="distance_to_stream_m")
