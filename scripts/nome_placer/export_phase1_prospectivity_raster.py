@@ -46,6 +46,7 @@ from ai_minerals.features.hydrology import (
 from ai_minerals.features.lithology import (
     combined_bedrock_elevation_m, load_bedrock_surface,
 )
+from ai_minerals.features.surficial import drift_mask, load_surface_geology
 from ai_minerals.grid import build_grid
 from ai_minerals.regions.nome_placer import NOME_PLACER_REGION
 
@@ -94,11 +95,20 @@ def main() -> None:
         bearcub_field=bedrock,
     )
 
+    print("Loading PDF 94-39 surficial + building drift mask for QM ...")
+    surface_polys = load_surface_geology(
+        Path(NOME_PLACER_REGION.raw_paths["surficial_nome"]), NOME_PLACER,
+    )
+    qm_drift = drift_mask(surface_polys, grid)
+    n_drift = int(qm_drift.sum())
+    print(f"  drift cells: {n_drift:,} / {grid.n_cells:,}")
+
     print("Scoring all populations ...")
     scores = score_all_populations(
         dem, grid,
         distance_to_stream_m=d_stream,
         bedrock_elevation_m=bedrock_elev,
+        qm_drift_mask=qm_drift,
     )
 
     # Reshape per-cell Series to (H, W)
@@ -124,7 +134,7 @@ def main() -> None:
     # convention is north-to-south. Flip the row axis to match.
     stack_north_up = stack[:, ::-1, :]
 
-    out_3338 = out_dir / "nome_placer_prospectivity_v1p5_3338.tif"
+    out_3338 = out_dir / "nome_placer_prospectivity_v1p5_v2_3338.tif"
     with rasterio.open(
         out_3338, "w",
         driver="GTiff", height=H, width=W,
@@ -138,7 +148,7 @@ def main() -> None:
     print(f"  EPSG:3338 raster -> {out_3338} ({out_3338.stat().st_size:,} B)")
 
     # Reproject to EPSG:4326 for goldbug
-    out_4326 = out_dir / "nome_placer_prospectivity_v1p5_4326.tif"
+    out_4326 = out_dir / "nome_placer_prospectivity_v1p5_v2_4326.tif"
     with rasterio.open(out_3338) as src:
         dst_transform, dst_w, dst_h = calculate_default_transform(
             src.crs, "EPSG:4326", src.width, src.height, *src.bounds,
@@ -174,7 +184,7 @@ def main() -> None:
             {"index": i + 1, "key": k, "name": n, "description": d, "value_range": [0.0, 1.0]}
             for i, (k, n, d) in enumerate(BANDS_IN_ORDER)
         ],
-        "phase": "1.5 v1 (buried-BL feeding BC; KDTree-fast streams)",
+        "phase": "1.5 v2 (buried-BL feeding BC; KDTree-fast streams; QM conditioned on PDF 94-39 drift)",
         "validation_gate": {
             "anvil_creek_qm_p90": 1.000,
             "third_beach_bl_p90": 1.000,
@@ -203,7 +213,7 @@ def main() -> None:
     # Deliver to goldbug
     goldbug_inbox = Path(
         "/home/sky/src/learning/gldbg/handoff/inbox/"
-        "2026-06-14-from-ai-minerals-nome-prospectivity-v1p5"
+        "2026-06-16-from-ai-minerals-nome-prospectivity-v1p5-v2"
     )
     goldbug_inbox.mkdir(parents=True, exist_ok=True)
     import shutil
