@@ -510,6 +510,48 @@ def distance_to_lode_m(
     return pd.Series(dist, index=centroids.index, name="distance_to_lode_m")
 
 
+def distance_to_lode_areal_m(
+    lode_polys: gpd.GeoDataFrame,
+    grid: "Grid",
+    *,
+    max_m: float = 25_000.0,
+) -> pd.Series:
+    """Per-cell distance (m) to the nearest lode-source POLYGON.
+
+    The areal companion to ``distance_to_lode_m``. Use when the lode
+    signal isn't a discrete occurrence point but a mapped polygon of
+    mineralized country rock -- in the Nome placer model, the Nome
+    Group schist polygons from PDF 94-39
+    (``features.surficial.schist_mask``). Per Tuck 1942 the gold-
+    tungsten mineralization is "disseminated over a wide area," not
+    concentrated at Rock Creek alone, so a polygon-seeded distance
+    feature is the right shape (Bear 2026-06-15 reply).
+
+    Distance is 0 inside any lode polygon and grows out to ``max_m``;
+    cells beyond ``max_m`` get ``np.nan`` (same semantics as the point
+    variant). Computed via ``sjoin_nearest`` with a polygon RHS, so
+    distance is to the nearest polygon edge or interior.
+    """
+    if len(lode_polys) == 0:
+        return pd.Series(
+            np.full(grid.n_cells, np.nan, dtype=np.float32),
+            name="distance_to_lode_areal_m",
+        )
+
+    centroids = grid.centroid_gdf()
+    lode = lode_polys.to_crs(grid.crs)[["geometry"]].copy()
+    joined = gpd.sjoin_nearest(
+        centroids,
+        lode,
+        how="left",
+        max_distance=max_m,
+        distance_col="_lode_dist_m",
+    )
+    joined = joined.loc[~joined.index.duplicated(keep="first")].sort_index()
+    dist = joined["_lode_dist_m"].to_numpy(dtype=np.float32)
+    return pd.Series(dist, index=centroids.index, name="distance_to_lode_areal_m")
+
+
 # ---------------------------------------------------------------------------
 # Distance to nearest fault split by activity class (v3 Phase D.3)
 # ---------------------------------------------------------------------------

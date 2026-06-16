@@ -83,3 +83,53 @@ def assign_cells(points: gpd.GeoDataFrame, grid: Grid) -> pd.DataFrame:
     out["row"] = rows
     out["col"] = cols
     return out[inside].reset_index(drop=True)
+
+
+def aux_positives_from_mask(
+    mask: pd.Series,
+    grid: Grid,
+    *,
+    weight: float = 0.25,
+    label_value: int = 1,
+    source: str = "aux_mask",
+) -> pd.DataFrame:
+    """Convert a per-cell mask into a weighted auxiliary positive-label table.
+
+    Phase 2 supervised model context: drill holes carry weight 1.0
+    (measured grade); polygon-derived "was-mined" or "is-prospective"
+    masks carry a lower aux weight. PDF 94-39 ``Qh`` placer-tailings
+    polygons are the canonical example, sampled via
+    ``features.surficial.tailings_mask``.
+
+    Returns a DataFrame with columns ``row``, ``col``, ``lon``,
+    ``lat``, ``label``, ``weight``, ``source``. One row per
+    positive (mask > 0) cell; cells with mask = 0 are dropped. The
+    ``weight`` is constant per call so callers can stack aux sources
+    with different weights and concat the resulting tables before
+    feeding into a training loop.
+    """
+    if len(mask) != grid.n_cells:
+        raise ValueError(
+            f"mask length {len(mask)} != grid.n_cells {grid.n_cells}"
+        )
+
+    centroids_gdf = grid.centroid_gdf()
+    H, W = grid.shape
+    rows = np.repeat(np.arange(H), W)
+    cols = np.tile(np.arange(W), H)
+
+    centroids_4326 = centroids_gdf.to_crs("EPSG:4326")
+    lons = centroids_4326.geometry.x.to_numpy()
+    lats = centroids_4326.geometry.y.to_numpy()
+
+    mask_arr = mask.to_numpy()
+    keep = mask_arr > 0
+    return pd.DataFrame({
+        "row": rows[keep],
+        "col": cols[keep],
+        "lon": lons[keep],
+        "lat": lats[keep],
+        "label": np.full(keep.sum(), label_value, dtype=np.int32),
+        "weight": np.full(keep.sum(), weight, dtype=np.float32),
+        "source": np.full(keep.sum(), source, dtype=object),
+    })
