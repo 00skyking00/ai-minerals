@@ -93,23 +93,30 @@ def write_qgis_points_file(
 ) -> None:
     """Write a QGIS Georeferencer ``.points`` file.
 
-    Format (QGIS 3.x):
-      header: 'mapX,mapY,sourceX,sourceY,enable,dX,dY,residual'
-      rows: lon, lat, pixel_x, -(pixel_y_from_top) (QGIS uses bottom-up Y),
-            1 (enabled), 0, 0, 0 (no residual yet)
+    Format (QGIS 4.0): sourceY is the POSITIVE pixel row (origin top-left,
+    Y growing downward). QGIS 3.x used a negative-Y convention; 4.0
+    dropped it.
     """
     lines = ["#CRS: GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433]]"]
     lines.append("mapX,mapY,sourceX,sourceY,enable,dX,dY,residual")
     for g in gcps:
-        # QGIS expects sourceY as NEGATIVE row index (image coord with origin
-        # at top-left, Y growing downward = negative in QGIS convention).
         qgis_x = g["pixel_col"]
-        qgis_y = -g["pixel_row"]
+        qgis_y = g["pixel_row"]
         lines.append(
             f"{g['lon']:.7f},{g['lat']:.7f},"
             f"{qgis_x:.2f},{qgis_y:.2f},1,0,0,0"
         )
     out_path.write_text("\n".join(lines) + "\n")
+
+
+def _rotate_around_center(
+    col: float, row: float, theta_deg: float, cx: float, cy: float,
+) -> tuple[float, float]:
+    """Rotate (col, row) by theta_deg degrees CCW around (cx, cy)."""
+    theta = np.radians(theta_deg)
+    c, s = np.cos(theta), np.sin(theta)
+    dc, dr = col - cx, row - cy
+    return cx + c * dc - s * dr, cy + s * dc + c * dr
 
 
 def generate_one_sheet(
@@ -119,8 +126,16 @@ def generate_one_sheet(
     out_dir: Path,
     *,
     dpi: int = DEFAULT_RENDER_DPI,
+    rotation_deg: float = 0.0,
 ) -> dict:
-    """Produce GCP candidate files for one Tuck sheet."""
+    """Produce GCP candidate files for one Tuck sheet.
+
+    ``rotation_deg`` rotates the rough-affine pixel predictions by that
+    many degrees CCW around the image centre. Used when the rendered
+    sheet is rotated relative to the north-up frame the rough-affine
+    GCPs were placed in (Tuck Map B1 is rotated ~+45 deg in the source
+    PDF).
+    """
     affine_200 = _fit_rough_affine(PIXEL_GCPS_AT_200DPI)
     affine_target = _scale_affine_to_dpi(affine_200, dpi)
     A_inv, offset = _invert_affine_for_pixel_prediction(affine_target)
@@ -144,11 +159,16 @@ def generate_one_sheet(
         width, height = pix.width, pix.height
         d.close()
 
+    cx, cy = width / 2.0, height / 2.0
     gcps: list[dict] = []
     n_on_sheet = 0
     n_off_sheet = 0
     for _, row in control_points.iterrows():
         pix_col, pix_row = predict_pixel(row["lon"], row["lat"], A_inv, offset)
+        if rotation_deg != 0.0:
+            pix_col, pix_row = _rotate_around_center(
+                pix_col, pix_row, rotation_deg, cx, cy,
+            )
         on_sheet = (0 <= pix_col < width) and (0 <= pix_row < height)
         if on_sheet:
             n_on_sheet += 1
@@ -203,7 +223,13 @@ def main() -> None:
 
     sheet_stats = []
     for key, pdf_name in SHEETS.items():
-        stats = generate_one_sheet(key, pdf_name, df, out_dir)
+        # Match the v1.5 v1 overlay rendering DPI so predicted pixel
+        # positions line up with the unreferenced TIFFs in georef_source/.
+        # The Tuck sheets are printed rotated ~+45 deg relative to
+        # north-up (the Hammon survey grid is the page's vertical axis).
+        stats = generate_one_sheet(
+            key, pdf_name, df, out_dir, dpi=300, rotation_deg=45.0,
+        )
         sheet_stats.append(stats)
         print(f"  {key}: {stats['n_gcps_on_sheet']} GCPs on sheet, "
               f"{stats['n_gcps_off_sheet']} off")
