@@ -24,15 +24,19 @@ four.
   way. Primary feature: distance-to-stream-channel inside an Iron
   Creek or Nome River drift polygon.
 - ``placer_tertiary_buried`` (TB) -- older paleochannels carved into
-  the highest glacial-drift surfaces and capped, with multiple gold-rich
-  gravel layers separated by clay or volcanic ash "false bedrocks."
+  the highest glacial-drift surfaces and capped, with multiple gold-
+  rich gravel layers separated by clay or volcanic ash "false bedrocks."
   Molasses (MS 1179) and Honey (MS 1181) on the Dexter-Anvil divide
-  are the canonical example: three pay levels, two false bedrocks
-  down to 275 ft, well above the +120-125 ft Fourth Beach maximum.
-  The Bulolo Gold Placer (Papua New Guinea, intermediate-lens false
-  bedrock at 15-40 ft / actual bedrock at 200 ft) is the architectural
-  analog. Primary feature: REM/LRM-detected buried paleochannels +
-  depth-aware feature stack.
+  are the canonical example: gold sits at +400 to +500 ft elevation
+  under a +500 to +600 ft surface. Tuck Fig 14 Localities G + H + F:
+  cover to bedrock paystreak is 50-105 ft (Loc G high gravel at -56 ft
+  to bedrock at -105 ft; Loc H Conley shaft ~100 ft); stacked columns
+  at Loc F (Snowflake) reach ~150 ft via a winze below the upper
+  paystreak. The Bulolo Gold Placer (Papua New Guinea, intermediate-
+  lens false bedrock at 15-40 ft / actual bedrock at 200 ft) is the
+  architectural analog. Primary feature: REM/LRM-detected buried
+  paleochannels + depth-aware feature stack. (bearcub 2026-06-15 read
+  of Tuck Fig 14 supersedes an earlier -275 ft note that was wrong.)
 
 USGS Cox-Singer subtypes: BL/BC/QM map onto 39a (placer Au-PGE generic);
 TB maps onto 39b (Tertiary buried placer). The distinction between BL,
@@ -138,6 +142,18 @@ NOME_PLACER_REGION = Region(
         # Structural / fault layer: AKStategeol arcs from the
         # statewide compilation (same source eastak uses for faults).
         "geology_arcs":  DATA_RAW / "geology_ak/sim3340/sim3340_gdb/AKgeol_web_gdb/geologic_data/AKStategeol.gdb",
+
+        # Cape Nome surficial geology, the bearcub-published DGGS
+        # PDF 94-39 cache. 1,727 polygons in EPSG:4326 with the
+        # Kaufman/Hopkins glacial sequence + a coarse `surface_class`
+        # column. Drives the QM in-drift mask (surface_class ==
+        # "glacial_drift_outwash"), the lode-distance areal seed
+        # (surface_class == "bedrock_schist"), and the placer-tailings
+        # aux positive labels (surface_class == "placer_tailings").
+        # WGS84 coverage: lon [-165.77, -165.00], lat [64.44, 64.89].
+        # Eastern coastline past -165.00 falls outside; AOF 125 covers
+        # there but carries no drift units.
+        "surficial_nome": DATA_RAW / "bearcub_nome" / "nome_surface_geology.gpkg",
 
         # Eastern Seward Peninsula surficial geology (ADGGS AOF 125,
         # Tolstoi Point area). Reserved for v2 AOI expansion east of the

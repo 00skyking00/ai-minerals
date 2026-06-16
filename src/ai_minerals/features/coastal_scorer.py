@@ -228,32 +228,42 @@ def score_qm(
     stream_sigma_m: float = 400.0,
     min_elevation_m: float = 30.0,
     max_elevation_m: float = 250.0,
+    drift_mask: pd.Series | None = None,
 ) -> pd.Series:
     """Off-beach modern creek (QM) score.
 
     Tuck 1942: streams that cut into the older Iron Creek and Nome River
-    drifts rework the ~70 ppb background gold the drifts carry. Cells in
-    the in-drift elevation band (default 30 to 250 m, the Cape Nome
-    foothill zone where Iron Creek + Nome River drifts sit) within
-    ``stream_sigma_m`` of a stream score high QM.
+    drifts rework the ~70 ppb background gold the drifts carry. Cells
+    sitting on glacial drift / outwash within ``stream_sigma_m`` of a
+    stream score high QM.
 
-    v1 uses elevation-range as a proxy for the drift mask; the ADGGS
-    surficial coverage for Cape Nome is the documented gap. The Hopkins
-    / Kaufman drift maps could refine this band once digitized (Fossick
-    job per bearcub 2026-06-14 reply).
+    Two modes:
+
+    - **With ``drift_mask`` (preferred, 2026-06-16 onward)**: the
+      per-cell ``surface_class == "glacial_drift_outwash"`` mask from
+      bearcub's PDF 94-39 cache (see ``features.surficial.drift_mask``).
+      Tight Kaufman/Hopkins drift-sheet polygons; the right shape for
+      the QM mechanism.
+    - **Without ``drift_mask`` (legacy fallback)**: elevation-range
+      proxy 30-250 m for the Cape Nome foothill zone. Used before PDF
+      94-39 landed (bearcub 2026-06-15 delivery). Kept for back-compat
+      with callers that haven't migrated; remove when no callers rely
+      on it.
     """
     from ai_minerals.features.coastal import (
         elevation_relative_to_stand_m, stand_elevation_m,
     )
 
-    # Sample DEM at each centroid via any existing rel_to_stand helper.
-    dummy_stand = next(iter(STAND_ELEVATIONS_FT))
-    rel = elevation_relative_to_stand_m(dem, grid, dummy_stand).to_numpy(np.float64)
-    elev_m = rel + stand_elevation_m(dummy_stand)
-
-    in_band = (
-        (elev_m >= min_elevation_m) & (elev_m <= max_elevation_m)
-    ).astype(np.float64)
+    if drift_mask is not None:
+        in_band = drift_mask.to_numpy(dtype=np.float64)
+    else:
+        # Legacy elevation-band proxy.
+        dummy_stand = next(iter(STAND_ELEVATIONS_FT))
+        rel = elevation_relative_to_stand_m(dem, grid, dummy_stand).to_numpy(np.float64)
+        elev_m = rel + stand_elevation_m(dummy_stand)
+        in_band = (
+            (elev_m >= min_elevation_m) & (elev_m <= max_elevation_m)
+        ).astype(np.float64)
 
     d = distance_to_stream_m.to_numpy(dtype=np.float64)
     stream_membership = np.exp(-(d ** 2) / (2.0 * stream_sigma_m ** 2))
@@ -272,6 +282,7 @@ def score_all_populations(
     *,
     distance_to_stream_m: pd.Series | None = None,
     bedrock_elevation_m: pd.Series | None = None,
+    qm_drift_mask: pd.Series | None = None,
     bl_sigma_m: float = 5.0,
     ap_sigma_m: float = 6.0,
     tb_sigma_m: float = 12.0,
@@ -329,6 +340,7 @@ def score_all_populations(
         )
         qm = score_qm(
             dem, grid, distance_to_stream_m, stream_sigma_m=qm_stream_sigma_m,
+            drift_mask=qm_drift_mask,
         )
         score_arrays = [bl.to_numpy(), ap.to_numpy(), tb.to_numpy(),
                        bc.to_numpy(), qm.to_numpy()]
