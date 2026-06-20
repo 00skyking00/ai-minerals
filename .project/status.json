@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-20T15:30:00Z",
+  "updated": "2026-06-20T21:22:40Z",
   "health": "yellow",
   "phase": { "current": "Phase 2: supervised pay/barren model + claim coverage", "number": 2, "total": 3, "pct_complete": 55 },
   "current_plan": "research/v3_todo_2026-06-19.md",
@@ -20,9 +20,10 @@
     { "severity": "low", "text": "Confirm bands.json matches the latest emitted GeoTIFF (v3p1) bands for the goldbug contract." }
   ],
   "next_up": [
+    "Coordinator to ratify presence/background label framing (then make it the headline MPM eval)",
+    "Lode MPM (Big Hurrah + akmag + AGDB4 pathfinders) pending akmag-extent / SkyTEM-southern-limit confirmations",
     "Reconcile + remove duplicated extraction_prompts with datadredge",
-    "Decide Phase 2 productionization path (classifier raster vs keep v3)",
     "Resolve the 28 claim-polygon gap (digitize scope) with Sky"
   ],
-  "notes": "Onshore-placer MPM (ADR-013) first spatial-CV fold built 2026-06-20 (scripts/nome_placer/mpm_onshore_cv1.py): geochem IDW + IFSAR terrain + v3.1 sub-bands at the 104 holes, leave-one-spatial-block-out. Result near chance for every model incl. the live v3.1 baseline (composite AUC 0.538; mpm best 0.564) - binding constraint is label geometry (10 barren holes in one proven block; restriction of range). Analysis only, v3.1 stays live. Next: a background/pseudo-absence design decision (escalated). Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. Phase 2 supervised model at v0 baseline. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
+  "notes": "Onshore-placer MPM (ADR-013) both evals built 2026-06-20. (a) Drill-hole pay/barren spatial-CV (mpm_onshore_cv1.py): near chance for every model incl. live v3.1 (composite 0.538; mpm best 0.564) - binding constraint is label geometry (79 holes / 10 barren in one proven Bear Cub block; restriction of range; the v0 LOO 0.829 leaned on non-mappable per-hole bedrock_depth). The hole-set cannot evaluate a regional map. (b) Presence/background on 65 district-spread ARDF placer occurrences (mpm_onshore_presence_cv.py): live v3.1 composite 0.444 (BELOW chance - it is a beach-line map and mis-ranks the upland creek placers), terrain-aware MPM 0.756 under spatial-block CV; geochem does not help out-of-block (0.692). First lift over v3.1 is a scope correction (district vs beach-line) via IFSAR terrain, not a tuning win. Analysis only, v3.1 stays live; label framing escalated for ratification. Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
 }
