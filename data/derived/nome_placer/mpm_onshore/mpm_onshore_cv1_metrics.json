@@ -1,0 +1,139 @@
+{
+  "n_holes_total": 104,
+  "n_labelled": 89,
+  "n_labelled_covered": 79,
+  "n_pay": 69,
+  "n_barren": 10,
+  "block_size_m": 750.0,
+  "n_spatial_blocks": 7,
+  "n_claim_groups": 12,
+  "feature_stack_full": [
+    "v31_bl",
+    "v31_ap",
+    "v31_tb",
+    "v31_ss",
+    "v31_bc",
+    "v31_qm",
+    "v31_buried_bl",
+    "v31_composite",
+    "log10_Au",
+    "log10_As",
+    "log10_Sb",
+    "log10_Bi",
+    "log10_Hg",
+    "log10_W",
+    "ifsar_dem",
+    "ifsar_slope",
+    "ifsar_tpi",
+    "bedrock_depth_ft"
+  ],
+  "feature_stack_new_only": [
+    "log10_Au",
+    "log10_As",
+    "log10_Sb",
+    "log10_Bi",
+    "log10_Hg",
+    "log10_W",
+    "ifsar_dem",
+    "ifsar_slope",
+    "ifsar_tpi",
+    "bedrock_depth_ft"
+  ],
+  "cv": {
+    "spatial_block": {
+      "n_folds": 7,
+      "baseline_v31_composite_auc": 0.5384,
+      "mpm_full_auc": 0.3949,
+      "mpm_new_only_auc": 0.5645
+    },
+    "claim_ms": {
+      "n_folds": 12,
+      "baseline_v31_composite_auc": 0.5384,
+      "mpm_full_auc": 0.4036,
+      "mpm_new_only_auc": 0.3899
+    }
+  },
+  "feature_importance_full": [
+    {
+      "feature": "bedrock_depth_ft",
+      "importance": 0.1599
+    },
+    {
+      "feature": "ifsar_tpi",
+      "importance": 0.0827
+    },
+    {
+      "feature": "ifsar_slope",
+      "importance": 0.069
+    },
+    {
+      "feature": "log10_As",
+      "importance": 0.0628
+    },
+    {
+      "feature": "log10_Hg",
+      "importance": 0.0587
+    },
+    {
+      "feature": "log10_Sb",
+      "importance": 0.0524
+    },
+    {
+      "feature": "v31_buried_bl",
+      "importance": 0.0518
+    },
+    {
+      "feature": "v31_bl",
+      "importance": 0.0431
+    },
+    {
+      "feature": "v31_composite",
+      "importance": 0.0387
+    },
+    {
+      "feature": "log10_W",
+      "importance": 0.0365
+    },
+    {
+      "feature": "ifsar_dem",
+      "importance": 0.034
+    },
+    {
+      "feature": "log10_Bi",
+      "importance": 0.0337
+    },
+    {
+      "feature": "log10_Au",
+      "importance": 0.0336
+    },
+    {
+      "feature": "v31_bc",
+      "importance": 0.0334
+    },
+    {
+      "feature": "v31_ss",
+      "importance": 0.031
+    },
+    {
+      "feature": "v31_ap",
+      "importance": 0.027
+    },
+    {
+      "feature": "v31_qm",
+      "importance": 0.0119
+    },
+    {
+      "feature": "v31_tb",
+      "importance": 0.0
+    }
+  ],
+  "ardf_descriptive_check": {
+    "n_placer": 253,
+    "n_other": 182,
+    "v31_composite_median_placer": 0.0,
+    "v31_composite_median_other": 0.0,
+    "geochem_log10Au_median_placer": 1.0692,
+    "geochem_log10Au_median_other": 1.0781
+  },
+  "note": "Analysis only. v3.1 stays the live map (ADR-013). ARDF placer occurrences excluded from the supervised CV to avoid circularity with the on-creek drillholes."
+}
