@@ -54,11 +54,12 @@ from ai_minerals.regions.nome_placer import NOME_PLACER_REGION
 BANDS_IN_ORDER: list[tuple[str, str, str]] = [
     ("bl", "True beach (BL)", "Tuck 1942: Present + Second + Third + Fourth beach stands"),
     ("ap", "Abrasion platform / sloughover (AP)", "Tuck 1942: Submarine + Intermediate + Monroeville"),
-    ("tb", "Tertiary buried high-bench (TB)", "Tuck 1942: head-of-Dexter-Creek high-bench gravel at +300 ft / +600 ft"),
+    ("tb", "Tertiary buried high-bench (TB)", "Tuck 1942: head-of-Dexter-Creek high-bench gravel at +500 ft / +600 ft"),
+    ("ss", "Marine sea-stand (SS)", "Tuck 1942: post-Third-Beach Anvil Creek Left-Limit Channels at +200 / +300 ft (v3.1 NEW)"),
     ("bc", "Beach-stream confluence (BC)", "max(BL, buried_BL, AP) x Gaussian(distance_to_stream)"),
     ("qm", "Off-beach modern creek (QM)", "in-drift elevation band x Gaussian(distance_to_stream)"),
     ("buried_bl", "Buried true beach (Phase 1.5)", "bedrock at stand elevation; lifts Bear Cub MS 1178 BC"),
-    ("composite", "Composite score", "per-cell max() across six populations"),
+    ("composite", "Composite score", "per-cell max() across seven populations (v3.1 includes SS)"),
 ]
 
 
@@ -134,7 +135,7 @@ def main() -> None:
     # convention is north-to-south. Flip the row axis to match.
     stack_north_up = stack[:, ::-1, :]
 
-    out_3338 = out_dir / "nome_placer_prospectivity_v1p5_v2_3338.tif"
+    out_3338 = out_dir / "nome_placer_prospectivity_v1p5_v3p1_3338.tif"
     with rasterio.open(
         out_3338, "w",
         driver="GTiff", height=H, width=W,
@@ -148,7 +149,7 @@ def main() -> None:
     print(f"  EPSG:3338 raster -> {out_3338} ({out_3338.stat().st_size:,} B)")
 
     # Reproject to EPSG:4326 for goldbug
-    out_4326 = out_dir / "nome_placer_prospectivity_v1p5_v2_4326.tif"
+    out_4326 = out_dir / "nome_placer_prospectivity_v1p5_v3p1_4326.tif"
     with rasterio.open(out_3338) as src:
         dst_transform, dst_w, dst_h = calculate_default_transform(
             src.crs, "EPSG:4326", src.width, src.height, *src.bounds,
@@ -175,6 +176,8 @@ def main() -> None:
     # bands.json sidecar
     bands_meta = {
         "schema_version": "1.0",
+        "model_version": "placer-v1.5-v3.1",   # goldbug versions.py strips "placer-" -> "1.5-v3.1"
+        "release": "ai-minerals-2026-06-17",    # strips "ai-minerals-" -> "2026-06-17"
         "raster_3338": out_3338.name,
         "raster_4326": out_4326.name,
         "resolution_m": 25,
@@ -184,7 +187,7 @@ def main() -> None:
             {"index": i + 1, "key": k, "name": n, "description": d, "value_range": [0.0, 1.0]}
             for i, (k, n, d) in enumerate(BANDS_IN_ORDER)
         ],
-        "phase": "1.5 v2 (buried-BL feeding BC; KDTree-fast streams; QM conditioned on PDF 94-39 drift)",
+        "phase": "1.5 v3.1 (adds SS marine sea-stand population at +200/+300 ft from Tuck 1942 Anvil Creek Left-Limit Channels; catches Early Bear MS 1180 at +258 ft and Great Western MS 1310 at +283 ft which scored composite=0 under v3 because no population covered their elevation band)",
         "validation_gate": {
             "anvil_creek_qm_p90": 1.000,
             "third_beach_bl_p90": 1.000,
@@ -213,7 +216,7 @@ def main() -> None:
     # Deliver to goldbug
     goldbug_inbox = Path(
         "/home/sky/src/learning/gldbg/handoff/inbox/"
-        "2026-06-16-from-ai-minerals-nome-prospectivity-v1p5-v2"
+        "2026-06-17-from-ai-minerals-nome-prospectivity-v1p5-v3p1"
     )
     goldbug_inbox.mkdir(parents=True, exist_ok=True)
     import shutil
