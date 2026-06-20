@@ -11,8 +11,18 @@
 set -uo pipefail
 state="${1:-beat}"
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
-mod="${2:-$(basename "$repo_root")}"
 af="$repo_root/.project/activity.json"
+# Module name: explicit arg wins; else the module key from status.json (handles
+# repos whose dir != module key, e.g. gldbg -> goldbug); else the dir basename.
+if [ -n "${2:-}" ]; then
+  mod="$2"
+elif [ -f "$repo_root/.project/status.json" ] &&
+     mod=$(sed -n 's/.*"module"[: ]*"\([^"]*\)".*/\1/p' "$repo_root/.project/status.json" | head -1) &&
+     [ -n "$mod" ]; then
+  :
+else
+  mod=$(basename "$repo_root")
+fi
 now=$(date -Is)
 mkdir -p "$repo_root/.project"
 
