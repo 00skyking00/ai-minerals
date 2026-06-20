@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-20T14:41:09Z",
+  "updated": "2026-06-20T15:30:00Z",
   "health": "yellow",
   "phase": { "current": "Phase 2: supervised pay/barren model + claim coverage", "number": 2, "total": 3, "pct_complete": 55 },
   "current_plan": "research/v3_todo_2026-06-19.md",
@@ -24,5 +24,5 @@
     "Decide Phase 2 productionization path (classifier raster vs keep v3)",
     "Resolve the 28 claim-polygon gap (digitize scope) with Sky"
   ],
-  "notes": "Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. Phase 2 supervised model at v0 baseline. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
+  "notes": "Onshore-placer MPM (ADR-013) first spatial-CV fold built 2026-06-20 (scripts/nome_placer/mpm_onshore_cv1.py): geochem IDW + IFSAR terrain + v3.1 sub-bands at the 104 holes, leave-one-spatial-block-out. Result near chance for every model incl. the live v3.1 baseline (composite AUC 0.538; mpm best 0.564) - binding constraint is label geometry (10 barren holes in one proven block; restriction of range). Analysis only, v3.1 stays live. Next: a background/pseudo-absence design decision (escalated). Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. Phase 2 supervised model at v0 baseline. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
 }
