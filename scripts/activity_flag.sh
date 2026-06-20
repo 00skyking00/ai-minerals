@@ -35,12 +35,13 @@ fi
 
 case "$state" in
   beat)
-    [ "$prev_state" = "idle" ] && exit 0          # don't resurrect an idle session
-    if [ -n "$prev_beat" ]; then                  # debounce: skip if heartbeat < 15s old
+    # A tool just ran, so the session is active -> busy. Debounce to ~15s.
+    if [ "$prev_state" = "busy" ] && [ -n "$prev_beat" ]; then
       last=$(date -d "$prev_beat" +%s 2>/dev/null || echo 0)
       [ $(( $(date +%s) - last )) -lt 15 ] && exit 0
     fi
-    state="${prev_state:-busy}"; since="${prev_since:-$now}" ;;
+    if [ "$prev_state" = "busy" ] && [ -n "$prev_since" ]; then since="$prev_since"; else since="$now"; fi
+    state="busy" ;;
   busy)
     if [ "$prev_state" = "busy" ] && [ -n "$prev_since" ]; then since="$prev_since"; else since="$now"; fi ;;
   idle)
