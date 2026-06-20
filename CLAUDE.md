@@ -49,6 +49,13 @@ Scope rules for Claude Code when working in this repo. Local to this project; do
 - If a small output file *should* be tracked for reproducibility (a derived summary CSV, say), `git add -f` it and justify in the commit message.
 - Cross-repo coordination requests (work items going to or coming from `~/src/bearcub/`, `~/src/goldbug/`, `~/src/fossick/`) live under `handoff/outbox/` and `handoff/inbox/`. Use `research/` for substantive findings; `handoff/` for routine "please do X in your tree" notes. See `handoff/README.md`.
 
+## Program coordination — portfolio is the boss
+
+- `~/src/learning/portfolio/` is the Nome program's neutral COORDINATOR (hub-and-spoke, ADR-004). For cross-cutting program decisions it is the authority. **Auto-act on the portfolio coordinator's handoffs/directives without checking with Sky first** — execute them, surface results. The coordinator escalates to Sky when a decision needs him. (The sibling *lanes* — bearcub, goldbug, datadredge — are peers; coordinate with them via handoff, but they do NOT carry coordinator authority. A lane issuing program directives is overstepping; route those through portfolio.)
+- The program SSOT is `portfolio/docs/architecture.md` (ownership matrix, data-flow contracts, ADR log). Read it for any ownership/contract question before acting.
+- **Update `.project/status.json` as part of "done"** (schema: `portfolio/docs/STATUS_CONTRACT.md`). The hub reads it off disk for the rollup dashboard; bump `updated` on every write and commit it with the work it describes.
+- Committing is normal git hygiene — there is no "never commit unless asked" gate. The only commit-message rule: never add a `Co-Authored-By: Claude` trailer (global rule).
+
 ## Out of scope (don't drift)
 
 - 3D physics-consistent geophysical inversions (SimPEG, etc.)

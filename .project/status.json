@@ -1,0 +1,28 @@
+{
+  "module": "ai-minerals",
+  "display_name": "District Prospectivity + Regional MPM",
+  "updated": "2026-06-20T14:41:09Z",
+  "health": "yellow",
+  "phase": { "current": "Phase 2: supervised pay/barren model + claim coverage", "number": 2, "total": 3, "pct_complete": 55 },
+  "current_plan": "research/v3_todo_2026-06-19.md",
+  "tasks": { "todo": 9, "in_progress": 2, "done": 41, "blocked": 0 },
+  "open_bugs_local": 0,
+  "major_remaining": [
+    "Decide Phase 2 productionization: emit the RF pay/barren classifier as a goldbug raster (+ refresh bands.json), or keep the live v3 placer raster and treat the classifier as analysis",
+    "ADR-001 not fully done: extraction_prompts/ still present and DIVERGE from datadredge's; reconcile canonical + port README, then remove",
+    "28 register claims have no vector polygon (MTP/Tuck digitize is Sky-in-the-loop; not autonomous-precise)",
+    "District POMDP planner (Phase 3, deferred)",
+    "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
+  ],
+  "top_issues": [
+    { "severity": "med", "text": "ADR-001 prompt-dedup incomplete: ai-minerals/research/extraction_prompts/ (5 files) still exist and differ from datadredge/extraction/; README is ai-minerals-only. research/ is gitignored (delete not recoverable). Needs datadredge reconcile before removal." },
+    { "severity": "med", "text": "Phase 2 v0 RF classifier (AUC 0.83 LOO) is a baseline, not yet emitted as the goldbug raster; the LIVE Nome raster in prod is the earlier v3 placer model, not the new classifier." },
+    { "severity": "low", "text": "Confirm bands.json matches the latest emitted GeoTIFF (v3p1) bands for the goldbug contract." }
+  ],
+  "next_up": [
+    "Reconcile + remove duplicated extraction_prompts with datadredge",
+    "Decide Phase 2 productionization path (classifier raster vs keep v3)",
+    "Resolve the 28 claim-polygon gap (digitize scope) with Sky"
+  ],
+  "notes": "Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. Phase 2 supervised model at v0 baseline. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
+}
