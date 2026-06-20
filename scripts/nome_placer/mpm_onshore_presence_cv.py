@@ -35,7 +35,7 @@ DEM = Path("data/raw/nome_mpm/ifsar_dem_3338.tif")
 SLOPE = Path("data/raw/nome_mpm/ifsar_slope_3338.tif")
 TPI = Path("data/raw/nome_mpm/ifsar_tpi_3338.tif")
 ARDF = Path("data/raw/nome_mpm/ardf_nome.geojson")
-OUT_DIR = DD / "phase2_v1"
+OUT_DIR = DD / "mpm_onshore"
 N_BG = 2000
 RNG = 42
 
