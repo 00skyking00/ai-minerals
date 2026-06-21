@@ -1,11 +1,11 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-20T21:22:40Z",
+  "updated": "2026-06-21T01:50:38Z",
   "health": "yellow",
-  "phase": { "current": "Phase 2: supervised pay/barren model + claim coverage", "number": 2, "total": 3, "pct_complete": 55 },
+  "phase": { "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage", "number": 2, "total": 3, "pct_complete": 62 },
   "current_plan": "research/v3_todo_2026-06-19.md",
-  "tasks": { "todo": 9, "in_progress": 2, "done": 41, "blocked": 0 },
+  "tasks": { "todo": 7, "in_progress": 1, "done": 47, "blocked": 2 },
   "open_bugs_local": 0,
   "major_remaining": [
     "Decide Phase 2 productionization: emit the RF pay/barren classifier as a goldbug raster (+ refresh bands.json), or keep the live v3 placer raster and treat the classifier as analysis",
@@ -16,14 +16,14 @@
   ],
   "top_issues": [
     { "severity": "med", "text": "ADR-001 prompt-dedup incomplete: ai-minerals/research/extraction_prompts/ (5 files) still exist and differ from datadredge/extraction/; README is ai-minerals-only. research/ is gitignored (delete not recoverable). Needs datadredge reconcile before removal." },
-    { "severity": "med", "text": "Phase 2 v0 RF classifier (AUC 0.83 LOO) is a baseline, not yet emitted as the goldbug raster; the LIVE Nome raster in prod is the earlier v3 placer model, not the new classifier." },
+    { "severity": "med", "text": "v0 RF pay/barren LOO 0.83 is debunked (inflated by non-mappable per-hole bedrock_depth + autocorrelation); under spatial CV all models incl v3.1 are at chance on the clustered holes. Regional MPM now evaluated presence/background (placer 0.756, lode 0.802). v3.1 placer raster stays the live prod map." },
     { "severity": "low", "text": "Confirm bands.json matches the latest emitted GeoTIFF (v3p1) bands for the goldbug contract." }
   ],
   "next_up": [
-    "Coordinator to ratify presence/background label framing (then make it the headline MPM eval)",
-    "Lode MPM (Big Hurrah + akmag + AGDB4 pathfinders) pending akmag-extent / SkyTEM-southern-limit confirmations",
-    "Reconcile + remove duplicated extraction_prompts with datadredge",
-    "Resolve the 28 claim-polygon gap (digitize scope) with Sky"
+    "Coordinator to greenlight district-wide lode grid (incl Big Hurrah); placer-core lode v0 done at 0.802",
+    "goldbug: integrate MTP durable pyramid (handed off) + retire live-esri fallback",
+    "Switch ARDF labels + add KARDEX/Tuck positives via datadredge KG export (ADR-017, pending export)",
+    "Reconcile + remove duplicated extraction_prompts with datadredge"
   ],
-  "notes": "Onshore-placer MPM (ADR-013) both evals built 2026-06-20. (a) Drill-hole pay/barren spatial-CV (mpm_onshore_cv1.py): near chance for every model incl. live v3.1 (composite 0.538; mpm best 0.564) - binding constraint is label geometry (79 holes / 10 barren in one proven Bear Cub block; restriction of range; the v0 LOO 0.829 leaned on non-mappable per-hole bedrock_depth). The hole-set cannot evaluate a regional map. (b) Presence/background on 65 district-spread ARDF placer occurrences (mpm_onshore_presence_cv.py): live v3.1 composite 0.444 (BELOW chance - it is a beach-line map and mis-ranks the upland creek placers), terrain-aware MPM 0.756 under spatial-block CV; geochem does not help out-of-block (0.692). First lift over v3.1 is a scope correction (district vs beach-line) via IFSAR terrain, not a tuning win. Analysis only, v3.1 stays live; label framing escalated for ratification. Core shipped + live: v3 placer prospectivity raster (prod 2026-06-17, KoBold), Tuck 1942 MAP georef + overlays, regional surface-geology feature (PDF 94-39), coastal/beach feature stack, 373-claim patented layer + static BLM MTP overlay in goldbug. KG/extraction moved to datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
+  "notes": "Regional MPM ratified by Sky 2026-06-20 (ADR-013): presence/background is the headline. Live v3.1 placer composite scores 0.444 (BELOW chance) on the district's 65 ARDF placer occurrences because it is a beach-line map that mis-ranks the upland creek placers; a terrain-aware MPM (v3.1 populations + IFSAR slope/TPI/DEM) scores 0.756 spatial-block CV, 0.736 buffered-300m. Drill-hole pay/barren is at chance for all models (label geometry: 79 holes/10 barren in one Bear Cub block; v0 LOO 0.829 was inflated by non-mappable bedrock_depth). Lode MPM v0 GREENLIT+built (mpm_lode_presence_cv.py): SIM3131 geology + akmag 1km + dist-to-fault + IFSAR terrain on 30 placer-core lode occurrences = 0.802 (0.791 buffered); geochem near-circular/non-transferable; v3.1 placer ref 0.45. District-wide lode grid (incl Big Hurrah; ~70% of district lodes are outside the placer-core AOI) pending coordinator go. MTP durable pyramid built (XYZ z8-16, maxNativeZoom 16) + handed to goldbug (ADR-019). ARDF labels to switch to datadredge KG export (ADR-017; transitional = current ARDF). Analysis only; v3.1 stays the live prod map. Core shipped+live: v3 placer raster (prod 2026-06-17, KoBold), Tuck 1942 georef+overlays, surface-geology (PDF 94-39) + coastal feature stacks, 373-claim layer + MTP overlay in goldbug. KG/extraction at datadredge (ADR-001); Tuck split (ADR-002). yellow = open cleanups + Phase-2 productionization, nothing broken."
 }
