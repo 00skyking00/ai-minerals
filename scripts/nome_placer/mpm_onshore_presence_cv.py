@@ -1,7 +1,7 @@
 """Phase 2 v1b: regional MPM evaluated as presence/background on ARDF placer
 occurrences (the spatially-spread label set), under spatial-block CV.
 
-The drill-hole pay/barren task (phase2_v1_spatial_cv.py) cannot test a regional
+The drill-hole pay/barren task (mpm_onshore_cv1.py) cannot test a regional
 map: the 79 holes are packed into one small high-prospectivity cluster where pay
 and barren interleave at sub-100 m scale. ARDF placer occurrences are spread
 across the district, so presence-vs-background actually tests whether the map
@@ -13,7 +13,7 @@ Caveats reported alongside the numbers:
   includes it predicts placer occurrence near-tautologically. The honest
   regional test is the geomorphology+terrain model WITHOUT geochem.
 
-Run: uv run python -m scripts.nome_placer.phase2_v1_ardf_presence_cv
+Run: uv run python -m scripts.nome_placer.mpm_onshore_presence_cv
 """
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
+from scipy.spatial import cKDTree
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
@@ -64,14 +65,20 @@ def features(ex, ny) -> pd.DataFrame:
     ], axis=1)
 
 
-def spatial_cv_auc(X, y, groups) -> float:
+def spatial_cv_auc(X, y, groups, coords=None, buffer_m=0.0) -> float:
+    """Leave-one-spatial-block-out; optional buffer drops training points within
+    buffer_m of any held-out point (cuts train/test autocorrelation leakage)."""
     oof = np.full(len(y), np.nan)
     for g in np.unique(groups):
         te = groups == g
-        if len(np.unique(y[~te])) < 2:
+        tr = ~te
+        if buffer_m > 0 and coords is not None:
+            d, _ = cKDTree(coords[te]).query(coords, k=1)
+            tr = tr & (d >= buffer_m)
+        if len(np.unique(y[tr])) < 2:
             continue
         m = RandomForestClassifier(n_estimators=300, class_weight="balanced",
-                                   random_state=RNG, n_jobs=-1).fit(X[~te], y[~te])
+                                   random_state=RNG, n_jobs=-1).fit(X[tr], y[tr])
         oof[te] = m.predict_proba(X[te])[:, 1]
     ok = ~np.isnan(oof)
     return float(roc_auc_score(y[ok], oof[ok]))
@@ -104,21 +111,24 @@ def main() -> None:
     y = np.concatenate([np.ones(len(px)), np.zeros(len(bx))]).astype(int)
     feat = features(ex, ny).fillna(-999.0)
     comp = samp(V3P1, ex, ny, [8], ["composite"])["composite"].fillna(0.0).to_numpy()
-    groups = KMeans(n_clusters=10, random_state=RNG, n_init=10
-                    ).fit_predict(np.column_stack([ex, ny]))
+    coords = np.column_stack([ex, ny])
+    groups = KMeans(n_clusters=10, random_state=RNG, n_init=10).fit_predict(coords)
+    Xg = feat[GEOMORPH].to_numpy(np.float32)
 
     res = {"n_placer": int(len(px)), "n_background": int(len(bx)),
            "baseline_v31_composite_auc": round(roc_auc_score(y, comp), 3),
            "mpm_geomorph_terrain_spatialCV_auc":
-               round(spatial_cv_auc(feat[GEOMORPH].to_numpy(np.float32), y, groups), 3),
+               round(spatial_cv_auc(Xg, y, groups), 3),
+           "mpm_geomorph_terrain_buffered300m_auc":
+               round(spatial_cv_auc(Xg, y, groups, coords, 300.0), 3),
            "mpm_full_with_geochem_spatialCV_auc":
                round(spatial_cv_auc(feat[FULL].to_numpy(np.float32), y, groups), 3),
            "note": ("v3.1 partly tuned to ARDF (optimistic); geochem Au is a gold "
                     "detector so full model is near-circular; geomorph+terrain is the "
                     "honest regional test")}
     print(json.dumps(res, indent=2))
-    (OUT_DIR / "phase2_v1_ardf_presence_report.json").write_text(json.dumps(res, indent=2))
-    print(f"wrote {OUT_DIR/'phase2_v1_ardf_presence_report.json'}")
+    (OUT_DIR / "mpm_onshore_presence_report.json").write_text(json.dumps(res, indent=2))
+    print(f"wrote {OUT_DIR/'mpm_onshore_presence_report.json'}")
 
 
 if __name__ == "__main__":
