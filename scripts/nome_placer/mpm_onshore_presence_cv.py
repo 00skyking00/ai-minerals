@@ -1,9 +1,15 @@
-"""Phase 2 v1b: regional MPM evaluated as presence/background on ARDF placer
+"""Phase 2 v1b: regional MPM evaluated as presence/background on placer
 occurrences (the spatially-spread label set), under spatial-block CV.
+
+Placer positives are sourced from the fossick KG export (ADR-017, registry key
+`fossick_kg`) rather than a local ARDF re-derivation. The datum-corrected export
+(fossick b5dafba) matches the prior local extraction to 0 m over all placer
+occurrences inside this AOI; the switch leaves the AUCs unchanged within RF
+row-order noise (validated 2026-06-21, see the coordinator reply for that date).
 
 The drill-hole pay/barren task (mpm_onshore_cv1.py) cannot test a regional
 map: the 79 holes are packed into one small high-prospectivity cluster where pay
-and barren interleave at sub-100 m scale. ARDF placer occurrences are spread
+and barren interleave at sub-100 m scale. Placer occurrences are spread
 across the district, so presence-vs-background actually tests whether the map
 ranks known gold above background.
 
@@ -29,13 +35,15 @@ from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
 
+from ai_minerals.data.adapters.occurrences import kg as kg_occ
+
 DD = Path("data/derived/nome_placer")
 V3P1 = DD / "prospectivity_v1p5/nome_placer_prospectivity_v1p5_v3p1_3338.tif"
 GEOCHEM = DD / "covariates_mpm/geochem_ss_idw_log_3338.tif"
 DEM = Path("data/raw/nome_mpm/ifsar_dem_3338.tif")
 SLOPE = Path("data/raw/nome_mpm/ifsar_slope_3338.tif")
 TPI = Path("data/raw/nome_mpm/ifsar_tpi_3338.tif")
-ARDF = Path("data/raw/nome_mpm/ardf_nome.geojson")
+KG_EXPORT = Path("data/raw/fossick_kg/kg_nome.jsonld")  # ADR-017 placer labels
 OUT_DIR = DD / "mpm_onshore"
 N_BG = 2000
 RNG = 42
@@ -78,25 +86,31 @@ def spatial_cv_auc(X, y, groups, coords=None, buffer_m=0.0) -> float:
         if len(np.unique(y[tr])) < 2:
             continue
         m = RandomForestClassifier(n_estimators=300, class_weight="balanced",
-                                   random_state=RNG, n_jobs=-1).fit(X[tr], y[tr])
+                                   random_state=RNG, n_jobs=1).fit(X[tr], y[tr])
         oof[te] = m.predict_proba(X[te])[:, 1]
     ok = ~np.isnan(oof)
     return float(roc_auc_score(y[ok], oof[ok]))
 
 
 def main() -> None:
-    # ARDF placer positives inside the AOI grid
+    # Placer positives (fossick KG, ADR-017) inside the AOI grid
     with rasterio.open(V3P1) as ds:
         bl, bb, br, bt = ds.bounds.left, ds.bounds.bottom, ds.bounds.right, ds.bounds.top
         H, W, T = ds.height, ds.width, ds.transform
-    ardf = gpd.read_file(ARDF).to_crs("EPSG:3338")
-    mc = ardf.get("model_code", pd.Series([""] * len(ardf))).astype(str).str.lower()
-    txt = (ardf.get("dep_model", pd.Series([""] * len(ardf))).astype(str) + " "
-           + ardf.get("site_type", pd.Series([""] * len(ardf))).astype(str)).str.lower()
-    placer = ardf[mc.str.startswith("39") | txt.str.contains("placer")].copy()
+    occ = kg_occ.load(KG_EXPORT).to_crs("EPSG:3338")
+    comm = occ["commodity"].astype(str).str.lower()
+    code39 = occ["deposit_codes"].apply(
+        lambda t: any(str(c).split(":")[-1].startswith("39") for c in t))
+    placer = occ[comm.str.contains("placer") | code39].copy()
     placer = placer.cx[bl:br, bb:bt]
     px = placer.geometry.x.to_numpy(); py = placer.geometry.y.to_numpy()
-    print(f"ARDF placer positives in AOI: {len(px)}")
+    # Canonical positive order (lexsort by x then y) so the spatial-block folds
+    # and RF bootstrap do not depend on the occurrence-source row order. Without
+    # it an order-only change (e.g. the ADR-017 ARDF->KG switch over an
+    # identical point set) wobbles the CV AUC by ~0.04 with no change in labels.
+    order = np.lexsort((py, px))
+    px, py = px[order], py[order]
+    print(f"KG placer positives in AOI: {len(px)}")
 
     # background: random valid (on-land) cells
     with rasterio.open(DEM) as ds:
