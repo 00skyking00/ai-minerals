@@ -78,7 +78,7 @@ and I'm sure I missed some.
 
 A single-claim deep dive of a placer mining claim in Nome, Alaska,
 Bear Cub is a family-owned patented mining claim on the Third Beach
-Line at Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked the 24 churn-drill
+Line, staked in 1899 and last drilled in the 1910s-30s. I tracked the 24 churn-drill
 logs down at the Huntington Library, built a multi-engine OCR
 pipeline (Tesseract, TrOCR, Cloud Vision, Claude Opus arbitrating
 with structured-output JSON) to ingest them, mapped each hole onto
