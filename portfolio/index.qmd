@@ -98,6 +98,12 @@ be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1
 ::: {.g-col-12 .g-col-md-9}
 ### [2. Regional mineral-prospectivity pipelines](regional.qmd)
 
+A region gets into this project one of two ways: a family connection,
+or a deposit type whose geology and public data looked like a good fit
+for machine learning. Cape Nome (Chapter 8) is the family one. These
+four are the other kind, well-understood geology with enough open data
+that a model has something real to learn from.
+
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
 porphyry-Cu), I built the same kind of pipeline: pull public data
