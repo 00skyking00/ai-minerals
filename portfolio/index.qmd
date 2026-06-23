@@ -35,8 +35,7 @@ already withdrawn, patented, or under active claim.
 
 ## Methodology
 
-Keeping in mind that I am a programmer and not a statistician, here
-is my take on methodology.
+Here is my attempt at a reasonable methodology:
 
 Federal and state surveys publish a lot of mineral data: occurrence
 records, geologic maps, magnetics and gravity, stream-sediment
