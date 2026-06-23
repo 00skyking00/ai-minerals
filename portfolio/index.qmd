@@ -49,9 +49,9 @@ across the region: the model's guess at where the unknown deposits
 are.
 
 The part I've spent the most time on isn't the training, it's the
-validation afterward. The methodology has four well-known traps:
-inflated training positives, spatial leakage, exploration bias in
-the labels, and cross-region transfer failure. All four show up in
+validation afterward. Time and again, I ran into the same four
+problems: inflated training positives, spatial leakage, exploration
+bias in the labels, and cross-region transfer failure. All four show up in
 this portfolio. Chapter 5 is the most explicit about quantifying
 them, showing how much of two published AUC numbers (area under the
 receiver-operating-characteristic curve, a standard model-quality
