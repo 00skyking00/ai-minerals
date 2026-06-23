@@ -33,30 +33,38 @@ hobbies: title research. goldbug pairs the ML signal with public
 land law: it ranks the parcels you can legally stake, not the ones
 already withdrawn, patented, or under active claim.
 
+## Methodology
+
+Keeping in mind that I am a programmer and not a statistician, here
+is my take on methodology.
+
+Federal and state surveys publish a lot of mineral data: occurrence
+records, geologic maps, magnetics and gravity, stream-sediment
+geochemistry, satellite imagery. I pull these onto a common grid and
+each cell of land becomes a feature vector. I train a Random Forest
+(an ensemble of decision trees that vote together; well-studied,
+fast to fit, hard to beat on tabular geoscience data) to recognize
+cells with known deposits, holding out spatial blocks so the model
+can't cheat by memorizing neighbors. The output is a per-cell score
+across the region: the model's guess at where the unknown deposits
+are.
+
+The part I've spent the most time on isn't the training, it's the
+validation afterward. The methodology has four well-known traps:
+inflated training positives, spatial leakage, exploration bias in
+the labels, and cross-region transfer failure. All four show up in
+this portfolio. Chapter 5 is the most explicit about quantifying
+them, showing how much of two published AUC numbers (area under the
+receiver-operating-characteristic curve, a standard model-quality
+score for ranked predictions) each trap accounts for. The same
+issues are flagged in the within-region work where I noticed them,
+and I'm sure I missed some.
+
 ## Chapters
 
 :::: {.grid}
 ::: {.g-col-12}
-### [1. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
-
-[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
-
-The lead chapter, and the one that ties the rest together. My family
-owns a patented placer claim at Cape Nome, Bear Cub. After working
-that one claim by hand, old drill logs, a three-dimensional model of
-the gravel, a century-old title to untangle, I started wondering
-whether the same thing could be done for the whole district,
-automatically: find the ground likely to carry gold, line it up
-against who worked it before us, and put it somewhere a person can
-actually click. This chapter is that attempt. It is also, and this is
-the part I care about most, a record of how I tried not to fool myself
-with the numbers along the way.
-:::
-::::
-
-:::: {.grid}
-::: {.g-col-12}
-### [2. Bear Cub single-claim deep dive](https://johnsondevco.com/bearcub/bear_cub.html)
+### [1. Bear Cub single-claim deep dive](https://johnsondevco.com/bearcub/bear_cub.html)
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-6}
@@ -88,7 +96,7 @@ be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [3. Regional mineral-prospectivity pipelines](regional.qmd)
+### [2. Regional mineral-prospectivity pipelines](regional.qmd)
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
@@ -109,16 +117,16 @@ between them.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [4. goldbug (live tool: Cape Nome + CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
+### [3. goldbug (live tool: Cape Nome + CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
 
 The live click-a-claim tool. Serves the Cape Nome district raster
-from Chapter 1 with per-claim popups (Honey reads TB 98, Molasses
+from Chapter 8 with per-claim popups (Honey reads TB 98, Molasses
 TB 92, Bear Cub buried_BL 82 under the 2026-06-17 p75 aggregation)
-and serves the California Mother Lode model from Chapter 3 with
+and serves the California Mother Lode model from Chapter 4 with
 open-land filtering for individual prospectors. Same map, two
 regions.
 
-The Mother Lode model from Chapter 3 is interesting on its own,
+The Mother Lode model from Chapter 4 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
 closes that gap. It takes the per-cell probabilities and filters
 them to federal land that's actually open for an individual
@@ -139,7 +147,7 @@ specific modeling).
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [5. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
+### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
 Placer modeling (hunting for gold loose in streambeds and old
 gravel beds, rather than locked in solid rock) sits about a decade
@@ -161,7 +169,7 @@ the goldbug live tool for per-claim sampling.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [6. Reproducing + auditing two published methods](reproductions.qmd)
+### [5. Reproducing + auditing two published methods](reproductions.qmd)
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
@@ -187,7 +195,7 @@ report what I actually saw.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [7. Cross-region experiments](cross_region.qmd)
+### [6. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
 deviation-network architecture (a deep-learning approach that the
@@ -208,7 +216,7 @@ methods. Useful negative result.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [8. Drill planning under uncertainty](drill_planning.qmd)
+### [7. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself does not tell you where to put the
 next drill hole. I built a POMDP planner (Partially Observable
@@ -237,32 +245,24 @@ by turn.
 :::
 ::::
 
-## Methodology
+:::: {.grid}
+::: {.g-col-12}
+### [8. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-Keeping in mind that I am a programmer and not a statistician, here
-is my take on methodology.
+[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
 
-Federal and state surveys publish a lot of mineral data: occurrence
-records, geologic maps, magnetics and gravity, stream-sediment
-geochemistry, satellite imagery. I pull these onto a common grid and
-each cell of land becomes a feature vector. I train a Random Forest
-(an ensemble of decision trees that vote together; well-studied,
-fast to fit, hard to beat on tabular geoscience data) to recognize
-cells with known deposits, holding out spatial blocks so the model
-can't cheat by memorizing neighbors. The output is a per-cell score
-across the region: the model's guess at where the unknown deposits
-are.
-
-The part I've spent the most time on isn't the training, it's the
-validation afterward. The methodology has four well-known traps:
-inflated training positives, spatial leakage, exploration bias in
-the labels, and cross-region transfer failure. All four show up in
-this portfolio. Chapter 5 is the most explicit about quantifying
-them, showing how much of two published AUC numbers (area under the
-receiver-operating-characteristic curve, a standard model-quality
-score for ranked predictions) each trap accounts for. The same
-issues are flagged in the within-region work where I noticed them,
-and I'm sure I missed some.
+The closing chapter, where the rest of the portfolio comes together.
+My family owns a patented placer claim at Cape Nome, Bear Cub
+(Chapter 1). The question this chapter asks is whether the automated
+pipeline built for that one claim could be pointed at the whole
+district: the regional prospectivity modeling (Chapters 2 and 4), the
+validation discipline (Chapter 5), goldbug's public-land-law layer
+(Chapter 3), and the drill-record machinery from Bear Cub, all turned
+on Cape Nome at once. Find the ground likely to carry gold, line it up
+against who worked it before us, and serve it where a person can click
+a claim.
+:::
+::::
 
 ## Stack
 

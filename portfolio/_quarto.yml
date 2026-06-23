@@ -52,25 +52,25 @@ website:
   repo-url: https://github.com/00skyking00/ai-minerals
   navbar:
     left:
-      # Cape Nome is the lead chapter (district-scale showcase across siblings).
-      # Bear Cub + goldbug are cross-site links into their own repos.
-      # Brand "ai-minerals" links to index.qmd, so no separate Portfolio link.
-      - href: nome_placer.qmd
-        text: "1. Cape Nome"
+      # Cape Nome is the closing synthesis chapter (it builds on all the others),
+      # so it sits last. Bear Cub + goldbug are cross-site links into their own
+      # repos. Brand "ai-minerals" links to index.qmd, so no separate Portfolio link.
       - href: https://johnsondevco.com/bearcub/bear_cub.html
-        text: "2. Bear Cub"
+        text: "1. Bear Cub"
       - href: regional.qmd
-        text: "3. Regional MPM"
+        text: "2. Regional MPM"
       - href: https://johnsondevco.com/goldbug/goldbug.html
-        text: "4. goldbug"
+        text: "3. goldbug"
       - href: placer.qmd
-        text: "5. Placer"
+        text: "4. Placer"
       - href: reproductions.qmd
-        text: "6. Reproductions + audits"
+        text: "5. Reproductions + audits"
       - href: cross_region.qmd
-        text: "7. Cross-region"
+        text: "6. Cross-region"
       - href: drill_planning.qmd
-        text: "8. Drill planning"
+        text: "7. Drill planning"
+      - href: nome_placer.qmd
+        text: "8. Cape Nome"
       # Hidden until first note lands. The page itself still renders.
       # - href: posts.qmd
       #   text: "Notes"

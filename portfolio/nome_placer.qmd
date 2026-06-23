@@ -23,8 +23,8 @@ in a sibling project ([bearcub](https://johnsondevco.com/bearcub/bear_cub.html))
 it is where I learned what the ground here is actually made of.
 
 Somewhere in the middle of all that I started wondering whether the
-thing I had done by hand for one claim could be done for the whole
-district, automatically. Three threads had been running in parallel
+same automated pipeline I had built for one claim could be pointed at
+the whole district. Three threads had been running in parallel
 and they all pointed at the same place. The first was Bear Cub: the
 archival drill logs, the subsurface model, the title puzzle. The
 second was a run of regional machine-learning experiments, learning
@@ -33,52 +33,28 @@ plan drilling under uncertainty. The third was [goldbug](https://johnsondevco.co
 a mapping app that ties public land law to those prospectivity models
 and gives the whole thing a home you can open in a browser and click.
 
-Cape Nome is where the three meet. The question was simple to state
-and harder to answer: could I do for the entire Nome district,
-automatically, what I had done by hand for Bear Cub? Find the ground
-that is likely to carry gold, line it up against who worked what
-before us, and put it somewhere a person can actually use it. This
-chapter is that attempt. It is also, and this is the part I care about
-most, a record of how I tried not to fool myself along the way.
+Cape Nome is where the three meet, and this chapter is where they come
+together: the regional prospectivity models, the drill-record
+machinery built for Bear Cub, and the land-law tool, all turned on one
+district at once. The question was simple to state and harder to
+answer: could the single-claim pipeline run across the entire Nome
+district? Find the ground that is likely to carry gold, line it up
+against who worked what before us, and put it somewhere a person can
+actually use it. This chapter is that attempt.
 
-## Three ways a number lies
+## Testing the two headline numbers
 
-A prospectivity model gives you a number. You sample your model over
-the places gold is known to be and over a background of places it
-mostly isn't, and you ask how well the model separates the two. The
-standard score is the AUC: `1.0` is a perfect ranking, `0.5` is a coin
-flip. The trouble is that a high AUC has three common ways of being a
-lie, and all three are easy to walk into.
+The [methodology note on the front page](https://johnsondevco.com/ai-minerals/)
+covers the traps that turn a high score into a lie: label leak,
+restriction of range, and spatial leakage. They are the through-line
+of the whole portfolio, so I will not relitigate them here, beyond the
+one rule they all reduce to: take the impressive number, build the
+test designed to expose it as luck, and report whatever is left
+standing.
 
-The first is **label leak**. The thing you are trying to predict has
-quietly gotten into the inputs, so the model is reading the answer off
-the back of the card. I have hit this before. In an earlier exercise
-reproducing a well-known continental zinc-lead model, the published
-score of about `0.98` included a couple of points of leak from a
-column that turns out to be arithmetically part of the target. The
-model was not that good. The bookkeeping was.
-
-The second is **restriction of range**. Your test is drawn on too
-narrow a slice of the world, so the model can win by learning
-something true but useless. If every known deposit in your test box
-sits up in the hills and everything you marked "barren" sits down on
-the flat, a model that has learned to recognize a hill will score
-beautifully and tell you nothing about gold.
-
-The third is **spatial leakage**. Geological samples near each other
-are not independent; they share the same rocks, the same drainage,
-the same survey. If you split your data into training and test sets at
-random, a test point usually has a training point a few meters away,
-and the model gets credit for memorizing the neighborhood instead of
-generalizing to new ground. The fix is to hold out whole spatial
-blocks, and to buffer a gap around them so nothing in the test set is
-within a few hundred meters of anything the model trained on.
-
-The discipline is the same every time. Take the impressive number,
-build the test designed to expose it as luck, and report whatever is
-left standing. Two of this chapter's headline numbers went through
-that wringer. One survived and one did not, and the one that did not
-is the more interesting story.
+Two of this chapter's headline numbers went through that wringer. One
+survived and one did not, and the one that did not is the more
+interesting story.
 
 ## The placer model that held up
 
