@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "model_version": "placer-mpm-geomorph-v1",
+  "release": "ai-minerals-2026-06-22",
+  "raster_3338": "mpm_onshore_score_district_3338.tif",
+  "raster_4326": "mpm_onshore_score_district_4326.tif",
+  "resolution_m": 25,
+  "working_crs": "EPSG:3338",
+  "delivery_crs": "EPSG:4326",
+  "nodata": -1.0,
+  "scope": "onshore placer presence/background; lode is NOT modelled here",
+  "bands": [
+    {
+      "index": 1,
+      "key": "mpm_proba",
+      "name": "Placer presence MPM probability (GEOMORPH RF)",
+      "description": "RandomForest presence/background probability over GEOMORPH features (7 v3.1 population bands + DEM + slope + TPI). Single band; not the v3.1 composite.",
+      "value_range": [
+        0.0,
+        1.0
+      ]
+    }
+  ],
+  "legend_note": "Single-band probability. Distribution differs from the v3.1 rule-based composite; recalibrate display buckets from mpm_onshore_score_report.json percentiles rather than reusing the v3.1 0.5/0.3/0.1 absolute thresholds."
+}
