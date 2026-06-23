@@ -60,14 +60,13 @@ interesting story.
 
 Start with the good news, because there isn't always good news.
 
-The live map on goldbug today is a knowledge-driven model: I encoded
+My first map of the district was a knowledge-driven model: I encoded
 what Tuck's bulletin says about where the old beach lines run, scored
 every cell in the district by how well it matches a known beach stand,
-and served that. It is a reasonable picture of the surface beaches and
-it is what you see when you open the tool. But when I scored it against
-the district's known placer occurrences, the ones recorded in the USGS
-Alaska Resource Data File, it came in at `0.444`[^placer-report], which
-is below a coin flip. It is a faithful map of the coastal beach lines,
+and served that. It was a reasonable picture of the surface beaches.
+But when I scored it against the district's known placer occurrences,
+the ones recorded in the USGS Alaska Resource Data File, it came in at
+`0.444`[^placer-report], which is below a coin flip. It is a faithful map of the coastal beach lines,
 and the coastal beach lines are not where most of the recorded placer
 gold in this district actually is. A lot of it is up the creeks.
 
@@ -85,19 +84,19 @@ ranks the district's placer ground well, and keeps ranking it well
 once you hold out whole regions of the map and buffer a gap around them
 so it cannot read the answer off a nearby training point.
 
-![Placer prospectivity scored against the recorded ARDF placer occurrences in the district. The live knowledge-overlay map (left) ranks below chance because it is a beach-line map and most of the recorded gold is up the creeks. The terrain-and-geology model (center, right) holds up under spatial-block cross-validation and again under a buffered cross-validation that separates the test ground from the training ground.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_headline_auc.png)
+![Placer prospectivity scored against the recorded ARDF placer occurrences in the district. The earlier knowledge-overlay map (left) ranks below chance because it is a beach-line map and most of the recorded gold is up the creeks. The terrain-and-geology model (center, right), now the surface served on goldbug, holds up under spatial-block cross-validation and again under a buffered cross-validation that separates the test ground from the training ground.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_headline_auc.png)
 
 I want to be careful about what that does and does not mean. `0.733`
 is a useful ranking, not a treasure map. It says the model concentrates
 the known occurrences toward the high-scoring end of the district far
 better than chance, after I have done the work to keep it from cheating.
-It does not say any particular cell has gold in it. And the model that
-scored it is an evaluation result, not yet the surface served on
-goldbug; the live tool still shows the knowledge-overlay map while the
-terrain model is the analysis that tells me the overlay is ranking the
-wrong thing.
+It does not say any particular cell has gold in it. This terrain model
+is now the surface served on goldbug: the live tool ranks each patented
+claim and each open parcel by it, on one calibrated scale. The
+knowledge-overlay map it replaced is the analysis that first told me
+the beach-line picture was ranking the wrong thing.
 
-![The prospectivity surface currently live on goldbug: the knowledge-overlay map of the district's beach lines, draped over the Cape Nome coast. It is a clean picture of the surface beaches, and it is the surface that scores below chance against the recorded occurrences because the recorded gold is largely up the creeks. The terrain model that scores 0.733 is an evaluation result, not yet exported as a served raster, so this is the map a reader clicks today.](data/derived/portfolio_charts/thumbs/ch1_nome_placer.png)
+![The knowledge-overlay surface of the district's beach lines, draped over the Cape Nome coast: my first map, and the one that scores below chance against the recorded occurrences because the recorded gold is largely up the creeks. It is a clean picture of the surface beaches; it is also the map the terrain-and-geology model, now served on goldbug, replaced.](data/derived/portfolio_charts/thumbs/ch1_nome_placer.png)
 
 ## How the placer model is built
 
@@ -231,10 +230,10 @@ the knowledge graph, makes the district picture sharper.
 to break it exists and is described above. The lode model is a negative
 result I trust precisely because I tried to make it fail and it did.
 The knowledge graph is built and you can play with it through three
-viewers. The whole thing wires into goldbug, which is live. The ten
-thousand logs are not in hand, the recorded documents are not yet
-ingested, and the terrain placer model is an evaluation result rather
-than the served surface. I would rather name the trajectory and tell
+viewers. The whole thing wires into goldbug, which is live, and the terrain
+placer model is now the surface it serves. The ten thousand logs are
+not in hand and the recorded documents are not yet fully ingested. I
+would rather name the trajectory and tell
 you exactly where on it we are than dress up the demo as the
 destination.
 
@@ -261,8 +260,8 @@ occurrences vs `2,000` background):
 
 | Model | AUC | Note |
 |---|---:|---|
-| v3.1 knowledge-overlay composite (live map) | 0.444 | below chance; a beach-line map mis-ranks the upland creek placers |
-| Terrain + geomorphology, spatial-block CV | 0.733 | the regional result that survives spatial CV |
+| v3.1 knowledge-overlay composite (first map, since replaced) | 0.444 | below chance; a beach-line map mis-ranks the upland creek placers |
+| Terrain + geomorphology, spatial-block CV (now the live map) | 0.733 | the regional result that survives spatial CV |
 | Terrain + geomorphology, buffered 300 m | 0.741 | buffered ≥ unbuffered, so no across-fold leak |
 | Full model incl. Au geochemistry, spatial-block CV | 0.686 | near-circular; geochem Au is a gold detector, excluded from the headline |
 
