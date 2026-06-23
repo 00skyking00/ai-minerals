@@ -39,45 +39,18 @@ already withdrawn, patented, or under active claim.
 ::: {.g-col-12}
 ### [1. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-[![Bear Cub MS 1178 (163 ft) and Early Bear MS 1180 (258 ft) placed where the Tuck 1942 Sec. M-5 cross-section's actual topographic profile reaches their IfSAR elevations. Bear Cub on the ascent to the Third Beach high bench; Early Bear on the high-bench peak inside the v3 gap that v3.1 fills with the SS sea-stand population.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)](nome_placer.qmd)
+[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
 
-The lead chapter. The arc:
-
-The portfolio started with regional prospectivity models (Chapters
-3-7 below), each one a per-cell probability raster for a region
-the model was tuned to. A natural follow-on question, for a
-prospector working a single claim rather than a continent, was
-whether the score could be turned into something actionable: which
-specific ground can an individual legally stake, and at what score?
-That meant marrying the prospectivity raster with US public-land
-law and the patchwork of patented-survey and active-claim layers
-that govern who owns what. [Goldbug](https://johnsondevco.com/goldbug/)
-is the click-a-claim tool that solves that gap.
-
-In parallel, a personal thread: my family owns Bear Cub MS 1178, a
-patented placer claim on the Snake River slope at Cape Nome, last
-seriously drilled in the 1910s through the 1930s. The single-claim
-deep dive in [the bearcub
-repo](https://johnsondevco.com/bearcub/bear_cub.html) tracked down
-the historical drill logs, OCR'd them, rebuilt the bedrock and
-pay-zone surface, and produced a Monte Carlo resource estimate
-(9,631 fine oz, matching an independent mining engineer's
-analysis within 4%). The drill-record machinery extended naturally
-to the surrounding district once the Janin 1912 Pioneer survey and
-the Tuck 1942 bulletin folio were ingested.
-
-The Cape Nome project is the next step: marry the regional
-prospectivity surface with the district drill-hole record at Nome
-itself, scored per-cell over a 25 m grid that goldbug then samples
-per patented survey. The chapter walks through what that took:
-five dark-data ingests (Tuck 1942 plate atlas, the 204-page Bull
-933-B body, the Janin 1912 Pioneer drill survey, the ARDF / MRDS /
-AGDB4 cross-walk, ADGGS surficial plus IfSAR DEM), seven
-populations of placer-Au accumulation scored as a fuzzy-overlay
-composite, and the live click-a-claim viewer at the bottom of the
-pipeline. Three sibling repos coordinate via a handoff protocol:
-ai-minerals for the district model and Tuck atlas, bearcub for the
-single-claim work, goldbug for the served tool.
+The lead chapter, and the one that ties the rest together. My family
+owns a patented placer claim at Cape Nome, Bear Cub. After working
+that one claim by hand, old drill logs, a three-dimensional model of
+the gravel, a century-old title to untangle, I started wondering
+whether the same thing could be done for the whole district,
+automatically: find the ground likely to carry gold, line it up
+against who worked it before us, and put it somewhere a person can
+actually click. This chapter is that attempt. It is also, and this is
+the part I care about most, a record of how I tried not to fool myself
+with the numbers along the way.
 :::
 ::::
 
