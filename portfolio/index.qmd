@@ -37,7 +37,53 @@ already withdrawn, patented, or under active claim.
 
 :::: {.grid}
 ::: {.g-col-12}
-### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
+### [1. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
+
+[![Bear Cub MS 1178 (163 ft) and Early Bear MS 1180 (258 ft) placed where the Tuck 1942 Sec. M-5 cross-section's actual topographic profile reaches their IfSAR elevations. Bear Cub on the ascent to the Third Beach high bench; Early Bear on the high-bench peak inside the v3 gap that v3.1 fills with the SS sea-stand population.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)](nome_placer.qmd)
+
+The lead chapter. The arc:
+
+The portfolio started with regional prospectivity models (Chapters
+3-7 below), each one a per-cell probability raster for a region
+the model was tuned to. A natural follow-on question, for a
+prospector working a single claim rather than a continent, was
+whether the score could be turned into something actionable: which
+specific ground can an individual legally stake, and at what score?
+That meant marrying the prospectivity raster with US public-land
+law and the patchwork of patented-survey and active-claim layers
+that govern who owns what. [Goldbug](https://johnsondevco.com/goldbug/)
+is the click-a-claim tool that solves that gap.
+
+In parallel, a personal thread: my family owns Bear Cub MS 1178, a
+patented placer claim on the Snake River slope at Cape Nome, last
+seriously drilled in the 1910s through the 1930s. The single-claim
+deep dive in [the bearcub
+repo](https://johnsondevco.com/bearcub/bear_cub.html) tracked down
+the historical drill logs, OCR'd them, rebuilt the bedrock and
+pay-zone surface, and produced a Monte Carlo resource estimate
+(9,631 fine oz, matching an independent mining engineer's
+analysis within 4%). The drill-record machinery extended naturally
+to the surrounding district once the Janin 1912 Pioneer survey and
+the Tuck 1942 bulletin folio were ingested.
+
+The Cape Nome project is the next step: marry the regional
+prospectivity surface with the district drill-hole record at Nome
+itself, scored per-cell over a 25 m grid that goldbug then samples
+per patented survey. The chapter walks through what that took:
+five dark-data ingests (Tuck 1942 plate atlas, the 204-page Bull
+933-B body, the Janin 1912 Pioneer drill survey, the ARDF / MRDS /
+AGDB4 cross-walk, ADGGS surficial plus IfSAR DEM), seven
+populations of placer-Au accumulation scored as a fuzzy-overlay
+composite, and the live click-a-claim viewer at the bottom of the
+pipeline. Three sibling repos coordinate via a handoff protocol:
+ai-minerals for the district model and Tuck atlas, bearcub for the
+single-claim work, goldbug for the served tool.
+:::
+::::
+
+:::: {.grid}
+::: {.g-col-12}
+### [2. Bear Cub single-claim deep dive](https://johnsondevco.com/bearcub/bear_cub.html)
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-6}
@@ -50,23 +96,26 @@ already withdrawn, patented, or under active claim.
 :::
 ::::
 
-A family-owned patented mining claim on the Third Beach Line at
-Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked
-the 24 churn-drill logs down at the Huntington Library, built a
-multi-engine OCR pipeline (Tesseract, TrOCR, Cloud Vision, Claude
-Opus arbitrating with structured-output JSON) to ingest them,
-mapped each hole onto a recent plat, built a 3D model of bedrock
-and pay-zone, and computed Voronoi-cell volumetrics with Monte
-Carlo uncertainty. Per-hole grades matched two mining engineers'
-independent analyses within 6%. On top of the same grid, a
-Gaussian-process recommender picks where hole #25 should go.
-The OCR-cleaned records will export to [dh2loop](https://gmd.copernicus.org/articles/14/6711/2021/) format for the Loop3D 3D-modeling stack, and the recommender will be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1007/s11053-022-10030-1)).
+The single-claim deep dive of the Cape Nome program. A family-owned
+patented mining claim on the Third Beach Line at Nome, staked in
+1899 and last drilled in the 1910s-30s. I tracked the 24 churn-drill
+logs down at the Huntington Library, built a multi-engine OCR
+pipeline (Tesseract, TrOCR, Cloud Vision, Claude Opus arbitrating
+with structured-output JSON) to ingest them, mapped each hole onto
+a recent plat, built a 3D model of bedrock and pay-zone, and
+computed Voronoi-cell volumetrics with Monte Carlo uncertainty.
+Per-hole grades matched two mining engineers' independent analyses
+within 6%. On top of the same grid, a Gaussian-process recommender
+picks where hole #25 should go. The OCR-cleaned records will export
+to [dh2loop](https://gmd.copernicus.org/articles/14/6711/2021/)
+format for the Loop3D 3D-modeling stack, and the recommender will
+be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1007/s11053-022-10030-1)).
 :::
 ::::
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [2. Regional mineral-prospectivity pipelines](regional.qmd)
+### [3. Regional mineral-prospectivity pipelines](regional.qmd)
 
 For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
 Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
@@ -87,9 +136,16 @@ between them.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [3. goldbug (live tool, CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
+### [4. goldbug (live tool: Cape Nome + CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
 
-The Mother Lode model from Chapter 2 is interesting on its own,
+The live click-a-claim tool. Serves the Cape Nome district raster
+from Chapter 1 with per-claim popups (Honey reads TB 98, Molasses
+TB 92, Bear Cub buried_BL 82 under the 2026-06-17 p75 aggregation)
+and serves the California Mother Lode model from Chapter 3 with
+open-land filtering for individual prospectors. Same map, two
+regions.
+
+The Mother Lode model from Chapter 3 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
 closes that gap. It takes the per-cell probabilities and filters
 them to federal land that's actually open for an individual
@@ -110,7 +166,7 @@ specific modeling).
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
+### [5. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
 Placer modeling (hunting for gold loose in streambeds and old
 gravel beds, rather than locked in solid rock) sits about a decade
@@ -132,7 +188,7 @@ the goldbug live tool for per-claim sampling.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [5. Reproducing + auditing two published methods](reproductions.qmd)
+### [6. Reproducing + auditing two published methods](reproductions.qmd)
 
 I cloned the official code for two well-known mineral-prospectivity
 papers and re-ran them with proper validation. **Lawley 2022**
@@ -158,7 +214,7 @@ report what I actually saw.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [6. Cross-region experiments](cross_region.qmd)
+### [7. Cross-region experiments](cross_region.qmd)
 
 I ran a five-region transferability test on the DEEP-SEAM
 deviation-network architecture (a deep-learning approach that the
@@ -179,7 +235,7 @@ methods. Useful negative result.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [7. Drill planning under uncertainty](drill_planning.qmd)
+### [8. Drill planning under uncertainty](drill_planning.qmd)
 
 A prospectivity map by itself does not tell you where to put the
 next drill hole. I built a POMDP planner (Partially Observable
