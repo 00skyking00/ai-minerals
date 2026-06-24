@@ -106,9 +106,10 @@ public data. For each one, I built the pipeline: pull public data from
 the US Geological Survey, Natural Resources Canada, and/or state surveys
 onto a common grid, train a Random Forest, and hold out spatial blocks
 during validation so the model can't cheat by memorizing neighbors. The two porphyry-Cu regions (Tanacross and
-Arizona) both land at roughly 22 to 23 percent top-1% capture on
-their held-out positives, the same regime despite a continent
-between them.
+Arizona) land in the same regime, a continent apart and each trained
+only on its own data: in both, the top 1 percent of ranked ground
+holds more than 20 times the known deposits that chance would put
+there.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Tanacross (eastern Alaska) porphyry-Cu prospectivity, random forest output](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
