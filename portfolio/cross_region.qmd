@@ -107,7 +107,7 @@ They have a specific niche (small-positive datasets with heavy
 upstream feature decomposition that genuinely shapes the data into
 anomaly form), and outside that niche they lose by a wide margin.
 
-The architecture isn't broken; it's matched to the wrong problem
+The architecture does real work; it is matched to the wrong problem
 shape for general regional MPM. Knowing where it works and where
 it doesn't is more useful for an exploration team than a blanket
 claim that the new method is better.

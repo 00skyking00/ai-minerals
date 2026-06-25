@@ -204,9 +204,7 @@ the KARDEX cards and the recorded documents name the operators and
 conveyances, and the graph links them back to the claim. You can open
 the graph three ways and poke at it yourself: a tabular SQL browser, a
 spatial map of claims and occurrences, and a linked per-entity wiki
-where each claim, document, and operator has its own page. (The
-coordinator is assembling the figure that links the three viewers; the
-publish task to give them a reader-facing home is tracked.) On the
+where each claim, document, and operator has its own page. On the
 goldbug side, the claim detail pages now carry the attached graph
 records, so clicking a survey shows you the documents behind it.
 

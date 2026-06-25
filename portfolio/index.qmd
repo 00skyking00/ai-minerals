@@ -153,9 +153,8 @@ specific modeling).
 ::: {.g-col-12 .g-col-md-9}
 ### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
-Placer modeling (hunting for gold loose in streambeds and old
-gravel beds, rather than locked in solid rock) sits about a decade
-behind lode prospectivity in the published literature. I built a
+Placer modeling sits about a decade behind lode prospectivity in
+the published literature. I built a
 two-population model over the California Mother Lode at 250 m grid
 spacing, training Tertiary deep-gravel and Quaternary modern-channel
 placer separately because they leave different geomorphic
@@ -210,7 +209,7 @@ The most pointed test was on the US Western Carbonatite belt (14
 positives, the same deposit type as Curnamona): DEEP-SEAM still
 loses to Random Forest. On three other regions covering porphyry-Cu
 and sediment-hosted Zn-Pb under spatially-blocked cross-validation,
-the gap widens to 7 to 37 percentage points in favor of tree-based
+the gap widens to 9 to 28 percentage points in favor of tree-based
 methods. Useful negative result.
 :::
 ::: {.g-col-12 .g-col-md-3}
@@ -230,14 +229,16 @@ observations) ported from Mern et al.'s Intelligent Prospector
 (2023 + 2024) and tested it against simpler baselines. On a
 synthetic stress test POMCP finds the deposit in 94% of episodes
 within a 9-hole budget; the greedy baseline gets there in 53%. On
-the real BC Golden Triangle data a leak-free starting prior already
-captures 86% of post-2010 copper hits in its top quarter, so the
-planner cannot improve on a good prior; the planning advantage
-shows up against weak priors, not strong ones. Scaled up to the
-full BCGT grid with real BCGS deposit-type priors, four policies
-tie within experimental noise on immediate reward, but SARSOP ends
-each episode about seven points more confident in the true
-geological hypothesis than greedy does (0.71 vs 0.64). The chapter
+the real BC Golden Triangle data the picture is mixed. On a clean
+pre-2010 prior the Bayesian-updating policies start to beat a static
+recommendation on the districts with enough post-2010 hits to measure
+(at Red Chris, 54% of the later copper captured against the static
+prior's 31%). Where the prior is already strong, the static map is
+hard to beat. Scaled up to the full BCGT grid with real BCGS
+deposit-type priors, the policies tie within experimental noise on
+immediate discovery, but SARSOP ends each episode about seven points
+more confident in the true geological hypothesis than greedy does
+(0.71 vs 0.64). The chapter
 walks through where multi-step planning helps, where it does not,
 and what real BCGT exploration would need to look like for the
 planning advantage to transfer at scale. An interactive widget at
