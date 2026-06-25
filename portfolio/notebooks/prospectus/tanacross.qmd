@@ -1,5 +1,5 @@
 ---
-title: "Tanacross Alaska porphyry-Cu — the public-data template"
+title: "Tanacross Alaska porphyry-Cu: the public-data template"
 subtitle: "Same modeling pipeline, different region, different commodity, reproducible numbers"
 date: 2026-05-11
 format:
@@ -27,7 +27,7 @@ change.
 
 ## Data layers
 
-### Composite view — what the AOI looks like
+### Composite view: what the AOI looks like
 
 A combined visualization of DEM, geology overlay, and geophysics
 overlay. The Tanacross AOI runs from the Yukon border west to the
@@ -36,25 +36,25 @@ intrusive arc.
 
 ![Composite view: DEM + geology + geophysics overlay](../../_freeze/notebooks/eastak/data_exploration/figure-html/composite-view-output-1.png)
 
-### Geochemistry — AGDB4 stream sediments
+### Geochemistry: AGDB4 stream sediments
 
 The Alaska Geochemical Database (version 4) carries pathfinder
 elements for porphyry-Cu: Cu, Mo, Au, Ag, As, Sb. Mid-resolution
 stream-sediment sampling at roughly one sample per 50 km².
 
-![AGDB4 stream-sediment Cu, log10 scale — the headline pathfinder column for porphyry-Cu](../../_freeze/notebooks/eastak/data_exploration/figure-html/agdb4-cu-map-output-2.png)
+![AGDB4 stream-sediment Cu, log10 scale: the headline pathfinder column for porphyry-Cu](../../_freeze/notebooks/eastak/data_exploration/figure-html/agdb4-cu-map-output-2.png)
 
 ![AGDB4 stream-sediment data, multi-element composite](../../_freeze/notebooks/eastak/data_exploration/figure-html/agdb4-map-output-1.png)
 
-### Geology — USGS SGMC with Alaska overburden mask
+### Geology: USGS SGMC with Alaska overburden mask
 
 State Geologic Map Compilation, restricted to the bedrock-exposed
-fraction of the AOI (Quaternary overburden masked out — porphyry-Cu
+fraction of the AOI (Quaternary overburden masked out, because porphyry-Cu
 exploration cannot see through unconsolidated cover).
 
 ![SGMC geology in the Tanacross AOI](../../_freeze/notebooks/eastak/data_exploration/figure-html/geology-map-output-1.png)
 
-### Geophysics — USGS gridded aeromagnetic and Bouguer gravity
+### Geophysics: USGS gridded aeromagnetic and Bouguer gravity
 
 The basement-rock signature. Porphyry-Cu intrusive centers typically
 produce a positive magnetic anomaly (from magnetite in the host
@@ -63,7 +63,7 @@ intrusive's lower density relative to surrounding country rock).
 
 ![USGS magnetic + Bouguer gravity overlay](../../_freeze/notebooks/eastak/data_exploration/figure-html/geophys-output-1.png)
 
-### Remote sensing — Sentinel-2 alteration proxies
+### Remote sensing: Sentinel-2 alteration proxies
 
 Sentinel-2 spectral indices for iron oxide and hydroxyl-rich clay
 alteration. Porphyry-Cu deposits typically produce a halo of
@@ -73,7 +73,7 @@ hematite/limonite plus argillic alteration at surface.
 
 ![Sentinel-2 iron-oxide index (BSI proxy)](../../_freeze/notebooks/eastak/data_exploration/figure-html/s2-iron-oxide-output-1.png)
 
-### Topography — DEM
+### Topography: DEM
 
 Slope, aspect, and terrain ruggedness layers derived from a
 1-arc-second DEM. Context features for the intrusive-belt geology.
@@ -105,7 +105,7 @@ controlled magmatic belt the regional geology would predict.
 
 ![Tanacross out-of-fold prospectivity raster](../../_freeze/notebooks/eastak/eastak_porphyry_prospectivity/figure-html/prospectivity-raster-output-1.png)
 
-### Success-rate curve — top-k capture
+### Success-rate curve: top-k capture
 
 The success-rate curve plots cumulative fraction of held-out
 positives captured (y-axis) against cumulative fraction of area
@@ -157,9 +157,9 @@ were the **count-style features** ("number of MRDS occurrences within
 for historical exploration density. Those features inflated
 within-region AUC but did not transfer; they encoded "places people
 have already looked" rather than "places where deposits actually
-form." Removing them was a small within-region cost (a fraction of
-a percentage point of AUC) for a substantial cross-region honesty
-gain.
+form." Removing them cost a fraction of a percentage point of
+within-region AUC, and in exchange the cross-region numbers stopped
+overstating how well the model actually transfers.
 
 The lesson is that some features look helpful inside a region for
 the same reason they fail outside it: they encode information about
@@ -181,8 +181,8 @@ generalizes.
 
 - USGS, gridded aeromagnetic data for Alaska.
 - USGS, Bouguer gravity for Alaska.
-- USGS, Alaska Resource Data File (ARDF) — historical occurrence records.
-- USGS, State Geologic Map Compilation (SGMC) — Alaska coverage.
+- USGS, Alaska Resource Data File (ARDF): historical occurrence records.
+- USGS, State Geologic Map Compilation (SGMC): Alaska coverage.
 - Alaska Division of Geological and Geophysical Surveys, Alaska Geochemical Database version 4 (AGDB4).
 - ESA Copernicus, Sentinel-2 multispectral imagery.
 - USGS, 1 arc-second DEM (NED).

@@ -41,7 +41,7 @@ different feature stacks.
 
 The architecture uses a "deviation loss" that pushes positive cells
 to have scores far above a Gaussian-distributed reference. The
-loss assumes positive cells are anomalies in feature space — that
+loss assumes positive cells are anomalies in feature space: that
 the geological signal we want to predict is a rare-outlier signature
 rather than a common-recipe signature. Whether that assumption holds
 across deposit types is the central question.
@@ -109,8 +109,8 @@ The table reads as out-of-fold capture at the top 1 percent of
 cells: the fraction of held-out positive deposits that fall inside
 the top 1 percent of cells the model ranks most prospective.
 
-The headline pattern is clear. On Curnamona — the dataset DEEP-SEAM
-was tuned on — the deviation network beats Random Forest by a factor
+The headline pattern is clear. On Curnamona (the dataset DEEP-SEAM
+was tuned on) the deviation network beats Random Forest by a factor
 of 2 or more. On every other region tested, classical tree-based
 methods (Random Forest or gradient-boosted trees on the Lawley
 benchmark) beat DevNet by a wide margin. The widest margin is on
@@ -120,7 +120,7 @@ percent of cells and DevNet lands **none**.
 
 ## What each cell of the experiment shows
 
-### Cell A: DevNet on DEEP-SEAM-style preprocessed data — reproducing the publication
+### Cell A: DevNet on DEEP-SEAM-style preprocessed data, reproducing the publication
 
 ```{python}
 #| label: cell-a-curnamona
@@ -275,7 +275,7 @@ DEEP-SEAM's deviation loss tells the model to find cells that look
 unusual compared to a Gaussian-distributed reference. That assumption
 fits Curnamona because the upstream PCA + GLCM compression reshapes
 the data into something approximately Gaussian, with the seven
-deposits sitting in the tails — they really are outliers in the
+deposits sitting in the tails. They really are outliers in the
 compressed feature space.
 
 The same assumption fails on regional MPM. The Tanacross and
@@ -284,8 +284,8 @@ deliberately encode a *geological recipe* through proximity-to-
 feature columns (distance to fault, distance to passive margin,
 distance to black shale) and presence-flag dictionaries (sedimentary
 host, igneous host, alteration). A prospective cell is a cell that
-fits the recipe — sedimentary plus near-fault plus near-black-shale
-— not a cell that stands out from everything else. Gradient-boosted-
+fits the recipe (sedimentary plus near-fault plus near-black-shale),
+not a cell that stands out from everything else. Gradient-boosted-
 trees and Random Forest can learn the recipe through multivariate
 conditional rules. DevNet, told to find the rare, finds that the
 recipe is *common* across many cells and produces near-random
@@ -295,13 +295,13 @@ ordering.
 
 A separate experiment ([prospectus deep-dive](../prospectus/deep_seam_cross_region.qmd))
 ran the same head-to-head comparison on Lawley et al. 2022's
-continental Zn-Pb data cube — 5.16 million H3 hexagons across the
+continental Zn-Pb data cube: 5.16 million H3 hexagons across the
 United States, Canada, and Australia, 2,027 positive MVT deposits.
 Under 2-D quantile-block cross-validation, the gradient-boosted-
 trees model landed 28 percent of held-out positives in its top 1
 percent of cells; DevNet landed zero. The cross-continent transfer
 test (train US/Canada → predict Australia) sent DevNet's AUC to
-0.343 — below 0.5, meaning the predictions are actively anti-
+0.343, below 0.5, meaning the predictions are actively anti-
 correlated with the truth. The Lawley result is the fourth
 independent piece of evidence for the same finding.
 

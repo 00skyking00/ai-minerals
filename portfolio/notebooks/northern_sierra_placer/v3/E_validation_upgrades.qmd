@@ -95,7 +95,7 @@ leaks** (RF AUC 0.995 vs LightGBM 0.804). What's happening:
   binary label has an upper bound near 0.05 just from the prior. Even a
   perfectly-predictive feature would barely cross 0.10.
 - The v2 RF leakage was via PATTERN (cells near pit polygons get high score
-  because cells AT pit polygons are positives). Pearson doesn't see this —
+  because cells AT pit polygons are positives). Pearson doesn't see this:
   it's not a linear correlation, it's a local-neighborhood structure.
 
 This is a real diagnostic limit. Simple correlation isn't useful for
@@ -124,7 +124,7 @@ print("Pre-isotonic (raw stacking OOF) calibration:")
 print(cal_pre.to_string(index=False))
 ```
 
-Pre-isotonic ECE was 0.0004; post-isotonic ECE is 0.0001 — the calibrator is
+Pre-isotonic ECE was 0.0004; post-isotonic ECE is 0.0001. The calibrator is
 genuinely improving the calibration. v3 will inherit isotonic's edge over
 Platt at this positive rate (see E.3).
 

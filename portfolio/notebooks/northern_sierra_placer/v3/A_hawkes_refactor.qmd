@@ -168,7 +168,7 @@ The v2 per-fold-Hawkes runs cost roughly:
 
 Most of that time is the hawkes hot loop. With 45% of cells skipped per call,
 the expected wall-clock drops to ~85 min (LGBM CV) and ~240 min (Stacking OOF)
-in v3 — a saving of ~50% of the per-fold hawkes wall clock.
+in v3, a saving of ~50% of the per-fold hawkes wall clock.
 
 Total v3 training expectation (per the v3 plan, both populations):
 **~5-6 hours instead of v2's ~16+ hours.** Other v3 changes (XGBoost addition,

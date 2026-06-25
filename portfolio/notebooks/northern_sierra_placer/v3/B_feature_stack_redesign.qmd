@@ -97,7 +97,7 @@ print(f"Quaternary-only:     {sorted(only_q)}")
 The Tertiary-only features are `is_quaternary_alluvium` (antithesis signal,
 where Tertiary gravels are NOT), `tertiary_terrace_likelihood` (bench
 geometry above modern drainage), and `hydraulic_pit_proximity_m_buffered`
-(the buffered variant — Tertiary's positive set IS the pit polygons; the
+(the buffered variant: Tertiary's positive set IS the pit polygons, so the
 unbuffered feature trivially encodes the label).
 
 The Quaternary-only features are the modern-channel signal: `spi_band` (Roy
@@ -217,7 +217,7 @@ print(f"  min={prox_v3.min():.0f}m  median={prox_v3.median():.0f}m  max={prox_v3
 ```
 
 The buffered version voids the ~10-20k cells closest to pit polygons. The
-model's view of "near a pit" is replaced by "I have no signal here" — which
+model's view of "near a pit" is replaced by "I have no signal here", which
 forces the model to use the other features (geomorphology, geology, geochem)
 to predict positives. That's exactly what v3 needs for generalization.
 
@@ -230,8 +230,8 @@ The DEM second-derivative curvatures, Gaussian-smoothed.
 - **Plan curvature**: positive on ridges (interstream divides where Tertiary
   gravels rest), negative in valleys. Strong signal for Tertiary terrace
   identification.
-- **Profile curvature**: positive at convex slope-breaks (knickpoints — gold
-  traps for Quaternary placers), negative at concave breaks (bench toes —
+- **Profile curvature**: positive at convex slope-breaks (knickpoints, gold
+  traps for Quaternary placers), negative at concave breaks (bench toes,
   also placer traps).
 
 Both functions take a DEM array; the assemble script wires them in at the

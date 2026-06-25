@@ -137,7 +137,7 @@ ax.set_title("BCGT top 15 features (SHAP, RF no-count, 4-class union)")
 plt.tight_layout()
 ```
 
-## 4. Directional SHAP — which direction does each feature push?
+## 4. Directional SHAP: which direction does each feature push?
 
 ```{python}
 #| label: shap-directional
@@ -213,7 +213,8 @@ plt.tight_layout()
 - The count-feature confound is present in BCGT the same way it was in
   EastAK: `*_count_5km` and `*_has_data_5km` dominate RF importance if
   kept in the matrix. Dropping them shifts top features to `*_max_5km`
-  of pathfinder elements — the honest signal.
+  of pathfinder elements, the geochemical signal rather than the
+  sampling-density artifact.
 - Pooled 4-class SHAP surfaces features from multiple deposit systems
   simultaneously; a per-class one-vs-rest variant would make clearer
   attributions per deposit type.

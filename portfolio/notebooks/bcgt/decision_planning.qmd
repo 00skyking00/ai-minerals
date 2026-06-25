@@ -19,7 +19,7 @@ execute:
 A prospectivity model gives you a per-cell probability that a deposit
 exists. It does *not* tell you where to drill *next* given what you've
 already drilled. Real exploration campaigns are sequential: each hole
-costs roughly $0.5–2M, returns information about the local geology,
+costs roughly $0.5-2M, returns information about the local geology,
 and that information should change the next-hole decision.
 
 The methodological framing for this is a **partially observable Markov
@@ -29,10 +29,10 @@ fixed-grid or greedy-prior campaigns at the per-dollar-spent margin.
 The published reference is *Intelligent Prospector* v1.0
 ([Mern et al., GMD 2023][mern1]) and v2.0 ([arXiv 2410.10610, 2024][mern2]).
 
-This notebook ports that framework — at the v1.0 (single-hypothesis)
-fidelity — onto the [BCGT prospectivity prior][bcgt-rf] and runs three
+This notebook ports that framework (at the v1.0 single-hypothesis
+fidelity) onto the [BCGT prospectivity prior][bcgt-rf] and runs three
 policies side by side: random, greedy, and POMCP. It is a methodology
-demonstration, not a state-of-the-art benchmark — see
+demonstration, not a state-of-the-art benchmark. See
 *[What this doesn't establish](#what-this-doesnt-establish)* below.
 
 [mern1]: https://gmd.copernicus.org/articles/16/289/2023/
@@ -52,7 +52,7 @@ mineral occurrences across the AOI. The POMDP variables:
 | **Action** | Drill cell $i$ (any un-drilled cell). |
 | **Observation** | Drilling cell $i$ returns its true label $s_i$ noiselessly (matches Mern v1.0's simplification). |
 | **Reward** | $-c_{\text{drill}}$ per drill; $+v_{\text{discovery}}$ per hit. Defaults: $c=1$, $v=50$. |
-| **Horizon** | 15–30 drills per episode. No discount in the report (POMCP uses internal discount $\gamma = 0.95$). |
+| **Horizon** | 15-30 drills per episode. No discount in the report (POMCP uses internal discount $\gamma = 0.95$). |
 
 The prior is built fresh from a Random Forest fit on the full BCGT
 feature frame (108k cells; the RF setup matches the
@@ -129,18 +129,18 @@ plt.show()
 
 ## Four policies
 
-- **Random** — pick an un-drilled cell uniformly at random.
-- **Greedy** — pick the un-drilled cell with the highest current
+- **Random**: pick an un-drilled cell uniformly at random.
+- **Greedy**: pick the un-drilled cell with the highest current
   posterior probability (after collapsing already-drilled cells to
   their observed truth).
-- **EOI** (Efficacy of Information; [Caers et al. 2022][caers-eoi]) —
+- **EOI** (Efficacy of Information; [Caers et al. 2022][caers-eoi]):
   pick the un-drilled cell whose drilling is expected to reduce
   uncertainty on the deposit indicator the most. Under the v1.0
   noiseless-independent setup, EOI(c) reduces to the binary entropy
   $h_2(p_c)$ of the prior at cell $c$, and the argmax becomes
   **uncertainty sampling**: drill the cell whose prior is closest
   to 0.5.
-- **POMCP** — Partially Observable Monte Carlo Planning, via
+- **POMCP**: Partially Observable Monte Carlo Planning, via
   [`pomdp_py`][pomdp-py] (Brown H2R Lab, v1.3.5.1). Per-step it draws
   particle samples of the joint state from the per-cell Bernoulli
   posterior, runs MCTS for a fixed planning-time budget, and returns
@@ -274,8 +274,8 @@ plt.show()
 
 ### EOI per drill across policies
 
-The per-step EOI annotation — the binary entropy of the cell each policy
-chose at each drill, averaged over the 25 seeds — separates the
+The per-step EOI annotation (the binary entropy of the cell each policy
+chose at each drill, averaged over the 25 seeds) separates the
 hit-maximizing vs information-maximizing framings cleanly.
 
 ```{python}
@@ -321,7 +321,7 @@ drill 30, greedy and EOI both discover ~1.5 deposits on average vs.
 ~0.8 for POMCP and ~0.5 for random.
 
 That ordering is structurally expected for *this* setup, and worth
-unpacking — it isn't a critique of POMCP, it's a property of the
+unpacking. It isn't a critique of POMCP, it's a property of the
 problem we've handed it:
 
 - **Greedy is near-optimal when cells are independent and the sensor
@@ -348,7 +348,7 @@ problem we've handed it:
   keeps drilling them, EOI moves on.
 
 What this confirms: the framework is plumbed correctly for four
-policies. The methodological infrastructure is in place; lifting any
+policies. The methodological infrastructure is in place; relaxing any
 of the next-section limitations would shift the balance among them.
 
 ## What this doesn't establish
@@ -356,7 +356,7 @@ of the next-section limitations would shift the balance among them.
 - **Independent-cell prior.** The RF posterior gives a per-cell
   probability with no explicit spatial correlation. POMCP's value over
   greedy materializes when observation of one cell informs belief
-  about neighbors — i.e., when the prior is correlated, as in Mern
+  about neighbors, i.e., when the prior is correlated, as in Mern
   et al.'s GP-background formulation. A v1.2 follow-up would smooth
   the RF posterior with a Gaussian process and update neighbor beliefs
   via a covariance-aware Bayesian update.
@@ -370,7 +370,7 @@ of the next-section limitations would shift the balance among them.
   it is *not* a held-out blind test. A fairer protocol would treat the
   154 known intersected positives from
   [`bcgs_drillholes_bcgt.gpkg`](../../data/raw/bcgs_drillholes/bcgs_drillholes_bcgt.gpkg)
-  as ground truth and the rest as unknown — at the cost of much
+  as ground truth and the rest as unknown, at the cost of much
   smaller usable AOIs.
 - **No STOP action.** Mern v1.0 has MINE/ABANDON terminal actions
   with reward dependent on cumulative ore volume. Our setup keeps
@@ -446,7 +446,7 @@ plt.show()
 
 ### Belief trajectory under each ground truth
 
-For each of the three "true" scenarios — H1 true, H2 true, H3 true —
+For each of the three "true" scenarios (H1 true, H2 true, H3 true),
 sample a ground-truth realization, then run 20 drills selecting cells
 by maximizing the entropy-equivalent marginal-prior under the current
 belief (a one-line implementation of EOI generalized over a belief
