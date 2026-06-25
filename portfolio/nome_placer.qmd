@@ -8,39 +8,59 @@ sidebar: nome_placer
 
 ![Bear Cub MS 1178 and Early Bear MS 1180 placed against the Tuck 1942 Sec. M-5 cross-section, at the IfSAR elevations where the claims actually sit. Bear Cub is on the ascent to the Third Beach high bench; the buried Third Beach line runs under the modern hillside about 85 ft down.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)
 
-## The claim, and the journey it started
+## After the first seven chapters: can it scale to a district?
 
-My family has a placer claim outside Nome. Bear Cub MS 1178 is a
-patented claim on the slope above the Snake River, a little under
-fourteen acres sitting where the old drillers caught a buried beach
-running under the modern hillside. It has been in the family since
-not long after the geologist Robert Tuck mapped the district for the
-USGS in the late 1930s. Sorting out who owned what, and when, turned
-into its own project: typewritten drill logs from 1912 and the 1940s,
-a three-dimensional model of the gravel and bedrock under the claim,
-territorial court cases, probate files. That single-claim work lives
-in a sibling project ([bearcub](https://johnsondevco.com/bearcub/bear_cub.html));
-it is where I learned what the ground here is actually made of.
+My family has a placer claim outside Nome, and sorting out what the
+ground under it is actually made of, the single-claim deep dive that
+became [bearcub](https://johnsondevco.com/bearcub/bear_cub.html), is
+where this whole project started. After building the first seven pieces
+of the portfolio, I began to see how they might come together and run
+at the scale of a whole mining district rather than one claim. I began
+to wonder how far the parts would stretch.
 
-Somewhere in the middle of all that I started wondering whether the
-same automated pipeline I had built for one claim could be pointed at
-the whole district. Three threads had been running in parallel
-and they all pointed at the same place. The first was Bear Cub: the
-archival drill logs, the subsurface model, the title puzzle. The
-second was a run of regional machine-learning experiments, learning
-to predict where ore is from public geoscience data, and learning to
-plan drilling under uncertainty. The third was [goldbug](https://johnsondevco.com/goldbug/),
-a mapping app that ties public land law to those prospectivity models
-and gives the whole thing a home you can open in a browser and click.
+Could the automated pipeline I built for that one claim (Chapter 1) be
+pointed at the entire Nome district? Could I marry it to the regional
+prospectivity modeling (Chapters 2 and 4) and the validation discipline
+that kept those models from fooling me (Chapter 5)? Could goldbug's
+public-land-law layer (Chapter 3) extend to Alaska, where ANCSA (the
+1971 Alaska Native Claims Settlement Act) reshaped land ownership into
+something very different from the federal open-land system in the Lower
+48? Could the drill-record machinery reach past Bear Cub to the
+district's other holdings? And could all the dark data the project
+keeps ingesting (not just the drill logs, but the USGS reports, the
+mining-engineer reports, the KARDEX, MAS, and MIN mineral-record sets)
+feed a knowledge graph that in turn trains the prospectivity models?
 
-Cape Nome is where the three meet, and this chapter is where they come
-together: the regional prospectivity models, the drill-record
-machinery built for Bear Cub, and the land-law tool, all turned on one
-district at once. The question was simple to state and harder to
-answer: could the single-claim pipeline run across the entire Nome
-district? Find the ground that is likely to carry gold, line it up
-against who worked what before us, and put it somewhere a person can
-actually use it. This chapter is that attempt.
+This chapter is where those questions get answered, some with a working
+result and some with a candid "not yet." It is the closing synthesis:
+the regional models, the drill-record machinery, the land-law tool, and
+the dark-data corpus, all turned on one district at once.
+
+## How the earlier chapters answer the questions
+
+Most of the answers already exist in the earlier chapters. Cape Nome is
+where they get pointed at one district together, and the rest of this
+chapter is what came back.
+
+The single-claim pipeline from Chapter 1 (the archival drill logs, the
+three-dimensional gravel-and-bedrock model, the title puzzle) showed
+that one claim's worth of dark data can be turned into a model you can
+stand on. The regional work in Chapters 2 and 4 is the machinery for
+learning where ore sits from public geoscience data. Chapter 5 is the
+discipline that decides whether any of those numbers mean anything,
+which on this district turns out to be the whole game: one of the two
+headline numbers here survives that discipline and one does not.
+[goldbug](https://johnsondevco.com/goldbug/) (Chapter 3) is the
+land-law layer that turns a probability surface into a map of the
+parcels you can legally stake, now extended onto Alaska ground.
+Underneath all of it is the dark-data corpus and the knowledge graph
+that consolidates it, which is where most of the actual work went and
+where the project is headed next.
+
+So this chapter has four things to report: a placer model that survives
+the Chapter 5 wringer, a lode model that does not, a knowledge graph
+assembled from the district's dark data, and a candid account of what
+is working now versus what is still to come.
 
 ## Testing the two headline numbers
 
@@ -178,12 +198,16 @@ a test built to break it, and I am reporting that rather than shipping the
 `0.80` and hoping nobody redraws the box. A negative result that you
 caught yourself is worth more than a positive one you didn't.
 
-## The knowledge graph underneath
+## Dark data, turned into structured evidence
 
-All of this needs to know where the known occurrences are, who worked
-the ground, and which historical record describes which claim. That is
-a data-integration problem before it is a modeling problem, and it is
-where a lot of the actual work went.
+This is the part the prospectivity numbers sit on top of, and the part
+with the most room left to run. A mining district throws off a century
+of paper: drill logs, USGS bulletins, mining-engineer reports, state
+mineral-record cards, court and probate files, leases and conveyances.
+Almost none of it is in a form a model can read. Turning that dark data
+into structured evidence, records with coordinates, identities, and a
+source you can click back to, is a data-integration problem before it
+is a modeling problem, and it is where a lot of the actual work went.
 
 The occurrences and the historical record come from several public
 corpora that do not agree with each other: the USGS ARDF, the MRDS
@@ -202,38 +226,56 @@ that the switch changed the plumbing and not the answer.
 The same graph is what lets the family chain-of-title puzzle resolve:
 the KARDEX cards and the recorded documents name the operators and
 conveyances, and the graph links them back to the claim. You can open
-the graph three ways and poke at it yourself: a tabular SQL browser, a
-spatial map of claims and occurrences, and a linked per-entity wiki
-where each claim, document, and operator has its own page. On the
-goldbug side, the claim detail pages now carry the attached graph
-records, so clicking a survey shows you the documents behind it.
+it three ways and poke at it yourself: a tabular SQL browser, a spatial
+map of claims and occurrences, and a linked per-entity wiki where each
+claim, document, and operator has its own page. On the goldbug side,
+the claim detail pages now carry the attached graph records, so
+clicking a survey shows you the documents behind it. The point of that
+per-claim source trail is that every label the model trains on, and
+every parcel goldbug ranks, can be traced back to the scanned card or
+report it came from.
 
-## The vision, and where we actually are
+Where this is headed is a loop: fold more of the dark-data corpus into
+the graph, and let the graph feed the prospectivity models better
+labels and richer covariates than the public occurrence files alone
+can. The KARDEX, MAS, and MIN mineral-record sets, the USGS and
+mining-engineer reports, and the drill logs the district generated over
+a century are each a corpus the model has not seen yet. Closing that
+loop, the graph feeding the models and not just the model reading the
+graph, is the goal; right now the graph supplies the labels and the
+source trail, and the richer covariate feed is still ahead.
 
-It is worth being plain about the gap between where this is going and
-where it stands.
+## What's working now, and what's still to come
 
-**Where it is going.** The Cape Nome recorded documents, the locations
-and assessment work and leases and conveyances that the district
-generated over a century, are public and largely un-digitized. The
-Janin 1912 drill logs for the Bear Cub holdings were rescued from an
-archive at the Huntington. And the largest landowner in the district,
-the Alaska Gold Company, a Bering Straits Native Corporation
-subsidiary, holds on the order of ten thousand drill logs; we are
-pursuing access to them through a collaboration. Each of those is a
-dark-data corpus the model has never seen, and each one, folded into
-the knowledge graph, makes the district picture sharper.
+It is worth being plain about the gap between where this stands and
+where it is going.
 
-**Where it actually is.** The placer model that survives a test built
-to break it exists and is described above. The lode model is a negative
-result I trust precisely because I tried to make it fail and it did.
-The knowledge graph is built and you can play with it through three
-viewers. The whole thing wires into goldbug, which is live, and the terrain
-placer model is now the surface it serves. The ten thousand logs are
-not in hand and the recorded documents are not yet fully ingested. I
-would rather name the trajectory and tell
-you exactly where on it we are than dress up the demo as the
-destination.
+**Working now.** The placer model that survives a test built to break
+it exists and is the surface goldbug serves: the live tool ranks each
+patented claim and each open parcel on one calibrated scale. The lode
+model is a negative result I trust precisely because I tried to make it
+fail and it did. The knowledge graph is built from the ARDF, MRDS,
+Cobb, and KARDEX corpora, and you can open it through the three viewers
+and follow any claim back to its source documents. goldbug is live, and
+the terrain placer model is the surface it serves.
+
+**Still to come.** The richer dark-data corpora are not yet folded in.
+The Cape Nome recorded documents, the locations and assessment work and
+leases and conveyances the district generated over a century, are
+public and largely un-digitized. The Janin 1912 drill logs for the Bear
+Cub holdings were rescued from an archive at the Huntington. And the
+largest landowner in the district, the Alaska Gold Company, a Bering
+Straits Native Corporation subsidiary, holds on the order of ten
+thousand drill logs we are pursuing access to through a collaboration.
+Each of those is a dark-data corpus the model has never seen. The MAS
+and MIN record sets are still being ingested, and the
+knowledge-graph-into-model-training loop is a goal, not yet a working
+result. The lode question is open too: I do not have an independent
+lode signal that survives the district-scale test, and finding one
+would need dispersed, peninsula-wide labels I do not have yet.
+
+I would rather name the trajectory and tell you exactly where on it we
+are than dress up the demo as the destination.
 
 ## Where to look
 

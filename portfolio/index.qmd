@@ -265,7 +265,10 @@ validation discipline (Chapter 5), goldbug's public-land-law layer
 (Chapter 3), and the drill-record machinery from Bear Cub, all turned
 on Cape Nome at once. Find the ground likely to carry gold, line it up
 against who worked it before us, and serve it where a person can click
-a claim.
+a claim. Underneath it is a knowledge graph that turns the district's
+dark data, the scanned KARDEX cards, the USGS and mining-engineer
+reports, the century of drill logs, into structured evidence the model
+can train on and a reader can click back to.
 :::
 ::::
 
