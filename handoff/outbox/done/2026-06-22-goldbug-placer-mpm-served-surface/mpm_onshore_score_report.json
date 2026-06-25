@@ -1,0 +1,43 @@
+{
+  "model": "GEOMORPH RandomForest (300 trees, class_weight=balanced, seed=42)",
+  "features": [
+    "bl",
+    "ap",
+    "tb",
+    "ss",
+    "bc",
+    "qm",
+    "buried_bl",
+    "dem",
+    "slope",
+    "tpi"
+  ],
+  "n_placer": 65,
+  "n_background": 2000,
+  "performance_estimate": {
+    "source": "mpm_onshore_presence_report.json (spatial-block CV)",
+    "spatialCV_auc": 0.733,
+    "buffered300m_auc": 0.741,
+    "note": "These are the honest performance estimates of THIS pipeline under spatial-block CV. The served raster below is the same pipeline refit on all labels; AUC is a held-out estimate, not a property of the all-data refit."
+  },
+  "served_surface": {
+    "raster_3338": "mpm_onshore_score_district_3338.tif",
+    "raster_4326": "mpm_onshore_score_district_4326.tif",
+    "scored_cells": 583686,
+    "nodata": -1.0,
+    "value_range_scored": [
+      0.0,
+      0.8547
+    ],
+    "percentiles": {
+      "p5": 0.0,
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.006,
+      "p75": 0.0273,
+      "p90": 0.0833,
+      "p95": 0.1374,
+      "p99": 0.2767
+    }
+  }
+}

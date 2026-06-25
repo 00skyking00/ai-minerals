@@ -96,7 +96,14 @@ NOME_PLACER_REGION = Region(
     working_crs="EPSG:3338",
     data_prefix="nome_placer",
 
-    occurrences_source="ardf",
+    # ADR-017: occurrence labels are sourced from the fossick KG export, not a
+    # local ARDF re-derivation ("cite, don't re-derive"). The NOME_PLACER AOI
+    # sits wholly inside the KG's Cape Nome bbox, and the datum-corrected export
+    # (fossick b5dafba, 2026-06-21) matches the prior local extraction to 0 m
+    # over all 60 placer occurrences in-AOI. The wider district-lode grid is NOT
+    # fully inside the KG bbox, so the standalone lode scripts stay on the local
+    # ARDF geojson until the district-lode switch lands separately.
+    occurrences_source="fossick_kg",
     geochem_source="agdb4",
     # v1 geology uses the Wilson et al. 2015 SIM 3340 statewide map, same
     # as eastak. The Cape Nome / Nome C-6 sub-quadrangle has no DGGS
@@ -121,12 +128,14 @@ NOME_PLACER_REGION = Region(
     pathfinder_elements=("Au", "As", "Sb", "Hg", "Bi"),
 
     raw_paths={
-        # Occurrences: ARDF placer + lode points clipped to the Cape Nome
-        # AOI. The lode-seed list for distance-downstream-from-lode is
-        # Rock Creek (Nome Group mesothermal Au, ~0.071 oz/ton, ~473k oz
-        # contained, 8 mi N of Nome) plus ARDF lode points at Cape Nome,
-        # Penny River, and Snake River. Filtered at use time, not here.
-        "occurrences":   DATA_RAW / "ardf" / "ardf_nome_placer.gpkg",
+        # Occurrences: fossick KG export (ADR-017), a local snapshot of
+        # ~/src/learning/fossick/exports/kg_nome.jsonld (fossick b5dafba,
+        # datum-corrected WGS84). 286 ARDF occurrences inside the Cape Nome
+        # bbox; placer + lode points within the NOME_PLACER AOI. The lode-seed
+        # list for distance-downstream-from-lode (Rock Creek plus ARDF lode
+        # points at Cape Nome, Penny River, Snake River) is filtered at use
+        # time, not here.
+        "occurrences":   DATA_RAW / "fossick_kg" / "kg_nome.jsonld",
 
         # Geochem: AGDB4 stream-sediment + soil samples clipped to AOI.
         # Same source as eastak.

@@ -15,6 +15,7 @@ project:
     # for a single-deploy story. Beta deploys go to /ai-minerals-beta/ via
     # `bash scripts/deploy_to_hostinger.sh ai-minerals-beta`.)
     - index.qmd
+    - nome_placer.qmd
     - regional.qmd
     - placer.qmd
     - reproductions.qmd
@@ -51,8 +52,9 @@ website:
   repo-url: https://github.com/00skyking00/ai-minerals
   navbar:
     left:
-      # Bear Cub + goldbug are cross-site links (their own repos own /bearcub/ + /goldbug/).
-      # Brand "ai-minerals" links to index.qmd, so no separate Portfolio link.
+      # Cape Nome is the closing synthesis chapter (it builds on all the others),
+      # so it sits last. Bear Cub + goldbug are cross-site links into their own
+      # repos. Brand "ai-minerals" links to index.qmd, so no separate Portfolio link.
       - href: https://johnsondevco.com/bearcub/bear_cub.html
         text: "1. Bear Cub"
       - href: regional.qmd
@@ -67,6 +69,8 @@ website:
         text: "6. Cross-region"
       - href: drill_planning.qmd
         text: "7. Drill planning"
+      - href: nome_placer.qmd
+        text: "8. Cape Nome"
       # Hidden until first note lands. The page itself still renders.
       # - href: posts.qmd
       #   text: "Notes"

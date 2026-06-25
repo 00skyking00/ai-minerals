@@ -11,6 +11,7 @@ changes anywhere.
 from __future__ import annotations
 
 from ai_minerals.data.adapters.occurrences import ardf as _ardf_occ
+from ai_minerals.data.adapters.occurrences import kg as _kg_occ
 from ai_minerals.data.adapters.occurrences import mrds as _mrds_occ
 from ai_minerals.data.adapters.occurrences import bc_minfile as _bc_minfile_occ
 from ai_minerals.data.adapters.occurrences import usmin as _usmin_occ
@@ -33,6 +34,9 @@ from ai_minerals.data.adapters.elevation import threedep as _threedep_elev
 ADAPTERS: dict[str, dict[str, object]] = {
     "occurrences": {
         "ardf": _ardf_occ.load,
+        # fossick KG export (ADR-017). Cape Nome bbox only; see the adapter
+        # docstring for the NAD27 coordinate caveat (pass source_crs="EPSG:4267").
+        "fossick_kg": _kg_occ.load,
         "mrds": _mrds_occ.load,
         "bc_minfile": _bc_minfile_occ.load,
         # Hydraulic Mine Pits as Tertiary-placer occurrence seeds (centroids).

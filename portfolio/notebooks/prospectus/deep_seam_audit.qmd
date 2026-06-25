@@ -27,8 +27,8 @@ Three findings, in descending order of importance.
 
 The published top-2-percent capture rate of 86 percent is measured
 under an `sklearn.model_selection.train_test_split(test_size=0.3,
-random_state=56, stratify=labels)`. That is **0-D spatial blocking
-— equivalent to no spatial blocking**.
+random_state=56, stratify=labels)`. That is **0-D spatial blocking,
+equivalent to no spatial blocking**.
 
 The training set has:
 
@@ -105,8 +105,8 @@ worth noting.
 
 ### 2b. `confidence_margin = 20`, not Pang's default of 5
 
-Pang 2019 sets $a = 5$ as the default. DEEP-SEAM uses $a = 20$ —
-four times further. Not necessarily a bug (they may have tuned for
+Pang 2019 sets $a = 5$ as the default. DEEP-SEAM uses $a = 20$, four
+times further. Not necessarily a bug (they may have tuned for
 their data) but the paper does not explicitly call out this
 hyperparameter choice. Our port used $a = 5$.
 
@@ -148,9 +148,9 @@ on regions where spatial blocking is enforced (Tanacross, Arizona,
 Lawley under 2-D blocks, US Carbonatite REE under LOO), the
 advantage disappears.
 
-In other words: the architecture's published 2-3x lift over
-Random Forest is partly an evaluation artifact. Under honest
-spatial isolation we'd expect the lift to shrink. We can't measure
+In other words: the architecture's published 2-3x advantage over
+Random Forest is partly an evaluation artifact. With spatial
+isolation enforced, that advantage would shrink. We can't measure
 this directly on Curnamona itself (7 positives forces LOO under
 any spatial scheme, and LOO with that few positives is itself
 noisy), but the [US Western Carbonatite Belt experiment](us_carbonatite_ree.qmd)

@@ -14,8 +14,8 @@ California Mother Lode (orogenic Au), and the Arizona porphyry-Cu
 belt. The stack is the same in each one: open data from the
 US Geological Survey (USGS), Natural Resources Canada (NRCan), and
 state surveys; feature-frame assembly with `build_feature_frame()`;
-Random Forest classification (a tree-ensemble model that's the
-working horse for tabular geoscience data) with 20-km spatial-block
+Random Forest classification (a tree-ensemble model, the standard
+workhorse for tabular geoscience data) with 20-km spatial-block
 cross-validation; leak-free out-of-fold scoring (each cell predicted
 by a model that did not train on its block, so it cannot memorize
 the answer); and bootstrap confidence intervals on AUC (area under
@@ -24,7 +24,11 @@ ranking and 0.5 is random) and top-k% capture rates. Each region is
 its own geologically distinct problem and tests whether the approach
 holds up.
 
-![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 porphyry positives from the Alaska Resource Data File (ARDF), held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
+::: {layout-ncol=2}
+![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 45 porphyry positives from the Alaska Resource Data File (ARDF), held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
+
+![Arizona (southeastern porphyry belt) porphyry-Cu prospectivity: the same random forest pipeline scored leak-free out-of-fold across the bounded study area. Red crosses are the 191 Cox-Singer-cleaned porphyry-Cu positives from the USGS Mineral Resources Data System (MRDS), held out for evaluation. The top 1% of ranked cells captures 23.0% of the positives, a 23× enrichment over random sampling.](./data/derived/arizona/fig_prospectivity_arizona.png)
+:::
 
 ## The results
 
@@ -259,8 +263,8 @@ failure, but even with that out of the way the model trained on
 Sierra spatial context does not generalize past the very top cells
 in Klamath.
 
-The Mother Lode AOI is also covered cell-for-cell by the northern
-Sierra placer model in [Chapter 4](placer.qmd). I built the placer
+The Mother Lode AOI is also covered cell-for-cell by the California
+Mother Lode placer model in [Chapter 4](placer.qmd). I built the placer
 AOI as a superset of the Mother Lode lode-raster extent on purpose,
 so the two grids register exactly and goldbug can ingest the same
 placer GeoTIFF as both the Mother Lode lode-gold layer and the
@@ -290,15 +294,17 @@ literature deals with the same problem (it mostly doesn't).
 top features are distance-to-greenstone-belt, distance-to-fault,
 NGDB arsenic and antimony, plus the Calaveras Complex and Mariposa
 Slate lithology one-hots, which is the canonical orogenic-Au
-recipe. On Arizona the top features are AGDB4 Cu and Mo
+recipe. On Arizona the model leans on NGDB Cu and Mo
 stream-sediment, porphyry-host intrusive lithology, and
-distance-to-fault, which is the canonical porphyry-Cu recipe.
+distance-to-fault, the canonical porphyry-Cu recipe.
 Reasonable model behavior.
+
+![Tanacross porphyry-Cu model: top 15 features by mean absolute SHAP value (SHAP attributes each prediction back to the inputs that drove it). Stream-sediment pathfinder geochemistry dominates the ranking: silver, tellurium, molybdenum, copper, antimony, gold, and lead within a 5-km radius, which is the canonical porphyry-Cu pathfinder halo. Magnetic intensity is the one geophysical feature in the top 15. This is the same model drawn in the Tanacross prospectivity map above.](./data/derived/eastak/fig_shap_tanacross.png)
 
 Placer prospectivity is a different problem from the four lode pipelines
 in this chapter (two-population fusion, hydraulic-pit positives, isotonic
 calibration on a 250 m grid). It now lives in its own chapter; see
-[Chapter 4: Placer-Au prospectivity (northern Sierra)](placer.qmd).
+[Chapter 4: Placer-Au prospectivity (California Mother Lode)](placer.qmd).
 
 ## Deeper notebooks
 

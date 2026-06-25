@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "model_version": "placer-mpm-geomorph-v1",
+  "applies_to": "nome_placer_mpm_geomorph_v1_4326.tif",
+  "note": "Percentiles and buckets computed from the SERVED EPSG:4326 raster (the file goldbug zonal-samples), NOT the 25 m EPSG:3338 master. The 4326 reprojection resamples, so its distribution differs from the 3338 report (4326 max 0.655 vs 3338 max 0.855). Use these cutoffs for the legend/popup so the displayed buckets match the surface goldbug actually serves.",
+  "grid": {
+    "crs": "EPSG:4326",
+    "width": 1028,
+    "height": 506,
+    "res_deg": 0.00042126,
+    "bounds": [-165.56774, 64.42851, -165.13468, 64.64167],
+    "nodata": -1.0,
+    "dtype": "float32",
+    "scored_cells": 384222,
+    "value_range_scored": [0.0, 0.6547]
+  },
+  "percentiles_4326": {
+    "p25": 0.0007,
+    "p50": 0.0094,
+    "p75": 0.0336,
+    "p90": 0.0792,
+    "p95": 0.1212,
+    "p99": 0.2272
+  },
+  "recommended_buckets": {
+    "scheme": "percentile-anchored, absolute cutoffs on the 0-1 probability",
+    "bucket_high": 0.12,
+    "bucket_moderate": 0.079,
+    "bucket_weak": 0.034,
+    "rationale": "high>=p95 (top ~5% of onshore district ground), moderate>=p90, weak>=p75, floor below p75. The v3.1 0.5/0.3/0.1 absolute thresholds do NOT carry: at 0.5-high essentially the whole district renders below-weak (only ~0.6% of cells exceed 0.227)."
+  },
+  "coverage": {
+    "nodata_value": -1.0,
+    "onshore_floor": 0.0,
+    "guidance": "Onshore cells with no placer signal score a real 0.0 (not nodata). Offshore / off-grid cells are -1.0 nodata. For the zonal-MAX consumer, set coverage_threshold: 0.0 so a parcel overlapping only nodata (-1.0) reports no-coverage rather than max=-1.0. A parcel that genuinely sits on low-probability onshore ground will correctly report a small positive max."
+  }
+}

@@ -1,5 +1,5 @@
 ---
-title: "Lawley 2022 continental Zn-Pb benchmark — reproduced and audited"
+title: "Lawley 2022 continental Zn-Pb benchmark: reproduced and audited"
 subtitle: "Reproducing AUC 0.983 on 5.16M H3 hexagons, then accounting for where the published number overstates real generalization"
 date: 2026-05-11
 format:
@@ -20,7 +20,7 @@ geophysical responses at multiple spatial scales, seismic
 depth-to-Moho and depth-to-LAB, lithology and geological-period
 dictionaries, paleo-latitude, and proximity-to-feature columns for
 terrane boundaries, passive margins, black shales, and faults. The
-published model reported an AUC of 0.983 — meaning a randomly chosen
+published model reported an AUC of 0.983, meaning a randomly chosen
 real-deposit cell scored higher than a randomly chosen non-deposit
 cell 98.3 percent of the time.
 
@@ -86,8 +86,8 @@ df
 ```
 
 The four numbers together (0.997 → 0.972 → 0.868 → 0.71 → 0.56)
-account for the entire gap between the published score and an honest
-measurement of cross-region generalization. The 0.87 number under 2-D
+account for the entire gap between the published score and what the
+model actually delivers on cross-region generalization. The 0.87 number under 2-D
 spatial blocks is real geological signal, mostly carried by the
 proximity-to-black-shale, proximity-to-passive-margin, and
 sedimentary-host-rock dictionary features. The leak-and-evaluation
@@ -146,7 +146,7 @@ That operation iterates row-wise in Python; on a 5-million-row
 column it takes about 5 minutes per column, and the loop runs over
 4-5 columns. `pd.factorize` is the C-level implementation of the
 same operation. Replacing the call dropped per-column encoding from
-~5 minutes to under one second — roughly **100× speedup**.
+~5 minutes to under one second, roughly a **100× speedup**.
 
 End-to-end, the experiment now runs in **about 3 minutes** on the
 same 16 GB laptop. The takeaway is the gap between published
@@ -157,8 +157,8 @@ science reproducible.
 ## Interesting finding 2: where the published 0.983 actually comes from
 
 The reproduction matches the published number to within 0.014. The
-gap between the reproduction (0.9965) and the "honest" generalization
-number breaks down as follows:
+gap between the reproduction (0.9965) and the cross-region
+generalization number breaks down as follows:
 
 ### The label leak (2.4 pp)
 
@@ -184,7 +184,7 @@ CI [0.848, 0.887].
 Training on the US + Canada cube and asking the model to score
 Australia produces AUC 0.71 with CI [0.677, 0.741]. The reverse
 direction (train Australia, score US + Canada) collapses to AUC
-0.557 with CI [0.544, 0.570] — where 0.5 would be random guessing.
+0.557 with CI [0.544, 0.570], where 0.5 would be random guessing.
 The "top 1 percent" of cells the model ranks most prospective
 contains only 2 percent of the real deposits in the harder direction;
 the published model has not learned anything generalizable enough
@@ -192,8 +192,8 @@ to surface deposits in a continent it has not seen.
 
 ## What the model is actually learning (when the leak is removed)
 
-The 0.87 AUC under 2-D spatial blocks is real geological signal. The
-features doing the most work are the proximity-to-feature columns
+The 0.87 AUC under 2-D spatial blocks is real geological signal. Most
+of it comes from the proximity-to-feature columns
 (black shale, passive margin, fault) and the sedimentary-host-rock
 dictionary aggregate. These features encode the published MVT
 mineral-system model directly: sediment-hosted lead-zinc deposits

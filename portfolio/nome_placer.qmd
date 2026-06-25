@@ -1,0 +1,313 @@
+---
+title: "Cape Nome placers: doing for a district what we did for one claim"
+subtitle: "A placer and lode prospectivity model for the Cape Nome district, and the discipline of not fooling yourself with it"
+sidebar: nome_placer
+---
+
+[← back to portfolio map](index.html)
+
+![Bear Cub MS 1178 and Early Bear MS 1180 placed against the Tuck 1942 Sec. M-5 cross-section, at the IfSAR elevations where the claims actually sit. Bear Cub is on the ascent to the Third Beach high bench; the buried Third Beach line runs under the modern hillside about 85 ft down.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)
+
+## The claim, and the journey it started
+
+My family has a placer claim outside Nome. Bear Cub MS 1178 is a
+patented claim on the slope above the Snake River, a little under
+fourteen acres sitting where the old drillers caught a buried beach
+running under the modern hillside. It has been in the family since
+not long after the geologist Robert Tuck mapped the district for the
+USGS in the late 1930s. Sorting out who owned what, and when, turned
+into its own project: typewritten drill logs from 1912 and the 1940s,
+a three-dimensional model of the gravel and bedrock under the claim,
+territorial court cases, probate files. That single-claim work lives
+in a sibling project ([bearcub](https://johnsondevco.com/bearcub/bear_cub.html));
+it is where I learned what the ground here is actually made of.
+
+Somewhere in the middle of all that I started wondering whether the
+same automated pipeline I had built for one claim could be pointed at
+the whole district. Three threads had been running in parallel
+and they all pointed at the same place. The first was Bear Cub: the
+archival drill logs, the subsurface model, the title puzzle. The
+second was a run of regional machine-learning experiments, learning
+to predict where ore is from public geoscience data, and learning to
+plan drilling under uncertainty. The third was [goldbug](https://johnsondevco.com/goldbug/),
+a mapping app that ties public land law to those prospectivity models
+and gives the whole thing a home you can open in a browser and click.
+
+Cape Nome is where the three meet, and this chapter is where they come
+together: the regional prospectivity models, the drill-record
+machinery built for Bear Cub, and the land-law tool, all turned on one
+district at once. The question was simple to state and harder to
+answer: could the single-claim pipeline run across the entire Nome
+district? Find the ground that is likely to carry gold, line it up
+against who worked what before us, and put it somewhere a person can
+actually use it. This chapter is that attempt.
+
+## Testing the two headline numbers
+
+The [methodology note on the front page](https://johnsondevco.com/ai-minerals/)
+covers the traps that turn a high score into a lie: label leak,
+restriction of range, and spatial leakage. They are the through-line
+of the whole portfolio, so I will not relitigate them here, beyond the
+one rule they all reduce to: take the impressive number, build the
+test designed to expose it as luck, and report whatever is left
+standing.
+
+Two of this chapter's headline numbers went through that wringer. One
+survived and one did not, and the one that did not is the more
+interesting story.
+
+## The placer model that held up
+
+Start with the good news, because there isn't always good news.
+
+My first map of the district was a knowledge-driven model: I encoded
+what Tuck's bulletin says about where the old beach lines run, scored
+every cell in the district by how well it matches a known beach stand,
+and served that. It was a reasonable picture of the surface beaches.
+But when I scored it against the district's known placer occurrences,
+the ones recorded in the USGS Alaska Resource Data File, it came in at
+`0.444`[^placer-report], which is below a coin flip. It is a faithful map of the coastal beach lines,
+and the coastal beach lines are not where most of the recorded placer
+gold in this district actually is. A lot of it is up the creeks.
+
+So I built a second model that does not start from my beliefs about
+beaches at all. It learns directly from the terrain and surface
+geology: elevation, slope, the shape of the land, the drift and
+alluvium polygons. The labels are the recorded occurrences; the model
+figures out for itself what those places have in common. Under
+spatial-block cross-validation, holding out whole regions at a time, it
+scored `0.733`[^placer-report]. With a 300-meter buffer around each
+held-out block, so the test ground is genuinely separated from the
+training ground, it held at `0.741`. That is the one result in this
+chapter I would call a deliverable: a terrain-and-geology model that
+ranks the district's placer ground well, and keeps ranking it well
+once you hold out whole regions of the map and buffer a gap around them
+so it cannot read the answer off a nearby training point.
+
+![Placer prospectivity scored against the recorded ARDF placer occurrences in the district. The earlier knowledge-overlay map (left) ranks below chance because it is a beach-line map and most of the recorded gold is up the creeks. The terrain-and-geology model (center, right), now the surface served on goldbug, holds up under spatial-block cross-validation and again under a buffered cross-validation that separates the test ground from the training ground.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_headline_auc.png)
+
+I want to be careful about what that does and does not mean. `0.733`
+is a useful ranking, not a treasure map. It says the model concentrates
+the known occurrences toward the high-scoring end of the district far
+better than chance, after I have done the work to keep it from cheating.
+It does not say any particular cell has gold in it. This terrain model
+is now the surface served on goldbug: the live tool ranks each patented
+claim and each open parcel by it, on one calibrated scale. The
+knowledge-overlay map it replaced is the analysis that first told me
+the beach-line picture was ranking the wrong thing.
+
+![The knowledge-overlay surface of the district's beach lines, draped over the Cape Nome coast: my first map, and the one that scores below chance against the recorded occurrences because the recorded gold is largely up the creeks. It is a clean picture of the surface beaches; it is also the map the terrain-and-geology model, now served on goldbug, replaced.](data/derived/portfolio_charts/thumbs/ch1_nome_placer.png)
+
+## How the placer model is built
+
+The setup is the standard presence/background frame for mineral
+prospectivity, which is worth stating plainly because whether the
+result means anything turns on it.
+
+**Labels.** The positives are the `65` placer occurrences inside the
+Cape Nome area of interest that the ARDF records as real, pulled from a
+knowledge graph that consolidates ARDF and several other sources (more
+on that below). The negatives are a background sample of `2,000` cells
+drawn from across the district. This is "presence/background," not
+"presence/absence": the background is not known-barren ground, it is
+just the district at large, and the model learns what distinguishes the
+occurrence sites from the district average.
+
+**Covariates.** The inputs are terrain and geology, all from public
+data: the IfSAR digital elevation model (a `5`-meter radar elevation
+surface for Alaska), slope and a topographic-position index derived
+from it, distance to mapped faults, an aeromagnetic layer, and the
+surface-geology unit at each cell. No gold geochemistry in this model,
+on purpose; the geochemistry is where the next lie hides, and I deal
+with it in the lode section.
+
+**The test.** Spatial-block cross-validation: the district is cut into
+blocks, whole blocks are held out, the model trains on the rest and is
+scored on the held-out occurrences, and the scores are pooled across
+folds. Then the same thing again with a `300`-meter buffer carved
+around each held-out block so no test point sits next to a training
+point. The buffered score sitting slightly above the unbuffered one
+(`0.741` against `0.733`) is the reassuring direction: it means the
+result is not an artifact of points leaking across the fold boundary.
+The full protocol and the covariate construction are in the appendix.
+
+## The lode model that did not
+
+Here is the one I had to talk myself out of.
+
+Placer gold comes from somewhere. It weathers out of gold-bearing
+quartz veins in the bedrock, the lodes, and washes downstream to
+collect in the gravels. So a natural next step is to model the lodes
+directly: where are the hard-rock sources? I built a structural model,
+terrain and geology and faults and aeromagnetics, on the known lode
+occurrences, and at first it looked good. On my initial test area it
+scored about `0.80`[^lode-report], and I was fairly pleased with it.
+
+But before believing a number you have to check that the labels are
+not quietly encoding the answer, and these were. My test area was a
+small box around the placer core, and inside that box every known lode
+sat up in the schist hills while almost everything I had drawn as
+background sat down on the flat coastal plain. The model was not
+learning what a gold lode looks like. It was learning to tell a hill
+from a beach. That is restriction of range, exactly the second lie, and
+it is seductive because the number is real; the model genuinely
+separates the two classes. It just separates them on elevation, not on
+geology.
+
+So I redrew the test across the whole district, out to the Solomon
+quad, pulling in the Big Hurrah lode and the other hinterland sources,
+so the background ground is now also upland. The score fell to
+`0.62`, and to `0.58` under the buffered spatial cross-validation[^lode-dist-report].
+That is barely better than a coin flip. The structural signal that
+looked strong in the small box does not survive being asked to work
+across the real district.
+
+![The lode mirage. In a small box around the placer core (left), the structural model scores about 0.80, because the lodes are in the hills and the background is on the coast. Across the whole district (right), where the background is also upland, the same model falls to roughly chance. The geochemistry reads higher but the elements it uses trail gold by definition, so that number is circular.](data/derived/portfolio_charts/thumbs/ch1_nome_lode_mirage.png)
+
+There is a tempting escape hatch, and it is the third lie. If I add
+stream-sediment geochemistry, arsenic, antimony, bismuth, mercury,
+tungsten, the pathfinder elements, the lode model jumps back up to
+about `0.805`[^lode-dist-report]. But those pathfinders are precisely
+the elements that travel with gold; using them to predict gold is
+close to using gold to predict gold. The number is high and it means
+almost nothing.
+
+So the lode result is a negative result. I do not have a validated,
+independent lode-prospectivity signal for this district that survives
+a test built to break it, and I am reporting that rather than shipping the
+`0.80` and hoping nobody redraws the box. A negative result that you
+caught yourself is worth more than a positive one you didn't.
+
+## The knowledge graph underneath
+
+All of this needs to know where the known occurrences are, who worked
+the ground, and which historical record describes which claim. That is
+a data-integration problem before it is a modeling problem, and it is
+where a lot of the actual work went.
+
+The occurrences and the historical record come from several public
+corpora that do not agree with each other: the USGS ARDF, the MRDS
+mineral-resource database, the Cobb 1978 occurrence compilation for the
+Nome quad, and the Alaska KARDEX, several hundred typewriter-era state
+mineral-record cards that exist only as scanned images. Pulling these
+together means reconciling deposit names, coordinate systems, and
+production qualifiers, then resolving the duplicates so that the KARDEX
+card, the ARDF entry, the Cobb record, and the drill log for the same
+piece of ground all collapse to one identity. That consolidation lives
+in a sibling knowledge-graph project and feeds this model its labels;
+switching the placer labels to the graph's datum-corrected occurrences
+left the AUCs identical to three decimal places, which is the check
+that the switch changed the plumbing and not the answer.
+
+The same graph is what lets the family chain-of-title puzzle resolve:
+the KARDEX cards and the recorded documents name the operators and
+conveyances, and the graph links them back to the claim. You can open
+the graph three ways and poke at it yourself: a tabular SQL browser, a
+spatial map of claims and occurrences, and a linked per-entity wiki
+where each claim, document, and operator has its own page. On the
+goldbug side, the claim detail pages now carry the attached graph
+records, so clicking a survey shows you the documents behind it.
+
+## The vision, and where we actually are
+
+It is worth being plain about the gap between where this is going and
+where it stands.
+
+**Where it is going.** The Cape Nome recorded documents, the locations
+and assessment work and leases and conveyances that the district
+generated over a century, are public and largely un-digitized. The
+Janin 1912 drill logs for the Bear Cub holdings were rescued from an
+archive at the Huntington. And the largest landowner in the district,
+the Alaska Gold Company, a Bering Straits Native Corporation
+subsidiary, holds on the order of ten thousand drill logs; we are
+pursuing access to them through a collaboration. Each of those is a
+dark-data corpus the model has never seen, and each one, folded into
+the knowledge graph, makes the district picture sharper.
+
+**Where it actually is.** The placer model that survives a test built
+to break it exists and is described above. The lode model is a negative
+result I trust precisely because I tried to make it fail and it did.
+The knowledge graph is built and you can play with it through three
+viewers. The whole thing wires into goldbug, which is live, and the terrain
+placer model is now the surface it serves. The ten thousand logs are
+not in hand and the recorded documents are not yet fully ingested. I
+would rather name the trajectory and tell
+you exactly where on it we are than dress up the demo as the
+destination.
+
+## Where to look
+
+- The live click-a-claim tool: [johnsondevco.com/goldbug](https://johnsondevco.com/goldbug/)
+- The single-claim deep dive (Bear Cub): [bearcub/bear_cub.html](https://johnsondevco.com/bearcub/bear_cub.html)
+- The regional ML pipelines this grew out of: [Regional prospectivity](regional.html)
+- The northern Sierra placer chapter (parallel placer work): [placer.html](placer.html)
+- Where the Cape Nome model could go next: adjacent Seward Peninsula districts like Bluff, Solomon, and Council (not yet modeled).
+
+## Appendix: the numbers and the protocol {#appendix}
+
+<details>
+<summary>Full metrics, cross-validation protocol, and what each number is</summary>
+
+All figures below are read directly from the committed evaluation
+reports under `data/derived/nome_placer/`; the figures in the chapter
+are rendered from the same JSON, so every number on a chart is the live
+computed value.
+
+**Placer presence/background** (`mpm_onshore_presence_cv.py`, `65`
+occurrences vs `2,000` background):
+
+| Model | AUC | Note |
+|---|---:|---|
+| v3.1 knowledge-overlay composite (first map, since replaced) | 0.444 | below chance; a beach-line map mis-ranks the upland creek placers |
+| Terrain + geomorphology, spatial-block CV (now the live map) | 0.733 | the regional result that survives spatial CV |
+| Terrain + geomorphology, buffered 300 m | 0.741 | buffered ≥ unbuffered, so no across-fold leak |
+| Full model incl. Au geochemistry, spatial-block CV | 0.686 | near-circular; geochem Au is a gold detector, excluded from the headline |
+
+**Lode, small box vs district** (`mpm_lode_presence_cv.py`,
+`mpm_lode_district_cv.py`):
+
+| Scope | Model | AUC |
+|---|---|---:|
+| Small box (30 lodes, placer core) | structural/terrain, spatial CV | 0.802 |
+| Small box | structural/terrain, buffered 300 m | 0.791 |
+| District (93 lodes, incl. Big Hurrah) | structural/terrain, spatial CV | 0.620 |
+| District | structural/terrain, buffered 300 m | 0.582 |
+| District | full incl. stream-sed geochem | 0.805 (circular) |
+| District | pathfinders only (As Sb Bi Hg W) | 0.691 (circular) |
+
+**Cross-validation protocol.** Spatial-block CV cuts the district into
+blocks on the projected grid (EPSG:3338), holds out whole blocks, trains
+on the remainder, and pools the out-of-fold predictions before scoring a
+single AUC. The buffered variant additionally drops any training cell
+within `300` m of a held-out block, so a test point cannot be scored by
+a training neighbor. Note: the harness reports one pooled out-of-fold
+AUC per model, not a per-fold distribution, so the chapter figures show
+point estimates without fold error bars; persisting per-fold AUCs for an
+error-bar version is a small follow-up.
+
+**The restriction-of-range diagnosis.** The small-box lode result
+(`0.802`) is an artifact of the box geometry: every lode is upland
+schist, the background is coastal-flat, and the model's top features are
+elevation, distance-to-fault, and slope. Widening to the district
+(adding the Big Hurrah lode and the Solomon-quad hinterland, so the
+background is also upland) collapses it to `0.620` / `0.582`. The
+structural law does not transfer.
+
+**Why geochemistry is excluded from the headline.** The stream-sediment
+pathfinder suite (arsenic, antimony, bismuth, mercury, tungsten) trails
+gold mineralization by definition, so a model using it to predict gold
+occurrences is close to circular. It is reported here for completeness
+and kept out of both headline numbers.
+
+**Determinism.** The cross-validation harness is pinned (`n_jobs=1`,
+positives lexsorted before the spatial-block split) to remove
+cross-process random-forest jitter of roughly `0.02` AUC; the reported
+numbers are reproducible run to run.
+
+</details>
+
+[^placer-report]: `data/derived/nome_placer/mpm_onshore/mpm_onshore_presence_report.json`, produced by `scripts/nome_placer/mpm_onshore_presence_cv.py`.
+
+[^lode-report]: `data/derived/nome_placer/mpm_lode/mpm_lode_presence_report.json` (small-box test, 30 lodes), produced by `scripts/nome_placer/mpm_lode_presence_cv.py`.
+
+[^lode-dist-report]: `data/derived/nome_placer/mpm_lode/mpm_lode_district_report.json` (district-wide, 93 lodes incl. Big Hurrah), produced by `scripts/nome_placer/mpm_lode_district_cv.py`.

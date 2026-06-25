@@ -1,5 +1,5 @@
 ---
-title: "Chapter 4: Placer-Au prospectivity (northern Sierra)"
+title: "Chapter 4: Placer-Au prospectivity (California Mother Lode)"
 subtitle: "Tertiary deep-gravel and Quaternary modern-channel calibrated probability rasters fused at 250 m on the canonical California placer province"
 sidebar: placer
 ---
@@ -149,8 +149,8 @@ isotonic doesn't have room to move it.
 
 ![The v3 Tertiary calibrated probability raster, displayed as percentile rank across the AOI because the calibrated probability has a long zero tail that linear color stretching would wash out. Cyan outlines are the 158 Orlando 2016 hydraulic-mine pit polygons that supplied the training labels. Red dots mark the seven anchor districts, none of which appear in the training labels; all seven land in the top decile. The hot zone traces the Mother Lode trend through the western half of the AOI; the eastern half toward the Sierra crest is mostly zero-probability black.](data/derived/northern_sierra_placer/v3_calibrated_tertiary_map.png)
 
-**Quaternary v3.** The Quaternary classifier finished its full pipeline on
-2026-06-05 with a stacking out-of-fold AUC of 0.832 across 50 spatial
+**Quaternary v3.** The Quaternary classifier reaches a stacking out-of-fold AUC of
+0.832 across 50 spatial
 blocks (RF base mean 0.601, LightGBM 0.570, XGBoost 0.708; stacking
 moves the result +12 pp above the best base learner). PR-AUC is 0.004;
 the 0.054% positive rate puts a hard floor on precision-weighted area
@@ -495,8 +495,8 @@ label density rank cleanly.
 
 ### Downstream confirmation from goldbug
 
-The goldbug live tool re-banded against the v3.7.0 raster on the
-day it shipped (2026-06-11) and ran every gap parcel across the
+The goldbug live tool re-banded against the v3.7.0 raster and ran
+every gap parcel across the
 six Mother Lode regions it covers through the new scoring. A
 covered parcel is one whose zonal-max placer probability clears
 the 0.01 coverage-mask threshold, meaning the model has an opinion
@@ -606,7 +606,7 @@ result if a reviewer asked, ordered roughly by what closes the
 biggest unanswered concern first.
 
 - **Whether the v3.6 polygon-rasterization actually inflates the OOF AUC, or genuinely adds signal:** retrain v3.6 with centroid-only positive labels (drop the buffer-cell expansion that grew Tertiary positives from 158 binary cells to 2,709 weighted cells), keep the same stacked pipeline (RF + LGBM + XGB into a logistic-regression meta-learner, isotonic calibration, 20 km spatial-block CV), compare the resulting stacking OOF AUC to v3.6's 0.993. If centroid-only lands near v3's 0.970 the buffer expansion is incremental signal; a sharp drop would say the 0.993 was label-propagation inflation.
-- **Whether the dominant `hydraulic_pit_proximity_m_buffered` feature carries disproportionate weight on v3.6 specifically:** rerun `scripts/northern_sierra_placer/v3_ablation_no_pit_proximity.py` against the v3.6 stacking ensemble, not just the v3 RF + XGB pair from the June 3 ablation. The v3 result showed 10.5 pp RF drop and 11.8 pp XGB drop when the feature was removed (intermediate range; neither pure incremental signal nor pure leakage shortcut). A much larger drop on v3.6 would imply the polygon-rasterization made the model lean harder on the feature.
+- **Whether the dominant `hydraulic_pit_proximity_m_buffered` feature carries disproportionate weight on v3.6 specifically:** rerun `scripts/northern_sierra_placer/v3_ablation_no_pit_proximity.py` against the v3.6 stacking ensemble, not only the v3 RF + XGB pair from the earlier ablation. The v3 result showed 10.5 pp RF drop and 11.8 pp XGB drop when the feature was removed (intermediate range; neither pure incremental signal nor pure leakage shortcut). A much larger drop on v3.6 would imply the polygon-rasterization made the model lean harder on the feature.
 - **Whether the model generalizes across the Sierra belt, not just inside Northern Sierra:** run `scripts/northern_sierra_placer/calaveras_transfer.py` (scripted but not yet executed) to train on Northern Sierra v3.6 calibrated labels and score the Mother Lode / Calaveras County AOI cell-for-cell. Compare to the Mother Lode v3 stacking OOF (0.85) for a within-province transfer-loss number; the Klamath cross-province test scored 0.58 on the lode side. Calaveras is the same orogenic-Au belt but a different watershed system.
 - **Whether v3.6 stays calibrated at the operational top-X% probability bins goldbug actually consumes:** stratified Brier score and per-bin ECE at the top 1% / 5% / 10% probability quantiles separately per population, instead of the overall ECE we already report (Tertiary post-calibration 0.004, Quaternary post-calibration 0.000). Overall ECE can mask tail mis-calibration where the highest-confidence predictions diverge from the observed positive rate.
 - **Whether the per-fold Hawkes refold (`refold_hawkes=True`) actually prevents the contagion leakage it was designed to prevent:** ablate to `refold_hawkes=False` on v3.6 Tertiary, compare per-fold AUC distributions and SHAP attributions on `catchment_au_hawkes`. If the refold is doing its job, refold-off should show higher in-fold AUC (leakage helps inside the fold) but worse Lindgren PP73 blind-set top-decile capture (true generalization gets worse when the leakage path is open).

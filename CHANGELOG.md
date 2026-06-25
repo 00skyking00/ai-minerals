@@ -1,5 +1,10 @@
 # Changelog
 
+> Superseded: the canonical per-repo changelog is now `docs/CHANGELOG.md`,
+> which covers the full project history (2026-04-22 onward) under the
+> 2026-06-24 documentation standard. This file is kept for the
+> 2026-06-11 to 2026-06-14 detail it captured and is no longer updated.
+
 All substantive changes to the ai-minerals portfolio. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Dates are when work landed on `main`; the live site usually goes out

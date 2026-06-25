@@ -10,7 +10,7 @@ sidebar: drill_planning
 
 The earlier chapters in this portfolio build prospectivity maps. A
 prospectivity map is a per-cell probability surface, in this case
-"per-250 m grid cell, the model's estimate of how likely an unmined
+"per-500 m grid cell, the model's estimate of how likely an unmined
 porphyry-copper deposit is to be there." That map by itself does not
 tell you where to put the next drill hole. Real exploration campaigns
 are sequential. Each hole costs money, returns information, and that
@@ -1150,7 +1150,7 @@ In order of first appearance.
 - Mern, J., Yel, E., Caers, J., Kochenderfer, M. J. (2023).
   "Intelligent Prospector: implementing
   multi-step optimal sequential decision making for mineral
-  exploration." *Geosci. Model Dev.* 16:289–307.
+  exploration." *Geosci. Model Dev.* 16:289-307.
   [DOI 10.5194/gmd-16-289-2023](https://doi.org/10.5194/gmd-16-289-2023)
 - Mern, J., Corso, A., Burch, T., House, M., Caers, J. (2024).
   "Intelligent Prospector v2.0: exploration drill
@@ -1165,7 +1165,7 @@ In order of first appearance.
   [RSS PDF](https://www.roboticsproceedings.org/rss04/p9.pdf)
 - Kaelbling, L. P., Littman, M. L., Cassandra, A. R. (1998).
   "Planning and acting in partially observable stochastic domains."
-  *Artificial Intelligence* 101:99–134.
+  *Artificial Intelligence* 101:99-134.
   [DOI 10.1016/S0004-3702(98)00023-X](https://doi.org/10.1016/S0004-3702(98)00023-X)
 - Singer, D. A., Berger, V. I., Moring, B. C. (2008). "Porphyry copper
   deposits of the world: database and grade and tonnage models."

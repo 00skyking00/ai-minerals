@@ -33,11 +33,37 @@ hobbies: title research. goldbug pairs the ML signal with public
 land law: it ranks the parcels you can legally stake, not the ones
 already withdrawn, patented, or under active claim.
 
+## Methodology
+
+Here is my attempt at a reasonable methodology:
+
+Federal and state surveys publish a lot of mineral data: occurrence
+records, geologic maps, magnetics and gravity, stream-sediment
+geochemistry, satellite imagery. I pull these onto a common grid and
+each cell of land becomes a feature vector. I train a Random Forest
+(an ensemble of decision trees that vote together; well-studied,
+fast to fit, hard to beat on tabular geoscience data) to recognize
+cells with known deposits, holding out spatial blocks so the model
+can't cheat by memorizing neighbors. The output is a per-cell score
+across the region: the model's guess at where the unknown deposits
+are.
+
+The part I've spent the most time on isn't the training, it's the
+validation afterward. Time and again, I ran into the same four
+problems: inflated training positives, spatial leakage, exploration
+bias in the labels, and cross-region transfer failure. All four show up in
+this portfolio. Chapter 5 is the most explicit about quantifying
+them, showing how much of two published AUC numbers (area under the
+receiver-operating-characteristic curve, a standard model-quality
+score for ranked predictions) each trap accounts for. The same
+issues are flagged in the within-region work where I noticed them,
+and I'm sure I missed some.
+
 ## Chapters
 
 :::: {.grid}
 ::: {.g-col-12}
-### [1. Bear Cub (Cape Nome placer Au)](https://johnsondevco.com/bearcub/bear_cub.html)
+### [1. Bear Cub single-claim deep dive](https://johnsondevco.com/bearcub/bear_cub.html)
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-6}
@@ -50,17 +76,21 @@ already withdrawn, patented, or under active claim.
 :::
 ::::
 
-A family-owned patented mining claim on the Third Beach Line at
-Nome, staked in 1899 and last drilled in the 1910s-30s. I tracked
-the 24 churn-drill logs down at the Huntington Library, built a
-multi-engine OCR pipeline (Tesseract, TrOCR, Cloud Vision, Claude
-Opus arbitrating with structured-output JSON) to ingest them,
-mapped each hole onto a recent plat, built a 3D model of bedrock
-and pay-zone, and computed Voronoi-cell volumetrics with Monte
-Carlo uncertainty. Per-hole grades matched two mining engineers'
-independent analyses within 6%. On top of the same grid, a
-Gaussian-process recommender picks where hole #25 should go.
-The OCR-cleaned records will export to [dh2loop](https://gmd.copernicus.org/articles/14/6711/2021/) format for the Loop3D 3D-modeling stack, and the recommender will be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1007/s11053-022-10030-1)).
+A single-claim deep dive of a placer mining claim in Nome, Alaska,
+Bear Cub is a family-owned patented mining claim on the Third Beach
+Line, staked in 1899 and last drilled in the 1910s-30s. I tracked the 24 churn-drill
+logs down at the Huntington Library, built a multi-engine OCR
+pipeline (Tesseract, TrOCR, Cloud Vision, Claude Opus arbitrating
+with structured-output JSON) to ingest them, mapped each hole onto
+a recent plat, built an interactive 3D model of bedrock and pay-zone
+you can rotate and zoom, and computed Voronoi-cell volumetrics with
+Monte Carlo uncertainty.
+Per-hole grades matched two mining engineers' independent analyses
+within 6%. On top of the same grid, a Gaussian-process recommender
+picks where hole #25 should go. The OCR-cleaned records export to
+[dh2loop](https://gmd.copernicus.org/articles/14/6711/2021/)
+interchange format, and the recommender will
+be reframed as Efficacy of Information ([Caers et al. 2022](https://doi.org/10.1007/s11053-022-10030-1)).
 :::
 ::::
 
@@ -68,17 +98,18 @@ The OCR-cleaned records will export to [dh2loop](https://gmd.copernicus.org/arti
 ::: {.g-col-12 .g-col-md-9}
 ### [2. Regional mineral-prospectivity pipelines](regional.qmd)
 
-For each of the four regions (Eastern Alaska porphyry-Cu, BC Golden
-Triangle multi-deposit, California Mother Lode orogenic-Au, Arizona
-porphyry-Cu), I built the same kind of pipeline: pull public data
-from the US Geological Survey, Natural Resources Canada, and state
-surveys onto a common grid, train a Random Forest (a tree-ensemble
-classifier that votes across hundreds of decision trees), and hold
-out spatial blocks during validation so the model can't cheat by
-memorizing neighbors. The two porphyry-Cu regions (Tanacross and
-Arizona) both land at roughly 22 to 23 percent top-1% capture on
-their held-out positives, the same regime despite a continent
-between them.
+I chose four regions (Eastern Alaska porphyry-Cu, BC Golden Triangle
+multi-deposit, California Mother Lode orogenic-Au, Arizona porphyry-Cu)
+to build prospectivity models on, based off a combination of personal
+interest, applicability of the deposit type, and availability of the
+public data. For each one, I built the pipeline: pull public data from
+the US Geological Survey, Natural Resources Canada, and/or state surveys
+onto a common grid, train a Random Forest, and hold out spatial blocks
+during validation so the model can't cheat by memorizing neighbors. The two porphyry-Cu regions (Tanacross and
+Arizona) land in the same regime, a continent apart and each trained
+only on its own data: in both, the top 1 percent of ranked ground
+holds more than 20 times the known deposits that chance would put
+there.
 :::
 ::: {.g-col-12 .g-col-md-3}
 [![Tanacross (eastern Alaska) porphyry-Cu prospectivity, random forest output](data/derived/portfolio_charts/thumbs/ch2_regional.png)](regional.qmd)
@@ -87,9 +118,19 @@ between them.
 
 :::: {.grid}
 ::: {.g-col-12 .g-col-md-9}
-### [3. goldbug (live tool, CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
+### [3. goldbug (live tool: Cape Nome + CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
 
-The Mother Lode model from Chapter 2 is interesting on its own,
+The live click-a-claim tool. Serves the Cape Nome placer model from
+Chapter 8: a terrain-and-geology model that ranks each patented
+claim and each open parcel on one calibrated scale, reported as a
+model-estimated likelihood rather than a 0-100 grade. It holds at
+AUC 0.733 under spatial-block cross-validation, and 0.741 once a
+300-meter buffer separates the held-out ground from the training
+ground. It also serves the California Mother Lode model from
+Chapter 4 with open-land filtering for individual prospectors. Same
+map, two regions.
+
+The Mother Lode model from Chapter 4 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
 closes that gap. It takes the per-cell probabilities and filters
 them to federal land that's actually open for an individual
@@ -112,9 +153,8 @@ specific modeling).
 ::: {.g-col-12 .g-col-md-9}
 ### [4. Placer-Au prospectivity (California Mother Lode)](placer.qmd)
 
-Placer modeling (hunting for gold loose in streambeds and old
-gravel beds, rather than locked in solid rock) sits about a decade
-behind lode prospectivity in the published literature. I built a
+Placer modeling sits about a decade behind lode prospectivity in
+the published literature. I built a
 two-population model over the California Mother Lode at 250 m grid
 spacing, training Tertiary deep-gravel and Quaternary modern-channel
 placer separately because they leave different geomorphic
@@ -169,7 +209,7 @@ The most pointed test was on the US Western Carbonatite belt (14
 positives, the same deposit type as Curnamona): DEEP-SEAM still
 loses to Random Forest. On three other regions covering porphyry-Cu
 and sediment-hosted Zn-Pb under spatially-blocked cross-validation,
-the gap widens to 7 to 37 percentage points in favor of tree-based
+the gap widens to 9 to 28 percentage points in favor of tree-based
 methods. Useful negative result.
 :::
 ::: {.g-col-12 .g-col-md-3}
@@ -189,14 +229,16 @@ observations) ported from Mern et al.'s Intelligent Prospector
 (2023 + 2024) and tested it against simpler baselines. On a
 synthetic stress test POMCP finds the deposit in 94% of episodes
 within a 9-hole budget; the greedy baseline gets there in 53%. On
-the real BC Golden Triangle data a leak-free starting prior already
-captures 86% of post-2010 copper hits in its top quarter, so the
-planner cannot improve on a good prior; the planning advantage
-shows up against weak priors, not strong ones. Scaled up to the
-full BCGT grid with real BCGS deposit-type priors, four policies
-tie within experimental noise on immediate reward, but SARSOP ends
-each episode about seven points more confident in the true
-geological hypothesis than greedy does (0.71 vs 0.64). The chapter
+the real BC Golden Triangle data the picture is mixed. On a clean
+pre-2010 prior the Bayesian-updating policies start to beat a static
+recommendation on the districts with enough post-2010 hits to measure
+(at Red Chris, 54% of the later copper captured against the static
+prior's 31%). Where the prior is already strong, the static map is
+hard to beat. Scaled up to the full BCGT grid with real BCGS
+deposit-type priors, the policies tie within experimental noise on
+immediate discovery, but SARSOP ends each episode about seven points
+more confident in the true geological hypothesis than greedy does
+(0.71 vs 0.64). The chapter
 walks through where multi-step planning helps, where it does not,
 and what real BCGT exploration would need to look like for the
 planning advantage to transfer at scale. An interactive widget at
@@ -208,32 +250,24 @@ by turn.
 :::
 ::::
 
-## Methodology
+:::: {.grid}
+::: {.g-col-12}
+### [8. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-Keeping in mind that I am a programmer and not a statistician, here
-is my take on methodology.
+[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
 
-Federal and state surveys publish a lot of mineral data: occurrence
-records, geologic maps, magnetics and gravity, stream-sediment
-geochemistry, satellite imagery. I pull these onto a common grid and
-each cell of land becomes a feature vector. I train a Random Forest
-(an ensemble of decision trees that vote together; well-studied,
-fast to fit, hard to beat on tabular geoscience data) to recognize
-cells with known deposits, holding out spatial blocks so the model
-can't cheat by memorizing neighbors. The output is a per-cell score
-across the region: the model's guess at where the unknown deposits
-are.
-
-The part I've spent the most time on isn't the training, it's the
-validation afterward. The methodology has four well-known traps:
-inflated training positives, spatial leakage, exploration bias in
-the labels, and cross-region transfer failure. All four show up in
-this portfolio. Chapter 5 is the most explicit about quantifying
-them, showing how much of two published AUC numbers (area under the
-receiver-operating-characteristic curve, a standard model-quality
-score for ranked predictions) each trap accounts for. The same
-issues are flagged in the within-region work where I noticed them,
-and I'm sure I missed some.
+The closing chapter, where the rest of the portfolio comes together.
+My family owns a patented placer claim at Cape Nome, Bear Cub
+(Chapter 1). The question this chapter asks is whether the automated
+pipeline built for that one claim could be pointed at the whole
+district: the regional prospectivity modeling (Chapters 2 and 4), the
+validation discipline (Chapter 5), goldbug's public-land-law layer
+(Chapter 3), and the drill-record machinery from Bear Cub, all turned
+on Cape Nome at once. Find the ground likely to carry gold, line it up
+against who worked it before us, and serve it where a person can click
+a claim.
+:::
+::::
 
 ## Stack
 
