@@ -1,6 +1,6 @@
 ---
 title: "Mineral prospectivity mapping for porphyry Cu-Mo-Au-Ag, eastern Alaska"
-subtitle: "A pseudo-supervised Random Forest with honest external validation"
+subtitle: "A pseudo-supervised Random Forest, with external validation that doesn't flatter the model"
 author: "Sky King"
 date: "2026-04"
 format:
@@ -15,23 +15,23 @@ execute:
 
 ## TL;DR
 
-1. Built a full mineral-prospectivity pipeline over three USGS 1:250,000 quadrangles of eastern Alaska (~62,000 km², the Yukon-Tanana–Wrangellia porphyry belt) using only public data: USGS MRDS, ARDF, AGDB4 geochemistry, SGMC geology, NRCan 100 m aeromagnetic (RTF + 1VD), USGS Bouguer gravity, Sentinel-2, and Copernicus GLO-30 DEM.
+1. Built a full mineral-prospectivity pipeline over three USGS 1:250,000 quadrangles of eastern Alaska (~62,000 km², the Yukon-Tanana to Wrangellia porphyry belt) using only public data: USGS MRDS, ARDF, AGDB4 geochemistry, SGMC geology, NRCan 100 m aeromagnetic (RTF + 1VD), USGS Bouguer gravity, Sentinel-2, and Copernicus GLO-30 DEM.
 2. Trained Random Forest on 56 porphyry-family positives + 30× stratified pseudo-negatives; spatial-block CV (20 km blocks) puts mean ROC-AUC at 0.88 ± 0.21, PR-AUC 0.81 ± 0.25. SHAP confirms the model keys on the textbook pathfinder-element halo (Ag, Te, Mo, Cu, Sb, Au, Pb `*_max_5km` aggregates).
-3. **Sensitivity pass reveals three channels of exploration bias** — `*_count_5km` (obvious, fixable), NaN-vs-value in `*_max/mean_5km` (hidden in a `-9999` sentinel; turns out to be minor in practice), and magnitude-within-explored (large-N samples mechanically produce larger max values; dominant). Dropping geochem entirely *raises* training-label capture — the uniformly-measured layers (geophysics, geology, distance-to-fault) cluster known positives tightly on their own.
-4. The honest v1 message: **pseudo-supervised MPM metrics against training labels are systematically optimistic.** ARDF positives cluster tightly in every feature set, biased or not, because known deposits are concentrated in a few belts of well-characterized terrain. Whether the model generalizes to *unknown* mineralization is a separate question.
-5. **External validation is in the v2 BCGT track, not here.** Eastern Alaska's role in the portfolio is the methodology + sensitivity diagnosis. The distribution-based external blind test against 366 post-2015 drill collars lives in the **[BC Golden Triangle integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd)** — that's where the pipeline is pressure-tested against real post-training drill outcomes.
+3. **Sensitivity pass reveals three channels of exploration bias:** `*_count_5km` (obvious, fixable), NaN-vs-value in `*_max/mean_5km` (hidden in a `-9999` sentinel; turns out to be minor in practice), and magnitude-within-explored (large-N samples mechanically produce larger max values; dominant). Dropping geochem entirely *raises* training-label capture. The uniformly-measured layers (geophysics, geology, distance-to-fault) cluster known positives tightly on their own.
+4. The v1 message, stated plainly: **pseudo-supervised MPM metrics against training labels are systematically optimistic.** ARDF positives cluster tightly in every feature set, biased or not, because known deposits are concentrated in a few belts of well-characterized terrain. Whether the model generalizes to *unknown* mineralization is a separate question.
+5. **External validation is in the v2 BCGT track, not here.** Eastern Alaska's role in the portfolio is the methodology + sensitivity diagnosis. The distribution-based external blind test against 366 post-2015 drill collars lives in the **[BC Golden Triangle integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd)**. That's where the pipeline is pressure-tested against real post-training drill outcomes.
 
 What's in this repo, at a glance:
 
-- `src/ai_minerals/` — small, typed Python modules for grid, features, models, labels, and a per-source adapter layer that normalizes USGS + NRCan + BCGS conventions into canonical internal schemas.
-- `notebooks/eastak/eastak_porphyry_prospectivity.qmd` — this document; the v1 integrated report.
-- `notebooks/eastak/{data_exploration, baseline_model, random_forest_and_shap, validation}.qmd` — the build-log series this report rolls up.
-- `notebooks/bcgt/` — the v2 BC Golden Triangle track with the distribution-based blind test.
-- `docs/mvp-proposal.md` — the scoping document; what we built and why.
+- `src/ai_minerals/`: small, typed Python modules for grid, features, models, labels, and a per-source adapter layer that normalizes USGS + NRCan + BCGS conventions into canonical internal schemas.
+- `notebooks/eastak/eastak_porphyry_prospectivity.qmd`: this document; the v1 integrated report.
+- `notebooks/eastak/{data_exploration, baseline_model, random_forest_and_shap, validation}.qmd`: the build-log series this report rolls up.
+- `notebooks/bcgt/`: the v2 BC Golden Triangle track with the distribution-based blind test.
+- `docs/mvp-proposal.md`: the scoping document; what we built and why.
 
 ## Why critical minerals, and why now
 
-The energy transition is a tripling of global copper demand and a >10× increase in lithium, nickel, and cobalt demand over 2020 baselines ([IEA Critical Minerals Outlook 2024](https://www.iea.org/reports/global-critical-minerals-outlook-2024)). New porphyry-Cu production at scale is a decade behind that demand curve, and the bottleneck is not processing — it's *discovery*. Greenfield ore-body discovery rates have been declining for thirty years even as exploration spend has climbed.
+The energy transition is a tripling of global copper demand and a >10× increase in lithium, nickel, and cobalt demand over 2020 baselines ([IEA Critical Minerals Outlook 2024](https://www.iea.org/reports/global-critical-minerals-outlook-2024)). New porphyry-Cu production at scale is a decade behind that demand curve, and the bottleneck is not processing. It is *discovery*. Greenfield ore-body discovery rates have been declining for thirty years even as exploration spend has climbed.
 
 This writeup builds the kind of simple regional-scale model an AI-driven mineral-exploration stack starts from, and pressure-tests it the way a senior ML engineer should before handing it to a geology team. The interesting finding is where the pressure-test fails.
 
@@ -39,19 +39,19 @@ This writeup builds the kind of simple regional-scale model an AI-driven mineral
 
 Three adjacent USGS 1:250,000 quadrangles in east-central Alaska:
 
-- **Tanacross (TC)** — 63–64 °N, 143–141 °W — Yukon-Tanana upland
-- **Mt. Hayes (MH)** — 63–64 °N, 147–144 °W — Wrangellia / Delta Range
-- **Nabesna (NB)** — 62–63 °N, 144–141 °W — Wrangellia / eastern Alaska Range
+- **Tanacross (TC)**, 63-64 °N, 143-141 °W: Yukon-Tanana upland
+- **Mt. Hayes (MH)**, 63-64 °N, 147-144 °W: Wrangellia / Delta Range
+- **Nabesna (NB)**, 62-63 °N, 144-141 °W: Wrangellia / eastern Alaska Range
 
-Together: ~62,000 km² straddling the Wrangellia–Yukon-Tanana tectonic boundary. This is an established porphyry belt: 56 porphyry-family occurrences in ARDF within the AOI, plus well-known producing operations (Pogo Mine for Au, Manh Choh/Tetlin for Au skarn/epithermal) and active greenfield exploration (Alaska Energy Metals at Nikolai).
+Together: ~62,000 km² straddling the boundary between the Wrangellia and Yukon-Tanana terranes. This is an established porphyry belt: 56 porphyry-family occurrences in ARDF within the AOI, plus well-known producing operations (Pogo Mine for Au, Manh Choh/Tetlin for Au skarn/epithermal) and active greenfield exploration (Alaska Energy Metals at Nikolai).
 
-**Porphyry Cu-Mo-Au-Ag** is the target deposit class. Porphyries form from shallow-level felsic-to-intermediate intrusions associated with convergent-margin magmatism; the ore forms in a stockwork of fractures above and around the intrusion as hot mineralizing fluids cool and fracture the rock. For a portfolio-scale MPM model the load-bearing features are:
+**Porphyry Cu-Mo-Au-Ag** is the target deposit class. Porphyries form from shallow-level felsic-to-intermediate intrusions associated with convergent-margin magmatism; the ore forms in a stockwork of fractures above and around the intrusion as hot mineralizing fluids cool and fracture the rock. For a portfolio-scale MPM model, the features that carry the signal are:
 
-- **Pathfinder geochemistry** — porphyries leak Ag, Mo, Cu, Au, Pb, Sb, Te, As, Bi, Zn into the surrounding rock and streams, sampleable in soil/rock/stream-sediment surveys (AGDB4 provides ~416,000 Alaska samples, best-value compiled).
-- **Geophysics** — the magnetic-susceptibility contrast of the intrusion + its alteration halo is often visible in regional aeromagnetic grids; density contrasts show up in gravity.
-- **Lithology** — intrusive rocks of the right age and composition are the host. Alaska's SGMC + state compilation gives polygon-level bedrock geology.
-- **Structural controls** — porphyry emplacement is fault-controlled; distance-to-nearest-fault is a cheap and useful feature.
-- **Alteration mineralogy** — Sentinel-2 SWIR bands are sensitive to clay (B11/B12) and iron-oxide (B04/B02) alteration halos. Noisy at regional scale; included for completeness.
+- **Pathfinder geochemistry**: porphyries leak Ag, Mo, Cu, Au, Pb, Sb, Te, As, Bi, Zn into the surrounding rock and streams, sampleable in soil/rock/stream-sediment surveys (AGDB4 provides ~416,000 Alaska samples, best-value compiled).
+- **Geophysics**: the magnetic-susceptibility contrast of the intrusion + its alteration halo is often visible in regional aeromagnetic grids; density contrasts show up in gravity.
+- **Lithology**: intrusive rocks of the right age and composition are the host. Alaska's SGMC + state compilation gives polygon-level bedrock geology.
+- **Structural controls**: porphyry emplacement is fault-controlled; distance-to-nearest-fault is a cheap and useful feature.
+- **Alteration mineralogy**: Sentinel-2 SWIR bands are sensitive to clay (B11/B12) and iron-oxide (B04/B02) alteration halos. Noisy at regional scale; included for completeness.
 
 For the mineral-system theory references, Cox & Singer's USGS Bulletin 1693 "Mineral deposit models" classifies porphyries as model codes 17 / 20c / 21a / 21b; we accept all four (the "family" label) and also train a sensitivity version on 21a only (the "strict" label, classic Cu ± Mo porphyry). Lang & Baker (2001) on reduced Au-rich intrusions is the related literature for our Au-heavy endmembers.
 
@@ -91,8 +91,8 @@ Every data source used here is open and public-domain. No API keys, no gated dow
 
 | Layer | Source | Resolution | Role |
 |---|---|---:|---|
-| Labels (positives) | [USGS ARDF](https://mrdata.usgs.gov/ardf/) + MRDS commodity filter | point | `is_porphyry` — 56 family cells |
-| Occurrence mask (negative exclusion) | ARDF + MRDS, any-commodity | point | `any_mineral_occurrence` — 955 cells |
+| Labels (positives) | [USGS ARDF](https://mrdata.usgs.gov/ardf/) + MRDS commodity filter | point | `is_porphyry`, 56 family cells |
+| Occurrence mask (negative exclusion) | ARDF + MRDS, any-commodity | point | `any_mineral_occurrence`, 955 cells |
 | Geochemistry | [USGS AGDB4](https://www.sciencebase.gov/catalog/item/622a4ec7d34e4bb2bc5cad93) best-value | point | `<el>_{mean,max,count,has_data}_5km` for 10 pathfinders |
 | Bedrock geology | USGS SGMC (Alaska compilation) | polygon | `lithology_class` one-hot |
 | Faults | USGS SGMC line layer | line | `distance_to_fault_m` |
@@ -101,7 +101,7 @@ Every data source used here is open and public-domain. No API keys, no gated dow
 | Gravity (Bouguer) | USGS national composite | ~250 m | `gravity` |
 | Topography | Copernicus GLO-30 DEM | 30 m | `elevation`, `slope`, `tri` |
 | Optical / alteration | [Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2) 2023 summer mosaic | 10 m | `s2_{iron_oxide,ferrous,clay,ndvi}` |
-| Validation | (deferred to v2 BCGT — see note below) | — | — |
+| Validation | (deferred to v2 BCGT, see note below) | n/a | n/a |
 
 Everything is reprojected to **EPSG:3338 (NAD83 Alaska Albers, equal-area)** and aggregated to a 500 m regular grid. The glue layer is in [`features/assemble.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/assemble.py); most of the model-training code lives in [`model.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model.py) and [`model_rf.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_rf.py).
 
@@ -127,12 +127,12 @@ print(f"  any mineral occurrence:                  {int(df['any_mineral_occurren
 
 ## Labels and pseudo-negatives
 
-The class-imbalance is severe: 56 positives in ~270,000 cells (≈0.02 %). Two ways to frame this honestly:
+The class-imbalance is severe: 56 positives in ~270,000 cells (≈0.02 %). Two ways to frame it without overstating what the labels support:
 
 1. **Pseudo-negative sampling.** Draw random cells that are (a) ≥ 5 km from any known MRDS/ARDF occurrence and (b) stratified by lithology to match the positives' rock-type distribution. The 5 km buffer protects against accidentally training against an unconfirmed nearby deposit. The stratification stops the classifier from learning the trivial rule "not-intrusive ⇒ not-deposit."
 2. **PU (Positive-Unlabeled) learning.** Refuse the pseudo-negative assumption: treat unlabeled cells as unlabeled, not negative. Ensemble by re-drawing "unlabeled-as-negative" subsets and averaging out-of-bag predictions. Tested as a sensitivity in [§7.4](#pu-learning-comparison).
 
-Train on pseudo-negatives as the baseline path — it lets us use any classical supervised model off the shelf — and keep PU learning as the check on whether the pseudo-negative assumption is costing us.
+Train on pseudo-negatives as the baseline path (it lets us use any classical supervised model off the shelf) and keep PU learning as the check on whether the pseudo-negative assumption is costing us.
 
 ```{python}
 #| label: sample-negatives
@@ -144,7 +144,7 @@ print(f"  (a lithology class with fewer candidates than its quota returns "
       f"its whole pool, which is why the total may be below target)")
 ```
 
-Stratified sampling gives the negatives the same rock-type distribution as the positives. A lithology class that doesn't have 30 non-occurrence cells just contributes what it has — which is why the total ends up below the target; this is correct behavior, not a bug.
+Stratified sampling gives the negatives the same rock-type distribution as the positives. A lithology class that doesn't have 30 non-occurrence cells just contributes what it has, which is why the total ends up below the target; this is correct behavior, not a bug.
 
 ## Training set + spatial block cross-validation
 
@@ -160,7 +160,7 @@ print(f"\nHighest NaN-rate features (median-imputed inside the LR pipeline):")
 print(nan_top.round(2).to_string())
 ```
 
-**Spatial block CV with 20 km blocks.** A random train/test split leaks — adjacent cells share geology, geochem, and (critically) *sampling history*. Spatial block CV holds out one 20 km block at a time and trains on the rest, forcing the model to generalize across regions. This is a 15-year-old MPM methodology lesson ([Carranza 2017](https://link.springer.com/article/10.1007/s11053-017-9334-7); EarthByte DEEP-SEAM 2025) and dropping it is a common reason models are reported at misleading 0.95+ AUCs.
+**Spatial block CV with 20 km blocks.** A random train/test split leaks: adjacent cells share geology, geochem, and (critically) *sampling history*. Spatial block CV holds out one 20 km block at a time and trains on the rest, forcing the model to generalize across regions. This is a 15-year-old MPM methodology lesson ([Carranza 2017](https://link.springer.com/article/10.1007/s11053-017-9334-7); EarthByte DEEP-SEAM 2025) and dropping it is a common reason models are reported at misleading 0.95+ AUCs.
 
 ```{python}
 #| label: spatial-cv
@@ -201,11 +201,11 @@ print("\nTop-10 LR coefficients by |magnitude|:")
 print(lr_coef.to_string(index=False))
 ```
 
-Two things are already visible in the LR coefficient table: (a) five of the top six features are `*_count_5km` columns — **counts of nearby AGDB4 samples, not values**, and (b) several pathfinder elements (Zn, As, Sb, Bi) have *negative* LR coefficients. Both are symptoms of problems we'll diagnose properly with tree models.
+Two things are already visible in the LR coefficient table: (a) five of the top six features are `*_count_5km` columns, **counts of nearby AGDB4 samples, not values**, and (b) several pathfinder elements (Zn, As, Sb, Bi) have *negative* LR coefficients. Both are symptoms of problems we'll diagnose properly with tree models.
 
 ## Random Forest, and the count-feature confound
 
-The counts flag an exploration-bias problem. Positives are cells where legacy exploration found something — which correlates almost perfectly with cells where legacy exploration *looked hard*. Quantify: positives sit in cells with ~5× the AGDB4 sample density of the pseudo-negative pool. LR is happily pointing at "this area was explored" and reporting it as "this area is mineralized."
+The counts flag an exploration-bias problem. Positives are cells where legacy exploration found something, which correlates almost perfectly with cells where legacy exploration *looked hard*. Quantify: positives sit in cells with ~5× the AGDB4 sample density of the pseudo-negative pool. LR is happily pointing at "this area was explored" and reporting it as "this area is mineralized."
 
 Fix is simple: drop the count columns. Then compare RF and HistGradientBoosting against LR across the same 20 km spatial-block CV:
 
@@ -225,7 +225,7 @@ print("\nRF without count features — top 6:")
 print(imp_trim.to_string(index=False))
 ```
 
-Without the counts the top features shift to `*_max_5km` and `*_mean_5km` of the classical pathfinder suite — Ag, Te, Mo, Cu, Sb, Au, Pb. The *values* of the geochem, not the density of the sampling. This is the textbook porphyry halo and it's the honest signal.
+Without the counts the top features shift to `*_max_5km` and `*_mean_5km` of the classical pathfinder suite: Ag, Te, Mo, Cu, Sb, Au, Pb. The *values* of the geochem, not the density of the sampling. This is the textbook porphyry halo, and it is the signal that reflects mineralization rather than exploration effort.
 
 ```{python}
 #| label: model-comparison
@@ -245,11 +245,11 @@ for label, cv in [
           f"{v['pr_auc'].mean():.3f} ± {v['pr_auc'].std():.3f}")
 ```
 
-All four models are statistically indistinguishable on spatial CV — the fold-to-fold variance dominates. That's the small-N ceiling at 56 positives. The useful comparison is *qualitative*: the RF-no-count model is what the LR *should* have been if LR could fit non-linear relationships. [§6 SHAP](#shap) makes that explicit.
+All four models are statistically indistinguishable on spatial CV. The fold-to-fold variance dominates. That's the small-N ceiling at 56 positives. The useful comparison is *qualitative*: the RF-no-count model is what the LR *should* have been if LR could fit non-linear relationships. [§6 SHAP](#shap) makes that explicit.
 
 ## SHAP: what is the model actually learning? {#shap}
 
-SHAP decomposes each per-cell prediction into per-feature contributions. Unlike feature importance (which is global, direction-agnostic), SHAP tells us which features push a prediction up or down at each cell — and whether the model's attribution matches mineral-systems theory.
+SHAP decomposes each per-cell prediction into per-feature contributions. Unlike feature importance (which is global, direction-agnostic), SHAP tells us which features push a prediction up or down at each cell, and whether the model's attribution matches mineral-systems theory.
 
 ```{python}
 #| label: shap-compute
@@ -300,7 +300,7 @@ cmp["diff"] = cmp["SHAP_at_pos"] - cmp["SHAP_at_neg"]
 print(cmp.reindex(cmp["diff"].abs().sort_values(ascending=False).index).head(12).to_string(index=False))
 ```
 
-Every top feature has `SHAP_at_pos > 0` and `SHAP_at_neg < 0`. More Ag / Te / Mo / Cu / Sb / Au / Pb in the 5 km halo → more probable porphyry. This also resolves the LR mystery: logistic regression reported *negative* coefficients for Zn, As, Sb, Bi — counter-intuitive for porphyry theory. The RF+SHAP tells the true story: these features have non-monotonic or interaction effects that a linear model can't represent. LR was mis-specified, not uncovering a real inverse relationship.
+Every top feature has `SHAP_at_pos > 0` and `SHAP_at_neg < 0`. More Ag / Te / Mo / Cu / Sb / Au / Pb in the 5 km halo → more probable porphyry. This also resolves the LR mystery: logistic regression reported *negative* coefficients for Zn, As, Sb, Bi (counter-intuitive for porphyry theory). The RF+SHAP tells the true story: these features have non-monotonic or interaction effects that a linear model can't represent. LR was mis-specified, not uncovering a real inverse relationship.
 
 ## AOI-wide prediction + prospectivity map
 
@@ -354,7 +354,7 @@ training drill data is sparse.
 
 **For this portfolio the distribution-based blind test runs on the BC
 Golden Triangle region**, where BCGS GeoFile 2025-11 publishes 366
-post-2015 drill collars with per-hole element maxima — 154 intersected
+post-2015 drill collars with per-hole element maxima: 154 intersected
 (meeting a threshold on Cu / Mo / Au / Ag) and 137 drilled-negative,
 241 of those in cells the training labels have zero info about. The
 distribution-based test is in
@@ -363,7 +363,7 @@ interpretation in the
 [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd).
 
 Eastern Alaska's contribution to the overall story is **the pipeline +
-the sensitivity diagnosis** — the modeling setup, the spatial CV, the
+the sensitivity diagnosis**: the modeling setup, the spatial CV, the
 SHAP interpretation, and the three-channel exploration-bias framing
 below. BCGT then pressure-tests the same pipeline shape (with BC-
 specific labels + data) against real post-training drill outcomes.
@@ -378,15 +378,15 @@ mineralized." That leaks into the feature matrix through three distinct
 channels:
 
 1. **Count-level bias.** `*_count_5km` columns directly encode "how
-   many samples were taken nearby." Dropping them — done by default in
-   the no-count RF — closes this channel.
+   many samples were taken nearby." Dropping them (done by default in
+   the no-count RF) closes this channel.
 2. **NaN-vs-value bias.** For any cell with zero samples, `*_mean_5km`
    and `*_max_5km` are NaN. For sampled cells they're real numbers.
    Our RF pipeline fills NaN with `-9999` as a sentinel; a single split
    on `cu_max_5km > -1000` cleanly carves "explored" from "unexplored"
    in the first tree levels. HistGradientBoosting's native
    NaN-direction learning has the same issue. `<el>_has_data`
-   indicator columns ([§7.3](#has-data)) expose this channel — and
+   indicator columns ([§7.3](#has-data)) expose this channel, and
    turn out to be minor in practice.
 3. **Magnitude-within-explored bias.** Among already-sampled cells, the
    max of 100 samples is mechanically larger than the max of 5 samples
@@ -396,8 +396,8 @@ channels:
    close it.
 
 The sensitivity battery below probes each of these channels. The
-empirical test of whether it matters in practice — *does the model
-fail to rank drilled-ore cells it wasn't trained on?* — is in the BCGT
+empirical test of whether it matters in practice (*does the model
+fail to rank drilled-ore cells it wasn't trained on?*) is in the BCGT
 track; [that report's headline number](../bcgt/bcgt_porphyry_prospectivity.qmd#tldr)
 is the distribution-level answer.
 
@@ -405,7 +405,7 @@ is the distribution-level answer.
 
 ### 7.1 Strict-21a label sensitivity {#strict-21a}
 
-Retraining on the 32 strict (21a-only) positives — a narrower, cleaner deposit-model class — instead of the 56-positive family:
+Retraining on the 32 strict (21a-only) positives (a narrower, cleaner deposit-model class) instead of the 56-positive family:
 
 ```{python}
 #| label: strict-sensitivity
@@ -457,7 +457,7 @@ print(f"\nPositives under PU: median={np.nanmedian(p_pu[fam_mask]):.3f}  "
 
 PU bagging agrees with pseudo-negative RF on ~60 % of the top-1000
 cells. Training-label capture is slightly worse in the top 1 % but
-comparable higher up — no free lunch here. The two rankings overlap
+comparable higher up. No free lunch here. The two rankings overlap
 substantially but differ on ~400 cells in the top-1000, which matters
 if you were making drill-targeting decisions from this ranking.
 
@@ -490,18 +490,18 @@ has_data_in_top15 = fi_hd["feature"].str.endswith("_has_data").sum()
 print(f"\nhas_data columns in top-15: {has_data_in_top15}")
 ```
 
-`<el>_has_data` doesn't land in the top-15 importances — the magnitude
+`<el>_has_data` doesn't land in the top-15 importances. The magnitude
 columns (`ag_max_5km`, `ag_mean_5km`, etc.) dominate. Which means the
 NaN-vs-value signal is a smaller contributor than first-principles
 argument suggested; the RF gets most of its lift from the numeric
 magnitude of the geochem aggregates, not from whether a sample was
 taken at all. That leaves the magnitude-within-explored channel as
-the dominant one — and magnitude features aren't easily decoupled from
+the dominant one, and magnitude features aren't easily decoupled from
 exploration density without abandoning the geochem layer entirely.
 
 ### 7.4 Exploration-robust baseline: no geochem {#no-geochem}
 
-Drop the geochem aggregates entirely and train only on uniformly-measured layers — geophysics, topography, S2, lithology, distance-to-fault:
+Drop the geochem aggregates entirely and train only on uniformly-measured layers (geophysics, topography, S2, lithology, distance-to-fault):
 
 ```{python}
 #| label: no-geochem
@@ -526,7 +526,7 @@ print(f"\n{pd.DataFrame(rows_).round(3).to_string(index=False)}")
 ```
 
 **Surprising result.** Stripped of all geochem, the model captures ≥ the
-same fraction of training-label positives at every cutoff — often
+same fraction of training-label positives at every cutoff, often
 slightly *more* at top-1 %. The feature set that remains (NRCan 100 m
 aeromagnetic RTF + 1VD, USGS Bouguer gravity, DEM-derived
 elevation/slope/TRI, Sentinel-2 alteration proxies, lithology one-hot,
@@ -534,17 +534,17 @@ distance-to-fault) cluster ARDF positives tightly on its own.
 
 The ARDF positives cluster tightly in geology and geophysics as well as
 in exploration effort. "Cells near known porphyries" is a narrow region
-by *any* regional-scale feature set — with or without geochem. Adding
+by *any* regional-scale feature set, with or without geochem. Adding
 geochem gives the model the classical pathfinder-halo signal that SHAP
 keys on, but it also adds the three-channel exploration bias without
 changing the *training-label* metric much.
 
-What this test tells us: under training-label metrics alone, geochem
-is not load-bearing. Whether that translates to unseen-drill
-generalization is a separate question — see the BCGT distribution-based
+What this test tells us: under training-label metrics alone, the result
+does not depend on geochem. Whether that translates to unseen-drill
+generalization is a separate question. See the BCGT distribution-based
 blind test for the distribution-level answer.
 
-### 7.5 Success-rate curve on the honest model
+### 7.5 Success-rate curve on the no-count model
 
 ```{python}
 #| label: success-rate
@@ -584,11 +584,11 @@ the BCGT distribution-based blind test answers.
 | PU-bagging baseline | ~60 % top-1000 rank overlap with pseudo-neg RF | PU doesn't strictly dominate |
 | `<el>_has_data` indicators | Out-of-top-15 importance | NaN channel is minor |
 | No-geochem baseline | Training capture rises without geochem | ARDF positives cluster tightly in non-geochem features too |
-| External blind test | (not run here — see [BCGT](../bcgt/bcgt_porphyry_prospectivity.qmd)) | — |
+| External blind test | (not run here, see [BCGT](../bcgt/bcgt_porphyry_prospectivity.qmd)) | n/a |
 
 ## What this does and doesn't demonstrate
 
-**Eastern Alaska v1 demonstrates, honestly:**
+**What Eastern Alaska v1 does demonstrate:**
 
 - A reproducible end-to-end MPM pipeline on public open data.
 - Correct methodology: spatial block CV, pseudo-negative stratification,
@@ -596,7 +596,7 @@ the BCGT distribution-based blind test answers.
 - SHAP attributions that match textbook porphyry geochemistry
   (Ag/Te/Mo/Cu/Sb/Au/Pb pathfinder halo).
 - A three-channel decomposition of the exploration bias that
-  pseudo-supervised MPM admits — and an honest finding that feature-
+  pseudo-supervised MPM admits, and a finding that feature-
   engineering fixes (`has_data` indicators, dropping `*_count_5km`)
   close only the obvious channel, not the dominant one.
 
@@ -605,7 +605,7 @@ the BCGT distribution-based blind test answers.
 - That the model would find unrecognized mineralization in unexplored
   terrain. Whether a pseudo-supervised pipeline generalizes out of
   distribution is the question the BCGT distribution-based blind test
-  answers — see [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd).
+  answers. See the [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd).
 - That multi-deposit-class labels work in one pooled model. EastAK is
   single-commodity (porphyry Cu-Mo-Au-Ag); BCGT adds epithermal +
   skarn + VMS and pools them.
@@ -614,7 +614,7 @@ the BCGT distribution-based blind test answers.
   regional features don't solve; see v1.2 next steps for the direction
   that would.
 
-**The honest posture for a reviewer:** everything in this document is
+**How a reviewer should read this:** everything in this document is
 what the MPM literature has been naming and actively working on for
 fifteen years. The three-channel decomposition of the exploration bias
 is the non-obvious part; the recognition that "drop the biased feature"
@@ -622,18 +622,18 @@ doesn't fix it is the part that changes how the next iteration should
 be built. The distribution-level confirmation that this matters
 empirically is in the v2 BCGT track.
 
-## Next steps — what v1.2 would do {#next-steps}
+## Next steps: what v1.2 would do {#next-steps}
 
 Given the v1 bias diagnosis, a second-version architecture would look very different:
 
-1. **Prospect-scale features.** ASTER SWIR (VNIR 15 m / SWIR 30 m) mapping of alteration mineralogy — argillic, phyllic, propylitic halos. EMIT hyperspectral (60 m, selective scenes) for finer mineralogical discrimination. These are measured on regular grids independent of AGDB4 sampling history; they don't carry the exploration bias.
-2. **Physics-consistent inversions.** [SimPEG](https://simpeg.xyz/) 2.5D magnetic + gravity inversions to produce *subsurface* susceptibility / density distributions, not surface-grid values. Strong prior at this cost: susceptibility peaks at 200–1000 m depth are the model anomaly for a porphyry stock.
+1. **Prospect-scale features.** ASTER SWIR (VNIR 15 m / SWIR 30 m) mapping of alteration mineralogy: argillic, phyllic, propylitic halos. EMIT hyperspectral (60 m, selective scenes) for finer mineralogical discrimination. These are measured on regular grids independent of AGDB4 sampling history; they don't carry the exploration bias.
+2. **Physics-consistent inversions.** [SimPEG](https://simpeg.xyz/) 2.5D magnetic + gravity inversions to produce *subsurface* susceptibility / density distributions, not surface-grid values. Strong prior at this cost: susceptibility peaks at 200-1000 m depth are the model anomaly for a porphyry stock.
 3. **End-to-end PU learning.** Replace pseudo-negative sampling at the *labels* level, not just as a post-hoc ranking comparison. Weighted-PU / bagging-SVM / Elkan-Noto calibration. [Yin et al. 2025](https://www.sciencedirect.com/science/article/pii/S0169136825003439) is the state-of-art reference.
 4. **Exploration-effort covariates.** Instead of dropping `*_count_5km`, carry it as a covariate that a two-stage model marginalizes out. Partial-dependence against count. Propensity-score framing on "has-been-explored."
-5. **Decision-theoretic framing.** Rather than "rank cells," ask "where is P(deposit) × value-of-information highest given current posterior uncertainty?" POMDP drill planning per Mern et al. and the Caers Mineral-X line. The rank is not the answer, the *next drill hole* is. **Built in v2** on the BCGT prior — see [`notebooks/bcgt/decision_planning.qmd`](../bcgt/decision_planning.qmd).
+5. **Decision-theoretic framing.** Rather than "rank cells," ask "where is P(deposit) × value-of-information highest given current posterior uncertainty?" POMDP drill planning per Mern et al. and the Caers Mineral-X line. The rank is not the answer, the *next drill hole* is. **Built in v2** on the BCGT prior. See [`notebooks/bcgt/decision_planning.qmd`](../bcgt/decision_planning.qmd).
 6. **Geospatial foundation-model features.** [GFM4MPM (Daruna et al. 2024)](https://arxiv.org/abs/2406.12756) pretrains on unlabeled geospatial data with masked-image-modeling; its embeddings are a ready-made feature set for downstream MPM. [SpectralGPT](https://arxiv.org/abs/2311.07113) / [Prithvi](https://arxiv.org/abs/2310.18660) / [Clay](https://clay-foundation.github.io/model/) are general-RS alternatives.
-7. **Dark-data ingestion.** OCR / VLM-based structured extraction from legacy assessment reports, scanned drill logs, and historical assays. Tractable with modern document AI (Azure Document Intelligence, Textract, or VLMs). **Built as a Bear Cub pilot** — see [`notebooks/bear_cub/main.qmd`](https://johnsondevco.com/bearcub/notebooks/bear_cub/main.html) (24 family-archive logs, 1919-1955) and [`notebooks/bear_cub/mining_review.qmd`](https://johnsondevco.com/bearcub/notebooks/bear_cub/mining_review.html) for the placer-engineer review.
-8. **Extend to a second commodity.** Orogenic Au in the California Mother Lode is the planned v2 region/commodity — reuses most of this scaffolding, tests generalization across deposit types.
+7. **Dark-data ingestion.** OCR / VLM-based structured extraction from legacy assessment reports, scanned drill logs, and historical assays. Tractable with modern document AI (Azure Document Intelligence, Textract, or VLMs). **Built as a Bear Cub pilot.** See [`notebooks/bear_cub/main.qmd`](https://johnsondevco.com/bearcub/notebooks/bear_cub/main.html) (24 family-archive logs, 1919-1955) and [`notebooks/bear_cub/mining_review.qmd`](https://johnsondevco.com/bearcub/notebooks/bear_cub/mining_review.html) for the placer-engineer review.
+8. **Extend to a second commodity.** Orogenic Au in the California Mother Lode is the planned v2 region/commodity, reuses most of this scaffolding, tests generalization across deposit types.
 
 ## Reproducibility
 
@@ -658,28 +658,28 @@ uv run jupyter nbconvert --to notebook --execute --inplace \
   notebooks/eastak_porphyry_prospectivity.ipynb
 ```
 
-`pyproject.toml` pins Python 3.11+; `uv.lock` pins every transitive dependency. The notebook has no hidden state between cells — restart-and-run-all passes. Raw data is regenerable from the fetch modules in [`src/ai_minerals/data/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/); nothing large is tracked in git.
+`pyproject.toml` pins Python 3.11+; `uv.lock` pins every transitive dependency. The notebook has no hidden state between cells; restart-and-run-all passes. Raw data is regenerable from the fetch modules in [`src/ai_minerals/data/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/); nothing large is tracked in git.
 
 ## Code + design tour
 
-- [`src/ai_minerals/aoi.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/aoi.py) — AOI and CRS constants.
-- [`src/ai_minerals/grid.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/grid.py) — 500 m EPSG:3338 grid.
-- [`src/ai_minerals/features/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/) — labels, rasters, geology, geochem, assemble.
-- [`src/ai_minerals/model.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model.py) — pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
-- [`src/ai_minerals/model_rf.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_rf.py) — RF / HGB factories, tree spatial CV, count-feature helper.
-- [`src/ai_minerals/model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py) — Mordelet-&-Vert PU bagging with OOB averaging.
-- [`docs/mvp-proposal.md`](https://github.com/00skyking00/ai-minerals/blob/main/docs/mvp-proposal.md) — scoping document with v1 / v1.1 trace.
-- [`notebooks/day{3,4,5}_*.qmd`](../../notebooks/) — day-by-day build log; audit trail for how the results above came together.
+- [`src/ai_minerals/aoi.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/aoi.py): AOI and CRS constants.
+- [`src/ai_minerals/grid.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/grid.py): 500 m EPSG:3338 grid.
+- [`src/ai_minerals/features/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/features/): labels, rasters, geology, geochem, assemble.
+- [`src/ai_minerals/model.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model.py): pseudo-negatives, spatial block CV, LR baseline, success-rate curve.
+- [`src/ai_minerals/model_rf.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_rf.py): RF / HGB factories, tree spatial CV, count-feature helper.
+- [`src/ai_minerals/model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py): Mordelet-&-Vert PU bagging with OOB averaging.
+- [`docs/mvp-proposal.md`](https://github.com/00skyking00/ai-minerals/blob/main/docs/mvp-proposal.md): scoping document with v1 / v1.1 trace.
+- [`notebooks/day{3,4,5}_*.qmd`](../../notebooks/): day-by-day build log; audit trail for how the results above came together.
 
 ## References (primary sources)
 
 - **Data:** [USGS MRDS](https://mrdata.usgs.gov/mrds/), [USGS ARDF](https://mrdata.usgs.gov/ardf/), [USGS AGDB4](https://www.sciencebase.gov/catalog/item/622a4ec7d34e4bb2bc5cad93), USGS SGMC, [Copernicus GLO-30 DEM](https://spacedata.copernicus.eu/en/collections/copernicus-digital-elevation-model), [Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2), [Alaska DGGS](https://dggs.alaska.gov/).
-- **MPM methodology:** [Carranza 2017 — "Natural Resources Research" 26](https://link.springer.com/article/10.1007/s11053-017-9334-7); [MDPI Minerals 2025 MPM/ML review](https://www.mdpi.com/2075-163X/15/10/1042).
+- **MPM methodology:** [Carranza 2017, "Natural Resources Research" 26](https://link.springer.com/article/10.1007/s11053-017-9334-7); [MDPI Minerals 2025 MPM/ML review](https://www.mdpi.com/2075-163X/15/10/1042).
 - **Pseudo-negatives + PU learning:** [Yin et al. 2025, Ore Geology Reviews](https://www.sciencedirect.com/science/article/pii/S0169136825003439); [Carranza & Laborte 2015, Computers & Geosciences](https://www.sciencedirect.com/science/article/pii/S009830041500085X).
 - **Spatial block CV:** [Roberts et al. 2017, Ecography](https://onlinelibrary.wiley.com/doi/10.1111/ecog.02881); applied to MPM in EarthByte's [DEEP-SEAM 2025](https://egusphere.copernicus.org/preprints/2025/egusphere-2025-3283/).
 - **Decision-theoretic exploration:** [Intelligent Prospector v1 (GMD 2023)](https://gmd.copernicus.org/articles/16/289/2023/); [v2 (arXiv 2024)](https://arxiv.org/pdf/2410.10610).
-- **Foundation models for MPM:** [GFM4MPM — Daruna et al. 2024](https://arxiv.org/abs/2406.12756).
+- **Foundation models for MPM:** [GFM4MPM, Daruna et al. 2024](https://arxiv.org/abs/2406.12756).
 - **Validation data:** See the [BCGT integrated report](../bcgt/bcgt_porphyry_prospectivity.qmd) for the distribution-based blind test. Primary source: [BCGS GeoFile 2025-11 Assessment Report Drillhole Database](https://cmscontent.nrs.gov.bc.ca/geoscience/PublicationCatalogue/GeoFile/BCGS_GF2025-11.zip).
-- **Deposit models:** Cox & Singer (1986), USGS Bulletin 1693 "Mineral Deposit Models" — codes 17, 20c, 21a, 21b.
+- **Deposit models:** Cox & Singer (1986), USGS Bulletin 1693 "Mineral Deposit Models": codes 17, 20c, 21a, 21b.
 
 *Sky King · 2026 · contact via the email in this repo's GitHub profile.*

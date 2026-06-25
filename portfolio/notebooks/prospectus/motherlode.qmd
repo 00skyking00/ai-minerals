@@ -1,5 +1,5 @@
 ---
-title: "Mother Lode California orogenic gold — within-region prospectivity"
+title: "Mother Lode California orogenic gold: within-region prospectivity"
 subtitle: "A Random Forest on public open data over the Sierra Nevada gold belt, with the cross-region transfer test that didn't work"
 date: 2026-05-11
 format:
@@ -22,7 +22,7 @@ prospectivity model on this footprint using only public open data.
 Six independent data sources, each capturing a different facet of
 the geological recipe for orogenic gold:
 
-### Lithology — SGMC canonical 33-class
+### Lithology: SGMC canonical 33-class
 
 The State Geologic Map Compilation provides the host-rock context.
 The Sierra Nevada batholith dominates the east; accreted metamorphic
@@ -31,7 +31,7 @@ units to the west.
 
 ![SGMC canonical lithology in the Mother Lode AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/sgmc-map-output-1.png)
 
-### Geophysics — USGS magnetic and Bouguer gravity
+### Geophysics: USGS magnetic and Bouguer gravity
 
 The basement density and magnetic susceptibility structure. Bouguer
 gravity captures the deep-crust signal that distinguishes the
@@ -41,7 +41,7 @@ batholith from the surrounding accreted terranes.
 
 ![USGS magnetic residual TI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/mag-map-output-1.png)
 
-### Geochemistry — NGDB stream sediments
+### Geochemistry: NGDB stream sediments
 
 The National Geochemical Database carries pathfinder element
 concentrations measured on stream-sediment samples taken on a
@@ -51,7 +51,7 @@ mineral indicators.
 
 ![NGDB stream-sediment Au, log10 scale](../../_freeze/notebooks/motherlode/data_exploration/figure-html/ngdb-au-map-output-1.png)
 
-### Structure — SGMC mapped faults
+### Structure: SGMC mapped faults
 
 Orogenic gold forms in quartz veins emplaced along high-angle faults
 during late-stage compressional tectonics. The fault network is the
@@ -59,7 +59,7 @@ fluid-pathway feature.
 
 ![SGMC mapped faults in the AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/faults-map-output-1.png)
 
-### Historical occurrences — MRDS
+### Historical occurrences: MRDS
 
 The USGS Mineral Resources Data System carries the historical
 occurrence records that serve as the positive label set. After a
@@ -69,7 +69,7 @@ set has 6,149 orogenic-Au occurrences inside the AOI.
 
 ![MRDS gold occurrences in the AOI](../../_freeze/notebooks/motherlode/data_exploration/figure-html/mrds-map-output-1.png)
 
-### Terrain — 1 arc-second DEM with slope and TRI
+### Terrain: 1 arc-second DEM with slope and TRI
 
 Topography and terrain ruggedness as context layers. Useful primarily
 to distinguish high-relief gold-belt geology from low-relief overburden.
@@ -78,9 +78,9 @@ to distinguish high-relief gold-belt geology from low-relief overburden.
 
 ## How the algorithm consumes the data
 
-The Random Forest model — an ensemble of decision trees each fit on
+The Random Forest model (an ensemble of decision trees each fit on
 a bootstrap sample of the training data, with each tree split node
-selected from a random subset of the feature columns — is a good fit
+selected from a random subset of the feature columns) is a good fit
 for this feature stack because the prediction task is exactly the
 multivariate-conditional rule it is built to learn: prospective if
 (specific lithology) AND (near a fault) AND (stream-sediment Au
@@ -128,8 +128,8 @@ map that holds up under spatial-block validation.
 ## Interesting finding 2: the cross-region transfer test failed informatively
 
 When we applied the Mother Lode-trained model to the Klamath
-Mountains orogenic-gold belt — geologically the closest analogue
-province in California — the transfer AUC dropped to **0.58**,
+Mountains orogenic-gold belt (geologically the closest analogue
+province in California), the transfer AUC dropped to **0.58**,
 barely above random. This is not a failure of the modeling pipeline
 but a result that captures something real about regional
 prospectivity: a model fit on the geophysical and geochemical

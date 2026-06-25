@@ -1,5 +1,5 @@
 ---
-title: "Sensitivity pass — strict labels, PU baseline, exploration-robust checks"
+title: "Sensitivity pass: strict labels, PU baseline, exploration-robust checks"
 subtitle: "Eastern Alaska porphyry Cu-Mo-Au-Ag"
 format:
   html:
@@ -13,15 +13,15 @@ The RF + SHAP notebook left us with a model that ranks known porphyry
 cells very high and appears well-behaved under SHAP. This notebook
 pressure-tests that picture with five checks:
 
-1. **Strict (21a-only) vs family label** — does narrowing the positive
+1. **Strict (21a-only) vs family label**: does narrowing the positive
    class to Cox-&-Singer model 21a alone change what the model learns?
-2. **Success-rate curve** — the standard MPM benchmark: cumulative
+2. **Success-rate curve**: the standard MPM benchmark, cumulative
    positives captured vs cumulative area flagged.
-3. **PU-learning baseline** — does refusing the pseudo-negative
+3. **PU-learning baseline**: does refusing the pseudo-negative
    assumption change the prospectivity ranking?
-4. **Rainbow Ridge exclusion blind test** — hold out the 10 positives
+4. **Rainbow Ridge exclusion blind test**: hold out the 10 positives
    with all-NaN S2 features, retrain, and ask if they're still rankable.
-5. **Exploration-robustness sensitivities** — drop all geochemistry,
+5. **Exploration-robustness sensitivities**: drop all geochemistry,
    and separately add `*_has_data` indicator columns, to quantify how
    much of the model's signal runs through the exploration-biased
    feature channels.
@@ -93,7 +93,7 @@ print(f"  positives P quartiles: q25={np.quantile(p_fam[fam_mask],.25):.3f}  "
 ## 1. Strict (21a-only) vs family label
 
 Our `is_porphyry` column accepts Cox-&-Singer model codes 17, 20c, 21a,
-21b — the full porphyry family (Cu-Mo, Cu-Au, Cu-Au-Mo). `is_porphyry_strict`
+21b, the full porphyry family (Cu-Mo, Cu-Au, Cu-Au-Mo). `is_porphyry_strict`
 keeps only 21a (classic Cu ± Mo porphyry). Retraining on the 32 strict
 positives:
 
@@ -135,12 +135,12 @@ pd.concat([fi_fam, fi_str], ignore_index=True).pivot_table(
 Mo, Cu, Pb, Sb `*_max_5km` dominate for both. Top-1 % cells under the
 strict-only model still capture the majority of family positives and
 nearly all strict positives; top-5 % captures everything. The
-label-choice decision barely moves the model — reassuring for v1.
+label-choice decision barely moves the model, which is reassuring for v1.
 
 **What this doesn't prove.** Both models are trained on the same feature
 set, so the same biases apply to both. The value of this check is
-verifying that the label-class definition (family vs strict) isn't
-load-bearing on the result.
+verifying that the result does not hinge on the label-class definition
+(family vs strict).
 
 ## 2. Success-rate curve
 
@@ -178,7 +178,7 @@ ARDF-labeled positives, top 5 % captures all of them. Randomly flagging
 2 % of area would catch 2 %. Against the training-label distribution
 the RF is strong.
 
-**Against actual prospectivity** — see the exploration-robust
+**Against actual prospectivity**, see the exploration-robust
 sensitivities in §5 below and the BCGT distribution-based blind test
 for what this curve *doesn't* measure.
 
@@ -186,7 +186,7 @@ for what this curve *doesn't* measure.
 
 Pseudo-negative sampling assumes cells far from any known occurrence
 are non-deposits. PU learning (Mordelet & Vert-style bagging) refuses
-that assumption — each bag trains on positives + a random equal-sized
+that assumption: each bag trains on positives + a random equal-sized
 draw of unlabeled cells treated as "not known positive," and we average
 over bags where a cell was out-of-bag. See
 [`model_pu.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/model_pu.py).
@@ -218,7 +218,7 @@ print(f"top-{top_n} cell overlap (pseudo-neg vs PU): {overlap*100:.0f}%")
 ```
 
 **Result.** PU bagging captures slightly less at top-1 % but comparable
-at top-10 %. The top-1000 cell sets overlap ~60 % — the PU ranking
+at top-10 %. The top-1000 cell sets overlap ~60 %. The PU ranking
 disagrees with the pseudo-negative ranking on ~400 cells. PU removes
 the "far-from-occurrences = non-deposit" assumption but the two
 rankings overlap substantially; on training-label metrics neither
@@ -281,7 +281,7 @@ columns?
 ### 5.1 Exploration-robust baseline: train without geochem
 
 If the geochem aggregates carry exploration bias, an informative
-stress test is to train on *uniformly-measured* features only —
+stress test is to train on *uniformly-measured* features only:
 geophysics (magnetic, magnetic_1vd, gravity), topography (elevation,
 slope, TRI), Sentinel-2 indices, lithology one-hot, distance-to-fault.
 No geochem.
@@ -322,11 +322,11 @@ face but consistent with the ARDF positives clustering in a small
 region where geophysics (near-fault, magnetically anomalous, specific
 lithologies) concentrates them tightly. The model's top features now
 become `magnetic`, `magnetic_1vd`, `elevation`, `distance_to_fault_m`,
-`gravity` — the uniformly-measured layers carry most of the signal the
+`gravity`. The uniformly-measured layers carry most of the signal the
 ARDF positives cluster on.
 
 **What this tells us.** Under training-label metrics, geochem is *not*
-necessary — the geophysics+topography+lithology feature set rank
+necessary. The geophysics+topography+lithology feature set rank
 trained positives well on its own. It doesn't mean the no-geochem model
 is better at finding *unknown* mineralization; it means ARDF positives
 cluster tightly in the uniformly-measured feature space too. See the
@@ -367,7 +367,7 @@ print(f"\nSum of has_data importances in top-15: {has_data_total:.3f}")
 ```
 
 **Result.** The `*_has_data` indicator columns don't land in the
-top-15 feature importances — the magnitude columns (`ag_max_5km`,
+top-15 feature importances. The magnitude columns (`ag_max_5km`,
 `ag_mean_5km`, etc.) still dominate. Which means the NaN-vs-value
 signal is a smaller contributor than you might expect from first
 principles; the RF gets most of its lift from the numeric magnitude of
@@ -385,7 +385,7 @@ even when the obvious `*_count_5km` columns are dropped:
    and `*_max_5km` is NaN → filled with the `-9999` sentinel at the
    feature matrix. The model can split on "sentinel vs real value" as a
    proxy for "explored vs unexplored." §5.2 shows this channel is minor
-   in practice — the indicator columns don't rank high.
+   in practice. The indicator columns don't rank high.
 3. **Magnitude-within-explored bias**: among already-sampled cells, the
    max of 100 samples is mechanically larger than the max of 5 samples,
    because more draws → heavier tail. `*_max_5km` is correlated with
@@ -398,8 +398,8 @@ cluster ARDF positives tightly on their own, and the geochem adds
 lift but also adds bias that the training-label metric doesn't punish.
 
 This is the conceptual framing. The *empirical* test of whether this
-matters in practice — i.e., does the model fail to find drilled-ore
-cells it hasn't been trained on? — is in the BCGT integrated report,
+matters in practice (i.e., does the model fail to find drilled-ore
+cells it hasn't been trained on?) is in the BCGT integrated report,
 not here. Eastern Alaska lacks a sufficient post-training drill
 population to run that test.
 
@@ -415,7 +415,7 @@ population to run that test.
 | No-geochem baseline | Training-label capture *rises*; geophysics + geology + distance-to-fault carry most of the signal |
 | `*_has_data` indicators | Out-of-top-15 importance; magnitude channel dominates |
 
-## What Eastern Alaska demonstrates (honestly)
+## What Eastern Alaska actually demonstrates
 
 - A reproducible end-to-end MPM pipeline on public open data.
 - Correct methodology: spatial block CV, pseudo-negative stratification,
@@ -434,7 +434,7 @@ population to run that test.
   works cleanly. EastAK is single-commodity; the multi-class validation
   is [BCGT](../bcgt/bcgt_porphyry_prospectivity.qmd).
 
-**The distribution-based external blind test lives in the BCGT track** —
+**The distribution-based external blind test lives in the BCGT track**:
 366 post-2015 drill collars, 154 intersected cells + 87 drilled-negatives
 in cells the training labels have zero info about. That's where the
 pipeline gets pressure-tested against real post-training drill outcomes.

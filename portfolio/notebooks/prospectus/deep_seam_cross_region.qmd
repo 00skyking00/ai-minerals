@@ -59,7 +59,7 @@ margin. The loss pushes positive cells (y = 1) to have scores far
 above the Gaussian reference (anomalies in the upper tail), and
 unlabeled cells (y = 0) to have scores near the reference mean.
 The implicit assumption is that prospective cells are *anomalies in
-feature space* — points that look very different from the bulk of
+feature space*: points that look very different from the bulk of
 the data.
 
 ## Top-1% capture rate, the four-region comparison
@@ -100,7 +100,7 @@ have, and it produces the cleanest result: under 2-D spatial-block
 CV, the gradient-boosted-trees model captures **28% of held-out
 deposits in its top 1% of cells**, while DevNet captures **0% of
 deposits in its top 1%**. DevNet's predictions on Australia (trained
-on US/Canada) score AUC 0.343 — *below* 0.5, meaning the predictions
+on US/Canada) score AUC 0.343 (*below* 0.5), meaning the predictions
 are anti-correlated with truth.
 
 ## Why the architecture is matched to the wrong problem on three of four regions
@@ -154,8 +154,8 @@ literature as the next step beyond classical tree-based machine
 learning. The four-region result says, concretely, that they are
 not yet ready as a drop-in replacement for Random Forest or gradient
 boosting on standard regional prospectivity workflows. They have a
-specific niche — small-positive datasets with heavy upstream feature
-decomposition that genuinely shapes the data into anomaly form —
+specific niche (small-positive datasets with heavy upstream feature
+decomposition that genuinely shapes the data into anomaly form)
 and outside that niche they lose by a wide margin.
 
 For an exploration company, the practical implication is:

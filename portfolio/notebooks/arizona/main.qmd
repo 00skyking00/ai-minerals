@@ -37,7 +37,7 @@ METRICS = AZ_DERIVED / "path3_decomposed_metrics.json"
 
 Same modeling pipeline as Mother Lode v3 and Tanacross v1, applied to
 the densest Laramide porphyry-copper belt in the United States. The
-goal of this region is reproducibility and cross-region comparison —
+goal of this region is reproducibility and cross-region comparison:
 running the same methodology on a third geologically- and
 commodity-distinct AOI to test whether the within-region performance
 of the public-data feature stack holds up when neither the labels
@@ -58,15 +58,15 @@ notebook.
 ## AOI and deposit type
 
 The southeastern Arizona porphyry belt covers a rectangle from
-$-110.4°$ to $-109.0°$ W and $32.0°$ to $33.7°$ N — roughly 150 km
-east-west by 190 km north-south, total area about 28,500 km². The
+$-110.4°$ to $-109.0°$ W and $32.0°$ to $33.7°$ N (roughly 150 km
+east-west by 190 km north-south), total area about 28,500 km². The
 AOI contains five major porphyry-Cu districts: Globe-Miami, Pima,
 Ray, Safford, and Morenci, including world-class deposits like
 Morenci, Ray, Sierrita, Pinto Valley, and Resolution.
 
 The deposit type is Cox-Singer model 17 (porphyry Cu), 21a (porphyry
 Cu-Mo), and 20c (porphyry Cu, low-fluorine subtype). We exclude
-21b (porphyry Mo low-F) from the positive label set — it's a
+21b (porphyry Mo low-F) from the positive label set. It's a
 Mo-dominant deposit type with different host rocks and different
 exploration targeting. After the Cox-Singer commodity-and-deposit-
 type filter against MRDS, the AOI contains **191 porphyry-Cu
@@ -102,7 +102,7 @@ belts in the world, and the spatial pattern of known deposits
 reflects both the geological substrate (the Laramide arc) and a
 century of exploration history.
 
-## Why this region — methodological choice
+## Why this region: methodological choice
 
 Arizona's southeastern porphyry belt was picked as the third
 regional AOI for two reasons:
@@ -221,7 +221,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-## Methodology — the four-cell controlled experiment
+## Methodology: the four-cell controlled experiment
 
 Arizona was the third AOI in a four-region experiment whose primary
 goal was to test the transferability of DEEP-SEAM-class deep-anomaly-
@@ -319,7 +319,7 @@ the methodology experiment:
 
 | Region | Positives | RF raw top-1 | DevNet raw top-1 | RF decomposed top-1 | DevNet decomposed top-1 |
 |---|---|---|---|---|---|
-| Curnamona REE (LOO) | 7 | 0% | 43% | — | — |
+| Curnamona REE (LOO) | 7 | 0% | 43% | n/a | n/a |
 | Tanacross (OOF) | 45 | 22.2% | 13.3% | 15.6% | 13.3% |
 | **Arizona (OOF)** | **191** | **23.0%** | **8.9%** | **14.7%** | **13.6%** |
 
@@ -327,7 +327,7 @@ The Arizona number sits right alongside the Tanacross number for RF
 on raw features, which is the reproducibility claim the regional
 pipeline is meant to support. The DEEP-SEAM-vs-RF gap is wider on
 Arizona (14 pp) than on Tanacross (9 pp), and both regions are
-inverted relative to Curnamona — where DevNet beats RF — by
+inverted relative to Curnamona (where DevNet beats RF) by
 substantial margins. That inversion is the cross-region experiment's
 central finding; the standalone four-cell notebook works through it.
 
@@ -355,7 +355,7 @@ The Arizona v4 work establishes three things:
   architecture.** The hypothesis going into the Arizona experiment
   was that Tanacross's mixed metallogenic history (porphyry-Cu plus
   distal porphyry plus polymetallic veins, 100+ Myr of history) was
-  obscuring the deviation network's signal — that a cleaner,
+  obscuring the deviation network's signal: that a cleaner,
   single-event, single-deposit-type AOI would let the architecture
   win. Arizona's southeastern porphyry belt is exactly that
   cleaner AOI: single tectonic context, single 66-74 Ma event,

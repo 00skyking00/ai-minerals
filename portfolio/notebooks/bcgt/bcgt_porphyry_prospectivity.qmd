@@ -1,5 +1,5 @@
 ---
-title: "Mineral prospectivity mapping — BC Golden Triangle"
+title: "Mineral prospectivity mapping: BC Golden Triangle"
 subtitle: "Multi-deposit Random Forest with distribution-based external validation"
 author: "Sky King"
 date: "2026-04"
@@ -15,20 +15,20 @@ execute:
 
 ## TL;DR
 
-1. Built the same regional MPM pipeline as [v1 Eastern Alaska](../eastak/eastak_porphyry_prospectivity.qmd) against the **BC Golden Triangle** — one of the most intensively-explored mineralized belts in the world — using only public open data. Covered four deposit classes in one model: **porphyry Cu-Au + epithermal Au-Ag + skarn Cu-Au + VMS Cu-Zn-Au** (376 unique positive cells, 6.7× more training labels than EastAK).
+1. Built the same regional MPM pipeline as [v1 Eastern Alaska](../eastak/eastak_porphyry_prospectivity.qmd) against the **BC Golden Triangle** (one of the most intensively-explored mineralized belts in the world) using only public open data. Covered four deposit classes in one model: **porphyry Cu-Au + epithermal Au-Ag + skarn Cu-Au + VMS Cu-Zn-Au** (376 unique positive cells, 6.7× more training labels than EastAK).
 2. **Distribution-based external blind test on 366 post-2015 drill collars.** BCGS GeoFile 2025-11 publishes per-hole element maxima for every collar in our AOI, with **154 intersected cells + 87 non-intersected cells entirely absent from the training-label set**. Those 241 "previously unknown" holes (per our training data) are the blind-test set. The remaining 125 collars are in cells with some prior label and serve as in-distribution sanity checks.
 3. Real NRCan geophysics this time: **200 m aeromagnetic** + **2 km isostatic-residual gravity** replace v1's NaN-placeholder geophysics + USGS 1 km magnetic. ≥99 % coverage on all 376 positive cells.
 4. Same architectural moves as v1: 20 km spatial block CV, pseudo-negative sampling with lithology stratification, Random Forest with class_weight="balanced_subsample", SHAP attribution, success-rate curve.
-5. **The blind-test result is striking.** RF no-count achieves 0.82 ROC-AUC on spatial CV against training labels. On the 241-cell blind-test distribution, though: blind positives median P = 0.87; blind *negatives* median P = 0.98 — **the drilled-nothing cells actually score higher than drilled-ore cells** because both populations cluster in already-explored terrain near training positives. The two distributions differ statistically (K-S p = 1e-4) but the Mann-Whitney test that positives score *higher* than negatives is NOT significant (p = 0.26). At the top-5 % AOI cutoff, 40 % of blind positives and 63 % of blind negatives are flagged — the ordering that matters for real drill targeting doesn't reliably pick winners over losers. This is confirmation-bias at distribution scale — the same three-channel exploration-bias story the EastAK sensitivity pass framed conceptually.
-6. **Feeding drill data back as features doesn't help.** A 50/50 split sensitivity check (training-half drill collars become per-cell features, held-out half is the new blind set) shows the new drill-derived features (`max_cu_drill_5km`, `n_intersected_5km`, etc.) **don't even land in the top-15 RF importance**, and the blind-positive vs blind-negative distributions are statistically identical to the no-drill-features baseline. Drill features ride the same exploration-density axis that the geochem aggregates already do — adding them doesn't introduce an *unbiased* signal axis. See [validation §8](validation.qmd#8-drill-as-feature-sensitivity-does-feeding-drill-data-back-into-the-model-help) for the full result.
+5. **The blind-test result is striking.** RF no-count achieves 0.82 ROC-AUC on spatial CV against training labels. On the 241-cell blind-test distribution, though: blind positives median P = 0.87; blind *negatives* median P = 0.98. **The drilled-nothing cells actually score higher than drilled-ore cells** because both populations cluster in already-explored terrain near training positives. The two distributions differ statistically (K-S p = 1e-4) but the Mann-Whitney test that positives score *higher* than negatives is NOT significant (p = 0.26). At the top-5 % AOI cutoff, 40 % of blind positives and 63 % of blind negatives are flagged. The ordering that matters for real drill targeting doesn't reliably pick winners over losers. This is confirmation-bias at distribution scale, the same three-channel exploration-bias story the EastAK sensitivity pass framed conceptually.
+6. **Feeding drill data back as features doesn't help.** A 50/50 split sensitivity check (training-half drill collars become per-cell features, held-out half is the new blind set) shows the new drill-derived features (`max_cu_drill_5km`, `n_intersected_5km`, etc.) **don't even land in the top-15 RF importance**, and the blind-positive vs blind-negative distributions are statistically identical to the no-drill-features baseline. Drill features ride the same exploration-density axis that the geochem aggregates already do. Adding them doesn't introduce an *unbiased* signal axis. See [validation §8](validation.qmd#8-drill-as-feature-sensitivity-does-feeding-drill-data-back-into-the-model-help) for the full result.
 
-The architectural payoff of the v2 plan: **adding a second region with a different jurisdiction's data conventions took ~600 LOC of adapters + fetchers** — all downstream modeling code (spatial CV, SHAP, PU bagging, feature engineering) worked unchanged via the canonical-schema adapter layer. See [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/).
+The architectural payoff of the v2 plan: **adding a second region with a different jurisdiction's data conventions took ~600 LOC of adapters + fetchers.** All downstream modeling code (spatial CV, SHAP, PU bagging, feature engineering) worked unchanged via the canonical-schema adapter layer. See [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/).
 
 ## Context: what this adds to v1
 
 - **v1 (Eastern Alaska)** established the pipeline + discovered the exploration-bias trap via a single blind drill hole.
 - **v2 (BC Golden Triangle)** validates the same pipeline shape against an actual distribution of post-training drill outcomes, and tests whether the multi-deposit-class framing (training on porphyry ∪ epithermal ∪ skarn ∪ VMS positives together) works.
-- **v1.2**: prospect-scale features (ASTER SWIR), physics-consistent inversions, end-to-end PU learning. Decision-theoretic drill planning has now been built — see [`decision_planning.qmd`](decision_planning.qmd).
+- **v1.2**: prospect-scale features (ASTER SWIR), physics-consistent inversions, end-to-end PU learning. Decision-theoretic drill planning has now been built. See [`decision_planning.qmd`](decision_planning.qmd).
 
 ## Data
 
@@ -144,7 +144,7 @@ print(f"  LR mean PR-AUC:   {valid['pr_auc'].mean():.3f} ± {valid['pr_auc'].std
 
 ## Random Forest + the count-feature confound
 
-Same drop as v1 — `*_count_5km` and `*_has_data_5km` are exploration-density proxies that the model locks onto if they're in the feature matrix.
+Same drop as v1. `*_count_5km` and `*_has_data_5km` are exploration-density proxies that the model locks onto if they're in the feature matrix.
 
 ```{python}
 #| label: rf-compare
@@ -223,7 +223,7 @@ print(cmp.reindex(cmp["diff"].abs().sort_values(ascending=False).index).head(12)
 **Expectation from mineral-systems theory.** For a pooled-all-classes model, we'd expect the top features to be a mix of:
 - porphyry halo: Cu/Mo/Ag *_max_5km (elevated)
 - epithermal pathfinders: Hg/Tl/As/Sb *_max_5km (elevated)
-- skarn contacts: proximity to intrusive–carbonate contacts (captured indirectly via lithology one-hot + fault distance)
+- skarn contacts: proximity to intrusive-carbonate contacts (captured indirectly via lithology one-hot + fault distance)
 - VMS: Zn/Pb *_max_5km (elevated)
 
 ## AOI prediction + prospectivity raster {#aoi-prediction}
@@ -273,7 +273,7 @@ ax.legend(loc="lower left", fontsize=8); ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-## External validation — **distribution-based** blind test {#external-validation}
+## External validation: **distribution-based** blind test {#external-validation}
 
 For each of the 366 post-2015 drill collars, score the nearest model cell and bucket by whether (a) the hole intersected a threshold and (b) the cell was in the training label set.
 
@@ -403,41 +403,41 @@ print(f"  blind negatives: {len(p_blind_neg)}   median P={np.median(p_blind_neg)
 print(f"  K-S p-value:     {ks_p:.1e}  (positives-vs-negatives distributions)")
 ```
 
-## What v2 demonstrates (honestly)
+## What v2 demonstrates
 
-- **A real distribution-based external validation** of a pseudo-supervised MPM pipeline — 241 "previously-unknown" drill cells with known outcomes, where *previously-unknown* means no MINFILE deposit-class label and no any-mineral-occurrence flag at training time.
-- **The distributions overlap.** Blind positives and blind negatives both cluster near the AOI high-probability region (75–100th percentile). K-S says the distributions are statistically different (p = 1e-4), but the difference is subtle and goes the "wrong way" at strict thresholds. This is consistent with v1's exploration-bias diagnosis: the blind negatives are where explorers *thought* there might be something (clustered around already-known prospects), and the blind positives include real finds in cells that look ordinary at regional scale.
-- **The specific failure mode is different from v1's** and more illuminating. v1: one blind positive scored at the 62nd percentile of a strongly bimodal distribution. v2: 154 blind positives scored across the 80–100th percentile range, but 87 blind negatives scored just as high or higher. The model ranks "cells near known mineralization" well — both when those cells host a real deposit and when drilling proves they don't.
+- **A real distribution-based external validation** of a pseudo-supervised MPM pipeline: 241 "previously-unknown" drill cells with known outcomes, where *previously-unknown* means no MINFILE deposit-class label and no any-mineral-occurrence flag at training time.
+- **The distributions overlap.** Blind positives and blind negatives both cluster near the AOI high-probability region (75-100th percentile). K-S says the distributions are statistically different (p = 1e-4), but the difference is subtle and goes the "wrong way" at strict thresholds. This is consistent with v1's exploration-bias diagnosis: the blind negatives are where explorers *thought* there might be something (clustered around already-known prospects), and the blind positives include real finds in cells that look ordinary at regional scale.
+- **The specific failure mode is different from v1's** and more illuminating. v1: one blind positive scored at the 62nd percentile of a strongly bimodal distribution. v2: 154 blind positives scored across the 80-100th percentile range, but 87 blind negatives scored just as high or higher. The model ranks "cells near known mineralization" well: both when those cells host a real deposit and when drilling proves they don't.
 - **Multi-deposit-class labels in one model** work cleanly pipeline-wise: pooling porphyry + epithermal + skarn + VMS positives into `is_any_deposit` and letting SHAP surface which features matter per-class is operationally simple. Interpreting which features distinguish deposit types requires the per-class one-vs-rest variant (out of scope here).
-- **Reusable infrastructure.** Same pipeline as v1, different jurisdiction. The adapter layer was the architectural bet that paid off — new BC adapters + new fetchers were the only new code; all modeling code was reused without modification.
+- **Reusable infrastructure.** Same pipeline as v1, different jurisdiction. The adapter layer was the architectural bet that paid off: new BC adapters + new fetchers were the only new code; all modeling code was reused without modification.
 
 ## What v2 does NOT demonstrate
 
 - **That exploration bias is solved.** The v1 three-channel bias diagnosis applies here too (MINFILE positives also cluster in explored areas).
-- **That this model would find unrecognized mineralization.** The blind-test distributions tell us how much lift the model gives over random; they don't tell us whether the *model's* top-ranked previously-unknown cells are where drill planners should actually go — that would require actual post-training drilling at model-flagged-high cells, a multi-year experiment no portfolio demo can run.
+- **That this model would find unrecognized mineralization.** The blind-test distributions tell us how much lift the model gives over random; they don't tell us whether the *model's* top-ranked previously-unknown cells are where drill planners should actually go. That would require actual post-training drilling at model-flagged-high cells, a multi-year experiment no portfolio demo can run.
 - **Gravity precision beyond 2 km.** NRCan's 2 km isostatic-residual is the finest Canada-wide gravity product; local prospect-scale gravity surveys are private to the operators.
 
 ## Next steps
 
-1. **Decision-theoretic drill planning** — *built and linked: see [`decision_planning.qmd`](decision_planning.qmd).* POMDP over the model's posterior on a 30×30 cell subarea, with random / greedy / POMCP baselines. v1.0-fidelity (Mern et al.) framing; honest about the independent-Bernoulli + noiseless-sensor simplifications that limit POMCP's lift over greedy in this particular problem setup.
-2. **ASTER SWIR alteration mapping** — 30 m SWIR, six narrow bands; resolves specific alteration minerals (kaolinite, alunite, muscovite, chlorite) that S2 can only see as mixtures.
+1. **Decision-theoretic drill planning.** *Built and linked: see [`decision_planning.qmd`](decision_planning.qmd).* POMDP over the model's posterior on a 30×30 cell subarea, with random / greedy / POMCP baselines. v1.0-fidelity (Mern et al.) framing; flags the independent-Bernoulli + noiseless-sensor simplifications that limit POMCP's lift over greedy in this particular problem setup.
+2. **ASTER SWIR alteration mapping**: 30 m SWIR, six narrow bands; resolves specific alteration minerals (kaolinite, alunite, muscovite, chlorite) that S2 can only see as mixtures.
 3. **Physics-consistent geophysical inversions** (SimPEG) of the NRCan magnetic + gravity to produce subsurface susceptibility/density rather than surface-grid anomalies.
 4. **End-to-end PU learning** with weighted-PU or Elkan-Noto calibration, not just post-hoc ranking comparison.
-5. **Extend the AOI north** to Yukon — brings in the Carmacks / Minto porphyry belt, reuses every piece of infrastructure.
+5. **Extend the AOI north** to Yukon: brings in the Carmacks / Minto porphyry belt, reuses every piece of infrastructure.
 
 ## Code + design tour
 
-- [`src/ai_minerals/regions/bcgt.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/regions/bcgt.py) — region config (AOI, CRS, deposit classes, pathfinder elements, raw-file paths).
-- [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/) — canonical-schema adapters. New BC entries: `occurrences/bc_minfile.py`, `geochem/bcgs_rgs.py`, `geology/bcgs_digital.py`, `drillholes/bcgs_geofile.py`.
-- [`src/ai_minerals/data/bcgs_*.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/) + [`gsc_geophysics.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/gsc_geophysics.py) — BC/NRCan fetchers.
-- [`notebooks/bcgt/data_exploration.qmd`](data_exploration.qmd) — hands-on walk through the nine BC data layers.
+- [`src/ai_minerals/regions/bcgt.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/regions/bcgt.py): region config (AOI, CRS, deposit classes, pathfinder elements, raw-file paths).
+- [`src/ai_minerals/data/adapters/`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/adapters/): canonical-schema adapters. New BC entries: `occurrences/bc_minfile.py`, `geochem/bcgs_rgs.py`, `geology/bcgs_digital.py`, `drillholes/bcgs_geofile.py`.
+- [`src/ai_minerals/data/bcgs_*.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/) + [`gsc_geophysics.py`](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/gsc_geophysics.py): BC/NRCan fetchers.
+- [`notebooks/bcgt/data_exploration.qmd`](data_exploration.qmd): hands-on walk through the nine BC data layers.
 
 ## References
 
-- **BC MINFILE** — https://minfile.gov.bc.ca/
-- **BCGS GeoFile 2025-11** (Assessment Report Drillhole Database) — https://cmscontent.nrs.gov.bc.ca/geoscience/PublicationCatalogue/GeoFile/BCGS_GF2025-11.zip
-- **BCGS GeoFile 2020-08** (Regional Geochemical Survey) — https://cmscontent.nrs.gov.bc.ca/geoscience/PublicationCatalogue/GeoFile/BCGS_GF2020-08.zip
-- **Digital Geology of BC** — https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/british-columbia-geological-survey/geology/bcdigitalgeology
-- **NRCan geophysical data portal** — https://geophysical-data.canada.ca/portal
-- **Cox, D.P. and Singer, D.A. (1986)** — *Mineral Deposit Models*, USGS Bulletin 1693 (reference for deposit-model codes).
-- **BC deposit-profile coding system** — BCGS Information Circular 1997-15.
+- **BC MINFILE**: https://minfile.gov.bc.ca/
+- **BCGS GeoFile 2025-11** (Assessment Report Drillhole Database): https://cmscontent.nrs.gov.bc.ca/geoscience/PublicationCatalogue/GeoFile/BCGS_GF2025-11.zip
+- **BCGS GeoFile 2020-08** (Regional Geochemical Survey): https://cmscontent.nrs.gov.bc.ca/geoscience/PublicationCatalogue/GeoFile/BCGS_GF2020-08.zip
+- **Digital Geology of BC**: https://www2.gov.bc.ca/gov/content/industry/mineral-exploration-mining/british-columbia-geological-survey/geology/bcdigitalgeology
+- **NRCan geophysical data portal**: https://geophysical-data.canada.ca/portal
+- **Cox, D.P. and Singer, D.A. (1986)**: *Mineral Deposit Models*, USGS Bulletin 1693 (reference for deposit-model codes).
+- **BC deposit-profile coding system**: BCGS Information Circular 1997-15.

@@ -1,5 +1,5 @@
 ---
-title: "Eastern Alaska — data exploration"
+title: "Eastern Alaska: data exploration"
 subtitle: "A tour of the v1 datasets, region, and exploration problem"
 format:
   html:
@@ -22,8 +22,8 @@ The repo covers two regions with the same infrastructure:
   skarn + VMS) with a distribution-based blind test on 366 post-2015 drill
   holes. See [`notebooks/bcgt/`](../bcgt/).
 
-All code, data sources, and model outputs are public. The writeup — not the
-code — is the primary artifact; this notebook is the entry point for the
+All code, data sources, and model outputs are public. The writeup (not the
+code) is the primary artifact; this notebook is the entry point for the
 Eastern Alaska track.
 
 ## About this notebook
@@ -32,30 +32,31 @@ This notebook is the **hands-on tour** of the Eastern Alaska datasets.
 Everything else in the `notebooks/eastak/` series depends on the data
 acquired here; the pipeline is:
 
-1. **This notebook** — walk through each raw data source, verify it covers
+1. **This notebook**: walk through each raw data source, verify it covers
    the AOI, build intuition for what the signals look like.
-2. **[`baseline_model.qmd`](baseline_model.qmd)** — feature pipeline + logistic
+2. **[`baseline_model.qmd`](baseline_model.qmd)**: feature pipeline + logistic
    regression with spatial block cross-validation.
-3. **[`random_forest_and_shap.qmd`](random_forest_and_shap.qmd)** — Random
+3. **[`random_forest_and_shap.qmd`](random_forest_and_shap.qmd)**: Random
    Forest + SHAP interpretation; diagnoses the exploration-density confound.
-4. **[`validation.qmd`](validation.qmd)** — sensitivity pass (strict labels,
+4. **[`validation.qmd`](validation.qmd)**: sensitivity pass (strict labels,
    PU baseline, no-geochem ablation, `*_has_data` indicator test).
-5. **[`eastak_porphyry_prospectivity.qmd`](eastak_porphyry_prospectivity.qmd)** —
+5. **[`eastak_porphyry_prospectivity.qmd`](eastak_porphyry_prospectivity.qmd)**:
    integrated report rolling all four together.
 
 Each section ends with an "interpretation" note explaining what the output
-is telling you about the exploration problem — not just the data.
+is telling you about the exploration problem, not just the data.
 
 ## About the region
 
 **Eastern Alaska** here means three contiguous USGS 1:250,000-scale
 quadrangles covering ~62,000 km² of east-central Alaska:
 
-- **Tanacross (TC)** — 63–64 °N, 143–141 °W — Yukon-Tanana upland
-- **Mt. Hayes (MH)** — 63–64 °N, 147–144 °W — Wrangellia / Delta Range
-- **Nabesna (NB)** — 62–63 °N, 144–141 °W — Wrangellia / eastern Alaska Range
+- **Tanacross (TC)**: 63-64 °N, 143-141 °W, Yukon-Tanana upland
+- **Mt. Hayes (MH)**: 63-64 °N, 147-144 °W, Wrangellia / Delta Range
+- **Nabesna (NB)**: 62-63 °N, 144-141 °W, Wrangellia / eastern Alaska Range
 
-This AOI straddles the **Wrangellia–Yukon-Tanana tectonic boundary**.
+This AOI straddles the tectonic boundary between the **Wrangellia** and
+**Yukon-Tanana** terranes.
 It's an established porphyry belt with 56 porphyry-family occurrences
 in the USGS Alaska Resource Data File (ARDF) and several active
 greenfield exploration programs.
@@ -75,7 +76,7 @@ Nine layers. Each has its own section below; the short version is:
 
 | Layer | Source | Role |
 |---|---|---|
-| **ARDF** (occurrence labels) | USGS Alaska Resource Data File | 56 porphyry-family positives — the *what we're trying to find* |
+| **ARDF** (occurrence labels) | USGS Alaska Resource Data File | 56 porphyry-family positives: the *what we're trying to find* |
 | **MRDS** (occurrence mask) | USGS Mineral Resources Data System | any-commodity exclusion for pseudo-negatives |
 | **AGDB4** (geochemistry) | USGS Alaska Geochemical Database v4 | stream-sediment + soil pathfinder elements |
 | **SGMC** (bedrock geology) | USGS Alaska state geology compilation | lithology one-hot + fault lines |
@@ -117,10 +118,10 @@ print(f"Working projection: {WORKING_CRS}  (NAD83 / Alaska Albers)")
 
 ## 1. The exploration question
 
-We have a **2° latitude × 6° longitude** patch of eastern Alaska — roughly
-**222 × 300 km** on the ground — covering three contiguous 1:250,000
-quadrangles (Tanacross, Mt Hayes, Nabesna) that span the
-Wrangellia–Yukon-Tanana tectonic boundary. We want to build a model that
+We have a **2° latitude × 6° longitude** patch of eastern Alaska (roughly
+**222 × 300 km** on the ground) covering three contiguous 1:250,000
+quadrangles (Tanacross, Mt Hayes, Nabesna) that span the boundary between
+the Wrangellia and Yukon-Tanana terranes. We want to build a model that
 says "**this pixel is more likely to host a porphyry copper deposit than
 that pixel**." That's mineral prospectivity mapping.
 
@@ -130,19 +131,19 @@ fluids alter the surrounding rock and deposit copper-molybdenum-gold sulfide
 minerals in a roughly bullseye pattern around the intrusion. Porphyries leave
 several signatures we can try to detect from a distance:
 
-1. **Geochemical halos** — anomalously high Cu, Mo, Au, As, Sb, Bi in rocks
+1. **Geochemical halos**: anomalously high Cu, Mo, Au, As, Sb, Bi in rocks
    and stream sediments drained from the alteration zone.
-2. **Hydrothermal alteration** — clay minerals, iron oxides, and sericite
+2. **Hydrothermal alteration**: clay minerals, iron oxides, and sericite
    that appear in satellite imagery at specific wavelengths.
-3. **Geophysical anomalies** — the granitic intrusion is often magnetic and
+3. **Geophysical anomalies**: the granitic intrusion is often magnetic and
    slightly less dense than the country rock.
-4. **Structural controls** — porphyries sit on regional-scale faults that
+4. **Structural controls**: porphyries sit on regional-scale faults that
    provided fluid pathways.
 
 The eight datasets we pulled cover each of these signatures plus the
 labels (where porphyries are already known). Below, each in turn.
 
-## 2. Known deposits — the labels (MRDS + ARDF)
+## 2. Known deposits: the labels (MRDS + ARDF)
 
 ```{python}
 #| label: labels
@@ -170,7 +171,7 @@ print(ardf["dep_model"].fillna("(none)").value_counts().head(10).to_string())
 
 Notice the geologic vocabulary: "**Porphyry Cu-Mo (Cox and Singer model
 21a)**", "**Tintina Belt-style gold-arsenopyrite-quartz vein**", "**Gold-quartz
-in veins and brecciated zones**". These are *deposit-model codes* —
+in veins and brecciated zones**". These are *deposit-model codes*:
 compressed geological theories about how each kind of deposit forms. Cox &
 Singer (1986) published the canonical list; the model numbers (21a = porphyry
 Cu, 22c = low-sulfidation epithermal gold, 39a = placer gold, etc.) are
@@ -229,22 +230,22 @@ print(ardf_porphyry["model_code"].fillna("(none)").value_counts().to_string())
 ```
 
 These **~56 porphyry-family records** are our primary training positives,
-up from 15 in Tanacross alone — the main reason we expanded the AOI. The
-codes cover the canonical porphyry Cu-Mo (21a) plus three genetically
-related sub-types:
+up from 15 in Tanacross alone. That jump is the main reason we expanded the
+AOI. The codes cover the canonical porphyry Cu-Mo (21a) plus three
+genetically related sub-types:
 
-- **Model 17** — plutonic, low-fluorine porphyry Cu. Same deposit
+- **Model 17**: plutonic, low-fluorine porphyry Cu. Same deposit
   mechanism, slightly different geologic setting.
-- **Model 20c** — porphyry Cu where the skarn carapace is the dominant
+- **Model 20c**: porphyry Cu where the skarn carapace is the dominant
   manifestation. Same intrusion, same fluids, skarn ore instead of
   disseminated porphyry.
-- **Model 21b** — porphyry Mo, low-F. Mo-dominant variant of 21a.
+- **Model 21b**: porphyry Mo, low-F. Mo-dominant variant of 21a.
 
 Records coded as pure Cu skarn (18a) or polymetallic veins (22c) without
 an accompanying porphyry interpretation are excluded; so are the 5
 records with no model code (mostly speculative "porphyry?" attributions).
 
-Still small in absolute terms — class imbalance is a defining feature of
+Still small in absolute terms. Class imbalance is a defining feature of
 mineral prospectivity mapping: out of millions of pixels in the AOI,
 only a few dozen are confirmed deposits. The [baseline-model notebook](baseline_model.qmd) addresses this
 directly (pseudo-negative sampling); the
@@ -268,10 +269,10 @@ print("\nSample primary class (what was tested):")
 print(agdb["PRIMARY_CLASS"].fillna("(none)").value_counts().head(5).to_string())
 ```
 
-~24,600 samples in our AOI — a surprisingly dense geochemical record
+~24,600 samples in our AOI: a surprisingly dense geochemical record
 for a ~222 × 300 km patch of Alaska (about one sample per ~3 km²). A bit
 over ⅓ are stream-sediment samples (sediment collected where creeks
-drain the landscape — each sample *integrates* rock fingerprinted from
+drain the landscape; each sample *integrates* rock fingerprinted from
 the entire upstream catchment). That's huge for exploration: one creek
 can tell you about square kilometers of otherwise inaccessible terrain.
 
@@ -303,7 +304,7 @@ plt.tight_layout()
 Multi-decade, multi-agency legacy data is exactly what the industry calls
 "**dark data**" when it's scanned reports, and "ingested data" when it's
 already standardized like AGDB4 is. This dataset is unusually clean for
-mineral exploration — the USGS has already done the painful integration of
+mineral exploration. The USGS has already done the painful integration of
 samples analyzed by 120 different lab methods into one "best-value" schema with
 provenance kept.
 
@@ -373,7 +374,7 @@ plt.tight_layout()
 
 If the ML model is any good, you should be able to see a weak version of its
 job by eye here: brighter (higher-Cu) dots should cluster *around* the cyan
-stars. That spatial coincidence is what a classifier will learn — and
+stars. That spatial coincidence is what a classifier will learn, and
 what's reassuring about it is that the signal is already visible without
 any modeling, it's just noisy and diluted by a lot of "normal" landscape.
 
@@ -402,14 +403,14 @@ The Sentinel-2 MSI satellite flies 8 times over this area each summer and
 captures reflectance in 13 wavelengths. We pulled the six bands most useful
 for mineral mapping. For EastAK the composite is a **per-MGRS-tile mosaic
 with multi-scene mean**: for each Sentinel-2 tile footprint we picked the
-top-3 lowest-cloud scenes in July–August 2024 (cloud<30%), reprojected
+top-3 lowest-cloud scenes in July-August 2024 (cloud<30%), reprojected
 each to 120 m Alaska Albers, and took the per-pixel NaN-skipping mean
 before stitching the 19 tiles together.
 
 Why not a single-scene composite or a stackstac median? Three fixable and
 one unfixable issue bit us:
 
-1. **`stackstac + dask` hangs on large AOIs** — reproducibly at 40%
+1. **`stackstac + dask` hangs on large AOIs**: reproducibly at 40%
    completion regardless of scheduler. Solution: bypass stackstac for
    mosaicking, read scenes directly via rioxarray per MGRS tile.
 2. **Planetary Computer SAS tokens expire ~60 min after signing**, so
@@ -418,14 +419,14 @@ one unfixable issue bit us:
    permanent URLs (no signing needed).
 3. **Some individual low-cloud scenes are partial acquisitions** that
    only cover part of their MGRS tile. Picking the lowest-cloud scene
-   alone left gaps. Solution: mean the top-3 scenes — any pixel only
+   alone left gaps. Solution: mean the top-3 scenes. Any pixel only
    needs one scene to have data.
 4. **Unfixable**: Rainbow Ridge (MH quadrangle) is a 15 × 15 km patch
    where every available S2 scene in our window has NaN pixels. Real
    data gap, confirmed across both PC and AWS backends with widened
    cloud/date filters. 10 of our 56 porphyry positives fall in this
    gap; downstream modeling inherits NaN S2 features for those training
-   points and will document the limitation honestly.
+   points, and the chapters flag that limitation where it bites.
 
 Four tiles at the AOI SE/NE corners had degenerate single-pixel AOI
 intersections at 120 m and were dropped (no porphyry positives in
@@ -439,7 +440,7 @@ spectral fingerprints we can exploit:
   blue (B02), strong reflection in the red (B04). *Iron-oxide index* = B04/B02.
 - **Ferrous iron**: reflects more in shortwave infrared (B11) than near
   infrared (B08). *Ferrous index* = B11/B08.
-- **Clay + hydroxyl minerals** (kaolinite, illite — common in phyllic
+- **Clay + hydroxyl minerals** (kaolinite, illite; common in phyllic
   alteration halos): absorb in B12 more than B11. *Clay index* = B11/B12.
 
 ```{python}
@@ -458,10 +459,10 @@ ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-You should see greens and dark reds across most of the image — healthy
+You should see greens and dark reds across most of the image: healthy
 boreal forest and tundra. Cooler grey/white patches are exposed bedrock,
 landslides, or roads. Bright white near the top is snow on high peaks. This
-is the *landscape the classifier will look at* — plus the spectral indices
+is the *landscape the classifier will look at*, plus the spectral indices
 below.
 
 ```{python}
@@ -489,7 +490,7 @@ plt.tight_layout()
 ```
 
 Again: bright pixels near cyan stars are what the model wants to learn. In
-practice vegetation masks much of the bedrock signal in Alaska — the feature
+practice vegetation masks much of the bedrock signal in Alaska; the feature
 NDVI mask will help strip those out.
 
 ## 5. Topography (Copernicus GLO-30 DEM)
@@ -515,7 +516,7 @@ plt.tight_layout()
 
 Elevation isn't itself a deposit predictor, but topographic *derivatives*
 are. Slope and ruggedness help because porphyry outcrops tend to sit on
-uplift blocks that erode faster than surrounding terrane — exposed bedrock,
+uplift blocks that erode faster than surrounding terrane: exposed bedrock,
 steeper slopes, less vegetation. The feature pipeline will compute slope + TRI (terrain
 ruggedness index) as features.
 
@@ -546,12 +547,12 @@ plt.tight_layout()
 Geophysics lets you "see through" vegetation and thin cover to the rock
 below. Two layers:
 
-- **Residual magnetic anomaly** — measures magnetite content. Porphyry
+- **Residual magnetic anomaly**: measures magnetite content. Porphyry
   intrusions often contain magnetite (they're magnetite-series granitoids),
   so they show up as local magnetic highs. A lot of other things do too
   (mafic dikes, ultramafic bodies), so it's never deterministic, just a
   feature.
-- **Bouguer gravity** — measures subsurface density. Felsic intrusions are
+- **Bouguer gravity**: measures subsurface density. Felsic intrusions are
   *less* dense than surrounding country rock, so they show up as gravity
   *lows*. Again, lots of other things do too.
 
@@ -593,15 +594,15 @@ ax.set_aspect("equal")
 plt.tight_layout()
 ```
 
-Notice how the porphyry stars sit preferentially on particular polygons —
+Notice how the porphyry stars sit preferentially on particular polygons:
 late Cretaceous intrusive rocks. That's geology-as-feature in action: the
 rock unit a pixel is on is a strong predictor because porphyry *only* forms
 in specific geological settings. The `CLASS` and `STATE_SYMBOL` columns are
 numeric codes that join to the `nsaunits` / `nsakey` tables in the GDB for
-human-readable unit names — the feature pipeline resolves those and builds a one-hot
+human-readable unit names; the feature pipeline resolves those and builds a one-hot
 encoding of the top lithologic units as features.
 
-## 8. Putting it together — the multi-layer view
+## 8. Putting it together: the multi-layer view
 
 ```{python}
 #| label: composite-view
@@ -643,27 +644,27 @@ Every pixel will have:
 - 3 topographic derivatives (elevation, slope, TRI)
 
 That's about 40 features per pixel. The classifier learns which combinations
-correlate with the porphyry label — then we ask it to score every pixel in
+correlate with the porphyry label, then we ask it to score every pixel in
 the AOI and produce the prospectivity map.
 
 ## Key takeaways before modeling
 
 1. **The label problem is stark.** 62 known porphyries across ~67,000 km²
-   (millions of pixels). Still rare in absolute terms —
-   random-undersampling vs PU learning is a real choice.
+   (millions of pixels). Still rare in absolute terms.
+   Random-undersampling vs PU learning is a real choice.
 2. **Multi-modal is the whole point.** No single layer predicts deposits
    well; the signal lives in *how geochemistry, geophysics, and remote
    sensing correlate*. This is why this problem is AI-shaped and not
    classical-statistics-shaped.
-3. **The data are messy but honest.** Legacy samples from four decades,
-   multiple agencies, multiple analytical methods. AGDB4's "best value"
-   schema gets us most of the way; USGS has already done the painful
-   harmonization.
-4. **The AOI has structure.** Porphyry sites cluster geographically —
-   along specific geologic units and sub-regions of the
-   Wrangellia–Yukon-Tanana boundary. A model that respects spatial
+3. **The data are messy but well-documented.** Legacy samples from four
+   decades, multiple agencies, multiple analytical methods, with provenance
+   kept for each. AGDB4's "best value" schema gets us most of the way; USGS
+   has already done the painful harmonization.
+4. **The AOI has structure.** Porphyry sites cluster geographically:
+   along specific geologic units and sub-regions of the boundary between
+   the Wrangellia and Yukon-Tanana terranes. A model that respects spatial
    autocorrelation (which is why we use spatial block CV) will report
-   honest performance.
+   performance you can trust.
 
 Next up: [`baseline_model.qmd`](baseline_model.qmd) builds the analysis grid, computes the features above, and
 trains a first logistic-regression + Random Forest pair with spatial

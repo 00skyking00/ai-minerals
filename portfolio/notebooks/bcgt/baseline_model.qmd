@@ -1,5 +1,5 @@
 ---
-title: "Baseline model — logistic regression with spatial block CV"
+title: "Baseline model: logistic regression with spatial block CV"
 subtitle: "BC Golden Triangle (4-class union: porphyry + epithermal + skarn + VMS)"
 format:
   html:
@@ -17,7 +17,7 @@ CV, produce a prospectivity raster + success-rate curve. The
 
 Difference from EastAK: 4 deposit-class labels (porphyry + epithermal +
 skarn + VMS) pooled into a single `is_any_deposit` binary target. 376
-unique positive cells vs EastAK's 56 — bigger training set, lower
+unique positive cells vs EastAK's 56: bigger training set, lower
 fold-to-fold CV variance expected.
 
 ```{python}
@@ -63,7 +63,7 @@ print(f"  is_any_deposit (union): {int(df['is_any_deposit'].sum())}")
 print(f"  any_mineral_occurrence: {int(df['any_mineral_occurrence'].sum()):,}")
 ```
 
-## 2. Pseudo-negatives — same strategy, different labels
+## 2. Pseudo-negatives: same strategy, different labels
 
 The BCGT pseudo-negative pool is drawn from cells ≥5 km from any
 MINFILE occurrence (any commodity) AND not themselves labeled as any
@@ -202,7 +202,7 @@ plt.tight_layout()
 - Logistic regression is the floor, not the ceiling. The
   [RF+SHAP notebook](random_forest_and_shap.qmd) checks whether the model
   is learning geology vs. exploration-density confounds.
-- No external blind test yet — the 366 post-2015 BC drill holes live in
+- No external blind test yet: the 366 post-2015 BC drill holes live in
   the [validation notebook](validation.qmd).
 - No per-deposit-class analysis. Pooling porphyry/epithermal/skarn/VMS
   into `is_any_deposit` is an efficiency choice; the one-vs-rest

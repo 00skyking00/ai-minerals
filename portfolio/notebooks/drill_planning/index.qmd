@@ -1,6 +1,6 @@
 ---
 title: "Drill planning under uncertainty"
-subtitle: "Two pieces, two scales — POMDP on a regional porphyry-Cu prior and a Gaussian process on a placer-claim grade surface"
+subtitle: "Two pieces, two scales: POMDP on a regional porphyry-Cu prior and a Gaussian process on a placer-claim grade surface"
 date: 2026-05-12
 format:
   html:
@@ -19,7 +19,7 @@ information should update the next-hole decision.
 This chapter collects the two pieces of decision-theoretic
 drill-planning work in this portfolio, at very different scales:
 
-1. **BCGT POMDP decision planning** — regional porphyry-Cu prospectivity
+1. **BCGT POMDP decision planning**: regional porphyry-Cu prospectivity
    prior (BC Golden Triangle, ~3,500 prior-positive cells over a
    ~90,000 km² AOI), framed as a partially observable Markov decision
    process and solved with Monte Carlo Tree Search (POMCP). Methodology
@@ -28,7 +28,7 @@ drill-planning work in this portfolio, at very different scales:
    greedy, POMCP. See
    [BCGT POMDP decision planning](../bcgt/decision_planning.qmd).
 
-2. **Bear Cub Gaussian-process drill-site recommender** — single-claim
+2. **Bear Cub Gaussian-process drill-site recommender**: single-claim
    placer-gold property (Cape Nome MS 1178, 24 historical drill holes
    over a 597,000 ft² patent), framed as Bayesian regression on
    (x, y) → pay-zone grade with a per-location uncertainty estimate

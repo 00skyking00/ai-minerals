@@ -1,5 +1,5 @@
 ---
-title: "External validation — BC drill-hole distribution blind test"
+title: "External validation: BC drill-hole distribution blind test"
 subtitle: "BC Golden Triangle"
 format:
   html:
@@ -200,12 +200,12 @@ for pct_thresh in [80, 90, 95, 99]:
 
 **Interpretation.** A well-behaved model should have positives flagged
 at much higher rates than negatives at every threshold. The BCGT result
-shows the lift shrinking (or reversing) at strict cutoffs — reflecting
+shows the lift shrinking (or reversing) at strict cutoffs, reflecting
 the v1 exploration-bias diagnosis applied at distribution scale.
 
 ## 7. In-distribution sanity check
 
-Holes in cells we already labeled as positive — these are *not* a blind
+Holes in cells we already labeled as positive are *not* a blind
 test, but a sanity check: if the model doesn't rank its own training
 positives well, we have a bug.
 
@@ -219,7 +219,7 @@ print(f"  median percentile: {in_tr['percentile'].median():.1f}%")
 ```
 
 Expected: in-training holes should have P near 1 and percentile near
-100 — the model trained on these cells as positives and should rank
+100. The model trained on these cells as positives and should rank
 them high. If not, something is broken in the feature pipeline or the
 label-assignment step.
 
@@ -231,13 +231,13 @@ label-assignment step.
   K-S says the distributions differ; Mann-Whitney says the direction
   isn't what we'd want.
 - At strict cutoffs (top 5 %) the model flags blind negatives at
-  roughly the same rate as blind positives — the drilled-nothing cells
+  roughly the same rate as blind positives: the drilled-nothing cells
   cluster in already-explored terrain near training positives, so they
   look as "prospective" to the model as cells that actually host ore.
 - The exploration-bias framing identified in the EastAK sensitivity
   pass (three channels by which training-label signal correlates with
   exploration history) plays out at distribution scale here: blind
-  negatives — drilled cells with no economic result — score just as
+  negatives (drilled cells with no economic result) score just as
   high as blind positives because both populations sit in already-
   explored terrain.
 
@@ -248,7 +248,7 @@ tell us whether the model's top-ranked previously-unknown cells are
 where real new discoveries would come from. That's the multi-year
 experiment no portfolio demo can run.
 
-## 8. Drill-as-feature sensitivity — does feeding drill data back into the model help?
+## 8. Drill-as-feature sensitivity: does feeding drill data back into the model help?
 
 Natural follow-up: if the 366 post-2015 drill collars carry actual
 ground-truth assays, what if we feed half of them back to the model as
@@ -263,7 +263,7 @@ hold the other half out as the blind test? Two competing hypotheses:
    same already-explored terrain that the MINFILE positives cluster in.
    Adding them as features rides the *same exploration-bias axis* the
    pseudo-supervised pipeline already has, so the new features mostly
-   replicate signal the geochem features already provide — and blind-
+   replicate signal the geochem features already provide, and blind-
    negative cells continue to score as high as blind-positives because
    they're in the same terrain.
 
@@ -271,7 +271,7 @@ The experiment: random 50/50 split of the 366 holes by `hole_id`. The
 training-side holes feed into six per-cell features
 (`n_drill_5km`, `n_intersected_5km`, `max_cu_drill_5km`,
 `max_mo_drill_5km`, `max_au_drill_5km`, `max_ag_drill_5km`). Train
-two RFs on identical MINFILE positives + pseudo-negatives — one with
+two RFs on identical MINFILE positives + pseudo-negatives: one with
 those features, one without. Score the held-out half of drill collars
 on each model.
 
@@ -408,12 +408,12 @@ line("top-5%  pos / neg flagged", f"{100*(bp_base>=t95_b).mean():.0f}% / {100*(b
 - **0 of 6 drill features land in the top-15 importance.** The
   classical pathfinder geochem (Bi/Pb/Ag/As `*_max_5km` and `*_mean_5km`)
   still dominates. The new features rank below 15 because the model
-  already gets the same regional signal — at higher coverage — from
+  already gets the same regional signal (at higher coverage) from
   AGDB4 stream-sediment + soil samples (~2,000 in AOI) versus only ~180
   training-half drill cells.
 - **Blind-positive median P** rises slightly (0.882 → 0.914), so the
   augmented model gives positives a small bump.
-- **Blind-negative median P** doesn't budge (0.975 → 0.976) — drilled-
+- **Blind-negative median P** doesn't budge (0.975 → 0.976). Drilled-
   nothing cells sit in the same explored terrain regardless of whether
   the model has access to drill features.
 - **Top-5 % threshold lift** is unchanged: 0.76× either way (negatives
@@ -432,11 +432,11 @@ been worked."
 - **Per-hole assays as positives, not features.** If the 154 blind-
   positive drill collars are in cells the training labels don't know
   about, treating their assays as additional training labels rather
-  than features is a different experiment — and it would inflate the
+  than features is a different experiment, and it would inflate the
   training-positive count, which would help training-label metrics but
   wouldn't address the blind-negative-as-high-as-blind-positive problem.
 - **Drill data as a *negative*-class refinement.** The 137 drilled-
-  nothing cells are the cleanest non-deposit labels we have — much
+  nothing cells are the cleanest non-deposit labels we have, much
   better than pseudo-negatives. Replacing the pseudo-negative pool with
   drilled-nothing cells (in the training half) would test whether the
   *negative-class definition* is what's driving the bias. Plausibly

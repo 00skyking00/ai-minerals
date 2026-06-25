@@ -47,7 +47,7 @@ The Region's `raw_paths` dict already included `magnetic` and `gravity`
 `src/ai_minerals/features/assemble.py` already samples both rasters onto the
 grid and attaches as `df["magnetic"]` and `df["gravity"]` BEFORE the placer-
 specific column build runs. So D.1's "wire magnetic + gravity into placer"
-turned out to be a verify-only task — they were already there.
+turned out to be a verify-only task. They were already there.
 
 The assemble script gets a documenting "Geophysics" section as a defensive
 check so a regression upstream surfaces as a warning rather than silently

@@ -1,5 +1,5 @@
 ---
-title: "US Western Carbonatite REE — DEEP-SEAM within-niche transfer test"
+title: "US Western Carbonatite REE: DEEP-SEAM within-niche transfer test"
 subtitle: "Does DEEP-SEAM's published advantage transfer to a second REE province?"
 date: 2026-05-11
 format:
@@ -36,7 +36,7 @@ by a factor of two to three at top-k capture rates on a Curnamona
 Province REE dataset (South Australia, 7 IOCG-style REE positives).
 We had previously established
 ([cross-region experiment](deep_seam_cross_region.qmd)) that the
-architecture's advantage does not transfer to other deposit types —
+architecture's advantage does not transfer to other deposit types:
 porphyry-Cu in Tanacross and Arizona, MVT in the Lawley continental
 cube. The remaining open question was whether the architecture
 transfers **within its REE niche**.
@@ -49,7 +49,7 @@ deviation-from-Gaussian-prior loss is designed to exploit. Other
 deposit types fail because they don't have that geometry. This
 experiment tests that hypothesis.
 
-## The dataset — US Western Carbonatite REE Belt
+## The dataset: US Western Carbonatite REE Belt
 
 Eight carbonatite-type REE deposits spread across the Western US:
 
@@ -164,8 +164,8 @@ pd.DataFrame(rows)
 **Random Forest beats DevNet at every cutoff.** The gap is 7 to 14
 percentage points across top-1 through top-30. DevNet still puts
 10 of 14 carbonatite REE positives in the top 1 percent of cells
-and 12 of 14 in the top 5 percent — that's strong absolute
-performance — but RF does better, and does it with less variance.
+and 12 of 14 in the top 5 percent (that's strong absolute
+performance), but RF does better, and does it with less variance.
 
 ## Variance across held-out positives
 
@@ -219,7 +219,7 @@ deposits have a specific feature-space anomaly geometry. Other
 deposit types fail because they don't have that geometry.
 
 This experiment falsifies the hypothesis. US Western Carbonatite
-REE deposits sit in the same deposit family as Curnamona — small
+REE deposits sit in the same deposit family as Curnamona: small
 positive set, distinctive alkaline-intrusive host rock, character-
 istic geophysical signature. **DevNet still loses to RF.**
 
@@ -244,7 +244,7 @@ dataset's feature shape after the authors' specific preprocessing."**
 | Arizona (OOF) | porphyry Cu | 191 | **23.0%** | 8.9% | RF |
 | Lawley continental MVT (2-D blocked OOF) | Zn-Pb | 2,027 | **28.4%** | 0.0% | GBM |
 
-DevNet wins on exactly one of five regions tested — its original
+DevNet wins on exactly one of five regions tested: its original
 Curnamona dataset. Two of the five regions are REE-bearing. The
 architecture's advantage doesn't even survive within the deposit
 family it was tuned for.
@@ -284,6 +284,6 @@ family it was tuned for.
 
 - Pang, G. et al. 2019. Deep Anomaly Detection with Deviation Networks. arXiv:1911.08623.
 - Luo, Z. et al. 2026. DEEP-SEAM: an explainable semi-supervised deep learning framework for mineral prospectivity mapping. *Geosci. Model Dev.* 19, 2593.
-- Long, K. R., Van Gosen, B. S., Foley, N. K., and Cordier, D., 2010. The principal rare earth elements deposits of the United States — a summary of domestic deposits and a global perspective. *USGS Scientific Investigations Report* 2010-5220.
+- Long, K. R., Van Gosen, B. S., Foley, N. K., and Cordier, D., 2010. The principal rare earth elements deposits of the United States: a summary of domestic deposits and a global perspective. *USGS Scientific Investigations Report* 2010-5220.
 - USGS REE deposit database (Open File Report 02-189), mrdata.usgs.gov/ree/.
 - Lawley, C. J. M. et al. 2022. Data-driven prospectivity modelling of sediment-hosted Zn-Pb mineral systems and their critical raw materials. *Ore Geology Reviews* 141, 104635.

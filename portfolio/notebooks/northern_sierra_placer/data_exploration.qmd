@@ -1,5 +1,5 @@
 ---
-title: "Northern Sierra placer model — data exploration"
+title: "Northern Sierra placer model: data exploration"
 subtitle: "What goes into the v1 placer-Au prospectivity index, layer by layer"
 author: "Sky King"
 date: 2026-06-01
@@ -40,10 +40,10 @@ American rivers and their tributaries.
 
 Two populations of placer with different geomorphic signatures:
 
-- **Tertiary deep-gravel** — pay strata on hillside benches above the
+- **Tertiary deep-gravel**: pay strata on hillside benches above the
   modern drainage, exposed by hydraulic mining pits. The hydraulic-pit
   polygons themselves serve as positive labels.
-- **Quaternary modern-channel** — active stream alluvium. Positive labels
+- **Quaternary modern-channel**: active stream alluvium. Positive labels
   come from MRDS placer occurrences with `dep_type` matching
   placer / alluvial / stream / gravel.
 
@@ -58,7 +58,7 @@ classifier per population and fuse the calibrated rasters per-cell.
 | 3DEP 10 m DEM | USGS 3DEP via OpenTopography | elevation, slope, TPI, the paleochannel raster's input |
 | NHDPlus HR | USGS National Hydrography Dataset | stream centerlines (NHD-REM channel reference), flow routing, arbolate sum / hydroseq |
 | MRDS occurrences | USGS Mineral Resources Data System | lode-Au seeds (filtered); Quaternary placer positive labels |
-| Orlando 2016 Hydraulic Mine Pits | USGS DOI 10.5066/F7J38QMD | 167 pit polygons — Tertiary positive labels + proximity feature |
+| Orlando 2016 Hydraulic Mine Pits | USGS DOI 10.5066/F7J38QMD | 167 pit polygons, Tertiary positive labels + proximity feature |
 | CGS 2010 geology | California Geological Survey FeatureServer | bedrock lithology + Quaternary alluvium boolean |
 | NGDB sediments | USGS National Geochemical Database | stream-sediment chemistry (Au + As + Sb pathfinders) |
 | NURE I-ICP-MS | USGS DOI 10.5066/F7765DHF | reanalyzed NURE archive (Au + Sb + Hg) |
@@ -295,7 +295,7 @@ plt.tight_layout(); plt.show()
 TPI (Topographic Position Index) is each cell's elevation relative to the
 mean of its 8-cell neighborhood. Positive TPI marks ridges and benches;
 negative TPI marks valley floors. **All seven anchor districts sit on
-benches with positive TPI** — that's the geometric signature of Tertiary
+benches with positive TPI.** That's the geometric signature of Tertiary
 deep gravels exposed by hydraulic mining, and it's why TPI feeds the
 Tertiary-terrace-likelihood composite in section 7.
 
@@ -304,10 +304,10 @@ Tertiary-terrace-likelihood composite in section 7.
 NHDPlus HR ships ~533,000 mapped flowlines covering the AOI. We use them
 two ways:
 
-- **Channel reference for the paleochannel REM** — section 6 rasterizes
+- **Channel reference for the paleochannel REM**: section 6 rasterizes
   the stream-order-≥2 subset onto the DEM grid and detrends elevation
   against the nearest channel.
-- **Flow-routed distance from lode-Au seeds** — section 5's
+- **Flow-routed distance from lode-Au seeds**: section 5's
   `distance_downstream_from_lode_m` walks the network from each MRDS
   lode seed downstream via `hydroseq` ordering, sticking the seed's
   arbolate sum onto every reach below it. The omnidirectional
@@ -339,12 +339,12 @@ print(f"NHD flowlines in AOI: {len(nhd):,} total, "
 
 The biggest blue lines on the map are the main-stem Yuba and American
 rivers cutting east-west through the AOI. The anchors hover on the
-benches above those modern channels, not in them — that's the
+benches above those modern channels, not in them. That's the
 Tertiary-incision geometry. Quaternary modern-channel placers are
 distributed along the blue lines themselves and along the major
 tributaries.
 
-## 3. Hydraulic mining pits — the Tertiary positive labels
+## 3. Hydraulic mining pits: the Tertiary positive labels
 
 Orlando et al. 2016 ([DOI 10.5066/F7J38QMD](https://doi.org/10.5066/F7J38QMD))
 mapped 167 hydraulic-mining pit polygons across the northern Sierra. These
@@ -384,12 +384,12 @@ print(f"cells with proximity == 0 (inside a pit): "
       f"{(FEATURES['hydraulic_pit_proximity_m'] == 0).sum():,}")
 ```
 
-The pit polygon cluster along the Malakoff–Dutch Flat–Iowa Hill corridor
+The pit polygon cluster along the Malakoff-Dutch Flat-Iowa Hill corridor
 is the geomorphic skeleton of the model. The proximity raster (right
 panel) decays away from each pit; cells within 5 km of any pit get the
 strongest Phase 1 contribution from this feature.
 
-## 4. Geology — CGS 2010 + Quaternary alluvium
+## 4. Geology: CGS 2010 + Quaternary alluvium
 
 California Geological Survey's 2010 statewide geologic map (the
 ArcGIS-hosted FeatureServer at
@@ -424,7 +424,7 @@ print(f"cells flagged is_quaternary_alluvium: "
 ```
 
 The Quaternary alluvium mask traces the active stream-valley floors. None
-of the seven anchor districts is in Quaternary alluvium — they're on
+of the seven anchor districts is in Quaternary alluvium. They're on
 hillsides above the modern drainage, in older terraced deposits. This
 asymmetry is why the v1 model needs the `tertiary_terrace_likelihood`
 feature in section 7: the Quaternary alluvium mask alone doesn't pick
@@ -432,7 +432,7 @@ out Tertiary-pay candidates.
 
 ## 5. MRDS lode-Au seeds + distance to lode
 
-The Mother Lode is the canonical California gold-quartz vein system —
+The Mother Lode is the canonical California gold-quartz vein system:
 a north-south belt of orogenic-Au lode deposits along the Sierran
 foothills. MRDS records ~6,300 lode-Au points after we filter on
 `dev_stat` (drop unverified prospects) and `dep_type` (drop placer; the
@@ -477,26 +477,26 @@ print(f"distance_downstream_from_lode_m: finite at only {dd_finite:,} / {len(FEA
 each lode seed via `hydroseq` ordering. It carries the right physics for
 modern-channel placers (gold flows downhill on real streams). It's NaN
 at 98.3% of cells in this AOI because the Sierra Tertiary deep-gravels
-are paleo-channels offset from the modern Mother Lode trend — they're
+are paleo-channels offset from the modern Mother Lode trend. They're
 not flow-routed downstream of the lode on the current drainage network.
 The omnidirectional `distance_to_lode_m` companion fires at every cell
 within 25 km of any lode seed regardless of routing, and it's what
 carries the lode-proximity signal at the Tertiary anchors.
 
-## 6. Paleochannel likelihood — NHD-REM + LRM + GMI composite
+## 6. Paleochannel likelihood: NHD-REM + LRM + GMI composite
 
 The paleochannel raster is a weighted composite of three geomorphic
 operators run on the DEM:
 
-- **REM (Relative Elevation Model)** — channel-relative elevation. We
+- **REM (Relative Elevation Model)**: channel-relative elevation. We
   rasterize the NHDPlus HR flowlines (stream order ≥ 2) onto the DEM
   grid, then use a Euclidean distance transform to assign each cell the
   elevation of its nearest channel cell, minus its own. High REM = the
   cell sits at or near channel-level. Weight 0.45 in the composite.
-- **LRM (Local Relief Model)** — elevation minus its 100 m focal mean.
+- **LRM (Local Relief Model)**: elevation minus its 100 m focal mean.
   Positive LRM marks humps and benches; negative LRM marks hollows.
   Weight 0.20.
-- **GMI (Geomorphic Multiscale Index)** — NaN-aware mean of geomorphon
+- **GMI (Geomorphic Multiscale Index)**: NaN-aware mean of geomorphon
   terrace mask + black-top-hat (150 m structuring element) + MEP
   (multiscale elevation percentile at 250 m) + log1p(D-infinity flow
   accumulation). Captures linear depressions, persistent low points,
@@ -538,7 +538,7 @@ The first-pass NHD-REM swap (from the prior flow-derived REM) was the
 biggest single feature-engineering improvement against the
 publicly-licensed riverrem default. **But notice the anchor-cell numbers
 above: the paleochannel composite ALONE does not light up the seven
-anchors.** Their values land at 0.17 – 0.44 — mostly below the raster
+anchors.** Their values land at 0.17 - 0.44, mostly below the raster
 median (0.40). The composite scores modern-channel-proximity (high REM at
 canyon bottoms, low LRM in linear hollows); Tertiary deep-gravels sit on
 benches ABOVE the modern drainage. The composite is correctly capturing
@@ -546,7 +546,7 @@ modern paleo-channel candidates and isn't an anchor-specific feature.
 
 That mismatch is what drove the next feature.
 
-## 7. Tertiary terrace likelihood — the bench-above-drainage signature
+## 7. Tertiary terrace likelihood: the bench-above-drainage signature
 
 The `tertiary_terrace_likelihood` feature is purpose-built for the
 Sierra deep-gravel geometry. It's a geometric mean of three signals:
@@ -593,20 +593,20 @@ for name, geom in zip(ANCHORS_GDF["name"], ANCHORS_GDF.geometry):
 ```
 
 The hot bands on the map are the interstream ridges between the Yuba,
-Bear, and American river canyons — exactly where the Tertiary
+Bear, and American river canyons, exactly where the Tertiary
 auriferous-gravel paleo-channels are exposed. The 167 hydraulic-pit
 polygons (dark red outlines) cluster tightly on those bands. The anchor
 percentiles are dramatically better than the paleochannel composite's:
 most anchors now rank in the top decile on this single feature alone.
 
-## 8. Geochemistry — NGDB + NURE + Hawkes catchment
+## 8. Geochemistry: NGDB + NURE + Hawkes catchment
 
 Stream-sediment chemistry from two sources:
 
-- **NGDB** (USGS National Geochemical Database) — heterogeneous archive
+- **NGDB** (USGS National Geochemical Database): heterogeneous archive
   of legacy stream-sediment samples. Coverage in the northern Sierra is
   dense in some quads, thin in others.
-- **NURE I-ICP-MS** (Smith 2006, DOI 10.5066/F7765DHF) — reanalysis of
+- **NURE I-ICP-MS** (Smith 2006, DOI 10.5066/F7765DHF): reanalysis of
   the National Uranium Resource Evaluation archive by modern inductively-
   coupled-plasma mass spectrometry. Adds Au + Sb + Hg coverage at
   semi-quantitative limits.
@@ -614,7 +614,7 @@ Stream-sediment chemistry from two sources:
 We aggregate per-cell using Hawkes 1976 dual-decay catchment dilution:
 each cell's score is a weighted mean of upstream samples, with the weight
 falling off both by network distance (catchment travel) and by drainage
-area (the "dilution correction" — a sample in a tiny tributary carries
+area (the "dilution correction": a sample in a tiny tributary carries
 more local information than the same value in the main stem).
 
 ```{python}
@@ -657,7 +657,7 @@ upstream Au accumulation. The catchment-Au Hawkes feature is the geochem
 analog of the lode-distance features: it integrates the network signal
 that each cell's catchment captures, rather than testing the cell itself.
 
-## 9. Phase 1 weighted index — putting it together
+## 9. Phase 1 weighted index: putting it together
 
 The Phase 1 scorer combines the features above (plus SPI band, TWI,
 ksn, geomorphon terrace mask, slope) into a single weighted-sum index:
@@ -665,19 +665,20 @@ ksn, geomorphon terrace mask, slope) into a single weighted-sum index:
 | Feature | Weight | Direction | Cap |
 |---|---|---|---|
 | `distance_to_lode_m` | 0.20 | inverse | 15,000 m |
-| `paleochannel_likelihood` | 0.18 | direct | — |
+| `paleochannel_likelihood` | 0.18 | direct | none |
 | `hydraulic_pit_proximity_m` | 0.18 | inverse | 5,000 m |
-| `tertiary_terrace_likelihood` | 0.15 | direct | — |
-| `catchment_au_hawkes` | 0.13 | direct | — |
-| `is_quaternary_alluvium` | 0.05 | boolean | — |
+| `tertiary_terrace_likelihood` | 0.15 | direct | none |
+| `catchment_au_hawkes` | 0.13 | direct | none |
+| `is_quaternary_alluvium` | 0.05 | boolean | none |
 | `distance_downstream_from_lode_m` | 0.03 | inverse | 25,000 m |
-| `twi` | 0.03 | direct | — |
-| `spi_band` | 0.02 | bandpass | — |
-| `geomorphon_terrace_mask` | 0.02 | boolean | — |
-| `slope` | 0.01 | inverse | — |
+| `twi` | 0.03 | direct | none |
+| `spi_band` | 0.02 | bandpass | none |
+| `geomorphon_terrace_mask` | 0.02 | boolean | none |
+| `slope` | 0.01 | inverse | none |
 
-Each feature is robust-min-max'd to [0, 1] using p1/p99 clipping, then
-the weighted sum is renormalized to [0, 1].
+Each feature is min-max scaled to [0, 1] using p1/p99 clipping (so
+outliers don't stretch the range), then the weighted sum is
+renormalized to [0, 1].
 
 ```{python}
 #| label: phase1-score
@@ -722,7 +723,7 @@ The second is a **held-out secondary set**: 13 Tertiary + 5 Quaternary
 historical placer districts named in Lindgren's USGS Professional Paper
 73 (1911) but NOT in the anchor list, hand-geocoded into a separate
 fixture and never seen by any model or scorer. The anchor-overfitting
-test: do these unseen districts also land near the top? Yes —
+test: do these unseen districts also land near the top? Yes,
 Tertiary median decile = 0 (matches the anchors), 11 / 13 in top quintile.
 
 ```{python}
@@ -783,14 +784,14 @@ for s in sets:
           f"top_decile={top_d}/{len(sub)}")
 ```
 
-The anchor set (red) sits entirely at d0 — the gate passes. The
+The anchor set (red) sits entirely at d0. The gate passes. The
 Lindgren Tertiary held-out set (blue) tracks the anchors closely: median
 d0, with the bulk in d0 and d1. The 2 / 13 outliers (Camptonville and
 Brandy City, both at d6) sit at the northern edge of the AOI where the
-`distance_to_lode_m` cap penalizes the perimeter — they're real
+`distance_to_lode_m` cap penalizes the perimeter. They're real
 geological signal, not feature-engineering bugs.
 
-The Quaternary held-out set (orange) ranks lower — median d2. Phase 1 is
+The Quaternary held-out set (orange) ranks lower: median d2. Phase 1 is
 currently Tertiary-tuned because all seven training anchors are Tertiary
 hydraulic-mining districts. The v2 supervised pass trains one classifier
 per population, and the Quaternary branch will weight the modern-channel
@@ -798,7 +799,7 @@ features (SPI band, catchment-Au Hawkes, the flow-routed
 distance_downstream, the Quaternary-alluvium mask) appropriately on its
 own 573 MRDS placer positives.
 
-## What's next — v2
+## What's next: v2
 
 The v2 pass trains a per-population supervised model on this same feature
 stack:
@@ -807,20 +808,21 @@ stack:
    one-class baseline that doesn't assume the unlabeled set is negative.
 2. **Random Forest** and **LightGBM** as supervised baselines (using PU
    bagging's posterior as a pseudo-negative weighting).
-3. **Stacking meta-learner** — logistic regression over (RF, LGBM)
+3. **Stacking meta-learner**: logistic regression over (RF, LGBM)
    out-of-fold predictions.
 4. **Isotonic calibration** via `CalibratedClassifierCV` (with Platt
    sigmoid fallback when a population has fewer than 30 positives).
-5. **Two-population fusion** — calibrated Tertiary and Quaternary rasters
+5. **Two-population fusion**: calibrated Tertiary and Quaternary rasters
    combined per-cell with `np.maximum`, written as the deliverable
    GeoTIFF.
 
-Every stage uses the same 20 km spatial-block cross-validation iterable —
+Every stage uses the same 20 km spatial-block cross-validation iterable,
 including the stacking meta-learner's `cv` argument, so the meta-learner
 itself never sees in-block test positives during fit. The leakage guards
 on `distance_downstream_from_lode` (placer-flagged record refusal) and
 on `catchment_au_hawkes` (per-fold recompute with held-out-sample mask)
-keep the labeled-feature pipeline honest under spatial-block CV.
+keep the labeled-feature pipeline free of test-set leakage under
+spatial-block CV.
 
 When v2 lands, this notebook becomes the "feature stack" appendix to the
 polished
