@@ -235,6 +235,8 @@ per-claim source trail is that every label the model trains on, and
 every parcel goldbug ranks, can be traced back to the scanned card or
 report it came from.
 
+![The per-claim source trail in goldbug: the Honey claim (MS 1181) clicked open, showing its model-estimated placer likelihood and, under Sources, the knowledge-graph records behind it: the KARDEX card for King Mountain / Nekula Gulch, then historical USGS citations (Pomplun 1905, Hess 1906, Brooks 1907, Collier 1908, and more), each a link back to the document it came from. The map coloring is the presence-MPM surface, not a grade.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)
+
 Where this is headed is a loop: fold more of the dark-data corpus into
 the graph, and let the graph feed the prospectivity models better
 labels and richer covariates than the public occurrence files alone

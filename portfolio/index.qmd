@@ -254,7 +254,7 @@ by turn.
 ::: {.g-col-12}
 ### [8. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
+[![The Cape Nome prospectivity surface in goldbug, with the Honey claim (MS 1181) clicked open: its model-estimated placer likelihood, and under Sources the knowledge-graph records behind it, the KARDEX card and the historical USGS citations. Every parcel is scored and colored by who can legally stake it.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
 
 The closing chapter, where the rest of the portfolio comes together.
 My family owns a patented placer claim at Cape Nome, Bear Cub
