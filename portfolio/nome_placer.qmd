@@ -6,7 +6,7 @@ sidebar: nome_placer
 
 [← back to portfolio map](index.html)
 
-![Bear Cub MS 1178 and Early Bear MS 1180 placed against the Tuck 1942 Sec. M-5 cross-section, at the IfSAR elevations where the claims actually sit. Bear Cub is on the ascent to the Third Beach high bench; the buried Third Beach line runs under the modern hillside about 85 ft down.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)
+![The placer-prospectivity surface goldbug now serves for the Cape Nome district: each patented claim shaded by the terrain-and-geology model's estimated placer likelihood, green for the ground it ranks most favorable down to red for the least, over the historical USGS topo with Norton Sound and the Nome townsite below. The Prospect Navigator panel at right cycles the open-land and patented parcels in score order. The model ranks the ground, it does not call grade on any one claim; the live click-a-claim tool is at [goldbug](https://johnsondevco.com/goldbug/).](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_map.png)
 
 ## After the first seven chapters: can it scale to a district?
 
@@ -17,6 +17,8 @@ where this whole project started. After building the first seven pieces
 of the portfolio, I began to see how they might come together and run
 at the scale of a whole mining district rather than one claim. I began
 to wonder how far the parts would stretch.
+
+![Bear Cub MS 1178 and Early Bear MS 1180 placed against the Tuck 1942 Sec. M-5 cross-section, at the IfSAR elevations where the claims actually sit. Bear Cub is on the ascent to the Third Beach high bench; the buried Third Beach line runs under the modern hillside about 85 ft down.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_stratigraphic_v6.png)
 
 Could the automated pipeline I built for that one claim (Chapter 1) be
 pointed at the entire Nome district? Could I marry it to the regional
