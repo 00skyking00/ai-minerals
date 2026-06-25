@@ -308,7 +308,7 @@ by turn.
 ::: {.g-col-12}
 ### [8. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-[![Bear Cub (MS 1178), the family claim, under the placer surface goldbug serves: a Tuck 1942 historical sheet overlaid and the Dry Gulch claim block labeled, every parcel colored by its model-estimated placer likelihood.](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_bearcub_tuck.png)](nome_placer.qmd)
+[![Bear Cub (MS 1178), the family claim, under the placer surface goldbug serves: a Tuck 1942 historical sheet overlaid and the Dry Gulch claim block labeled, every parcel colored by its model-estimated placer likelihood.](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_bearcub_tuck.png){width=50%}](nome_placer.qmd)
 
 The closing chapter, where the rest of the portfolio comes together.
 My family owns a patented placer claim at Cape Nome, Bear Cub
