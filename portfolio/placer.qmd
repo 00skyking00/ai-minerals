@@ -43,8 +43,8 @@ Two caveats to surface up front so the headline numbers below are
 read correctly. First, the v3.6 Tertiary out-of-fold AUC of 0.993
 and anchor-capture AUC-PA of 0.998 include 7 to 15 percentage
 points of polygon-rasterization neighbor-cell inflation. The
-Tertiary positive labels are the 158 Orlando hydraulic-pit
-polygons rasterized to the 250 m grid (~2,700 weighted cells);
+Tertiary positive labels are the Orlando hydraulic-pit
+polygons rasterized to the 250 m grid (2,716 cells, 1,783 by weight);
 cells immediately adjacent to a positive inherit the same feature
 values, and the model learns that neighborhood. The leak-free
 Tertiary AUC sits in the 0.85 to 0.97 range. Second, the v3.7.0
@@ -253,15 +253,16 @@ between real signal and residual leak.
 
 ## v3.6: rasterizing the Tertiary labels
 
-The v3 Tertiary label set was 158 cells, the centroid of each hydraulic
-mine pit polygon rasterized to the 250 m grid. Each polygon contributes
-exactly one positive even when it covers ten cells of bedrock. v3.6
-rasterizes the full polygon: every cell whose 250 m square touches a
-pit polygon counts as a positive, with a weight equal to the fractional
-overlap (1.0 for interior cells, ~0.5 for boundary cells). The Tertiary
-positive count grows from 158 binary cells to 2,709 weighted cells
-(~17x). Quaternary labels are unchanged because Quaternary positives
-were never the bottleneck.
+The Tertiary label set went through three steps. v2 took the centroid
+of each hydraulic mine pit polygon, one positive cell per polygon even
+when the polygon covers ten cells of bedrock, for 158 cells. v3 added
+the MRDS placer records reclassified as Tertiary, bringing the count to
+292 cells. v3.6 then rasterizes the full polygon: every cell whose 250 m
+square touches a pit polygon counts as a positive, weighted by its
+fractional overlap (1.0 for interior cells, ~0.5 for boundary cells).
+That takes the Tertiary positive set to 2,716 cells, summing to 1,783 by
+fractional weight. Quaternary labels are unchanged because Quaternary
+positives were never the bottleneck.
 
 The headline number jumps. The v3.6 Tertiary stacking out-of-fold AUC
 lands at 0.993, up from v3's 0.970. The anchor-capture AUC-PA, the
@@ -580,7 +581,7 @@ parcel footprint.
   story so far.
 - **The Tertiary v3.6 anchor-capture AUC-PA of 0.998 (and stacking
   out-of-fold AUC of 0.993) is the headline number.** The polygon-rasterization
-  jump from 158 binary centroid cells to 2,709 weighted cells inflates
+  jump from 158 binary centroid cells to 2,716 rasterized cells inflates
   both metrics: buffered cells around each pit centroid inherit the same
   positive label and the same neighborhood feature values, so the model
   is partly memorizing pit polygons rather than learning placer
@@ -605,7 +606,7 @@ These are the audits I haven't run yet that would harden the v3.6
 result if a reviewer asked, ordered roughly by what closes the
 biggest unanswered concern first.
 
-- **Whether the v3.6 polygon-rasterization actually inflates the OOF AUC, or genuinely adds signal:** retrain v3.6 with centroid-only positive labels (drop the buffer-cell expansion that grew Tertiary positives from 158 binary cells to 2,709 weighted cells), keep the same stacked pipeline (RF + LGBM + XGB into a logistic-regression meta-learner, isotonic calibration, 20 km spatial-block CV), compare the resulting stacking OOF AUC to v3.6's 0.993. If centroid-only lands near v3's 0.970 the buffer expansion is incremental signal; a sharp drop would say the 0.993 was label-propagation inflation.
+- **Whether the v3.6 polygon-rasterization actually inflates the OOF AUC, or genuinely adds signal:** retrain v3.6 with centroid-only positive labels (drop the buffer-cell expansion that grew Tertiary positives from 158 binary cells to 2,716 rasterized cells), keep the same stacked pipeline (RF + LGBM + XGB into a logistic-regression meta-learner, isotonic calibration, 20 km spatial-block CV), compare the resulting stacking OOF AUC to v3.6's 0.993. If centroid-only lands near v3's 0.970 the buffer expansion is incremental signal; a sharp drop would say the 0.993 was label-propagation inflation.
 - **Whether the dominant `hydraulic_pit_proximity_m_buffered` feature carries disproportionate weight on v3.6 specifically:** rerun `scripts/northern_sierra_placer/v3_ablation_no_pit_proximity.py` against the v3.6 stacking ensemble, not only the v3 RF + XGB pair from the earlier ablation. The v3 result showed 10.5 pp RF drop and 11.8 pp XGB drop when the feature was removed (intermediate range; neither pure incremental signal nor pure leakage shortcut). A much larger drop on v3.6 would imply the polygon-rasterization made the model lean harder on the feature.
 - **Whether the model generalizes across the Sierra belt, not just inside Northern Sierra:** run `scripts/northern_sierra_placer/calaveras_transfer.py` (scripted but not yet executed) to train on Northern Sierra v3.6 calibrated labels and score the Mother Lode / Calaveras County AOI cell-for-cell. Compare to the Mother Lode v3 stacking OOF (0.85) for a within-province transfer-loss number; the Klamath cross-province test scored 0.58 on the lode side. Calaveras is the same orogenic-Au belt but a different watershed system.
 - **Whether v3.6 stays calibrated at the operational top-X% probability bins goldbug actually consumes:** stratified Brier score and per-bin ECE at the top 1% / 5% / 10% probability quantiles separately per population, instead of the overall ECE we already report (Tertiary post-calibration 0.004, Quaternary post-calibration 0.000). Overall ECE can mask tail mis-calibration where the highest-confidence predictions diverge from the observed positive rate.
