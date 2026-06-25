@@ -36,6 +36,8 @@ result and some with a candid "not yet." It is the closing synthesis:
 the regional models, the drill-record machinery, the land-law tool, and
 the dark-data corpus, all turned on one district at once.
 
+![The Cape Nome claim block in goldbug: the five Tuck 1942 survey sheets (A through E) georeferenced under the placer surface goldbug now serves, the colored parcels its per-cell likelihood, Norton Sound and the upland topography around them. The 1942 hand-drawn record and the model's ranking register on the same ground.](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_tuck_ae.png)
+
 ## How the earlier chapters answer the questions
 
 Most of the answers already exist in the earlier chapters. Cape Nome is
@@ -115,6 +117,8 @@ is now the surface served on goldbug: the live tool ranks each patented
 claim and each open parcel by it, on one calibrated scale. The
 knowledge-overlay map it replaced is the analysis that first told me
 the beach-line picture was ranking the wrong thing.
+
+![Bear Cub (MS 1178), the family claim, centered under the served placer surface in goldbug, with a Tuck 1942 historical sheet overlaid at 70 percent opacity and the Dry Gulch claim block labeled. Each parcel is colored by the model-estimated placer likelihood; the surface ranks the ground, it does not call grade on any one cell.](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_bearcub_tuck.png)
 
 ![The knowledge-overlay surface of the district's beach lines, draped over the Cape Nome coast: my first map, and the one that scores below chance against the recorded occurrences because the recorded gold is largely up the creeks. It is a clean picture of the surface beaches; it is also the map the terrain-and-geology model, now served on goldbug, replaced.](data/derived/portfolio_charts/thumbs/ch1_nome_placer.png)
 
@@ -239,7 +243,7 @@ per-claim source trail is that every label the model trains on, and
 every parcel goldbug ranks, can be traced back to the scanned card or
 report it came from.
 
-![The per-claim source trail in goldbug: the Honey claim (MS 1181) clicked open, showing its model-estimated placer likelihood and, under Sources, the knowledge-graph records behind it: the KARDEX card for King Mountain / Nekula Gulch, then historical USGS citations (Pomplun 1905, Hess 1906, Brooks 1907, Collier 1908, and more), each a link back to the document it came from. The map coloring is the presence-MPM surface, not a grade.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)
+![The per-claim source trail in goldbug: the Honey claim (MS 1181) opened to its knowledge-graph record, with the co-located ARDF and Cobb occurrences (NM237 through NM267), the chain of title, and the recorded owners, each a link back to the source behind it. The graph is assembled by fossick from the KARDEX cards, the Tuck sheets, and the MAS, ARDF, and survey records.](data/derived/portfolio_charts/thumbs/ch1_nome_mpm_kg_honey.png)
 
 ![The per-entity wiki: every claim, document, and operator in the knowledge graph gets its own page, with its sources listed and its links to neighboring records.](data/derived/portfolio_charts/thumbs/ch1_nome_kg_wiki_claim.png)
 
