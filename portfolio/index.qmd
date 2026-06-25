@@ -33,6 +33,60 @@ hobbies: title research. goldbug pairs the ML signal with public
 land law: it ranks the parcels you can legally stake, not the ones
 already withdrawn, patented, or under active claim.
 
+What began as one family's claim turned into a question about
+two scales. The regional models answer an explorer's question:
+which areas, across a district, are worth a look? They learn
+from public data on a grid a few hundred meters across, and
+across several regions and commodities (porphyry copper in
+eastern Alaska and Arizona, lode gold in the California Mother
+Lode) the signal survives the strict test that holds out whole
+spatial blocks: the Mother Lode gold model scores about 0.85
+out of 1.0, where 0.5 is a coin flip, and in the porphyry-copper
+regions the top 1 percent of ranked ground holds more than 20
+times the deposits chance would put there. A single prospector
+or family operation asks something narrower: not which area,
+but what is on *this* claim, and where on it should I drill? A
+public-data map at a few hundred meters per cell cannot answer
+that. It takes the record that exists claim by claim, old
+production figures, individual drill-hole grades, where the
+paystreaks run, whether a claim is already worked out,
+almost all of it buried in early-1900s paper. For Nome,
+that record still exists, and the open question is whether
+it can drive a prediction at the scale of a single claim.
+
+So far the picture splits cleanly. Two things work. At the
+district scale, the explorer's question, the Nome placer model
+scores 0.733 against 0.444 for a naive map that just follows
+the old beach lines, so it is finding real signal, the same
+kind of result as the regional work on a finer grid suited to
+placer ground. And at the scale of one claim, the per-hole
+arithmetic transfers: Bear Cub's grades, recovered from
+twenty-four early-1900s drill logs, match two mining
+engineers' independent analyses within about six
+percent, which means a stack of fragile paper logs can become
+numbers you can actually use.
+
+One thing does not work yet, and it is the interesting one.
+Predicting grade *within* a claim, from only a couple dozen
+holes, is still beyond the model: with that little data it can
+tell you where it is uncertain but cannot pin the grade
+between holes (its leave-one-out skill is no better than
+guessing the average). The per-claim dark data that should
+sharpen this, production and pay-streak depth across
+neighboring claims, is in the knowledge graph but not yet in
+the model. The lode model failed outright: it looked
+strong in a small box and collapsed once I scored the
+whole district. So the district-scale prospectivity
+holds up, and so does reading the grades off the old
+logs. What is still beyond the model is claim-level
+grade prediction from sparse, granular data.
+
+That dark-data work is the other half of the project. A
+century of drill logs, claim cards, and assay reports sits in
+archives as scans and paper. A knowledge graph turns them into
+structured evidence the model can use, and into the source
+trail behind each claim in goldbug.
+
 ## Methodology
 
 Here is my attempt at a reasonable methodology:
