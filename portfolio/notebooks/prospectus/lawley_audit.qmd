@@ -23,7 +23,7 @@ MIT license).
 We reproduced the experiment on a 16 GB laptop, then layered three
 orthogonal tightenings on the published evaluation plus a like-for-
 like DevNet comparison. This page is the parallel to the
-[DEEP-SEAM official-code audit](deep_seam_audit.qmd) — same shape,
+[DEEP-SEAM official-code audit](deep_seam_audit.qmd): the same shape
 applied to the Lawley pipeline.
 
 Three methodological findings + three performance findings, in
@@ -55,14 +55,14 @@ drop list.
 | Phase 1b leak-corrected (drop both `Training_MVT_*`) | **0.9721** |
 
 The geological, geophysical, and proximity features carry the model
-to 0.972 on their own — that's real signal; the additional 0.024 is
+to 0.972 on their own. That is real signal; the additional 0.024 is
 the leak.
 
 ## Finding 2: 1-D latitude-band CV vs 2-D quantile-block CV
 
 The published evaluation uses 72 latitude bins quantized on
 positive-deposit latitudes, grouped into 6 folds. Held-out cells
-share their latitude band but not their longitude — i.e., the test
+share their latitude band but not their longitude: the test
 fold is a horizontal strip that can contain cells whose geographic
 neighbors immediately east or west are in the training set. The
 neighbor-expansion step in the feature pipeline propagates positive
@@ -100,9 +100,9 @@ df
 
 **Quantified contribution: 9.0 percentage points of held-out AUC.**
 
-The 2-D number is the more honest within-continent generalization
-measurement. The 9-pp gap quantifies how much of the 1-D number was
-longitudinal spatial leakage rather than generalization. It's
+The 2-D number measures within-continent generalization without the
+longitudinal leakage the 1-D scheme allows. The 9-pp gap is how much
+of the 1-D number was that leakage rather than generalization. It's
 larger than the label-leak effect from Finding 1.
 
 For comparison with the DEEP-SEAM audit: Lawley uses 1-D blocking;
@@ -116,7 +116,7 @@ same direction.
 The published model is trained on the union of all three continents
 and evaluated on held-out latitude bands within that combined cube.
 The experiment was never run as a held-out cross-continent transfer
-test — train on one continent, predict on another.
+test: train on one continent, predict on another.
 
 We ran both directions:
 
@@ -162,9 +162,9 @@ Stacking the three methodological findings:
 | 1-D vs 2-D spatial blocking | 9.0 pp |
 | Within-continent vs cross-continent (USCAN → Aus) | ~16 pp |
 
-The honest range for "this model predicts deposits in held-out
-geological context" is **0.71 to 0.87**, not 0.983. Still useful —
-top-1% capture of 6-28% is informative — but it's not the
+The range for "this model predicts deposits in held-out
+geological context" is **0.71 to 0.87**, not 0.983. That is still
+useful: a top-1% capture of 6-28% is informative. It is not the
 headline-grade benchmark the published 0.983 suggests.
 
 ## Performance characterization
@@ -210,7 +210,7 @@ the per-cell intersection check.
 ### 3. `pd.factorize` replaces dict-replace categorical encoding (~100× speedup)
 
 The published `convert_categorical` used
-`df[col].replace(dict).astype("uint8")` — Python-level row iteration
+`df[col].replace(dict).astype("uint8")`: Python-level row iteration
 on a 5 M-row column takes ~5 minutes per column. `pd.factorize` is
 the C-level implementation of the same operation. Replacing the
 call dropped per-column encoding from ~5 minutes to under one second.
@@ -254,13 +254,13 @@ number is partly evaluation-inflated:
 - ~0.024 of it comes from a label leak in the published feature
   configuration.
 - ~0.090 of it comes from 1-D vs 2-D spatial blocking.
-- The model does not generalize across continents — the harder
+- The model does not generalize across continents; the harder
   direction collapses to AUC 0.557, barely above random.
 
 The geological insight in the paper is intact; what's overstated is
 the headline number's claim to generalization. For exploration use,
 the difference between "0.983 AUC under random-adjacent CV" and
-"0.71-0.87 AUC under honest spatial isolation" is the difference
+"0.71-0.87 AUC under enforced spatial isolation" is the difference
 between "this model can highlight regions you have already
 characterized" and "this model can predict deposits in regions you
 haven't drilled yet."

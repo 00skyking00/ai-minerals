@@ -19,10 +19,12 @@ five independent regions covering four deposit types and two
 continents. The deviation-network architecture (or DevNet, the
 neural-network family DEEP-SEAM is built on) wins on exactly one:
 its tuning dataset. Classical tree-based methods (Random Forest or
-gradient boosting) win on the other four by 7 to 37 percentage
-points of top-1% capture (the fraction of held-out positives the
-model places in the top 1% of cells, which is the standard score
-mining geologists use when ranking exploration targets).
+gradient boosting) win on the other four by roughly 9 to 28
+percentage points of top-1% capture (the fraction of held-out
+positives the model places in the top 1% of cells, which is the
+standard score mining geologists use when ranking exploration
+targets). The gap is widest on the Lawley benchmark and narrowest
+on Tanacross.
 
 ![Top-1% capture rate by region: tree-based methods (green) win four of five regions; DEEP-SEAM (red) wins only its tuning dataset.](./data/derived/portfolio_charts/cross_region_top1.png)
 

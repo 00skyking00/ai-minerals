@@ -243,7 +243,7 @@ destination.
 - The single-claim deep dive (Bear Cub): [bearcub/bear_cub.html](https://johnsondevco.com/bearcub/bear_cub.html)
 - The regional ML pipelines this grew out of: [Regional prospectivity](regional.html)
 - The northern Sierra placer chapter (parallel placer work): [placer.html](placer.html)
-- Where the Cape Nome model could go next (Bluff, Solomon, Council): [cross_region.html](cross_region.html)
+- Where the Cape Nome model could go next: adjacent Seward Peninsula districts like Bluff, Solomon, and Council (not yet modeled).
 
 ## Appendix: the numbers and the protocol {#appendix}
 

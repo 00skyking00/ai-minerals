@@ -120,12 +120,15 @@ there.
 ::: {.g-col-12 .g-col-md-9}
 ### [3. goldbug (live tool: Cape Nome + CA Mother Lode)](https://johnsondevco.com/goldbug/goldbug.html)
 
-The live click-a-claim tool. Serves the Cape Nome district raster
-from Chapter 8 with per-claim popups (Honey reads TB 98, Molasses
-TB 92, Bear Cub buried_BL 82 under the 2026-06-17 p75 aggregation)
-and serves the California Mother Lode model from Chapter 4 with
-open-land filtering for individual prospectors. Same map, two
-regions.
+The live click-a-claim tool. Serves the Cape Nome placer model from
+Chapter 8: a terrain-and-geology model that ranks each patented
+claim and each open parcel on one calibrated scale, reported as a
+model-estimated likelihood rather than a 0-100 grade. It holds at
+AUC 0.733 under spatial-block cross-validation, and 0.741 once a
+300-meter buffer separates the held-out ground from the training
+ground. It also serves the California Mother Lode model from
+Chapter 4 with open-land filtering for individual prospectors. Same
+map, two regions.
 
 The Mother Lode model from Chapter 4 is interesting on its own,
 but it doesn't tell a prospector where to actually go. goldbug
