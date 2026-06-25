@@ -24,7 +24,11 @@ ranking and 0.5 is random) and top-k% capture rates. Each region is
 its own geologically distinct problem and tests whether the approach
 holds up.
 
+::: {layout-ncol=2}
 ![Tanacross (eastern Alaska) porphyry-Cu prospectivity: random forest output across the bounded study area. Yellow cells are the highest-ranked; red crosses are the 56 porphyry positives from the Alaska Resource Data File (ARDF), held out for evaluation.](./data/derived/eastak/fig_prospectivity_tanacross.png)
+
+![Arizona (southeastern porphyry belt) porphyry-Cu prospectivity: the same random forest pipeline scored leak-free out-of-fold across the bounded study area. Red crosses are the 191 Cox-Singer-cleaned porphyry-Cu positives from the USGS Mineral Resources Data System (MRDS), held out for evaluation. The top 1% of ranked cells captures 23.0% of the positives, a 23× enrichment over random sampling.](./data/derived/arizona/fig_prospectivity_arizona.png)
+:::
 
 ## The results
 
@@ -294,6 +298,8 @@ recipe. On Arizona the top features are AGDB4 Cu and Mo
 stream-sediment, porphyry-host intrusive lithology, and
 distance-to-fault, which is the canonical porphyry-Cu recipe.
 Reasonable model behavior.
+
+![Tanacross porphyry-Cu model: top 15 features by mean absolute SHAP value (SHAP attributes each prediction back to the inputs that drove it). Stream-sediment pathfinder geochemistry dominates the ranking: silver, tellurium, molybdenum, copper, antimony, gold, and lead within a 5-km radius, which is the canonical porphyry-Cu pathfinder halo. Magnetic intensity is the one geophysical feature in the top 15. This is the same model drawn in the Tanacross prospectivity map above.](./data/derived/eastak/fig_shap_tanacross.png)
 
 Placer prospectivity is a different problem from the four lode pipelines
 in this chapter (two-population fusion, hydraulic-pit positives, isotonic
