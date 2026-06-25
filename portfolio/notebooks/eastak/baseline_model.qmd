@@ -67,7 +67,7 @@ print(f"Cells near any mineral occurrence: {int(df['any_mineral_occurrence'].sum
 
 ## 2. Pseudo-negatives — sampling strategy and why
 
-Two defensible definitions of "not a deposit":
+There are two ways to define "not a deposit":
 
 1. **Pseudo-negatives** — random cells drawn from the pool of cells that are
    (a) not within 5 km of any known MRDS/ARDF occurrence, and (b) of the

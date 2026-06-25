@@ -315,14 +315,17 @@ learning. The four-region experiment says, concretely, that they
 are not yet ready as a drop-in replacement for Random Forest or
 gradient boosting on standard regional prospectivity workflows.
 
-The architecture has a specific niche — small-positive datasets
+The architecture has a specific niche (small-positive datasets
 with heavy upstream feature decomposition that genuinely shapes the
-data into anomaly form — and outside that niche they underperform
+data into anomaly form), and outside that niche they underperform
 2010-vintage tree-based methods by 15 to 37 percentage points of
-AUC. For an exploration company evaluating which model to deploy on
-a target region, knowing where the architecture works and where it
-doesn't is more useful than a blanket claim that the new method is
-better.
+AUC in this 2x2 controlled experiment. (The chapter's headline 9 to
+28 figure measures something different: top-1% capture in the
+five-region scorecard, not the AUC gap from this controlled 2x2
+design.) For an exploration company evaluating which model to deploy
+on a target region, knowing where the architecture works and where
+it doesn't is more useful than a blanket claim that the new method
+is better.
 
 The cleanest follow-up experiment, queued for a later milestone, is
 to apply the same architecture to a *different* REE province (Mt

@@ -122,8 +122,8 @@ locations but also surfaces several lesser-explored areas near
 Trinity County and the upper Yuba drainage that match the geological
 recipe without the same historical drilling density. The result
 demonstrates that a small public-data feature stack plus a classical
-tree-based model produces a defensible within-region prospectivity
-map.
+tree-based model produces a within-region prospectivity
+map that holds up under spatial-block validation.
 
 ## Interesting finding 2: the cross-region transfer test failed informatively
 
