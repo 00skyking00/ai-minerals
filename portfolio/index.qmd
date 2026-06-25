@@ -48,11 +48,11 @@ or family operation asks something narrower: not which area,
 but what is on *this* claim, and where on it should I drill? A
 public-data map at a few hundred meters per cell cannot answer
 that. It takes the record that exists claim by claim, old
-production figures, individual drill-hole grades, the depth of
-the pay streak, almost all of it buried in century-old paper.
-Nome is the one place I hold that record, and whether it can
-drive a claim-level prediction is the open question I am
-chasing.
+production figures, individual drill-hole grades, where the
+paystreaks run, whether a claim is already worked out,
+almost all of it buried in early-1900s paper. For Nome,
+that record still exists, and the open question is whether
+it can drive a prediction at the scale of a single claim.
 
 So far the picture splits cleanly. Two things work. At the
 district scale, the explorer's question, the Nome placer model
@@ -61,8 +61,8 @@ the old beach lines, so it is finding real signal, the same
 kind of result as the regional work on a finer grid suited to
 placer ground. And at the scale of one claim, the per-hole
 arithmetic transfers: Bear Cub's grades, recovered from
-twenty-four drill logs run between 1919 and 1955, match two
-mining engineers' independent analyses within about six
+twenty-four early-1900s drill logs, match two mining
+engineers' independent analyses within about six
 percent, which means a stack of fragile paper logs can become
 numbers you can actually use.
 
@@ -74,24 +74,18 @@ between holes (its leave-one-out skill is no better than
 guessing the average). The per-claim dark data that should
 sharpen this, production and pay-streak depth across
 neighboring claims, is in the knowledge graph but not yet in
-the model. The Cape Nome lode is a clean negative on top of
-that: a structural model looked strong in a small box and
-collapsed once I scored the whole district. So the
-district-scale prospectivity holds up, and so does reading
-the grades off the old logs; what is still beyond the model
-is claim-level grade prediction from sparse, granular data,
-and folding in the dark data is the path I am taking next.
+the model. The lode model failed outright: it looked
+strong in a small box and collapsed once I scored the
+whole district. So the district-scale prospectivity
+holds up, and so does reading the grades off the old
+logs. What is still beyond the model is claim-level
+grade prediction from sparse, granular data.
 
 That dark-data work is the other half of the project. A
 century of drill logs, claim cards, and assay reports sits in
 archives as scans and paper. A knowledge graph turns them into
 structured evidence the model can use, and into the source
 trail behind each claim in goldbug.
-
-From here it is more of the same, done carefully: more
-regions, each re-validated from scratch rather than assumed to
-carry over, and eventually something a working prospector could
-sit down and use.
 
 ## Methodology
 
