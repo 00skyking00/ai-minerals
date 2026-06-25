@@ -86,7 +86,7 @@ distributions (not the simulated ones we use), and the practical
 constraint that drill rigs cost money to move. The notebook documents
 these limits explicitly.
 
-The Bear Cub GP recommender produces a defensible next-hole pair
+The Bear Cub GP recommender produces a next-hole pair that holds up
 even with n=24 holes and a spatial-only GP that doesn't predict
 pay-zone grade well in absolute terms (negative leave-one-out R²
 because the beach-line geology creates a gradient that 24 samples
