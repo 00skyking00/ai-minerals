@@ -254,7 +254,7 @@ by turn.
 ::: {.g-col-12}
 ### [8. Cape Nome placer-Au prospectivity (district program)](nome_placer.qmd)
 
-[![The Cape Nome prospectivity surface in goldbug: every parcel scored for placer-gold likelihood and colored by who can legally stake it. Click a claim to see its score, its survey, and its land status.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
+[![The Cape Nome prospectivity surface in goldbug, with the Honey claim (MS 1181) clicked open: its model-estimated placer likelihood, and under Sources the knowledge-graph records behind it, the KARDEX card and the historical USGS citations. Every parcel is scored and colored by who can legally stake it.](data/derived/portfolio_charts/thumbs/ch1_nome_placer_goldbug.png)](nome_placer.qmd)
 
 The closing chapter, where the rest of the portfolio comes together.
 My family owns a patented placer claim at Cape Nome, Bear Cub
@@ -265,7 +265,10 @@ validation discipline (Chapter 5), goldbug's public-land-law layer
 (Chapter 3), and the drill-record machinery from Bear Cub, all turned
 on Cape Nome at once. Find the ground likely to carry gold, line it up
 against who worked it before us, and serve it where a person can click
-a claim.
+a claim. Underneath it is a knowledge graph that turns the district's
+dark data, the scanned KARDEX cards, the USGS and mining-engineer
+reports, the century of drill logs, into structured evidence the model
+can train on and a reader can click back to.
 :::
 ::::
 
