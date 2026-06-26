@@ -1,0 +1,4 @@
+name,scope,n,n_pos,n_pos_in_box,n_pos_scored,variogram_range_m,variogram_method,block_size_m,block_size_multiplier,dead_zone_m,n_folds,n_blocks,n_scored,auc_district,auc_in_box,auc_district_scatter,auc_in_box_scatter,old_scheme_auc_nobuffer,old_scheme_auc_buffer300m
+placer_onshore,placer-core grid (geomorph+terrain),2065,65,,65,449.9,spherical_fit,900.0,2.0,1000.0,10,471,2065,0.6785769230769231,,0.7079115384615384,,0.733,0.741
+lode_inbox,"placer-core grid (structural, OLD feats)",2030,30,,30,449.9,spherical_fit,900.0,2.0,1000.0,10,471,2030,0.805925,,0.7514250000000001,,0.802,0.791
+lode_district,"district grid (structural, OLD feats)",3093,93,30,93,1878.8,spherical_fit,3800.0,2.0,1000.0,10,365,3093,0.6330591397849462,0.7370558375634519,0.7307025089605735,0.7890016920473774,0.62,0.582
