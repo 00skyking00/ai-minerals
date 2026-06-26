@@ -1,0 +1,228 @@
+{
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "block_size_multiplier": 2.0,
+    "block_sizing": "2x residual-variogram range",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "headline_fold_strategy": "contiguous",
+    "note": "auc_district / auc_in_box are the contiguous-fold (stricter) numbers; auc_*_scatter are the positive-balanced scattered-fold numbers reported for comparison"
+  },
+  "runs": [
+    {
+      "auc_district": 0.6785769230769231,
+      "auc_in_box": null,
+      "n": 2065,
+      "n_pos": 65,
+      "n_pos_in_box": null,
+      "n_pos_scored": 65,
+      "fold_strategy": "contiguous",
+      "variogram_range_m": 449.9,
+      "variogram_method": "spherical_fit",
+      "block_size_m": 900.0,
+      "block_size_multiplier": 2.0,
+      "dead_zone_m": 1000.0,
+      "n_folds": 10,
+      "n_blocks": 471,
+      "n_scored": 2065,
+      "extras": {
+        "block_size_capped_to_fit_folds": false,
+        "variogram_sill": 0.002483,
+        "variogram_nugget": 0.028956
+      },
+      "name": "placer_onshore",
+      "scope": "placer-core grid (geomorph+terrain)",
+      "features": [
+        "bl",
+        "ap",
+        "tb",
+        "ss",
+        "bc",
+        "qm",
+        "buried_bl",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "auc_district_scatter": 0.7079115384615384,
+      "auc_in_box_scatter": null,
+      "old_scheme_auc_nobuffer": 0.733,
+      "old_scheme_auc_buffer300m": 0.741,
+      "old_report_reference": {
+        "spatialCV": 0.733,
+        "buffered300m": 0.741
+      },
+      "feature_importance_top6": [
+        [
+          "tpi",
+          0.2034
+        ],
+        [
+          "slope",
+          0.1724
+        ],
+        [
+          "dem",
+          0.1623
+        ],
+        [
+          "qm",
+          0.0944
+        ],
+        [
+          "ss",
+          0.0925
+        ],
+        [
+          "bl",
+          0.0834
+        ]
+      ]
+    },
+    {
+      "auc_district": 0.805925,
+      "auc_in_box": null,
+      "n": 2030,
+      "n_pos": 30,
+      "n_pos_in_box": null,
+      "n_pos_scored": 30,
+      "fold_strategy": "contiguous",
+      "variogram_range_m": 449.9,
+      "variogram_method": "spherical_fit",
+      "block_size_m": 900.0,
+      "block_size_multiplier": 2.0,
+      "dead_zone_m": 1000.0,
+      "n_folds": 10,
+      "n_blocks": 471,
+      "n_scored": 2030,
+      "extras": {
+        "block_size_capped_to_fit_folds": false,
+        "variogram_sill": 0.001974,
+        "variogram_nugget": 0.011891
+      },
+      "name": "lode_inbox",
+      "scope": "placer-core grid (structural, OLD feats)",
+      "features": [
+        "geol_DOx",
+        "geol_Dcs",
+        "geol_Ocs",
+        "geol_Qs",
+        "geol_water",
+        "akmag",
+        "dist_fault",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "auc_district_scatter": 0.7514250000000001,
+      "auc_in_box_scatter": null,
+      "old_scheme_auc_nobuffer": 0.802,
+      "old_scheme_auc_buffer300m": 0.791,
+      "old_report_reference": {
+        "spatialCV": 0.802,
+        "buffered300m": 0.791
+      },
+      "feature_importance_top6": [
+        [
+          "dem",
+          0.2373
+        ],
+        [
+          "dist_fault",
+          0.2342
+        ],
+        [
+          "slope",
+          0.1271
+        ],
+        [
+          "geol_Dcs",
+          0.1198
+        ],
+        [
+          "geol_Qs",
+          0.0856
+        ],
+        [
+          "tpi",
+          0.0798
+        ]
+      ]
+    },
+    {
+      "auc_district": 0.6330591397849462,
+      "auc_in_box": 0.7370558375634519,
+      "n": 3093,
+      "n_pos": 93,
+      "n_pos_in_box": 30,
+      "n_pos_scored": 93,
+      "fold_strategy": "contiguous",
+      "variogram_range_m": 1878.8,
+      "variogram_method": "spherical_fit",
+      "block_size_m": 3800.0,
+      "block_size_multiplier": 2.0,
+      "dead_zone_m": 1000.0,
+      "n_folds": 10,
+      "n_blocks": 365,
+      "n_scored": 3093,
+      "extras": {
+        "block_size_capped_to_fit_folds": false,
+        "variogram_sill": 0.002556,
+        "variogram_nugget": 0.024644
+      },
+      "name": "lode_district",
+      "scope": "district grid (structural, OLD feats)",
+      "features": [
+        "geol_Cd",
+        "geol_DOx",
+        "geol_Dcs",
+        "geol_Ds",
+        "geol_Ocs",
+        "geol_Oim",
+        "geol_Pzm",
+        "geol_Qs",
+        "geol_Zn",
+        "geol_water",
+        "akmag",
+        "dist_fault",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "auc_district_scatter": 0.7307025089605735,
+      "auc_in_box_scatter": 0.7890016920473774,
+      "old_scheme_auc_nobuffer": 0.62,
+      "old_scheme_auc_buffer300m": 0.582,
+      "old_report_reference": {
+        "spatialCV": 0.62,
+        "buffered300m": 0.582
+      },
+      "feature_importance_top6": [
+        [
+          "dem",
+          0.1737
+        ],
+        [
+          "slope",
+          0.1692
+        ],
+        [
+          "dist_fault",
+          0.1652
+        ],
+        [
+          "akmag",
+          0.1302
+        ],
+        [
+          "tpi",
+          0.116
+        ],
+        [
+          "geol_Dcs",
+          0.065
+        ]
+      ]
+    }
+  ]
+}

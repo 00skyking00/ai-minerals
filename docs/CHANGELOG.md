@@ -9,6 +9,31 @@ This file consolidates and supersedes the earlier root `CHANGELOG.md`, which
 covered only the 2026-06-11 to 2026-06-14 chapter-polish window. The entries
 below extend coverage to the full project history (2026-04-22 onward).
 
+## 2026-06-25: F1 leak-guarded spatial-CV harness + placer/lode re-baseline
+
+- New reusable spatial-CV module `src/ai_minerals/spatial_cv.py`: residual-variogram
+  block sizing, contiguous-region folds, and an Airola (2018) dead-zone buffer that
+  drops training points within r of any test point. Reports in-box-vs-district AUC and
+  the fitted variogram range per run. 10 unit tests in `tests/test_spatial_cv.py`
+  (variogram tracking, dead-zone enforcement, fold compactness, collapse reproduction).
+  Documented equivalent of `verde.BlockKFold` / `spacv`; no new dependency added
+  (pyproject's deferred `spacv` placeholder stays deferred). (F1, coordinator dispatch)
+- Re-baseline under the leak-guarded scheme (1 km dead-zone, above the 400-800 m F2
+  proximity buffers; contiguous folds; blocks at 2x the residual-variogram range):
+  placer onshore 0.733 -> 0.679; lode in-box 0.802 -> 0.806; lode district 0.620 ->
+  0.633. The lode collapse (in-box 0.806 vs district 0.633) survives the stricter
+  ruler; the placer drop of ~0.05 is the autocorrelation leak the old no-buffer fold
+  kept. Offline modeling only; does not change the served goldbug raster. Report at
+  `docs/f1_leak_guarded_cv_rebaseline.md`; numbers under
+  `data/derived/nome_placer/f1_rebaseline/`.
+- Finding escalated to the coordinator: fold-assignment strategy moves the district AUC
+  by ~0.10 (scattered 0.731 vs contiguous 0.633). Scattered variogram-blocks let the
+  model interpolate the coastal-to-upland elevation gradient; only contiguous regional
+  holdout exposes restriction-of-range. This conflicts with the dispatch's "distribute
+  positives evenly across folds" instruction for clustered positives. Both strategies
+  are implemented and reported; the headline is contiguous (it meets the acceptance
+  test). Driver: `scripts/nome_placer/f1_leak_guarded_rebaseline.py`.
+
 ## 2026-06-24: Nome ARDF full-text re-export + production push
 
 - ARDF Nome re-export with the full untruncated narrative text, rebuilt from the
