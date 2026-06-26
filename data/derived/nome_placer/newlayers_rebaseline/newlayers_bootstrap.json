@@ -1,0 +1,75 @@
+{
+  "n_boot": 2000,
+  "datasets": {
+    "lode_inbox": {
+      "geophys": {
+        "subset": "dighem",
+        "point": 0.0581,
+        "ci95": [
+          -0.0099,
+          0.1276
+        ],
+        "p_gt_0": 0.956,
+        "n_scored": 1485,
+        "n_pos": 30
+      },
+      "struct": {
+        "subset": "gems",
+        "point": -0.056,
+        "ci95": [
+          -0.1346,
+          0.0186
+        ],
+        "p_gt_0": 0.071,
+        "n_scored": 1563,
+        "n_pos": 30
+      },
+      "geophys_struct": {
+        "subset": "both",
+        "point": 0.0289,
+        "ci95": [
+          -0.029,
+          0.0929
+        ],
+        "p_gt_0": 0.83,
+        "n_scored": 1468,
+        "n_pos": 30
+      }
+    },
+    "lode_district": {
+      "geophys": {
+        "subset": "dighem",
+        "point": 0.0308,
+        "ci95": [
+          -0.0471,
+          0.1077
+        ],
+        "p_gt_0": 0.785,
+        "n_scored": 996,
+        "n_pos": 83
+      },
+      "struct": {
+        "subset": "gems",
+        "point": 0.1059,
+        "ci95": [
+          0.0501,
+          0.1639
+        ],
+        "p_gt_0": 0.999,
+        "n_scored": 963,
+        "n_pos": 82
+      },
+      "geophys_struct": {
+        "subset": "both",
+        "point": 0.0935,
+        "ci95": [
+          0.0308,
+          0.1603
+        ],
+        "p_gt_0": 0.999,
+        "n_scored": 949,
+        "n_pos": 82
+      }
+    }
+  }
+}
