@@ -20,6 +20,13 @@ fold-aware, leave-one-out arm (`kg_loo`) in [section 9](#9-the-leak-free-test-kg
 its marginal change is the only number here that bears on whether the KG carries
 real prospectivity signal.
 
+That test is now run, and **no leak-free KG signal survived**. Once a cell cannot
+see its own record, the change collapses to roughly zero on both in-box models
+and turns significantly negative on the district model: placer **-0.018** (95%
+interval -0.069 to +0.035), lode in-box **-0.003** (-0.063 to +0.056),
+lode-district **-0.083** (-0.142 to -0.027). The whole apparent gain was
+leakage.
+
 ## 1. Objective
 
 Two mineral-prospectivity models cover the Nome district, Alaska: one for placer
@@ -237,18 +244,33 @@ that can.
   pooled OOF predictions (2000 resamples, seed 42), so a near-zero result can be
   read against its noise.
 
-**Results.**
+**Results.** Pooled OOF ROC-AUC; same folds as section 6 (the base AUC recomputed
+inside this arm matches the section 6 base to within 0.0000 on all three
+datasets, confirming the folds are identical). 95% intervals are from a paired,
+class-stratified bootstrap (2000 resamples, seed 42).
 
-<!-- KG_LOO_RESULTS_START -->
-*(Filled by the commit that runs the arm. Pending until then.)*
-<!-- KG_LOO_RESULTS_END -->
+| dataset | base | kg_loo | change | 95% interval on the change | P(change > 0) |
+|---|--:|--:|--:|:--:|--:|
+| placer_onshore | 0.679 | 0.660 | **-0.018** | (-0.069, +0.035) | 0.26 |
+| lode_inbox | 0.806 | 0.802 | **-0.003** | (-0.063, +0.056) | 0.46 |
+| lode_district | 0.633 | 0.550 | **-0.083** | (-0.142, -0.027) | 0.006 |
 
-**How to read it.** If the `kg_loo` change collapses toward zero, that confirms
-the section 6 gain was self-leak: once a cell cannot see its own record, the KG
-adds nothing. If a meaningful change survives, that is the first evidence of a
-real proximity-to-known-mineralization signal. Even then, the caution stands:
-proximity to training occurrences partly re-expresses clustering, which spatial
-CV is built to penalize, so a surviving change is suggestive, not conclusive.
+The two in-box models show no change distinguishable from zero: the point
+estimates are slightly negative and the intervals straddle zero. The district
+model gets **worse** by a margin whose whole interval sits below zero. For
+lode_district the leak-free in-box subset AUC also collapses, from 0.737 (base)
+to 0.532 (`kg_loo`).
+
+The numbers are in `data/derived/nome_placer/f3_kg_marginal_lift/f3_kg_loo.{json,csv}`.
+
+**How to read it.** The section 6 gain was self-leak. Once a cell cannot see its
+own record, the KG adds nothing on the in-box models and actively hurts the
+district model. The district sign is not a surprise: distance-to-training-
+occurrence encodes "near where the training positives cluster," and contiguous
+folds hold out a *different* cluster, so the feature points the model at the
+wrong ground. That is the clustering artifact spatial CV is built to penalize,
+showing up here as a negative rather than as a spurious positive. No leak-free
+proximity signal survived.
 
 ## 10. What this does and does not establish
 
@@ -258,7 +280,13 @@ CV is built to penalize, so a surviving change is suggestive, not conclusive.
   coverage-confounded features, recompute the spatial fields fold-aware and
   leave-one-out, and read the marginal change against a bootstrap interval. The
   `kg_loo` number in section 9 is that test.
-- A null `kg_loo` result is a finding, not a failure: it says a knowledge graph
-  built from the same inventory that defines the labels cannot, by itself, add
-  prospectivity signal beyond marking the known sites. Disjoint inventories
-  (label on ARDF, features on KARDEX only) would be the next experiment.
+- The `kg_loo` result is that finding, and it is negative: a knowledge graph
+  built from the same inventory that defines the labels does not, by itself, add
+  prospectivity signal once a cell cannot see its own record. On the district
+  model it subtracts signal. This is the negative outcome the plan anticipated,
+  not a bug to be tuned away.
+- The next experiment that could still turn up a real signal uses **disjoint
+  inventories**: label the model on ARDF occurrences and derive the KG proximity
+  features from KARDEX claims only (or the reverse), so the feature and the label
+  are no longer the same record. That is the one design under which
+  distance-to-known-mineralization is not circular.

@@ -18,7 +18,15 @@ import numpy as np
 import rasterio
 from shapely.geometry import Point, Polygon
 
-from ai_minerals.kg_rasterize import GridTemplate, build_kg_stack, _cells_for_geometry
+from ai_minerals.kg_rasterize import (
+    GridTemplate,
+    block_xy,
+    build_kg_stack,
+    ground_points_by_extent,
+    loo_spatial_features,
+    sample_cell_centroids,
+    _cells_for_geometry,
+)
 
 
 def _template(res_m: float = 25.0, n: int = 40) -> GridTemplate:
@@ -94,3 +102,52 @@ def test_sample_fill_outside_coverage():
     assert float(far["source_grade_numeric"].iloc[0]) == 0.0
     # spatial distance field is finite and positive there
     assert float(far["kg_dist_occurrence_m"].iloc[0]) > 0.0
+
+
+# --- leak-free, fold-aware spatial fields (kg_loo) -------------------------- #
+def test_block_xy_matches_grid_origin():
+    coords = np.array([[0.0, 0.0], [150.0, 0.0], [0.0, 150.0]])
+    bx, by = block_xy(coords, 0.0, 0.0, 100.0)
+    assert list(bx) == [0, 1, 0]
+    assert list(by) == [0, 0, 1]
+
+
+def test_loo_excludes_own_cell_occurrence():
+    tpl = _template()  # 25 m cells
+    ents = _entities([  # two occurrences 200 m apart
+        {"geometry": Point(100, 100), "attr_extent": "point", "score": 1.0},
+        {"geometry": Point(300, 100), "attr_extent": "point", "score": 1.0},
+    ])
+    g = ground_points_by_extent(ents, tpl)
+    assert len(g["occ_xy"]) == 2 and len(g["claim_xy"]) == 0
+    samp_xy, samp_rc = sample_cell_centroids(np.array([[100.0, 100.0]]), tpl)
+    feats = loo_spatial_features(samp_xy, samp_rc, g["occ_xy"], g["occ_rc"],
+                                 g["claim_xy"], g["claim_rc"])
+    d = float(feats["kg_dist_occurrence_m"].iloc[0])
+    assert d > 1.0            # NOT zero: the cell's own record is left out
+    assert abs(d - 200.0) < 26.0   # distance to the OTHER occurrence (cell grain)
+
+
+def test_loo_density_excludes_own_and_counts_within_radius():
+    tpl = _template()
+    ents = _entities([
+        {"geometry": Point(100, 100), "attr_extent": "claim_polygon", "score": 1.0},   # own cell
+        {"geometry": Point(130, 100), "attr_extent": "area_footprint", "score": 1.0},   # ~25 m away
+        {"geometry": Point(900, 900), "attr_extent": "claim_polygon", "score": 1.0},    # far
+    ])
+    g = ground_points_by_extent(ents, tpl)
+    samp_xy, samp_rc = sample_cell_centroids(np.array([[100.0, 100.0]]), tpl)
+    feats = loo_spatial_features(samp_xy, samp_rc, g["occ_xy"], g["occ_rc"],
+                                 g["claim_xy"], g["claim_rc"], claim_radius_m=400.0)
+    assert float(feats["kg_claim_density"].iloc[0]) == 1.0   # own-cell claim not counted
+    assert float(feats["kg_dist_claim_m"].iloc[0]) > 1.0     # nearest OTHER claim, not 0
+
+
+def test_loo_no_visible_grounds_uses_fill():
+    tpl = _template()
+    samp_xy, samp_rc = sample_cell_centroids(np.array([[100.0, 100.0]]), tpl)
+    empty = np.empty((0, 2))
+    feats = loo_spatial_features(samp_xy, samp_rc, empty, np.empty((0, 2), int),
+                                 empty, np.empty((0, 2), int), fill_dist=1.0e6)
+    assert float(feats["kg_dist_occurrence_m"].iloc[0]) == 1.0e6
+    assert float(feats["kg_claim_density"].iloc[0]) == 0.0

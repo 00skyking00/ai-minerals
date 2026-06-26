@@ -328,6 +328,127 @@ def build_kg_stack(
                    content_columns=content_columns, fill_value=fill_value)
 
 
+# --------------------------------------------------------------------------- #
+# Fold-aware, leave-one-out spatial fields (the leak-free F3 arm, kg_loo)
+# --------------------------------------------------------------------------- #
+# The covariate stack above is rendered once from the FULL ground set, so a test
+# cell's distance-to-occurrence sees the test cell's own record (distance 0) --
+# the coverage confound the F3 report diagnoses. These helpers recompute the
+# three spatial fields per CV fold from the fold's TRAINING-region grounds only,
+# never from a ground in the query cell, so a held-out positive cannot see its
+# own record. That is the only KG arm that can speak to real proximity signal.
+
+
+def block_xy(coords: np.ndarray, x0: float, y0: float, block_size_m: float
+             ) -> tuple[np.ndarray, np.ndarray]:
+    """Square-block (bx, by) indices for points, using the same origin/edge as
+    ``spatial_cv._grid_blocks`` so ground blocks line up with sample folds."""
+    c = np.asarray(coords, float)
+    bx = np.floor((c[:, 0] - x0) / block_size_m).astype(int)
+    by = np.floor((c[:, 1] - y0) / block_size_m).astype(int)
+    return bx, by
+
+
+def ground_points_by_extent(entities: gpd.GeoDataFrame, template: GridTemplate
+                            ) -> dict[str, np.ndarray]:
+    """Occurrence (point-extent) and claim (claim/area-extent) ground points,
+    deduped to unique grid cells on ``template``.
+
+    Returns ``occ_xy``/``claim_xy`` (cell-centroid coords, (m, 2)) and
+    ``occ_rc``/``claim_rc`` ((row, col), (m, 2) int) for each kind. District-extent
+    grounds are excluded, matching the cell-attribution guard."""
+    reps = entities.geometry.representative_point()
+    ex, ny = reps.x.to_numpy(), reps.y.to_numpy()
+    ext = entities["attr_extent"].to_numpy()
+    masks = {"occ": ext == "point",
+             "claim": np.isin(ext, ["claim_polygon", "area_footprint"])}
+    out: dict[str, np.ndarray] = {}
+    for kind, mask in masks.items():
+        xy = np.column_stack([ex[mask], ny[mask]]) if mask.any() else np.empty((0, 2))
+        if not len(xy):
+            out[f"{kind}_xy"], out[f"{kind}_rc"] = xy, np.empty((0, 2), int)
+            continue
+        rows, cols = rasterio.transform.rowcol(template.transform, xy[:, 0], xy[:, 1])
+        rc = np.column_stack([np.asarray(rows), np.asarray(cols)]).astype(int)
+        _, keep = np.unique(rc, axis=0, return_index=True)  # one ground per cell
+        keep.sort()
+        rc_u = rc[keep]
+        cx = template.transform.c + (rc_u[:, 1] + 0.5) * template.transform.a
+        cy = template.transform.f + (rc_u[:, 0] + 0.5) * template.transform.e
+        out[f"{kind}_xy"], out[f"{kind}_rc"] = np.column_stack([cx, cy]), rc_u
+    return out
+
+
+def sample_cell_centroids(coords: np.ndarray, template: GridTemplate
+                          ) -> tuple[np.ndarray, np.ndarray]:
+    """(cell-centroid xy, (row, col)) for sample points on ``template`` -- the
+    grain at which "the cell's own record" is excluded in the leave-one-out."""
+    c = np.asarray(coords, float)
+    rows, cols = rasterio.transform.rowcol(template.transform, c[:, 0], c[:, 1])
+    rc = np.column_stack([np.asarray(rows), np.asarray(cols)]).astype(int)
+    cx = template.transform.c + (rc[:, 1] + 0.5) * template.transform.a
+    cy = template.transform.f + (rc[:, 0] + 0.5) * template.transform.e
+    return np.column_stack([cx, cy]), rc
+
+
+def _nearest_excluding_own_cell(samp_xy: np.ndarray, samp_rc: np.ndarray,
+                                g_xy: np.ndarray, g_rc: np.ndarray, fill: float
+                                ) -> np.ndarray:
+    """Distance from each sample to the nearest ground NOT in the sample's own
+    cell. Grounds are deduped to one per cell, so the second neighbour suffices."""
+    out = np.full(len(samp_xy), fill, float)
+    if not len(g_xy):
+        return out
+    k = min(len(g_xy), 2)
+    dd, ii = cKDTree(g_xy).query(samp_xy, k=k)
+    if dd.ndim == 1:
+        dd, ii = dd[:, None], ii[:, None]
+    for i in range(len(samp_xy)):
+        for j in range(dd.shape[1]):
+            gi = ii[i, j]
+            if g_rc[gi, 0] == samp_rc[i, 0] and g_rc[gi, 1] == samp_rc[i, 1]:
+                continue  # the cell's own record -> leave it out
+            out[i] = dd[i, j]
+            break
+    return out
+
+
+def loo_spatial_features(
+    sample_xy: np.ndarray,
+    sample_rc: np.ndarray,
+    occ_xy: np.ndarray,
+    occ_rc: np.ndarray,
+    claim_xy: np.ndarray,
+    claim_rc: np.ndarray,
+    *,
+    claim_radius_m: float = 400.0,
+    fill_dist: float = 1.0e6,
+) -> pd.DataFrame:
+    """The three leak-free spatial fields at each sample, excluding any ground in
+    the sample's own grid cell. Ground arrays must be pre-filtered to the visible
+    (training-region) set for the fold. Mirrors the leaky ``kg_spatial`` columns:
+    ``kg_dist_occurrence_m``, ``kg_dist_claim_m``, ``kg_claim_density``."""
+    rc = np.asarray(sample_rc)
+    dist_occ = _nearest_excluding_own_cell(sample_xy, rc, np.asarray(occ_xy),
+                                           np.asarray(occ_rc), fill_dist)
+    dist_claim = _nearest_excluding_own_cell(sample_xy, rc, np.asarray(claim_xy),
+                                             np.asarray(claim_rc), fill_dist)
+    density = np.zeros(len(sample_xy), float)
+    if len(claim_xy):
+        crc = np.asarray(claim_rc)
+        nbr = cKDTree(np.asarray(claim_xy)).query_ball_point(sample_xy, r=claim_radius_m)
+        for i, idxs in enumerate(nbr):
+            if not idxs:
+                continue
+            same = (crc[idxs, 0] == rc[i, 0]) & (crc[idxs, 1] == rc[i, 1])
+            density[i] = len(idxs) - int(same.sum())  # exclude the own-cell claim
+    return pd.DataFrame({
+        "kg_dist_occurrence_m": dist_occ.astype(np.float32),
+        "kg_dist_claim_m": dist_claim.astype(np.float32),
+        "kg_claim_density": density.astype(np.float32),
+    })
+
+
 def write_stack_geotiff(stack: KGStack, out_path: Path) -> list[str]:
     """Write the covariate stack to a multiband GeoTIFF; return the band order."""
     names = list(stack.bands)
