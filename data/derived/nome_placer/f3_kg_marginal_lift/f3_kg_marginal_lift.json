@@ -1,0 +1,350 @@
+{
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "block_sizing": "2x residual-variogram range",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "headline_fold_strategy": "contiguous"
+  },
+  "grids": {
+    "in_box_res_m": 25,
+    "district_res_m": 100,
+    "nominal_plan_res_m": 250,
+    "note": "KG covariates aligned to the SERVED model grids (25 m in-box, 100 m district), not the nominal 250 m: that is the grid F1 graded on, and 250 m collapses most claim polygons to one cell, defeating the extent-aware guard."
+  },
+  "kg_stack": {
+    "n_entities": 40099,
+    "in_box_cells_multi_ground_uncapped": 5665,
+    "in_box_max_raw_count": 5,
+    "capped_coverage_max": 1,
+    "bands": [
+      "kg_present",
+      "kg_dist_claim_m",
+      "kg_claim_density",
+      "kg_dist_occurrence_m",
+      "source_grade_numeric",
+      "mean_confidence",
+      "n_geoterm_families",
+      "geo_host_schist",
+      "geo_host_marble",
+      "geo_host_carbonate",
+      "geo_host_gneiss",
+      "geo_host_granite",
+      "geo_host_metavolc",
+      "geo_host_clastic",
+      "geo_host_unconsolidated",
+      "geo_struct_vein",
+      "geo_struct_shear",
+      "geo_struct_contact",
+      "geo_alt_silicic",
+      "geo_alt_sericite",
+      "geo_alt_chlorite",
+      "geo_alt_carbonate",
+      "geo_alt_oxide",
+      "geo_alt_sulfide",
+      "geo_work_underground",
+      "geo_work_surface",
+      "geo_work_hydraulic",
+      "geo_metamorph",
+      "is_placer",
+      "is_lode"
+    ],
+    "n_bands": 133,
+    "area_footprint_geometry": "centroid + 200 m disc; the F2 export resolves KARDEX area_footprint grounds to centroids, not surveyed polygons (export gap)"
+  },
+  "datasets": [
+    {
+      "name": "placer_onshore",
+      "scope": "in_box",
+      "n": 2065,
+      "n_pos": 65,
+      "base_features": [
+        "bl",
+        "ap",
+        "tb",
+        "ss",
+        "bc",
+        "qm",
+        "buried_bl",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "arms": {
+        "base": {
+          "auc_district": 0.6785769230769231,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 10
+        },
+        "kg_present": {
+          "auc_district": 0.970173076923077,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 11,
+          "auc_delta": 0.292
+        },
+        "kg_spatial": {
+          "auc_district": 0.9548923076923077,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 13,
+          "auc_delta": 0.276
+        },
+        "kg": {
+          "auc_district": 0.9889230769230769,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 37,
+          "auc_delta": 0.31
+        },
+        "prose": {
+          "auc_district": 0.9814653846153845,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 106,
+          "auc_delta": 0.303
+        },
+        "kg_prose": {
+          "auc_district": 0.9881076923076924,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 133,
+          "auc_delta": 0.31
+        },
+        "kg_label": {
+          "auc_district": 0.9880192307692307,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 46,
+          "auc_delta": 0.309
+        },
+        "_scatter": {
+          "base": {
+            "auc_district": 0.7079115384615384,
+            "auc_in_box": null
+          },
+          "kg": {
+            "auc_district": 0.9883615384615385,
+            "auc_in_box": null
+          }
+        },
+        "_weight_sensitivity": {
+          "arm": "kg",
+          "unweighted": {
+            "auc_district": 0.9889230769230769,
+            "auc_in_box": null
+          },
+          "weighted": {
+            "auc_district": 0.9864653846153847,
+            "auc_in_box": null
+          }
+        }
+      }
+    },
+    {
+      "name": "lode_inbox",
+      "scope": "in_box",
+      "n": 2030,
+      "n_pos": 30,
+      "base_features": [
+        "geol_DOx",
+        "geol_Dcs",
+        "geol_Ocs",
+        "geol_Qs",
+        "geol_water",
+        "akmag",
+        "dist_fault",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "arms": {
+        "base": {
+          "auc_district": 0.805925,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 10
+        },
+        "kg_present": {
+          "auc_district": 0.9870583333333334,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 11,
+          "auc_delta": 0.181
+        },
+        "kg_spatial": {
+          "auc_district": 0.8848416666666667,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 13,
+          "auc_delta": 0.079
+        },
+        "kg": {
+          "auc_district": 0.9973083333333334,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 37,
+          "auc_delta": 0.191
+        },
+        "prose": {
+          "auc_district": 0.984375,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 106,
+          "auc_delta": 0.178
+        },
+        "kg_prose": {
+          "auc_district": 0.9919,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 133,
+          "auc_delta": 0.186
+        },
+        "kg_label": {
+          "auc_district": 0.9984416666666667,
+          "auc_in_box": null,
+          "variogram_range_m": 449.9,
+          "block_size_m": 900.0,
+          "n_features": 46,
+          "auc_delta": 0.193
+        },
+        "_scatter": {
+          "base": {
+            "auc_district": 0.7514250000000001,
+            "auc_in_box": null
+          },
+          "kg": {
+            "auc_district": 0.9954666666666667,
+            "auc_in_box": null
+          }
+        },
+        "_weight_sensitivity": {
+          "arm": "kg",
+          "unweighted": {
+            "auc_district": 0.9973083333333334,
+            "auc_in_box": null
+          },
+          "weighted": {
+            "auc_district": 0.9973500000000001,
+            "auc_in_box": null
+          }
+        }
+      }
+    },
+    {
+      "name": "lode_district",
+      "scope": "district",
+      "n": 3093,
+      "n_pos": 93,
+      "base_features": [
+        "geol_Cd",
+        "geol_DOx",
+        "geol_Dcs",
+        "geol_Ds",
+        "geol_Ocs",
+        "geol_Oim",
+        "geol_Pzm",
+        "geol_Qs",
+        "geol_Zn",
+        "geol_water",
+        "akmag",
+        "dist_fault",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "arms": {
+        "base": {
+          "auc_district": 0.6330591397849462,
+          "auc_in_box": 0.7370558375634519,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 15
+        },
+        "kg_present": {
+          "auc_district": 0.9625752688172043,
+          "auc_in_box": 0.9862944162436549,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 16,
+          "auc_delta": 0.33
+        },
+        "kg_spatial": {
+          "auc_district": 0.9632598566308244,
+          "auc_in_box": 0.9364636209813876,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 18,
+          "auc_delta": 0.33
+        },
+        "kg": {
+          "auc_district": 0.9715985663082438,
+          "auc_in_box": 0.9951776649746193,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 42,
+          "auc_delta": 0.339
+        },
+        "prose": {
+          "auc_district": 0.9677455197132617,
+          "auc_in_box": 0.9842639593908629,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 111,
+          "auc_delta": 0.335
+        },
+        "kg_prose": {
+          "auc_district": 0.9664605734767024,
+          "auc_in_box": 0.9901015228426395,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 138,
+          "auc_delta": 0.333
+        },
+        "kg_label": {
+          "auc_district": 0.9663136200716846,
+          "auc_in_box": 0.9931472081218274,
+          "variogram_range_m": 1878.8,
+          "block_size_m": 3800.0,
+          "n_features": 51,
+          "auc_delta": 0.333
+        },
+        "_scatter": {
+          "base": {
+            "auc_district": 0.7307025089605735,
+            "auc_in_box": 0.7890016920473774
+          },
+          "kg": {
+            "auc_district": 0.9812598566308244,
+            "auc_in_box": 0.9916243654822335
+          }
+        },
+        "_weight_sensitivity": {
+          "arm": "kg",
+          "unweighted": {
+            "auc_district": 0.9715985663082438,
+            "auc_in_box": 0.9951776649746193
+          },
+          "weighted": {
+            "auc_district": 0.9701756272401434,
+            "auc_in_box": 0.9947546531302878
+          }
+        }
+      }
+    }
+  ]
+}

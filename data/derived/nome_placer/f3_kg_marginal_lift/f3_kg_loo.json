@@ -1,0 +1,145 @@
+{
+  "arm": "kg_loo",
+  "design": "fold-aware leave-one-out spatial fields only; visible grounds exclude the held-out fold's blocks and the cell's own record; coverage-confounded + prose features dropped",
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "seed": 42,
+    "block_sizing": "2x residual-variogram range (from base features)",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "fold_strategy": "contiguous",
+    "claim_radius_m": 400.0,
+    "bootstrap_resamples": 2000,
+    "bootstrap": "class-stratified paired"
+  },
+  "base_consistency": {
+    "checked": true,
+    "by_dataset": {
+      "placer_onshore": {
+        "leaky_run_base": 0.6785769230769231,
+        "kg_loo_run_base": 0.6785769230769231,
+        "abs_diff": 0.0
+      },
+      "lode_inbox": {
+        "leaky_run_base": 0.805925,
+        "kg_loo_run_base": 0.805925,
+        "abs_diff": 0.0
+      },
+      "lode_district": {
+        "leaky_run_base": 0.6330591397849462,
+        "kg_loo_run_base": 0.6330591397849462,
+        "abs_diff": 0.0
+      }
+    }
+  },
+  "datasets": [
+    {
+      "name": "placer_onshore",
+      "scope": "in_box",
+      "n": 2065,
+      "n_pos": 65,
+      "block_size_m": 900.0,
+      "n_occ_grounds": 233,
+      "n_claim_grounds": 181,
+      "n_scored": 2065,
+      "n_pos_scored": 65,
+      "base": {
+        "auc_district": 0.6785769230769231,
+        "auc_in_box": null
+      },
+      "kg_loo": {
+        "auc_district": 0.6603807692307693,
+        "auc_in_box": null
+      },
+      "auc_delta": -0.018,
+      "bootstrap": {
+        "base_auc_ci95": [
+          0.6068,
+          0.7453
+        ],
+        "loo_auc_ci95": [
+          0.5963,
+          0.7193
+        ],
+        "delta_ci95": [
+          -0.0693,
+          0.0349
+        ],
+        "delta_mean": -0.0178,
+        "delta_p_gt_0": 0.264
+      }
+    },
+    {
+      "name": "lode_inbox",
+      "scope": "in_box",
+      "n": 2030,
+      "n_pos": 30,
+      "block_size_m": 900.0,
+      "n_occ_grounds": 233,
+      "n_claim_grounds": 181,
+      "n_scored": 2030,
+      "n_pos_scored": 30,
+      "base": {
+        "auc_district": 0.805925,
+        "auc_in_box": null
+      },
+      "kg_loo": {
+        "auc_district": 0.8024333333333333,
+        "auc_in_box": null
+      },
+      "auc_delta": -0.003,
+      "bootstrap": {
+        "base_auc_ci95": [
+          0.7305,
+          0.8675
+        ],
+        "loo_auc_ci95": [
+          0.7359,
+          0.8619
+        ],
+        "delta_ci95": [
+          -0.0629,
+          0.0562
+        ],
+        "delta_mean": -0.0028,
+        "delta_p_gt_0": 0.4555
+      }
+    },
+    {
+      "name": "lode_district",
+      "scope": "district",
+      "n": 3093,
+      "n_pos": 93,
+      "block_size_m": 3800.0,
+      "n_occ_grounds": 233,
+      "n_claim_grounds": 181,
+      "n_scored": 3093,
+      "n_pos_scored": 93,
+      "base": {
+        "auc_district": 0.6330591397849462,
+        "auc_in_box": 0.7370558375634519
+      },
+      "kg_loo": {
+        "auc_district": 0.5497867383512546,
+        "auc_in_box": 0.5320642978003385
+      },
+      "auc_delta": -0.083,
+      "bootstrap": {
+        "base_auc_ci95": [
+          0.5857,
+          0.6786
+        ],
+        "loo_auc_ci95": [
+          0.4952,
+          0.6036
+        ],
+        "delta_ci95": [
+          -0.1417,
+          -0.0265
+        ],
+        "delta_mean": -0.0835,
+        "delta_p_gt_0": 0.0055
+      }
+    }
+  ]
+}
