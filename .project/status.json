@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T14:09:02Z",
+  "updated": "2026-06-27T15:41:47Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 50,
+    "done": 52,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,14 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "GEOPHYSICS QA FIX DONE (coordinator 2026-06-27 geophysics-finding-qa handoff). Nome walkthrough geophysics section corrected after Sky's adversarial-lit check. (1) Cut the unsupported permafrost-masking mechanism, demoted to an explicitly-labelled untested hypothesis; the graphitic host actually reads MORE resistive (+0.3..+0.8 log10 ohm-m across 900Hz/7.2kHz/56kHz), opposite the conductor prediction (literature's alteration signature is LOW resistivity). (2) Separated magnetics (no help, marginal AUC -0.02 in-box / -0.06 district) from DIGHEM apparent resistivity (small positive +0.03 at district scale on flown cells, null in-box); neither DIGHEM layer is in the served surface, structure carries the lode (+0.11, CI [+0.050,+0.164], P 0.999); only geophysics in the served model is the statewide akmag in the base. (3) Noted the literature's combined low-mag/low-resistivity/gravity-low alteration index was never built (gravity not in the Nome stack at all) = a limitation, not a refutation. Corrected .qmd + matching .html (surgical prose patch, cells not re-executed; full re-render at deploy is the clean follow-up). Per-layer numbers + round-5 recommendation (build the conjunction index, expectations low: components weak alone, resistivity covers ~32% of district, only coarse continental gravity available) in research/nome_geophysics_lode_contribution_2026-06-27.md (local). PR #45 off origin/main; not merged, not deployed."
+    },
+    {
+      "severity": "low",
+      "text": "ROUND-4B PLACER TYPING null DONE (coordinator 2026-06-27 round4B placer-typing addendum). Typed the 65 KG placer positives into Hudson 2006's two coastal populations (abrasion-platform vs strandline-beach, after Metcalfe & Tuck 1942) from the occurrence name field: only 8 are cleanly-typed coastal beaches (5 abrasion-platform = Monroeville/Intermediate/Center + Inner/Outer Submarine; 3 strandline = Second/Third + present-First), 52 are upland residual/stream-gulch placers (Hudson's residual-placer belt), 5 broad/composite -> handoff 3-way ambiguous = 57 (88%). Tested whether the abrasion-platform subset responds to a local-source covariate the strandline subset ignores (dist to nearest 36a lode, bedrock/Quaternary contact = abrasion-platform edge, Newton Peak GNIS 1406988, lode-belt axis). VERDICT = final null set by sample size: the two coastal types are indistinguishable on all four covariates (every bootstrap CI on the median difference spans zero, every rank p>=0.29; at n=5 vs 3 no rank test or per-subset CV can resolve a difference); pooled CV reproduces the round-3 distance-to-lode null (+0.026, CI [-0.020,+0.071]); the only signal is upland placers near lodes (median 1.4km), partly tautological (placer co-located with its lode) and already captured by terrain. One non-significant nudge toward the hypothesis: abrasion-platform nearer the lode-belt axis than strandline (Cliff's d=-0.32, p=0.11). Retest needs a positive set with more typed coastal beaches (Metcalfe & Tuck paystreak inventory or the NovaGold drill DB). scripts/nome_placer/placer_subtype_local_source.py; data/derived/nome_placer/subtype_local_source/ (typing CSV, JSON, summary CSV, REPORT.md, SOURCE.md, add -f). PR #44 off origin/main; not merged, not deployed."
+    },
     {
       "severity": "low",
       "text": "NOME DATA-WALKTHROUGH NOTEBOOK DONE (coordinator 2026-06-27 nome-data-walkthrough-notebook handoff; Sky wants the Tanacross/BCGT-style layer-by-layer walkthrough for Nome). Built portfolio/notebooks/nome_walkthrough/nome_walkthrough.qmd as a PRIVATE notebook (NOT in _quarto.yml render list -> unlinked + not deployed), mirroring tanacross.qmd section structure on bcgt data_exploration.qmd executable-figure idioms. Sections: the experiment (two deposit types + the leak-guarded ruler) -> data layers (terrain IfSAR DEM/slope/TPI; geology Nome Group units + graphitic host; structure Groves splay/intersection/fold; geophysics aeromag + 1993 DIGHEM resistivity; placer strandlines + 1m-LiDAR REM; labels typed 36a + placer) each with a rendered map + what-it-is / what-for / how-the-model-reads-it -> how the algorithm consumes the data (F1 leak-guarded spatial CV contiguous folds + 1km dead-zone, the F3 occurrence-feature leakage lesson, refit-on-all vs held-out) -> results (served lode surface + feature importance with dist_splay/dist_fold_hinge/dist_fault_intersection top-3 ahead of every named fault; restriction-of-range mirage in-box vs GeMS-district, first keyword version 0.80->0.58, rebuild 0.712 CI [+0.108,+0.234]; peninsula 0.883 mapped / 0.818 east with the eastern CI crossing zero; served placer 0.733/0.741 vs 0.444 beach-line) -> findings (3-stage glacial->marine-winnowing->fluvial genesis per the 1978 Alaska DGGS Nome placer study; the negative results: per-named-fault split -0.119, Albion redundant, drift-on-beach data-walled, magnetics no help) -> files + sources. 11 executable figures built from the small 100m district rasters + committed JSON reports (deliberately avoids loading the full IfSAR DEM = the known WSL OOM trap). Rendered to a self-contained themed HTML (nome_walkthrough.html, 11 embedded figures) via the nbconvert-execute -> quarto --no-execute safe path; voice-clean (0 banned, 0 dash). NOTE: no separate Nome deep lode notebook pre-existed (only the public chapter nome_placer.qmd, which is PR #38), so the coordinator's 'finish the deep lode notebook' ask is satisfied by this walkthrough, which carries the round-3 lode numbers (gate/CI/peninsula/feature-importance/diagnosis); I did NOT touch nome_placer.qmd from this branch. PR off origin/main; not merged, not deployed."
