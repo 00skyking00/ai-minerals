@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "model_version": "lode-mpm-struct-groves-v1",
+  "release": "ai-minerals-2026-06-27",
+  "raster_3338": "mpm_lode_served_district_3338.tif",
+  "raster_4326": "mpm_lode_served_district_4326.tif",
+  "resolution_m": 100,
+  "working_crs": "EPSG:3338",
+  "delivery_crs": "EPSG:4326",
+  "nodata": -1.0,
+  "scope": "central-district orogenic-lode favorability (struct_groves); GeMS-mapped footprint only. Placer is modelled separately (mpm_onshore_score_district).",
+  "served_extent": "central-district (GeMS-mapped); peninsula extension provisional, not served",
+  "bands": [
+    {
+      "index": 1,
+      "key": "lode_proba",
+      "name": "Lode favorability (struct_groves RF, central district)",
+      "description": "RandomForest presence/background probability over base lode features (geology one-hot + aeromag + distance-to-fault + terrain) plus the Groves structure set (NE x NW fault-intersection proximity, second-order splay proximity, fold-hinge distance, graphitic host). Single band.",
+      "value_range": [
+        0.0,
+        1.0
+      ]
+    }
+  ],
+  "legend_note": "Single-band probability over the GeMS-mapped district. Recalibrate display buckets from mpm_lode_served_report.json percentiles; the RF probability is not on the same scale as the placer MPM, so do not reuse the placer legend thresholds. Render the SAME way goldbug renders the placer raster: per-claim zonal aggregate + percentile buckets."
+}

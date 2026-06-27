@@ -74,12 +74,12 @@ between holes (its leave-one-out skill is no better than
 guessing the average). The per-claim dark data that should
 sharpen this, production and pay-streak depth across
 neighboring claims, is in the knowledge graph but not yet in
-the model. The lode model failed outright: it looked
-strong in a small box and collapsed once I scored the
-whole district. So the district-scale prospectivity
-holds up, and so does reading the grades off the old
-logs. What is still beyond the model is claim-level
-grade prediction from sparse, granular data.
+the model. The district-scale prospectivity holds up,
+for both the placer ground and, after a rebuild that
+broke an early false start, the hard-rock lode sources,
+and so does reading the grades off the old logs. What
+is still beyond the model is claim-level grade
+prediction from sparse, granular data.
 
 That dark-data work is the other half of the project. A
 century of drill logs, claim cards, and assay reports sits in
