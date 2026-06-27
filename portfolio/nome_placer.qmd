@@ -52,8 +52,10 @@ that one claim's worth of dark data can be turned into a model you can
 stand on. The regional work in Chapters 2 and 4 is the machinery for
 learning where ore sits from public geoscience data. Chapter 5 is the
 discipline that decides whether any of those numbers mean anything,
-which on this district turns out to be the whole game: one of the two
-headline numbers here survives that discipline and one does not.
+which on this district turns out to be the whole game: the placer
+number survives that discipline on the first try, and the lode number
+survives only on the second, after the first version of it failed the
+same test and I rebuilt it.
 [goldbug](https://johnsondevco.com/goldbug/) (Chapter 3) is the
 land-law layer that turns a probability surface into a map of the
 parcels you can legally stake, now extended onto Alaska ground.
@@ -62,9 +64,10 @@ that consolidates it, which is where most of the actual work went and
 where the project is headed next.
 
 So this chapter has four things to report: a placer model that survives
-the Chapter 5 wringer, a lode model that does not, a knowledge graph
-assembled from the district's dark data, and a candid account of what
-is working now versus what is still to come.
+the Chapter 5 wringer, a lode model that failed that wringer and then
+survived a rebuilt one, a knowledge graph assembled from the district's
+dark data, and a candid account of what is working now versus what is
+still to come.
 
 ## Testing the two headline numbers
 
@@ -76,9 +79,10 @@ one rule they all reduce to: take the impressive number, build the
 test designed to expose it as luck, and report whatever is left
 standing.
 
-Two of this chapter's headline numbers went through that wringer. One
-survived and one did not, and the one that did not is the more
-interesting story.
+Two of this chapter's headline numbers went through that wringer. Both
+survive now, but the lode number only on the second attempt: the first
+version of it failed the test outright, and what it took to rebuild one
+that holds is the more interesting story.
 
 ## The placer model that held up
 
@@ -157,9 +161,9 @@ point. The buffered score sitting slightly above the unbuffered one
 result is not an artifact of points leaking across the fold boundary.
 The full protocol and the covariate construction are in the appendix.
 
-## The lode model that did not
+## The lode model that did, on the second try
 
-Here is the one I had to talk myself out of.
+Here is the one I had to talk myself out of, and then back into.
 
 Placer gold comes from somewhere. It weathers out of gold-bearing
 quartz veins in the bedrock, the lodes, and washes downstream to
@@ -185,24 +189,79 @@ quad, pulling in the Big Hurrah lode and the other hinterland sources,
 so the background ground is now also upland. The score fell to
 `0.62`, and to `0.58` under the buffered spatial cross-validation[^lode-dist-report].
 That is barely better than a coin flip. The structural signal that
-looked strong in the small box does not survive being asked to work
-across the real district.
+looked strong in the small box did not survive being asked to work
+across the real district. For a while this was the chapter's negative
+result, and I wrote it up as one.
 
-![The lode mirage. In a small box around the placer core (left), the structural model scores about 0.80, because the lodes are in the hills and the background is on the coast. Across the whole district (right), where the background is also upland, the same model falls to roughly chance. The geochemistry reads higher but the elements it uses trail gold by definition, so that number is circular.](data/derived/portfolio_charts/thumbs/ch1_nome_lode_mirage.png)
+![The lode mirage, the first version of the lode model. In a small box around the placer core (left) the structural model scores about 0.80, because the lodes are in the hills and the background is on the coast. Across the whole district (right), where the background is also upland, the same model falls to roughly chance, and the stream-sediment geochemistry that reads higher is circular. This is the trap the rebuilt model had to climb out of.](data/derived/portfolio_charts/thumbs/ch1_nome_lode_mirage.png)
 
-There is a tempting escape hatch, and it is the third lie. If I add
+There is also a tempting escape hatch, and it is the third lie. If I add
 stream-sediment geochemistry, arsenic, antimony, bismuth, mercury,
 tungsten, the pathfinder elements, the lode model jumps back up to
 about `0.805`[^lode-dist-report]. But those pathfinders are precisely
-the elements that travel with gold; using them to predict gold is
-close to using gold to predict gold. The number is high and it means
-almost nothing.
+the elements that travel with gold; using them to predict gold is close
+to using gold to predict gold. The number is high and it means almost
+nothing, so I left the geochemistry out.
 
-So the lode result is a negative result. I do not have a validated,
-independent lode-prospectivity signal for this district that survives
-a test built to break it, and I am reporting that rather than shipping the
-`0.80` and hoping nobody redraws the box. A negative result that you
-caught yourself is worth more than a positive one you didn't.
+What broke the mirage open was two changes that have nothing to do with
+geochemistry. The first is the labels. My district set was a keyword
+grab from the occurrence file, anything tagged lode or vein or skarn,
+and those cluster in the two or three places people looked hardest. I
+replaced them with a typed set: the occurrences the USGS classifies
+under Cox-Singer model `36a`, low-sulfide gold-quartz vein, which is the
+deposit type the Nome lodes actually are. That code is assigned from a
+deposit's own character, not from where it sits, so the positives spread
+across the district instead of piling up in the placer core. Dispersing
+the labels takes the elevation shortcut away from the model.
+
+The second change is the structure. Distance to the nearest fault, which
+is what the first model had, is the wrong feature for orogenic gold.
+Groves and his coauthors spent a career showing that the gold does not
+sit on the big fault trunks; it sits in the second-order splays that
+branch off them, at the nodes where a northeast-trending fault crosses a
+northwest-trending one, inside the reactive host rock, near the hinges
+of folds. So I built those controls directly: proximity to a splay,
+proximity to a fault intersection, distance to a mapped fold hinge, and
+a flag for the graphitic Nome Group schist that hosts the veins. They
+come from the most detailed public structural map of the district, the
+Alaska state GeMS geodatabase for the Nome mining district.
+
+With the dispersed labels and the splay-and-intersection features, the
+rebuilt model clears the bar. The clean test is the out-of-fold AUC
+restricted to the part of the district where the structure is actually
+mapped, scored under the same leak-guarded spatial cross-validation that
+broke the first version, and there it reads `0.712`[^lode-gate], up
+`0.170` over the same model without the structure features. A paired
+bootstrap on the `48` mapped occurrences puts that gain at a `95` percent
+interval of `+0.108` to `+0.234`[^lode-ci], clear of zero. The feature
+the model leans on hardest is splay proximity, then fold-hinge distance,
+then fault-intersection proximity: the Groves controls, not elevation.
+The structural law the first model failed to find was real. The first
+model just had the wrong features and labels that hid it.
+
+I also checked whether the control is specific to central Nome or holds
+across the wider peninsula. Rebuilding the same structure features from
+two regional bedrock maps and dispersing the `36a` labels across the
+whole Seward Peninsula, the same splay, intersection, fold, and host
+signal predicts lode occurrences at about `0.88` on the mapped ground,
+and `0.82` on an eastern cluster around Solomon and Council that the
+central model never trained on[^lode-peninsula]. The control is not a
+central-district artifact.
+
+I serve the central-district surface as the result, because that is
+where the splay-and-intersection refinement is fully confirmed. In the
+east the structure rests on a coarser fault proxy and only nine
+occurrences, and there the improvement over the base model is not yet
+distinguishable from zero (a `95` percent interval of `-0.07` to
+`+0.28`), so I treat the peninsula extension as validated but
+provisional. A few other things I tried did not help: splitting the
+faults out by name added nothing over the splay and intersection bands,
+the deposit-scale Albion fault at Rock Creek was redundant once those
+were in, and the aeromagnetic layer carried no independent lode signal.
+The placer model held up on the first careful try. The lode model held
+up only after I broke the mirage the first version was riding, and the
+favorability surface it now produces is the lode layer goldbug serves
+alongside the placer surface.
 
 ## Dark data, turned into structured evidence
 
@@ -269,13 +328,16 @@ This is a work in progress. Here is what runs today and what is still
 ahead.
 
 **Working now.** The placer model that survives a test built to break
-it exists and is the surface goldbug serves: the live tool ranks each
+it exists and is a surface goldbug serves: the live tool ranks each
 patented claim and each open parcel on one calibrated scale. The lode
-model is a negative result I trust because I tried to make it fail and
-it did. The knowledge graph is built from the ARDF, MRDS, Cobb, and
-KARDEX corpora, and you can open it through the viewers linked above and
-follow any claim back to its source documents. goldbug is live, and the
-terrain placer model is the surface it serves.
+model now clears that same test in the central district, after the first
+version of it failed and I rebuilt it on typed, dispersed labels and the
+Groves splay-and-intersection structure; its peninsula-wide extension is
+validated but still provisional in the east. The knowledge graph is
+built from the ARDF, MRDS, Cobb, and KARDEX corpora, and you can open it
+through the viewers linked above and follow any claim back to its source
+documents. goldbug is live, and it serves both the placer and the lode
+surfaces.
 
 **On the roadmap.** The richer dark-data corpora are not yet folded in.
 The Cape Nome recorded documents, the locations and assessment work and
@@ -289,13 +351,15 @@ Each of those is a dark-data corpus the model has never seen. The MAS
 and MIN record sets are being ingested now, and closing the
 knowledge-graph-into-model-training loop comes after that.
 
-The lode model is the other open thread. The district-scale test broke
-the version I had, but that points at the test design and the sparse,
-clustered labels, not at the absence of lode gold. The next moves are
-concrete: gather dispersed, peninsula-wide lode labels instead of the
-two clusters I have now, and rebuild the lode model on the same
-presence-background footing that made the placer result hold. I plan to
-keep digging on it.
+The lode model has one thread left. The rebuild worked: typed,
+dispersed labels and the Groves splay-and-intersection features moved
+the central-district AUC from chance to `0.712` under the leak-guarded
+test, and the same control holds across the peninsula. What is still
+provisional is the east, where the splay refinement rests on a coarser
+fault proxy and only nine occurrences, so the gain over the base model
+out there cannot yet be told apart from zero. The next move is to gather
+more dispersed eastern lode labels and confirm the splay-and-intersection
+control there at the strength it has in the central district.
 
 ## Where to look
 
@@ -325,8 +389,9 @@ occurrences vs `2,000` background):
 | Terrain + geomorphology, buffered 300 m | 0.741 | buffered ≥ unbuffered, so no across-fold leak |
 | Full model incl. Au geochemistry, spatial-block CV | 0.686 | near-circular; geochem Au is a gold detector, excluded from the headline |
 
-**Lode, small box vs district** (`mpm_lode_presence_cv.py`,
-`mpm_lode_district_cv.py`):
+**Lode, first version (the mirage)** (`mpm_lode_presence_cv.py`,
+`mpm_lode_district_cv.py`; keyword-grabbed labels, distance-to-fault
+structure):
 
 | Scope | Model | AUC |
 |---|---|---:|
@@ -336,6 +401,27 @@ occurrences vs `2,000` background):
 | District | structural/terrain, buffered 300 m | 0.582 |
 | District | full incl. stream-sed geochem | 0.805 (circular) |
 | District | pathfinders only (As Sb Bi Hg W) | 0.691 (circular) |
+
+**Lode, rebuilt version (typed 36a labels + Groves structure)**
+(`lode_structure_sharpen_cv.py`, `lode_groves_bootstrap.py`,
+`lode_peninsula_generalization.py`; AUC restricted to the GeMS-mapped
+footprint, the only ground where the structure is mapped):
+
+| Scope | Model | AUC | Gain over base |
+|---|---|---:|---:|
+| Central district (48 mapped 36a lodes) | base terrain + geology + aeromag | 0.541 | n/a |
+| Central district | base + Groves splay / intersection / fold / host | 0.712 | +0.170 |
+| Central district | bootstrap 95% CI on the +0.170 gain | [+0.108, +0.234] | P(gain>0)=1.00 |
+| Peninsula, mapped (64 dispersed 36a lodes) | base + Groves, regional structure | 0.883 | +0.37 |
+| Peninsula, held-out east (Solomon/Council, 9 lodes) | base + Groves, regional structure | 0.818 | +0.104, CI [-0.07, +0.28] |
+
+The rebuilt model is served as the central-district surface; the
+peninsula rows are the generalization check, with the eastern gain over
+base not yet distinguishable from zero on nine occurrences (hence
+"provisional"). The first-version keyword set used a different label
+pool and a whole-extent AUC, so its numbers are not directly comparable
+to the rebuilt model's GeMS-restricted AUC; the comparison that matters
+is base `0.541` against `0.712` on the same footprint and folds.
 
 **Cross-validation protocol.** Spatial-block CV cuts the district into
 blocks on the projected grid (EPSG:3338), holds out whole blocks, trains
@@ -347,13 +433,21 @@ AUC per model, not a per-fold distribution, so the chapter figures show
 point estimates without fold error bars; persisting per-fold AUCs for an
 error-bar version is a small follow-up.
 
-**The restriction-of-range diagnosis.** The small-box lode result
-(`0.802`) is an artifact of the box geometry: every lode is upland
-schist, the background is coastal-flat, and the model's top features are
-elevation, distance-to-fault, and slope. Widening to the district
-(adding the Big Hurrah lode and the Solomon-quad hinterland, so the
-background is also upland) collapses it to `0.620` / `0.582`. The
-structural law does not transfer.
+**The restriction-of-range diagnosis, and the fix.** The small-box lode
+result (`0.802`) is an artifact of the box geometry: every lode is
+upland schist, the background is coastal-flat, and the model's top
+features are elevation, distance-to-fault, and slope. Widening to the
+district (adding the Big Hurrah lode and the Solomon-quad hinterland, so
+the background is also upland) collapses it to `0.620` / `0.582`. That
+collapse held until the model was rebuilt with two changes: typed,
+dispersed `36a` labels (which spread the positives off the placer core)
+and the Groves splay / intersection / fold-hinge features (which replace
+distance-to-any-fault with the actual orogenic-gold control). On the
+GeMS-mapped footprint, under the same leak-guarded folds, that moved the
+AUC from a base of `0.541` to `0.712`, a `+0.170` gain with a bootstrap
+`95` percent interval of `+0.108` to `+0.234`. The top features become
+splay proximity, fold-hinge distance, and fault-intersection proximity,
+not elevation.
 
 **Why geochemistry is excluded from the headline.** The stream-sediment
 pathfinder suite (arsenic, antimony, bismuth, mercury, tungsten) trails
@@ -373,3 +467,9 @@ numbers are reproducible run to run.
 [^lode-report]: `data/derived/nome_placer/mpm_lode/mpm_lode_presence_report.json` (small-box test, 30 lodes), produced by `scripts/nome_placer/mpm_lode_presence_cv.py`.
 
 [^lode-dist-report]: `data/derived/nome_placer/mpm_lode/mpm_lode_district_report.json` (district-wide, 93 lodes incl. Big Hurrah), produced by `scripts/nome_placer/mpm_lode_district_cv.py`.
+
+[^lode-gate]: `data/derived/nome_placer/lode_structure_sharpen/lode_structure_sharpen.json` (the rebuilt model: typed 36a labels, GeMS-restricted AUC, `struct_groves` arm at `0.712`), produced by `scripts/nome_placer/lode_structure_sharpen_cv.py`. The served surface is generated from the same model by `scripts/nome_placer/mpm_lode_score_district.py` (`data/derived/nome_placer/mpm_lode_served/`).
+
+[^lode-ci]: `data/derived/nome_placer/lode_groves_bootstrap/lode_groves_bootstrap.json`, produced by `scripts/nome_placer/lode_groves_bootstrap.py`: a paired bootstrap (2,000 resamples) of the out-of-fold AUC gain on the 48 GeMS-mapped 36a occurrences, 95% interval `[+0.108, +0.234]`, P(gain>0)=1.00.
+
+[^lode-peninsula]: `data/derived/nome_placer/lode_peninsula_generalization/lode_peninsula_generalization.json`, produced by `scripts/nome_placer/lode_peninsula_generalization.py`: the Groves structure rebuilt on regional bedrock maps (Alaska DGGS SIM 3131 + RI 2024-7), 36a labels dispersed peninsula-wide, scoring `0.883` on the mapped ground and `0.818` on the held-out eastern cluster (9 occurrences).
