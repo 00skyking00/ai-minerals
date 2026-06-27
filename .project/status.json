@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T16:00:02Z",
+  "updated": "2026-06-27T16:14:43Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 53,
+    "done": 54,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "ROUND-4 WALKTHROUGH WRAP + CLAIM-DISCIPLINE AUDIT DONE (coordinator 2026-06-27 round4-notebook-wrap-and-claim-audit handoff). (1) Re-merged origin/main into f1/nome-geophysics-qa-fix-2026-06-27, unioning .project/status.json (drift + geophysics + placer-typing entries, done 50->53) so PR #45 is mergeable. (2) Folded round-4 results into the private nome_walkthrough.qmd + surgically patched nome_walkthrough.html (prose-only, cells not re-executed): eastern-splay A (orientation transfers east +0.119 CI[-0.008,+0.269]; the Groves splay/intersection refinement does NOT, -0.047 CI[-0.189,+0.096] spans zero; central-district served surface stands); drift-on-beach B changed from 'data-walled' to a tested null (bedrock/Quaternary-contact proxy marginal -0.030 CI[-0.072,+0.011], positives 1.6km seaward, not a refutation); placer-typing B2 new null bullet (only 8/65 cleanly-typed coastal beaches, both coastal types farther from lodes than background, abrasion-nearer-axis nudge p=0.11 n.s., upland-on-own-lodes is the real but circular/terrain-captured signal; retest needs Metcalfe&Tuck or NovaGold DB). Geophysics already corrected in #45, untouched. (3) Claim-discipline audit (Sky's no-bare-mechanisms rule) across the whole notebook: FIXED the carbon-host 'wall-rock chemistry drops gold out of solution' mechanism (attributed to Groves reactive-host control + framed the chemistry as 'the usual explanation'); tightened the drift bullet; reviewed+kept 7 other causal sentences that already carry a citation/number/hypothesis-label. One known cosmetic item left for the next full re-render: an em-dash inside the feature-importance figure-title code (voice_lint ignores code). voice_lint clean (0 banned/dash/idiom) on qmd + wrap note. Wrap note: research/nome_walkthrough_round4_wrap_2026-06-27.md. All on PR #45 (one PR, since the round-4 prose touches the same notebook files as the #45 geophysics fix); pushed, not merged, not deployed. Reply to coordinator carries the .html path for unlisted-URL deploy."
+    },
     {
       "severity": "low",
       "text": "GEOPHYSICS QA FIX DONE (coordinator 2026-06-27 geophysics-finding-qa handoff). Nome walkthrough geophysics section corrected after Sky's adversarial-lit check. (1) Cut the unsupported permafrost-masking mechanism, demoted to an explicitly-labelled untested hypothesis; the graphitic host actually reads MORE resistive (+0.3..+0.8 log10 ohm-m across 900Hz/7.2kHz/56kHz), opposite the conductor prediction (literature's alteration signature is LOW resistivity). (2) Separated magnetics (no help, marginal AUC -0.02 in-box / -0.06 district) from DIGHEM apparent resistivity (small positive +0.03 at district scale on flown cells, null in-box); neither DIGHEM layer is in the served surface, structure carries the lode (+0.11, CI [+0.050,+0.164], P 0.999); only geophysics in the served model is the statewide akmag in the base. (3) Noted the literature's combined low-mag/low-resistivity/gravity-low alteration index was never built (gravity not in the Nome stack at all) = a limitation, not a refutation. Corrected .qmd + matching .html (surgical prose patch, cells not re-executed; full re-render at deploy is the clean follow-up). Per-layer numbers + round-5 recommendation (build the conjunction index, expectations low: components weak alone, resistivity covers ~32% of district, only coarse continental gravity available) in research/nome_geophysics_lode_contribution_2026-06-27.md (local). PR #45 off origin/main; not merged, not deployed."
