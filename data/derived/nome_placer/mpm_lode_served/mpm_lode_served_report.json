@@ -1,0 +1,75 @@
+{
+  "model": "struct_groves RandomForest (300 trees, class_weight=balanced, seed=42)",
+  "features": [
+    "geol_Cd",
+    "geol_DOx",
+    "geol_Dcs",
+    "geol_Ds",
+    "geol_Ocs",
+    "geol_Oim",
+    "geol_Pzm",
+    "geol_Qs",
+    "geol_Zn",
+    "geol_water",
+    "akmag",
+    "dist_fault",
+    "dem",
+    "slope",
+    "tpi",
+    "dist_fault_intersection",
+    "dist_splay",
+    "dist_fold_hinge",
+    "carbonaceous_host"
+  ],
+  "labels": "ARDF Cox-Singer model_code 36a (low-sulfide Au-quartz vein), typed dispersed set",
+  "n": 3054,
+  "n_pos": 54,
+  "n_pos_gems_mapped": 48,
+  "n_pos_placer_core": 27,
+  "n_background": 3000,
+  "served_extent": {
+    "decision": "central-district (GeMS-mapped footprint)",
+    "rationale": "the gate-carrying Groves bands (dist_fault_intersection, dist_splay) are only defined inside the Nome district GeMS; outside it the surface is not meaningful, so it is masked to gems_extent > 0.5 AND on-land.",
+    "peninsula_extension": "validated-but-provisional, reported as context, not served"
+  },
+  "performance_estimate": {
+    "source": "lode_structure_sharpen.json (gate) + lode_groves_bootstrap.json (CI) + lode_peninsula_generalization.json (generalization)",
+    "note": "These are the leak-guarded held-out estimates of THIS pipeline. The served raster below is the same pipeline refit on all 36a labels; AUC is a held-out estimate, not a property of the all-data refit.",
+    "auc_gems": 0.712,
+    "d_auc_gems_over_base": 0.17,
+    "auc_full": 0.852,
+    "auc_placer_core": 0.914,
+    "bootstrap_ci95_delta": [
+      0.1081,
+      0.2336
+    ],
+    "bootstrap_p_gt_0": 1.0,
+    "bootstrap_n_pos": 48,
+    "peninsula": {
+      "wider_auc_mapped": 0.8830640568043742,
+      "wider_auc_east_heldout": 0.818283166109253,
+      "wider_d_auc_mapped": 0.37,
+      "status": "validated-but-provisional (regional splay proxy; 9 eastern positives)"
+    }
+  },
+  "served_surface": {
+    "raster_3338": "mpm_lode_served_district_3338.tif",
+    "raster_4326": "mpm_lode_served_district_4326.tif",
+    "scored_cells": 142215,
+    "nodata": -1.0,
+    "value_range_scored": [
+      0.0,
+      0.93
+    ],
+    "percentiles": {
+      "p5": 0.0,
+      "p10": 0.0,
+      "p25": 0.0,
+      "p50": 0.0067,
+      "p75": 0.0233,
+      "p90": 0.0833,
+      "p95": 0.1667,
+      "p99": 0.4067
+    }
+  }
+}
