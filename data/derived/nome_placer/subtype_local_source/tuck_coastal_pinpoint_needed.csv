@@ -1,0 +1,64 @@
+slug,name,deposit_type,type_canon,n_ms_matched,best_confidence,matched_claims,source_pages
+faystrook_theaveries_locality_b,Faystrook and Theaveries claims (near Locality B),abrasion-platform,abrasion_platform,0,,,81;83
+odin_say_submarine,Odin and Bay (Say) claims / Submarine Beach western extension (Locality D),abrasion-platform,abrasion_platform,1,rejected,Saturday,81;82;83;84;85
+olga_beachline,Olga beachline (Localities C and H),true-beach,strandline_beach,0,,,81;83;88
+present_beach,Present Beach (Map A coastline),true-beach,strandline_beach,1,rejected,Snake River,81;86
+second_beach,Second Beach and its offshore / sloughover deposit,true-beach,strandline_beach,0,,,81;85;86
+center_creek_beach,Center Creek Beach,abrasion-platform,abrasion_platform,2,rejected,Belle;North Star,100;101
+discovery_creek_eskimo_chief,"Discovery Creek (Eskimo Chief) claim, Dry Creek",true-beach,strandline_beach,0,,,120
+hope_no2_big_chief_preeminent,"Hope No. 2 (Big Chief) and Preeminent / Freecourt claims, Third Beach",true-beach,strandline_beach,0,,,121
+hope_no3_mcdonald_isolated,"Hope No. 3 southeast-corner dump and east-west bedrock trend, between Otter and McDonald Creeks",abrasion-platform,abrasion_platform,0,,,121;123
+intermediate_beach,Intermediate Beach,abrasion-platform,abrasion_platform,4,rejected,Linda;Corning;Ruby;Arctic Association,102
+laura_gulch_area,Laura Gulch Area,abrasion-platform,abrasion_platform,2,rejected,Plutus;Cyrus Noble,102;103;104
+left_limit_lower_otter_marine_bedrock,Left limit of lower Otter Creek (near-bedrock marine concentration),abrasion-platform,abrasion_platform,0,,,111
+lower_poluk_creek_thawed_shallow,Poluk (Peluk) Creek shallow thawed ground,true-beach,strandline_beach,0,,,110;116
+map_b_gold_distribution,"Map B Area — Gold Distribution, Source and Origin",abrasion-platform,abrasion_platform,1,rejected,Mutt,94;95;96
+north_pole_happy_beach,"North Pole and Happy Beach claims, Third Beach",true-beach,strandline_beach,1,rejected,North Pole,120
+offshore_beach,Offshore: the Offshore Beach (a buried strandline below present sea level),true-beach,strandline_beach,0,,,128;129
+offshore_beach_abrasion_platform,Offshore: the Offshore Beach abrasion platform,abrasion-platform,abrasion_platform,0,,,128
+offshore_present_beach_abrasion_platform,Offshore: Present Beach abrasion platform,abrasion-platform,abrasion_platform,0,,,128;129
+offshore_submarine_extension,Offshore: Submarine concentration extension (and bedrock beneath),abrasion-platform,abrasion_platform,0,,,129
+otter_nome_marine_bedrock_blocks_bd,"Near-bedrock marine (abrasion-platform) concentration, Lines 55-43 (Blocks B and D)",abrasion-platform,abrasion_platform,0,,,113
+second_beach_dry_creek_to_nome_harlan,Second Beachline between Dry Creek and Nome River (Harlan estimate),true-beach,strandline_beach,0,,,116
+second_beach_exploration,Second Beach — Past Exploration and Sampling (Map B),true-beach,strandline_beach,1,rejected,Valhalla,108;109
+second_beach_general,Second Beach — General Features and Setting (Map B),true-beach,strandline_beach,1,rejected,Valhalla,105;106
+second_beach_gold_distribution,Second Beach — Gold Distribution and Sloughover (Map B),true-beach,strandline_beach,0,,,106;107
+second_beach_otter_nome_drilling,"Second Beach concentration (Otter Creek-Nome River drilling, Block A)",true-beach,strandline_beach,0,,,113
+second_beach_production,"Second Beach — Past Production (Map A, B, C aggregate)",true-beach,strandline_beach,0,,,108
+second_beach_sloughover_abbey_cut,"Second Beach sloughover concentration (Abbey cut / Carrington drilling, west of Peluk Creek)",abrasion-platform,abrasion_platform,0,,,116;117
+submarine_beach,Submarine Beach,abrasion-platform,abrasion_platform,5,rejected,Wisconsin;Viola;Arthur-Broncho;Forsells Association;Submarine,96;97;98;99
+third_beach_capital_laura_beach_upper_gravel,"Capital / Laura Beach claims upper-gravel concentration (Newton Gulch, Dry Creek fan)",true-beach,strandline_beach,1,rejected,North Pole,119;122
+tripple_johnson_walsh_holes_1938,"Tripple-Otter intervening ground (Walter Johnson 1938 holes, Owl/Bottle/Localities V-W)",abrasion-platform,abrasion_platform,1,rejected,Owl Association,126;127
+vivian_claim_mcdonald_creek,"Vivian claim, McDonald Creek (Third Beach east end)",true-beach,strandline_beach,0,,,121;123
+cunningham_creek_shafts,"Cunningham Creek shafts (Kroll and Hehes, between benches)",true-beach,strandline_beach,0,,,134
+hastings_saunders_third_beach_shafts,Third Beach shafts between Hastings and Saunders Creeks,true-beach,strandline_beach,0,,,135
+locality_d_poepke,"Locality D, west of Poepke claim (extreme western end of map)",abrasion-platform,abrasion_platform,0,,,135
+massachusetts_connecticut_shafts,Massachusetts and Connecticut claim deep shafts (Willow Creek vicinity),abrasion-platform,abrasion_platform,0,,,131;134
+nome_river_bedrock_benches,Nome River bedrock benches / open cuts (abrasion-platform concentration),abrasion-platform,abrasion_platform,0,,,132;135;139;140
+nome_river_channel,Nome River Valley (deep bedrock channel concentration),abrasion-platform,abrasion_platform,0,,,140;141;142
+nome_river_locality_b,Bedrock abrasion platform north of Irene Creek (Locality B),abrasion-platform,abrasion_platform,0,,,139;140
+nome_river_past_exploration,Nome River valley (past exploration drilling),abrasion-platform,abrasion_platform,0,,,133;134
+present_beach,Present Beach (Map C),true-beach,strandline_beach,0,,,132;134
+second_beach_productive,Second Beach (Map C),true-beach,strandline_beach,0,,,132;134
+second_bench_dredge_project,"Second Bench (dredge-project locality, east of Nome River to Hastings Creek)",true-beach,strandline_beach,0,,,136;137
+second_bench_hastings_supplement,"Second Bench supplementary yardage, Hastings Creek to Saunders Creek",true-beach,strandline_beach,0,,,137
+third_beach_locality_a_aldrich,"Third Beach eastern embayment, Locality A (Nome Creek, Aldrich/Belleview)",true-beach,strandline_beach,0,,,138
+third_beach_locality_c_kroll,"Third Bench sloughover at Locality C (Kroll shafts, Irene Creek)",true-beach,strandline_beach,0,,,134;135;139;140
+third_beach_productive,"Third Beach (productive area, Irene and Cunningham Creeks)",true-beach,strandline_beach,0,,,132
+third_beach_west_extension,Third Beach western extension (west of productive area toward Nome River),true-beach,strandline_beach,0,,,138
+abrasion_platform_sloughover_general,Abrasion platform / sloughover / offshore deposit (district general),abrasion-platform,abrasion_platform,0,,,51;52
+center_creek_beach,Center Creek Beach,abrasion-platform,abrasion_platform,0,,,58
+fourth_beach,Fourth Beach (120-foot marine placer surface),abrasion-platform,abrasion_platform,0,,,59
+intermediate_beach,Intermediate Beach,abrasion-platform,abrasion_platform,0,,,58
+monroeville_beach,Monroeville Beach,abrasion-platform,abrasion_platform,0,,,58
+offshore_beach,Offshore Beach,true-beach,strandline_beach,0,,,55
+olga_beach,Olga Beach,true-beach,strandline_beach,0,,,55
+present_beach,Present Beach,true-beach,strandline_beach,0,,,52
+present_beach_abrasion_platform,Present Beach abrasion platform (offshore/sloughover),abrasion-platform,abrasion_platform,0,,,55;56
+second_beach,Second Beach,true-beach,strandline_beach,0,,,52;53
+second_beach_abrasion_platform,Second Beach abrasion platform (offshore deposit),abrasion-platform,abrasion_platform,0,,,56
+second_beach_otter_coarse_gold,Second Beach rich portion west of Otter Creek,true-beach,strandline_beach,0,,,53
+submarine_beach,Submarine Beach,abrasion-platform,abrasion_platform,1,rejected,Submarine,58
+third_beach,Third Beach,true-beach,strandline_beach,0,,,53;54
+third_beach_abrasion_platform,Third Beach abrasion platform (offshore deposit),abrasion-platform,abrasion_platform,0,,,56
+true_beach_concentration_general,True beach concentration (district general),true-beach,strandline_beach,0,,,49;51;52

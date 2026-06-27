@@ -1,0 +1,34 @@
+{
+  "all": {
+    "total": 181,
+    "ms_joined": 15,
+    "pinpoint_needed": 166
+  },
+  "coastal": {
+    "total": 72,
+    "ms_joined": 9,
+    "pinpoint_needed": 63
+  },
+  "by_type": {
+    "true-beach": {
+      "total": 41,
+      "ms_joined": 8,
+      "pinpoint_needed": 33
+    },
+    "abrasion-platform": {
+      "total": 31,
+      "ms_joined": 1,
+      "pinpoint_needed": 30
+    },
+    "upland-residual": {
+      "total": 87,
+      "ms_joined": 5,
+      "pinpoint_needed": 82
+    },
+    "unknown": {
+      "total": 22,
+      "ms_joined": 1,
+      "pinpoint_needed": 21
+    }
+  }
+}
