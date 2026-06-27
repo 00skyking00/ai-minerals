@@ -1,0 +1,39 @@
+{
+  "feature": "Albion fault (NE-trending host of the Rock Creek deposit)",
+  "method": "documented analytic construction from Otto, Piekenbrock & Odden 2009 (Econ. Geol. v.104, p.945-960, doi 10.2113/econgeo.104.7.945); NOT a pixel trace",
+  "control_point": {
+    "source": "ARDF occurrence 'Albion' (model_code 36a)",
+    "epsg_3338": [
+      -542902.0,
+      1675320.0
+    ],
+    "utm_zone3_nad83": [
+      480381,
+      7166061
+    ],
+    "lonlat": [
+      -165.4102,
+      64.619
+    ],
+    "cross_check": "Otto 2009 Fig.3 is UTM Zone 3 NAD83; anchor N=7,166,061 lands on the figure's 7166000 N tick"
+  },
+  "strike_deg": 45.0,
+  "strike_source": "Otto 2009 p.951 'strikes north 45 deg east'",
+  "extent_ne_m": 20000.0,
+  "extent_ne_source": "Otto 2009 p.951 'continues to the northeast for about 20 km'",
+  "extent_sw_m": 3000.0,
+  "extent_sw_note": "conservative; SW continuation less constrained in the paper",
+  "grid_convergence_deg": -0.371,
+  "convergence_note": "Nome ~ UTM zone-3 central meridian; bearing 045 ~ grid 045",
+  "endpoints_3338": {
+    "sw": [
+      -545343,
+      1673574
+    ],
+    "ne": [
+      -526624,
+      1686953
+    ]
+  },
+  "limitations": "straight-line idealization at the stated strike; real trace may bend; SW extent approximate. A documented first geometry, not a surveyed trace."
+}

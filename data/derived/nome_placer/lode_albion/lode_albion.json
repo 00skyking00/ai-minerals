@@ -1,0 +1,90 @@
+{
+  "question": "Does a documented dist-to-Albion-fault feature help the round-2 lode winner (struct_groves, auc_gems 0.712) under F1 leak-guarded CV?",
+  "albion_construction": {
+    "feature": "Albion fault (NE-trending host of the Rock Creek deposit)",
+    "method": "documented analytic construction from Otto, Piekenbrock & Odden 2009 (Econ. Geol. v.104, p.945-960, doi 10.2113/econgeo.104.7.945); NOT a pixel trace",
+    "control_point": {
+      "source": "ARDF occurrence 'Albion' (model_code 36a)",
+      "epsg_3338": [
+        -542902.0,
+        1675320.0
+      ],
+      "utm_zone3_nad83": [
+        480381,
+        7166061
+      ],
+      "lonlat": [
+        -165.4102,
+        64.619
+      ],
+      "cross_check": "Otto 2009 Fig.3 is UTM Zone 3 NAD83; anchor N=7,166,061 lands on the figure's 7166000 N tick"
+    },
+    "strike_deg": 45.0,
+    "strike_source": "Otto 2009 p.951 'strikes north 45 deg east'",
+    "extent_ne_m": 20000.0,
+    "extent_ne_source": "Otto 2009 p.951 'continues to the northeast for about 20 km'",
+    "extent_sw_m": 3000.0,
+    "extent_sw_note": "conservative; SW continuation less constrained in the paper",
+    "grid_convergence_deg": -0.371,
+    "convergence_note": "Nome ~ UTM zone-3 central meridian; bearing 045 ~ grid 045",
+    "endpoints_3338": {
+      "sw": [
+        -545343,
+        1673574
+      ],
+      "ne": [
+        -526624,
+        1686953
+      ]
+    },
+    "limitations": "straight-line idealization at the stated strike; real trace may bend; SW extent approximate. A documented first geometry, not a surveyed trace."
+  },
+  "scheme": {
+    "block_size_m": 3800.0,
+    "variogram_range_m": 1878.8,
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "n_boot": 2000
+  },
+  "n": 3054,
+  "n_pos": 54,
+  "n_pos_gems_mapped": 48,
+  "arms": {
+    "base": {
+      "auc_gems": 0.5413356034808929,
+      "auc_placer_core": 0.7653694303440497,
+      "auc_full": 0.6130339506172839
+    },
+    "struct_groves": {
+      "auc_gems": 0.7117503783579265,
+      "auc_placer_core": 0.914363602180861,
+      "auc_full": 0.852003086419753
+    },
+    "struct_groves_albion": {
+      "auc_gems": 0.691248108210367,
+      "auc_placer_core": 0.9246098890768942,
+      "auc_full": 0.8141728395061728
+    }
+  },
+  "albion_marginal_over_struct_groves": {
+    "subset": "gems",
+    "point": -0.0205,
+    "ci95": [
+      -0.0742,
+      0.0338
+    ],
+    "p_gt_0": 0.2295,
+    "n_scored": 929,
+    "n_pos": 48
+  },
+  "struct_groves_albion_vs_base": {
+    "subset": "gems",
+    "point": 0.1499,
+    "ci95": [
+      0.0712,
+      0.2291
+    ],
+    "p_gt_0": 1.0,
+    "n_scored": 929,
+    "n_pos": 48
+  }
+}
