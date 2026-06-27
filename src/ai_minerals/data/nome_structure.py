@@ -14,12 +14,17 @@ signal rather than the occurrence-coverage confound that sank the F3 KG fusion.
 Bands produced (each aligned to a caller-supplied model grid):
 
   dist_ne_fault       metres to the nearest NE-trending fault/lineament segment
-                      (strike azimuth in [22.5, 67.5)); the primary Rock Creek /
-                      Albion-fault control direction.
+                      (strike azimuth in [15.0, 67.5)); the dominant district set.
+                      The mapped NE length is carried by the Penny River, Charlie
+                      Creek and Anvil faults (NOT the Albion fault, which is a
+                      deposit-scale structure at Rock Creek and is absent from
+                      this district GeMS). The floor was lowered from 22.5 to 15.0
+                      so the NNE-striking Rodine fault (segment trends 16-40 deg)
+                      stops falling out of the bin -- see Round-2 fix below.
   dist_nw_fault       metres to the nearest NW-trending segment (azimuth in
-                      [112.5, 157.5)); the conjugate set. Kept SEPARATE from NE
-                      because the orientation, not mere fault proximity, is the
-                      control.
+                      [112.5, 157.5)); the conjugate set (the Boulder Creek
+                      fault). Kept SEPARATE from NE because the orientation, not
+                      mere fault proximity, is the control.
   dist_fold_hinge     metres to the nearest mapped fold axis (anticline /
                       overturned anticline), the Groves-2018 fold-hinge trap.
   carbonaceous_host   1.0 where the cell falls in a graphitic Nome Group schist
@@ -65,10 +70,33 @@ NODATA = -1.0
 PAD_M = 8000.0  # distance-transform halo so a cell's nearest structure may sit
 #                 just outside the model grid (matches mpm_build_geology_covariates)
 
-# Quadrant azimuth bins (trend folded to [0,180)). 45-deg wide, centred on the
-# two diagonal sets; N-S and E-W segments fall in neither and anchor no covariate.
-NE_RANGE = (22.5, 67.5)
+# Quadrant azimuth bins (trend folded to [0,180)). The NE bin floor is 15.0, not
+# the geometric quadrant boundary 22.5: at 22.5 the NNE-striking Rodine fault
+# (median segment trend 30 deg, but a 16-22.5 deg tail) lost ~1/3 of its length
+# to "no bin", and 178 district fault segments overall fell in the [15, 22.5) gap.
+# Widening to 15.0 keeps the conjugate NW bin's geometric width but recovers the
+# NNE segments the literature treats as part of the same NE control set.
+NE_RANGE = (15.0, 67.5)
 NW_RANGE = (112.5, 157.5)
+
+# Named district faults carried in the GeMS ContactsAndFaults.Label field. Split
+# out so the model weights each individually (the addendum's per-named-fault
+# request) instead of lumping them into one nearest-of-set distance. Trends
+# (median segment azimuth): Anvil 53, Penny River 47, Aurora Creek 38, Charlie
+# Creek 34, Rodine 30 (all NE); Boulder Creek 134 (NW).
+NAMED_FAULTS = {
+    "Anvil Fault": "anvil",
+    "Penny River Fault": "penny_river",
+    "Aurora Creek Fault": "aurora_creek",
+    "Charlie Creek Fault": "charlie_creek",
+    "Boulder Creek Fault": "boulder_creek",
+    "Rodine Fault": "rodine",
+}
+# A secondary "splay" is an UNLABELLED fault segment whose nearest approach to a
+# named trunk is within this distance: the second-order damage-zone faulting that
+# Groves et al. 2018 flag as the world-class-orogenic-gold site (deposits sit in
+# the splays/intersections, not on the trunk). A proxy, not a mapped splay set.
+SPLAY_NEAR_TRUNK_M = 250.0
 
 # Graphitic Nome Group schist units (explicit "graphitic" in the GeMS
 # DescriptionOfMapUnits): the carbonaceous lode host.
@@ -76,6 +104,15 @@ GRAPHITIC_UNITS = {"pCPzsg", "pCPzspm", "pCPzsgb"}
 
 STRUCT_BANDS = ["dist_ne_fault", "dist_nw_fault", "dist_fold_hinge", "carbonaceous_host"]
 DIST_BANDS = ["dist_ne_fault", "dist_nw_fault", "dist_fold_hinge"]
+
+# Round-2 sharpened bands (the per-named-fault split + the Groves refinement).
+NAMED_FAULT_BANDS = [f"dist_{slug}" for slug in NAMED_FAULTS.values()]
+GROVES_BANDS = ["dist_fault_intersection", "dist_splay"]
+# The full sharpened structure set: per-named-fault distances, the two Groves
+# proximity bands, the fold hinge and the graphitic host. (The generic
+# dist_ne_fault/dist_nw_fault are still built for the round-1 comparison arm but
+# are NOT in this set -- the named split replaces them.)
+SHARP_BANDS = NAMED_FAULT_BANDS + GROVES_BANDS + ["dist_fold_hinge", "carbonaceous_host"]
 
 
 def _segments(gdf: gpd.GeoDataFrame) -> tuple[list[LineString], np.ndarray]:
@@ -156,6 +193,104 @@ def _write(arr: np.ndarray, profile: dict, path: Path) -> Path:
     with rasterio.open(path, "w", **profile) as dst:
         dst.write(arr.astype("float32"), 1)
     return path
+
+
+def _all_faults() -> gpd.GeoDataFrame:
+    """ContactsAndFaults rows whose Type is a fault, in EPSG:3338 (with Label)."""
+    caf = gpd.read_file(GEMS, layer="ContactsAndFaults").to_crs(TARGET_CRS)
+    return caf[caf["Type"].astype(str).str.startswith("fault")]
+
+
+def load_named_faults() -> dict[str, list[LineString]]:
+    """{band_name: segments} for each named district fault (Label field)."""
+    faults = _all_faults()
+    label = faults["Label"].astype(str)
+    out: dict[str, list[LineString]] = {}
+    for name, slug in NAMED_FAULTS.items():
+        sub = faults[label == name]
+        segs, _ = _segments(sub)
+        out[f"dist_{slug}"] = segs
+    return out
+
+
+def load_fault_intersections() -> list:
+    """Points where an NE-trending structure crosses an NW-trending one.
+
+    The Groves-2018 structure-intersection target: world-class orogenic deposits
+    favour the nodes where the two fault sets cross. Computed as the geometric
+    intersection of the NE-segment union with the NW-segment union (different
+    orientations, so the intersection is a set of points, not overlapping lines).
+    """
+    from shapely.ops import unary_union
+    from shapely.geometry import MultiLineString
+
+    oriented = load_oriented_structures()
+    ne = unary_union(MultiLineString(oriented["dist_ne_fault"]))
+    nw = unary_union(MultiLineString(oriented["dist_nw_fault"]))
+    inter = ne.intersection(nw)
+    if inter.is_empty:
+        return []
+    geoms = list(inter.geoms) if inter.geom_type.startswith("Multi") else [inter]
+    return [g for g in geoms if g.geom_type == "Point"]
+
+
+def load_splays() -> list[LineString]:
+    """Unlabelled fault segments hugging a named trunk (second-order splays).
+
+    Groves-2018 proxy: a damage-zone splay is an UNnamed fault whose nearest
+    approach to one of the NAMED_FAULTS trunks is within ``SPLAY_NEAR_TRUNK_M``
+    but not coincident (> one grid cell), i.e. it branches off the trunk rather
+    than being the trunk. This is a heuristic, not a mapped splay layer.
+    """
+    from shapely.ops import unary_union
+
+    faults = _all_faults()
+    label = faults["Label"].astype(str)
+    named = faults[label.isin(NAMED_FAULTS)]
+    trunk = unary_union(list(named.geometry))
+    other_segs, _ = _segments(faults[~label.isin(NAMED_FAULTS)])
+    splays = []
+    for seg in other_segs:
+        d = seg.distance(trunk)
+        if 1.0 < d <= SPLAY_NEAR_TRUNK_M:
+            splays.append(seg)
+    return splays
+
+
+def build_sharpened_structure_bands(template_path: Path, out_dir: Path) -> dict[str, Path]:
+    """Round-2 sharpened structure bands aligned to a model grid.
+
+    Writes per-named-fault distances (NAMED_FAULT_BANDS), the two Groves
+    proximity bands (dist_fault_intersection, dist_splay), the fold hinge and the
+    graphitic host, plus the generic dist_ne_fault/dist_nw_fault (lowered floor)
+    and the gems_extent mask. Returns {band_name: path}.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths: dict[str, Path] = {}
+
+    for band, segs in load_named_faults().items():
+        dist, profile = _dist_to(segs, template_path)
+        paths[band] = _write(dist, profile, out_dir / f"struct_{band}.tif")
+
+    inter = load_fault_intersections()
+    dist, profile = _dist_to(inter, template_path)
+    paths["dist_fault_intersection"] = _write(dist, profile, out_dir / "struct_dist_fault_intersection.tif")
+
+    splays = load_splays()
+    dist, profile = _dist_to(splays, template_path)
+    paths["dist_splay"] = _write(dist, profile, out_dir / "struct_dist_splay.tif")
+
+    # The generic oriented bands (lowered NE floor) + fold hinge, for the
+    # round-1-vs-round-2 comparison arm.
+    for band, segs in load_oriented_structures().items():
+        dist, profile = _dist_to(segs, template_path)
+        paths[band] = _write(dist, profile, out_dir / f"struct_{band}.tif")
+
+    host, hprof = _polys_mask(GRAPHITIC_UNITS, template_path)
+    paths["carbonaceous_host"] = _write(host, hprof, out_dir / "struct_carbonaceous_host.tif")
+    extent, eprof = _polys_mask(None, template_path)
+    paths["gems_extent"] = _write(extent, eprof, out_dir / "struct_gems_extent.tif")
+    return paths
 
 
 def build_structure_bands(template_path: Path, out_dir: Path) -> dict[str, Path]:
