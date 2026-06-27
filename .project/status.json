@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T20:44:20Z",
+  "updated": "2026-06-27T20:52:00Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "TUCK GEOREF v2 QUANTIFY DONE / WARP BLOCKED (coordinator 2026-06-27 tuck-georef-v2 handoff). Settled the real-vs-synthetic GCP question objectively (scripts/nome_placer/tuck_georef_quantify.py, affine-residual test): the real per-sheet hand-pick set is v1p5_v2_refined_gcps (map_b 12pts/2.4m, map_b1 10pts/2.1m central block; map_a/c/d/e sparse 4-7pts, map_e 1080m residual); everything in v2_gcp_candidates / v4_hammon_synthetic / v5_corrected is affine-synthetic (residual 0, re-encodes the current georef, fixes nothing); diagnostic_manual is real but atlas-frame (228pts). BLOCKED on offset + warp: the 229 true corners are world-only; the served georef is confirmed (ai-minerals overlays_v1p5 == goldbug data/historical/tuck1942_v1p5 map_b transform identical); but applying the served affine to the only real corner-paired picks (map_b/b1) lands 5.6km off (SE) vs the observed tens-of-m N-NE -> those picks are in a non-served working frame, so the offset is NOT measurable and a TPS warp cannot be fit. Real picks also cover only the central block, not full sheets. UNBLOCK: Sky-in-the-loop QGIS pass picking the 229 corners on the SERVED rasters (12-20/sheet corner-to-corner), then gdalwarp -tps, RMS vs held-out corners (the v2_next_step the v1p5 metadata already records). Did NOT warp with synthetic GCPs; did NOT ship the km reconciliation as an offset. PR off origin/main; artifacts in data/derived/tuck1942/georef_v2_quantify/. No prod promotion."
+    },
     {
       "severity": "low",
       "text": "TUCK-POWERED PLACER RETEST DONE (coordinator 2026-06-27 tuck-powered-placer-retest handoff). Joined fossick's 181 typed Tuck-1942 areas to authoritative MS-survey coords (goldbug published surveys + bearcub curated crosswalk; precision-biased matcher, scripts/nome_placer/tuck_placer_join_coords.py). Result is ASYMMETRIC: of 72 coastal areas only 9 carry an MS coord (8 true-beach, 1 abrasion-platform); 63 are pinpoint-needed (30 abrasion, 33 true-beach). The abrasion-platform paystreaks (submarine/offshore/buried strandlines, Monroeville/Intermediate/Present/Center beaches) were never patented as MS claims, so the cadastre cannot place them; net +6 distinct true-beach positives, +0 abrasion. Per-subtype leak-guarded CV (placer_subtype_local_source_tuck.py): a coastal local-source signal appears (dist-to-belt-axis +0.125 CI[0.056,0.185], dist-to-lode +0.087 CI[0.002,0.169] on 14 coastal positives) but it is carried by TRUE-BEACH, not abrasion, and the abrasion-vs-true-beach contrast runs OPPOSITE the hypothesis (abrasion sits farther from every source than the newly-placed true-beach claims); both are artifacts of which claims hold patents (inland Third Beach claims joinable, seaward abrasion paystreaks not). VERDICT: still UNGRADEABLE for abrasion-platform (n stays 5); the pooled null is not masking a clean abrasion local-source signal that the MS-join can reveal. Baseline reproduces round-4B to the digit. UNBLOCK: pinpoint the 30 abrasion features (tuck_coastal_pinpoint_needed.csv) via goldbug pinpoint tool / tile-composite, then the abrasion arm can carry the test. PR off origin/main; artifacts force-added under data/derived/nome_placer/subtype_local_source/. Tuck stays private (no raw paystreak data carried)."

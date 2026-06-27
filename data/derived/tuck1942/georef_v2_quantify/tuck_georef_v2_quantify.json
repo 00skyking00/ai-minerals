@@ -1,0 +1,230 @@
+{
+  "what": "Audit of every Tuck GCP set (real vs affine-synthetic) + a served-frame reconciliation check of the real picks against the 229 true claim corners.",
+  "verdict": "Current-offset is NOT measurable from the existing artifacts: the served georef is confirmed (identical in ai-minerals overlays_v1p5 and goldbug data/historical/tuck1942_v1p5), but the only real per-sheet picks (v1p5_v2_refined_gcps, central block) are in a different working pixel frame -- applying the served affine to them lands ~5.6 km off the true corners, against an observed tens-of-metres error. So both the per-sheet offset and a real-corner warp need served-frame pixel picks that do not yet exist. Sky-in-the-loop digitising on the served rasters is the unblock.",
+  "served_georef": "data/derived/tuck1942/overlays_v1p5 (affine_v1_from_4_visual_gcps)",
+  "control_points": "../bearcub/data/derived/nome_placer_labels/nome_control_points.geojson",
+  "n_control": 229,
+  "convention": "offset = current_georef(pick_pixel) - true_corner; bias E/N positive = current overlay sits east/north of truth; azimuth 0=N,90=E.",
+  "gcp_audit": [
+    {
+      "set": "diagnostic_mosaic/tuck1942_atlas_v4_diagnostic",
+      "n": 224,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "diagnostic_mosaic/tuck1942_atlas_v4_diagnostic_manual_",
+      "n": 228,
+      "affine_rms_m": 706920.6,
+      "class": "real"
+    },
+    {
+      "set": "diagnostic_mosaic/tuck1942_atlas_v4_pixelspace",
+      "n": 224,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_map_a",
+      "n": 131,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_map_b",
+      "n": 135,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_map_b1",
+      "n": 215,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_map_c",
+      "n": 134,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_map_e",
+      "n": 5,
+      "affine_rms_m": 1080.4,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_nome_district_contours",
+      "n": 133,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_gcp_candidates/tuck1942_nome_district_general",
+      "n": 133,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_a",
+      "n": 5,
+      "affine_rms_m": 2.3,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_b",
+      "n": 12,
+      "affine_rms_m": 2.4,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_b1",
+      "n": 10,
+      "affine_rms_m": 2.1,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_b1_bootstrap",
+      "n": 5,
+      "affine_rms_m": 21.9,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_c",
+      "n": 7,
+      "affine_rms_m": 68.6,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_d",
+      "n": 4,
+      "affine_rms_m": 15.0,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v2_refined_gcps/tuck1942_map_e",
+      "n": 5,
+      "affine_rms_m": 1080.4,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v3_refined_gcps/tuck1942_map_e",
+      "n": 7,
+      "affine_rms_m": 95.3,
+      "class": "real"
+    },
+    {
+      "set": "v1p5_v4_hammon_synthetic_gcps/tuck1942_map_a",
+      "n": 40,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v4_hammon_synthetic_gcps/tuck1942_map_b",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v4_hammon_synthetic_gcps/tuck1942_map_c",
+      "n": 49,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v4_hammon_synthetic_gcps/tuck1942_map_d",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v4_hammon_synthetic_gcps/tuck1942_map_e",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v5_corrected_gcps/tuck1942_map_a",
+      "n": 40,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v5_corrected_gcps/tuck1942_map_b",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v5_corrected_gcps/tuck1942_map_c",
+      "n": 49,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v5_corrected_gcps/tuck1942_map_d",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    },
+    {
+      "set": "v1p5_v5_corrected_gcps/tuck1942_map_e",
+      "n": 45,
+      "affine_rms_m": 0.0,
+      "class": "synthetic"
+    }
+  ],
+  "per_sheet_offset": [
+    {
+      "sheet": "tuck1942_map_a",
+      "status": "picks_not_on_true_corners",
+      "n_picks": 5
+    },
+    {
+      "sheet": "tuck1942_map_b",
+      "status": "frame_mismatch",
+      "n_picks": 12,
+      "n_on_corner": 12,
+      "served_frame_consistent": false,
+      "reconcile_mean_m": 5592.7,
+      "reconcile_median_m": 5566.6,
+      "reconcile_max_m": 7673.3,
+      "bias_E_m": 2161.6,
+      "bias_N_m": -5023.0,
+      "bias_azimuth_deg": 157.0
+    },
+    {
+      "sheet": "tuck1942_map_b1",
+      "status": "frame_mismatch",
+      "n_picks": 10,
+      "n_on_corner": 10,
+      "served_frame_consistent": false,
+      "reconcile_mean_m": 5143.4,
+      "reconcile_median_m": 4338.7,
+      "reconcile_max_m": 7593.7,
+      "bias_E_m": 2594.5,
+      "bias_N_m": -4271.8,
+      "bias_azimuth_deg": 149.0
+    },
+    {
+      "sheet": "tuck1942_map_c",
+      "status": "picks_not_on_true_corners",
+      "n_picks": 7
+    },
+    {
+      "sheet": "tuck1942_map_d",
+      "status": "picks_not_on_true_corners",
+      "n_picks": 4
+    },
+    {
+      "sheet": "tuck1942_map_e",
+      "status": "picks_not_on_true_corners",
+      "n_picks": 5
+    }
+  ],
+  "method": {
+    "real_vs_synthetic": "affine pixel->world RMS; <1 m = synthetic (back-projected)",
+    "offset": "apply current served sheet affine to the real pixel picks that land on a true corner (<=25 m), compare to the corner"
+  }
+}
