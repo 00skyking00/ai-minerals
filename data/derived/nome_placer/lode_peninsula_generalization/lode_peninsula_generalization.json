@@ -1,0 +1,173 @@
+{
+  "question": "Does the struct_groves control (auc_gems 0.712 central) generalize to dispersed peninsula-wide 36a labels under F1 leak-guarded CV?",
+  "design": {
+    "base": "SIM 3131 geology one-hot + distance-to-any-regional-fault (terrain-free, aeromag-free, so it builds identically on both grids; absolute AUC therefore differs from the 0.712 which used terrain+aeromag)",
+    "struct_groves": "base + dist_fault_intersection + dist_splay + dist_fold_hinge + carbonaceous_host",
+    "structure_sources": "SIM 3131 nm+so (faults ARC_CODE 4/30/60, graphitic LABELs) + RI 2024-7 Casadepaga (faults, 223 fold axes, graphitic units)",
+    "splay_caveat": "no named trunks regionally; splay uses a top-quintile fault-length trunk proxy (TRUNK_LENGTH_QUANTILE=0.80), not the central named-trunk rule",
+    "labels": "ARDF model_code 36a from the FULL statewide ARDF (not the Nome clip)",
+    "east_definition": "cells with x > -473300 (beyond the central district grid)",
+    "cv": "F1 leak_guarded contiguous folds, residual-variogram block sizing, 1 km dead-zone, seed 42"
+  },
+  "wider": {
+    "bounds_3338": [
+      -589100,
+      1617300,
+      -438900,
+      1728200
+    ],
+    "scheme": {
+      "block_size_m": 6000.0,
+      "variogram_range_m": 2987.7
+    },
+    "n": 3065,
+    "n_pos": 65,
+    "n_pos_east": 9,
+    "n_pos_mapped": 64,
+    "arms": {
+      "base": {
+        "auc_full": 0.5711102564102564,
+        "auc_mapped": 0.5128626215066828,
+        "auc_east": 0.7140468227424749,
+        "n_features": 30
+      },
+      "struct_generic": {
+        "auc_full": 0.8795641025641027,
+        "auc_mapped": 0.8129793818347508,
+        "auc_east": 0.8874953548866593,
+        "n_features": 34,
+        "d_auc_full": 0.308,
+        "d_auc_mapped": 0.3,
+        "d_auc_east": 0.173,
+        "bootstrap_mapped": {
+          "point": 0.3001,
+          "ci95": [
+            0.2372,
+            0.3668
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1710,
+          "n_pos": 64
+        },
+        "bootstrap_east": {
+          "point": 0.1734,
+          "ci95": [
+            0.0148,
+            0.3409
+          ],
+          "p_gt_0": 0.9865,
+          "n_scored": 607,
+          "n_pos": 9
+        }
+      },
+      "struct_groves": {
+        "auc_full": 0.9289743589743591,
+        "auc_mapped": 0.8830640568043742,
+        "auc_east": 0.818283166109253,
+        "n_features": 34,
+        "d_auc_full": 0.358,
+        "d_auc_mapped": 0.37,
+        "d_auc_east": 0.104,
+        "bootstrap_mapped": {
+          "point": 0.3702,
+          "ci95": [
+            0.3063,
+            0.436
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1710,
+          "n_pos": 64
+        },
+        "bootstrap_east": {
+          "point": 0.1042,
+          "ci95": [
+            -0.0734,
+            0.2824
+          ],
+          "p_gt_0": 0.872,
+          "n_scored": 607,
+          "n_pos": 9
+        }
+      }
+    }
+  },
+  "central_matched": {
+    "bounds_3338": [
+      -577100,
+      1629300,
+      -473300,
+      1700200
+    ],
+    "scheme": {
+      "block_size_m": 4200.0,
+      "variogram_range_m": 2059.3
+    },
+    "n": 3054,
+    "n_pos": 54,
+    "n_pos_east": 0,
+    "n_pos_mapped": 54,
+    "arms": {
+      "base": {
+        "auc_full": 0.6523734567901234,
+        "auc_mapped": 0.5979091274628066,
+        "auc_east": null,
+        "n_features": 30
+      },
+      "struct_generic": {
+        "auc_full": 0.8793641975308643,
+        "auc_mapped": 0.8140273868560961,
+        "auc_east": null,
+        "n_features": 34,
+        "d_auc_full": 0.227,
+        "d_auc_mapped": 0.216,
+        "d_auc_east": null,
+        "bootstrap_mapped": {
+          "point": 0.2161,
+          "ci95": [
+            0.1346,
+            0.295
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1712,
+          "n_pos": 54
+        }
+      },
+      "struct_groves": {
+        "auc_full": 0.888466049382716,
+        "auc_mapped": 0.8373654112496091,
+        "auc_east": null,
+        "n_features": 34,
+        "d_auc_full": 0.236,
+        "d_auc_mapped": 0.239,
+        "d_auc_east": null,
+        "bootstrap_mapped": {
+          "point": 0.2395,
+          "ci95": [
+            0.1542,
+            0.3201
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1712,
+          "n_pos": 54
+        }
+      }
+    }
+  },
+  "verdict": {
+    "wider_struct_groves_auc_mapped": 0.8830640568043742,
+    "wider_d_auc_mapped": 0.37,
+    "wider_bootstrap_ci": [
+      0.3063,
+      0.436
+    ],
+    "wider_p_gt_0": 1.0,
+    "wider_auc_east": 0.818283166109253,
+    "wider_d_auc_east": 0.104,
+    "wider_east_bootstrap_ci": [
+      -0.0734,
+      0.2824
+    ],
+    "wider_east_p_gt_0": 0.872,
+    "central_matched_d_auc_mapped": 0.239
+  }
+}
