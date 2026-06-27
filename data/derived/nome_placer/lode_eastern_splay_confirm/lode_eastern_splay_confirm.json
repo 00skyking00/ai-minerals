@@ -1,0 +1,204 @@
+{
+  "question": "Does the Groves splay/intersection gain over a lithology+fault base clear zero in the EASTERN Seward Peninsula once the 36a label set is expanded with disciplined typing, under the F1 leak-guarded CV?",
+  "round3_baseline": {
+    "eastern_36a_positives": 9,
+    "east_d_auc": 0.104,
+    "east_ci95": [
+      -0.0734,
+      0.2824
+    ],
+    "east_p_gt_0": 0.872,
+    "note": "round-3 east CI still spanned zero (underpowered, 9 positives)"
+  },
+  "label_discipline": {
+    "typed_core": "ARDF model_code startswith '36a' (Cox-Singer low-sulfide Au-quartz)",
+    "recovery": "uncoded gold-bearing-quartz-vein text, EXCLUDING Sb/stibnite, scheelite/W, skarn, polymetallic/22c, galena, base-metal, fluorite, calcite, replacement, placer",
+    "recovered_east": [
+      {
+        "site": "Lower Crooked Creek",
+        "model_code": "None",
+        "x": -454388,
+        "y": 1706352,
+        "dep_model": "Gold-bearing quartz veins in schistose marble"
+      },
+      {
+        "site": "Upper Crooked Creek",
+        "model_code": "None",
+        "x": -457956,
+        "y": 1708005,
+        "dep_model": "Gold-bearing quartz veins in schistose marble"
+      }
+    ],
+    "mrds": "no local Seward Peninsula MRDS coverage; 0 added",
+    "named_districts": "Big Hurrah / Casadepaga lode sites are WEST of x=-473300 (already central); Otter Creek 36a (x=-394085) is beyond the wider-grid east edge, reported as +1 available extension"
+  },
+  "design": {
+    "grid": "round-3 wider grid + cached SIM 3131 + RI 2024-7 structure bands (identical to round 3 so only the eastern label count moves)",
+    "base": "SIM 3131 geology one-hot + distance-to-any-regional-fault (terrain-free)",
+    "struct_groves": "base + dist_fault_intersection + dist_splay + dist_fold_hinge + carbonaceous_host",
+    "east_definition": "cells with x > -473300",
+    "cv": "F1 leak_guarded contiguous folds, residual-variogram block sizing, 1 km dead-zone, seed 42, n_boot 2000"
+  },
+  "wider": {
+    "bounds_3338": [
+      -589100,
+      1617300,
+      -438900,
+      1728200
+    ],
+    "scheme": {
+      "block_size_m": 6000.0,
+      "variogram_range_m": 2987.7
+    },
+    "n": 3068,
+    "n_pos": 68,
+    "n_pos_east": 11,
+    "n_pos_mapped": 67,
+    "arms": {
+      "base": {
+        "auc_full": 0.5643602941176471,
+        "auc_mapped": 0.49406974846303114,
+        "auc_east": 0.7998631802979629,
+        "n_features": 30
+      },
+      "struct_generic": {
+        "auc_full": 0.8951764705882354,
+        "auc_mapped": 0.8279592317875991,
+        "auc_east": 0.9192003648525388,
+        "n_features": 34,
+        "d_auc_full": 0.331,
+        "d_auc_mapped": 0.334,
+        "d_auc_east": 0.119,
+        "bootstrap_mapped": {
+          "point": 0.3339,
+          "ci95": [
+            0.2685,
+            0.399
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1713,
+          "n_pos": 67
+        },
+        "bootstrap_east": {
+          "point": 0.1193,
+          "ci95": [
+            -0.0082,
+            0.2688
+          ],
+          "p_gt_0": 0.9665,
+          "n_scored": 609,
+          "n_pos": 11
+        }
+      },
+      "struct_groves": {
+        "auc_full": 0.9150710784313726,
+        "auc_mapped": 0.8738824105475056,
+        "auc_east": 0.7524323502584371,
+        "n_features": 34,
+        "d_auc_full": 0.351,
+        "d_auc_mapped": 0.38,
+        "d_auc_east": -0.047,
+        "bootstrap_mapped": {
+          "point": 0.3798,
+          "ci95": [
+            0.3022,
+            0.4571
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1713,
+          "n_pos": 67
+        },
+        "bootstrap_east": {
+          "point": -0.0474,
+          "ci95": [
+            -0.1894,
+            0.0958
+          ],
+          "p_gt_0": 0.251,
+          "n_scored": 609,
+          "n_pos": 11
+        }
+      }
+    }
+  },
+  "central_matched": {
+    "bounds_3338": [
+      -577100,
+      1629300,
+      -473300,
+      1700200
+    ],
+    "scheme": {
+      "block_size_m": 4200.0,
+      "variogram_range_m": 2059.3
+    },
+    "n": 3055,
+    "n_pos": 55,
+    "n_pos_east": 0,
+    "n_pos_mapped": 55,
+    "arms": {
+      "base": {
+        "auc_full": 0.7607969696969697,
+        "auc_mapped": 0.6949446211207368,
+        "auc_east": null,
+        "n_features": 30
+      },
+      "struct_generic": {
+        "auc_full": 0.8821515151515151,
+        "auc_mapped": 0.8243831560478123,
+        "auc_east": null,
+        "n_features": 34,
+        "d_auc_full": 0.121,
+        "d_auc_mapped": 0.129,
+        "d_auc_east": null,
+        "bootstrap_mapped": {
+          "point": 0.1294,
+          "ci95": [
+            0.0643,
+            0.1919
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1713,
+          "n_pos": 55
+        }
+      },
+      "struct_groves": {
+        "auc_full": 0.8993181818181817,
+        "auc_mapped": 0.8564151771027524,
+        "auc_east": null,
+        "n_features": 34,
+        "d_auc_full": 0.139,
+        "d_auc_mapped": 0.161,
+        "d_auc_east": null,
+        "bootstrap_mapped": {
+          "point": 0.1615,
+          "ci95": [
+            0.0927,
+            0.2266
+          ],
+          "p_gt_0": 1.0,
+          "n_scored": 1713,
+          "n_pos": 55
+        }
+      }
+    }
+  },
+  "verdict": {
+    "eastern_positives_disciplined": 11,
+    "eastern_positives_round3": 9,
+    "auc_east": 0.7524323502584371,
+    "d_auc_east": -0.047,
+    "east_ci95": [
+      -0.1894,
+      0.0958
+    ],
+    "east_p_gt_0": 0.251,
+    "east_n_pos": 11,
+    "clears_zero_in_east": false,
+    "wider_mapped_d_auc": 0.38,
+    "wider_mapped_ci95": [
+      0.3022,
+      0.4571
+    ]
+  }
+}
