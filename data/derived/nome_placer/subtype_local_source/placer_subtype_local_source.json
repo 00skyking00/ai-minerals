@@ -1,0 +1,514 @@
+{
+  "question": "Does typing the placer positives (abrasion-platform vs strandline-beach, Hudson 2006) reveal a local-source signal the pooled placer model hides?",
+  "typing": {
+    "source": "occurrence name field (KG kg_nome.jsonld), cross-checked vs position",
+    "scheme": "Hudson 2006 (after Metcalfe & Tuck 1942): abrasion-platform = Monroeville/Intermediate/Center + Inner/Outer Submarine; strandline-beach = Second/Third (+ present/First by process); upland_residual = named creeks/gulches/benches (Hudson's residual-alluvial-placer belt); broad_ambiguous = district-wide or composite records.",
+    "counts": {
+      "abrasion_platform": 5,
+      "strandline_beach": 3,
+      "upland_residual": 52,
+      "broad_ambiguous": 5
+    },
+    "n": 65,
+    "handoff_3way_ambiguous_count": 57,
+    "handoff_3way_ambiguous_fraction": 0.877,
+    "within_4mi_newton_peak": 38
+  },
+  "covariates": {
+    "dist_to_36a_lode": "nearest ARDF 36a (low-sulfide Au-quartz vein) occurrence",
+    "dist_to_contact": "nearest bedrock/Quaternary contact (SIM 3131 coastal-plain Qs inland edge) = abrasion-platform inland edge, district-wide",
+    "dist_to_newton_axis": "perpendicular distance to the Newton Peak belt axis (principal direction of the 36a lode cloud through Newton Peak)",
+    "dist_to_newton_pt": "straight-line distance to Newton Peak (GNIS 1406988)",
+    "n_36a_lode": 63,
+    "newton_peak_3338": [
+      -539726.3,
+      1667964.7
+    ],
+    "belt_axis_azimuth_deg": 87.6,
+    "newton_peak_gnis": 1406988
+  },
+  "test1_distributional": {
+    "dist_to_36a_lode": {
+      "background": {
+        "n": 2000,
+        "median_m": 4651.5
+      },
+      "abrasion_platform": {
+        "n": 5,
+        "median_m": 5596.5,
+        "iqr_m": [
+          4204.8,
+          6061.3
+        ],
+        "p_closer_than_bg": 0.6995,
+        "cliffs_delta_vs_bg": 0.139,
+        "median_diff_vs_bg_ci95": [
+          -773.6,
+          3127.7
+        ]
+      },
+      "strandline_beach": {
+        "n": 3,
+        "median_m": 7012.0,
+        "iqr_m": [
+          4562.2,
+          8266.0
+        ],
+        "p_closer_than_bg": 0.7,
+        "cliffs_delta_vs_bg": 0.184,
+        "median_diff_vs_bg_ci95": [
+          -2671.7,
+          4955.3
+        ]
+      },
+      "upland_residual": {
+        "n": 52,
+        "median_m": 1445.5,
+        "iqr_m": [
+          673.4,
+          4897.0
+        ],
+        "p_closer_than_bg": 0.0,
+        "cliffs_delta_vs_bg": -0.475,
+        "median_diff_vs_bg_ci95": [
+          -3816.5,
+          -1790.1
+        ]
+      },
+      "abrasion_vs_strandline": {
+        "cliffs_delta_ap_minus_sb": -0.2,
+        "p_ap_closer_than_sb": 0.3929,
+        "median_diff_ap_minus_sb_ci95": [
+          -5315.2,
+          3948.8
+        ],
+        "note": "n_ap=5, n_sb=3: a rank test cannot reach p<0.05 at this n; read the medians + Cliff's delta direction"
+      },
+      "kruskal_across_placer_groups_p": 0.0103
+    },
+    "dist_to_contact": {
+      "background": {
+        "n": 2000,
+        "median_m": 2169.5
+      },
+      "abrasion_platform": {
+        "n": 5,
+        "median_m": 4587.5,
+        "iqr_m": [
+          3428.9,
+          5274.3
+        ],
+        "p_closer_than_bg": 0.8714,
+        "cliffs_delta_vs_bg": 0.298,
+        "median_diff_vs_bg_ci95": [
+          418.1,
+          4763.4
+        ]
+      },
+      "strandline_beach": {
+        "n": 3,
+        "median_m": 6212.1,
+        "iqr_m": [
+          3703.3,
+          7005.2
+        ],
+        "p_closer_than_bg": 0.7693,
+        "cliffs_delta_vs_bg": 0.256,
+        "median_diff_vs_bg_ci95": [
+          -1139.5,
+          5736.3
+        ]
+      },
+      "upland_residual": {
+        "n": 52,
+        "median_m": 1512.7,
+        "iqr_m": [
+          518.7,
+          2383.1
+        ],
+        "p_closer_than_bg": 0.0001,
+        "cliffs_delta_vs_bg": -0.301,
+        "median_diff_vs_bg_ci95": [
+          -1317.5,
+          -204.6
+        ]
+      },
+      "abrasion_vs_strandline": {
+        "cliffs_delta_ap_minus_sb": -0.2,
+        "p_ap_closer_than_sb": 0.3929,
+        "median_diff_ap_minus_sb_ci95": [
+          -4369.3,
+          4079.8
+        ],
+        "note": "n_ap=5, n_sb=3: a rank test cannot reach p<0.05 at this n; read the medians + Cliff's delta direction"
+      },
+      "kruskal_across_placer_groups_p": 0.0033
+    },
+    "dist_to_newton_axis": {
+      "background": {
+        "n": 2000,
+        "median_m": 5328.3
+      },
+      "abrasion_platform": {
+        "n": 5,
+        "median_m": 3672.8,
+        "iqr_m": [
+          3416.4,
+          4011.6
+        ],
+        "p_closer_than_bg": 0.1122,
+        "cliffs_delta_vs_bg": -0.319,
+        "median_diff_vs_bg_ci95": [
+          -3210.8,
+          -700.3
+        ]
+      },
+      "strandline_beach": {
+        "n": 3,
+        "median_m": 5401.5,
+        "iqr_m": [
+          3516.1,
+          7848.1
+        ],
+        "p_closer_than_bg": 0.5346,
+        "cliffs_delta_vs_bg": 0.031,
+        "median_diff_vs_bg_ci95": [
+          -3824.6,
+          5058.2
+        ]
+      },
+      "upland_residual": {
+        "n": 52,
+        "median_m": 4173.4,
+        "iqr_m": [
+          2811.0,
+          5997.6
+        ],
+        "p_closer_than_bg": 0.014,
+        "cliffs_delta_vs_bg": -0.178,
+        "median_diff_vs_bg_ci95": [
+          -1914.3,
+          -135.0
+        ]
+      },
+      "abrasion_vs_strandline": {
+        "cliffs_delta_ap_minus_sb": -0.333,
+        "p_ap_closer_than_sb": 0.2857,
+        "median_diff_ap_minus_sb_ci95": [
+          -6878.4,
+          2380.7
+        ],
+        "note": "n_ap=5, n_sb=3: a rank test cannot reach p<0.05 at this n; read the medians + Cliff's delta direction"
+      },
+      "kruskal_across_placer_groups_p": 0.6283
+    },
+    "dist_to_newton_pt": {
+      "background": {
+        "n": 2000,
+        "median_m": 7856.9
+      },
+      "abrasion_platform": {
+        "n": 5,
+        "median_m": 6988.9,
+        "iqr_m": [
+          5621.9,
+          9059.8
+        ],
+        "p_closer_than_bg": 0.4262,
+        "cliffs_delta_vs_bg": -0.048,
+        "median_diff_vs_bg_ci95": [
+          -2421.0,
+          3176.1
+        ]
+      },
+      "strandline_beach": {
+        "n": 3,
+        "median_m": 8512.6,
+        "iqr_m": [
+          5852.4,
+          9682.4
+        ],
+        "p_closer_than_bg": 0.4691,
+        "cliffs_delta_vs_bg": -0.026,
+        "median_diff_vs_bg_ci95": [
+          -4795.8,
+          3144.5
+        ]
+      },
+      "upland_residual": {
+        "n": 52,
+        "median_m": 5943.6,
+        "iqr_m": [
+          3450.3,
+          7565.9
+        ],
+        "p_closer_than_bg": 0.0,
+        "cliffs_delta_vs_bg": -0.404,
+        "median_diff_vs_bg_ci95": [
+          -3555.4,
+          -1137.0
+        ]
+      },
+      "abrasion_vs_strandline": {
+        "cliffs_delta_ap_minus_sb": 0.067,
+        "p_ap_closer_than_sb": 0.6071,
+        "median_diff_ap_minus_sb_ci95": [
+          -5230.3,
+          5867.7
+        ],
+        "note": "n_ap=5, n_sb=3: a rank test cannot reach p<0.05 at this n; read the medians + Cliff's delta direction"
+      },
+      "kruskal_across_placer_groups_p": 0.174
+    }
+  },
+  "test2_subset_leak_guarded_cv": {
+    "scheme": {
+      "block_size_m": 900.0,
+      "variogram_range_m": 449.9
+    },
+    "base_auc": {
+      "pooled": 0.6785769230769231,
+      "abrasion_platform": 0.67745,
+      "strandline_beach": 0.4481666666666666,
+      "upland_residual": 0.7095192307692307,
+      "coastal_beach_all": 0.5914687500000001
+    },
+    "dist_to_36a_lode": {
+      "pooled": {
+        "point": 0.0258,
+        "ci95": [
+          -0.0195,
+          0.0711
+        ],
+        "p_gt_0": 0.873,
+        "n_scored": 2065,
+        "n_pos": 65
+      },
+      "abrasion_platform": {
+        "point": 0.0844,
+        "ci95": [
+          0.0043,
+          0.1638
+        ],
+        "p_gt_0": 0.9799,
+        "n_scored": 2005,
+        "n_pos": 5
+      },
+      "strandline_beach": {
+        "point": 0.0798,
+        "ci95": [
+          -0.0804,
+          0.3372
+        ],
+        "p_gt_0": 0.6531,
+        "n_scored": 2003,
+        "n_pos": 3
+      },
+      "upland_residual": {
+        "point": 0.0006,
+        "ci95": [
+          -0.0454,
+          0.0469
+        ],
+        "p_gt_0": 0.486,
+        "n_scored": 2052,
+        "n_pos": 52
+      },
+      "coastal_beach_all": {
+        "point": 0.0826,
+        "ci95": [
+          -0.0058,
+          0.187
+        ],
+        "p_gt_0": 0.9635,
+        "n_scored": 2008,
+        "n_pos": 8
+      }
+    },
+    "dist_to_contact": {
+      "pooled": {
+        "point": -0.0211,
+        "ci95": [
+          -0.0533,
+          0.0117
+        ],
+        "p_gt_0": 0.104,
+        "n_scored": 2065,
+        "n_pos": 65
+      },
+      "abrasion_platform": {
+        "point": 0.0269,
+        "ci95": [
+          -0.144,
+          0.2667
+        ],
+        "p_gt_0": 0.5529,
+        "n_scored": 2005,
+        "n_pos": 5
+      },
+      "strandline_beach": {
+        "point": 0.0341,
+        "ci95": [
+          -0.082,
+          0.2351
+        ],
+        "p_gt_0": 0.6062,
+        "n_scored": 2003,
+        "n_pos": 3
+      },
+      "upland_residual": {
+        "point": -0.0331,
+        "ci95": [
+          -0.0661,
+          -0.0007
+        ],
+        "p_gt_0": 0.023,
+        "n_scored": 2052,
+        "n_pos": 52
+      },
+      "coastal_beach_all": {
+        "point": 0.0296,
+        "ci95": [
+          -0.0969,
+          0.1783
+        ],
+        "p_gt_0": 0.6565,
+        "n_scored": 2008,
+        "n_pos": 8
+      }
+    },
+    "dist_to_newton_axis": {
+      "pooled": {
+        "point": -0.0218,
+        "ci95": [
+          -0.0554,
+          0.0103
+        ],
+        "p_gt_0": 0.0885,
+        "n_scored": 2065,
+        "n_pos": 65
+      },
+      "abrasion_platform": {
+        "point": -0.005,
+        "ci95": [
+          -0.0861,
+          0.0875
+        ],
+        "p_gt_0": 0.425,
+        "n_scored": 2005,
+        "n_pos": 5
+      },
+      "strandline_beach": {
+        "point": 0.0713,
+        "ci95": [
+          -0.005,
+          0.1593
+        ],
+        "p_gt_0": 0.9495,
+        "n_scored": 2003,
+        "n_pos": 3
+      },
+      "upland_residual": {
+        "point": -0.0269,
+        "ci95": [
+          -0.065,
+          0.0112
+        ],
+        "p_gt_0": 0.0815,
+        "n_scored": 2052,
+        "n_pos": 52
+      },
+      "coastal_beach_all": {
+        "point": 0.0236,
+        "ci95": [
+          -0.0411,
+          0.0952
+        ],
+        "p_gt_0": 0.755,
+        "n_scored": 2008,
+        "n_pos": 8
+      }
+    },
+    "dist_to_newton_pt": {
+      "pooled": {
+        "point": 0.0016,
+        "ci95": [
+          -0.0409,
+          0.0429
+        ],
+        "p_gt_0": 0.5385,
+        "n_scored": 2065,
+        "n_pos": 65
+      },
+      "abrasion_platform": {
+        "point": -0.1141,
+        "ci95": [
+          -0.3807,
+          0.139
+        ],
+        "p_gt_0": 0.1747,
+        "n_scored": 2005,
+        "n_pos": 5
+      },
+      "strandline_beach": {
+        "point": 0.0052,
+        "ci95": [
+          -0.1069,
+          0.1254
+        ],
+        "p_gt_0": 0.5573,
+        "n_scored": 2003,
+        "n_pos": 3
+      },
+      "upland_residual": {
+        "point": -0.0022,
+        "ci95": [
+          -0.0454,
+          0.0378
+        ],
+        "p_gt_0": 0.4545,
+        "n_scored": 2052,
+        "n_pos": 52
+      },
+      "coastal_beach_all": {
+        "point": -0.0694,
+        "ci95": [
+          -0.2624,
+          0.0784
+        ],
+        "p_gt_0": 0.19,
+        "n_scored": 2008,
+        "n_pos": 8
+      }
+    },
+    "n_pos_by_mask": {
+      "pooled": 65,
+      "abrasion_platform": 5,
+      "strandline_beach": 3,
+      "upland_residual": 52,
+      "coastal_beach_all": 8
+    }
+  },
+  "interpretation_keys": {
+    "p_closer_than_bg": "one-sided Mann-Whitney U: covariate at the subtype is SMALLER (closer to the local source) than at background",
+    "cliffs_delta_vs_bg": "negative => subtype sits closer to the source than background",
+    "subset_cv_point": "marginal OOF AUC delta of adding the covariate to the base model, read on that subtype's positives vs background (small n_pos => wide CI)"
+  },
+  "scheme": {
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "n_boot": 2000,
+    "cv": "F1 leak-guarded spatial CV (contiguous folds, 1 km dead zone)",
+    "base_features": [
+      "bl",
+      "ap",
+      "tb",
+      "ss",
+      "bc",
+      "qm",
+      "buried_bl",
+      "dem",
+      "slope",
+      "tpi"
+    ]
+  }
+}

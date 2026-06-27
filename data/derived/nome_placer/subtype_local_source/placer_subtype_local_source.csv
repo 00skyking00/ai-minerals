@@ -1,0 +1,13 @@
+covariate,group,n,median_dist_m,p_closer_than_bg,cliffs_delta_vs_bg,cv_marginal_auc_delta,cv_ci95,cv_p_gt_0,cv_n_pos
+dist_to_36a_lode,abrasion_platform,5,5596.5,0.6995,0.139,0.0844,"[0.0043, 0.1638]",0.9799,5
+dist_to_36a_lode,strandline_beach,3,7012.0,0.7,0.184,0.0798,"[-0.0804, 0.3372]",0.6531,3
+dist_to_36a_lode,upland_residual,52,1445.5,0.0,-0.475,0.0006,"[-0.0454, 0.0469]",0.486,52
+dist_to_contact,abrasion_platform,5,4587.5,0.8714,0.298,0.0269,"[-0.144, 0.2667]",0.5529,5
+dist_to_contact,strandline_beach,3,6212.1,0.7693,0.256,0.0341,"[-0.082, 0.2351]",0.6062,3
+dist_to_contact,upland_residual,52,1512.7,0.0001,-0.301,-0.0331,"[-0.0661, -0.0007]",0.023,52
+dist_to_newton_axis,abrasion_platform,5,3672.8,0.1122,-0.319,-0.005,"[-0.0861, 0.0875]",0.425,5
+dist_to_newton_axis,strandline_beach,3,5401.5,0.5346,0.031,0.0713,"[-0.005, 0.1593]",0.9495,3
+dist_to_newton_axis,upland_residual,52,4173.4,0.014,-0.178,-0.0269,"[-0.065, 0.0112]",0.0815,52
+dist_to_newton_pt,abrasion_platform,5,6988.9,0.4262,-0.048,-0.1141,"[-0.3807, 0.139]",0.1747,5
+dist_to_newton_pt,strandline_beach,3,8512.6,0.4691,-0.026,0.0052,"[-0.1069, 0.1254]",0.5573,3
+dist_to_newton_pt,upland_residual,52,5943.6,0.0,-0.404,-0.0022,"[-0.0454, 0.0378]",0.4545,52
