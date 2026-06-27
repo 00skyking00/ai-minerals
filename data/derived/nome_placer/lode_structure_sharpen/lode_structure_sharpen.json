@@ -1,0 +1,251 @@
+{
+  "question": "Do typed 36a labels + sharpened structure push district lode auc_gems past 0.70 under F1 leak-guarded CV?",
+  "gate": {
+    "best_auc_gems_36a": 0.712,
+    "passes_0p70": true
+  },
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "block_sizing": "2x base-model residual-variogram range (F1), fixed across arms",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "fold_strategy": "contiguous"
+  },
+  "labels": {
+    "source": "ARDF Cox-Singer model_code (data/raw/nome_mpm/ardf_nome.geojson)",
+    "36a": "low-sulfide Au-quartz vein (incl. questioned 36a?)",
+    "round1": "model 36/27/22 OR lode/vein/skarn/greisen keyword"
+  },
+  "structure": {
+    "source": "Nome mining district GeMS, Alaska DGGS PDF 94-39",
+    "named_faults": {
+      "Anvil Fault": "anvil",
+      "Penny River Fault": "penny_river",
+      "Aurora Creek Fault": "aurora_creek",
+      "Charlie Creek Fault": "charlie_creek",
+      "Boulder Creek Fault": "boulder_creek",
+      "Rodine Fault": "rodine"
+    },
+    "ne_floor_deg": 15.0,
+    "splay_near_trunk_m": 250.0,
+    "fold_axis": "Twin Mountain Anticline (only named fold in this GeMS; Mount Distin syncline is regional, not mapped here)",
+    "albion_fault": "deposit-scale, NOT in this GeMS; not digitized this round"
+  },
+  "auc_keys": {
+    "auc_full": "whole-extent OOF AUC (mixes structure + coverage proxy)",
+    "auc_gems": "OOF AUC on GeMS-mapped cells (the clean structure test / gate)",
+    "auc_placer_core": "in-box subset (restriction-of-range alarm)"
+  },
+  "datasets": [
+    {
+      "name": "lode_district_36a",
+      "label_mode": "36a",
+      "n": 3054,
+      "n_pos": 54,
+      "n_pos_gems_mapped": 48,
+      "n_pos_placer_core": 27,
+      "frac_cells_gems_mapped": 0.304,
+      "arms": {
+        "base": {
+          "auc_full": 0.6130339506172839,
+          "n_features": 15,
+          "auc_gems": 0.5413356034808929,
+          "auc_placer_core": 0.7653694303440497,
+          "block_size_m": 3800.0,
+          "variogram_range_m": 1878.8
+        },
+        "struct_generic": {
+          "auc_full": 0.8363734567901234,
+          "n_features": 19,
+          "auc_gems": 0.6789987703367386,
+          "auc_placer_core": 0.8936830231246474,
+          "d_auc_full": 0.223,
+          "d_auc_gems": 0.138,
+          "d_auc_placer_core": 0.128
+        },
+        "struct_named": {
+          "auc_full": 0.6446851851851851,
+          "n_features": 23,
+          "auc_gems": 0.42230656451002646,
+          "auc_placer_core": 0.47311524722692233,
+          "d_auc_full": 0.032,
+          "d_auc_gems": -0.119,
+          "d_auc_placer_core": -0.292
+        },
+        "struct_groves": {
+          "auc_full": 0.852003086419753,
+          "n_features": 19,
+          "auc_gems": 0.7117503783579265,
+          "auc_placer_core": 0.914363602180861,
+          "d_auc_full": 0.239,
+          "d_auc_gems": 0.17,
+          "d_auc_placer_core": 0.149
+        },
+        "struct_sharp_all": {
+          "auc_full": 0.7223549382716049,
+          "n_features": 25,
+          "auc_gems": 0.5299020998864927,
+          "auc_placer_core": 0.6783229930438052,
+          "d_auc_full": 0.109,
+          "d_auc_gems": -0.011,
+          "d_auc_placer_core": -0.087
+        }
+      },
+      "feature_importance_sharp_all_top12": [
+        [
+          "dist_splay",
+          0.1555
+        ],
+        [
+          "dist_fold_hinge",
+          0.1043
+        ],
+        [
+          "dist_fault_intersection",
+          0.1029
+        ],
+        [
+          "dist_boulder_creek",
+          0.0921
+        ],
+        [
+          "dist_rodine",
+          0.0873
+        ],
+        [
+          "dist_charlie_creek",
+          0.0611
+        ],
+        [
+          "dist_anvil",
+          0.0533
+        ],
+        [
+          "dist_penny_river",
+          0.0527
+        ],
+        [
+          "dist_aurora_creek",
+          0.0461
+        ],
+        [
+          "dem",
+          0.0406
+        ],
+        [
+          "geol_DOx",
+          0.0406
+        ],
+        [
+          "dist_fault",
+          0.0402
+        ]
+      ]
+    },
+    {
+      "name": "lode_district_round1",
+      "label_mode": "round1",
+      "n": 3093,
+      "n_pos": 93,
+      "n_pos_gems_mapped": 82,
+      "n_pos_placer_core": 30,
+      "frac_cells_gems_mapped": 0.311,
+      "arms": {
+        "base": {
+          "auc_full": 0.6330591397849462,
+          "n_features": 15,
+          "auc_gems": 0.5398798482876996,
+          "auc_placer_core": 0.7370558375634519,
+          "block_size_m": 3800.0,
+          "variogram_range_m": 1878.8
+        },
+        "struct_generic": {
+          "auc_full": 0.8328727598566309,
+          "n_features": 19,
+          "auc_gems": 0.622234987957144,
+          "auc_placer_core": 0.7687817258883249,
+          "d_auc_full": 0.2,
+          "d_auc_gems": 0.082,
+          "d_auc_placer_core": 0.032
+        },
+        "struct_named": {
+          "auc_full": 0.7499086021505377,
+          "n_features": 23,
+          "auc_gems": 0.506976551036793,
+          "auc_placer_core": 0.6738578680203047,
+          "d_auc_full": 0.117,
+          "d_auc_gems": -0.033,
+          "d_auc_placer_core": -0.063
+        },
+        "struct_groves": {
+          "auc_full": 0.8235752688172044,
+          "n_features": 19,
+          "auc_gems": 0.5947163699786827,
+          "auc_placer_core": 0.8077834179357022,
+          "d_auc_full": 0.191,
+          "d_auc_gems": 0.055,
+          "d_auc_placer_core": 0.071
+        },
+        "struct_sharp_all": {
+          "auc_full": 0.7207347670250897,
+          "n_features": 25,
+          "auc_gems": 0.4920614047230143,
+          "auc_placer_core": 0.562098138747885,
+          "d_auc_full": 0.088,
+          "d_auc_gems": -0.048,
+          "d_auc_placer_core": -0.175
+        }
+      },
+      "feature_importance_sharp_all_top12": [
+        [
+          "dist_fault_intersection",
+          0.1435
+        ],
+        [
+          "dist_fold_hinge",
+          0.1202
+        ],
+        [
+          "dist_splay",
+          0.1089
+        ],
+        [
+          "dist_charlie_creek",
+          0.0963
+        ],
+        [
+          "dist_penny_river",
+          0.0763
+        ],
+        [
+          "dist_aurora_creek",
+          0.0576
+        ],
+        [
+          "dist_anvil",
+          0.0508
+        ],
+        [
+          "slope",
+          0.0496
+        ],
+        [
+          "dem",
+          0.047
+        ],
+        [
+          "akmag",
+          0.046
+        ],
+        [
+          "dist_rodine",
+          0.0459
+        ],
+        [
+          "dist_boulder_creek",
+          0.0411
+        ]
+      ]
+    }
+  ]
+}
