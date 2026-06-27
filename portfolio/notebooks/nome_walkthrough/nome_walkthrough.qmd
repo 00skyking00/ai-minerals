@@ -1,0 +1,652 @@
+---
+title: "Cape Nome data walkthrough: the layers, the model, and the results"
+subtitle: "A layer-by-layer tour of the inputs and outputs behind the Cape Nome placer and lode prospectivity models. Private working notebook, not linked from the public site."
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: show
+execute:
+  warning: false
+---
+
+A hands-on tour of the data feeding the Cape Nome district models, in the
+same shape as the Tanacross and BC Golden Triangle data-exploration
+notebooks: one section per layer, each with a rendered map, a note on what
+the layer is and what it is for, and a note on how the model reads it. The
+last sections turn to the outputs, the prospectivity surfaces and the
+cross-validation numbers behind them.
+
+This is a working notebook. It is not in `_quarto.yml` and is not linked
+from the public site; it is the place to see every layer at once and
+decide later what belongs in the public chapter and what belongs in a
+deeper write-up.
+
+```{python}
+#| label: setup
+import warnings
+warnings.filterwarnings("ignore")
+
+import json
+from pathlib import Path
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+import rioxarray
+
+from ai_minerals.data._common import DATA_RAW, DATA_DERIVED
+
+WORKING_CRS = "EPSG:3338"          # NAD83 Alaska Albers, the district grid CRS
+NP = DATA_DERIVED / "nome_placer"
+NG = DATA_DERIVED / "nome_geophys"
+RM = DATA_RAW / "nome_mpm"
+STRUCT = NG / "nome_structure_sharp" / "district_100m"
+
+LODE_SERVED = NP / "mpm_lode_served" / "mpm_lode_served_district_3338.tif"
+PLACER_SERVED = NP / "mpm_onshore" / "mpm_onshore_score_district_3338.tif"
+
+print("district CRS:", WORKING_CRS, "(NAD83 Alaska Albers Equal Area)")
+print("served lode raster present:  ", LODE_SERVED.exists())
+print("served placer raster present:", PLACER_SERVED.exists())
+```
+
+```{python}
+#| label: helpers
+def _load(path):
+    """Read a single-band raster to a masked float array + its 3338 extent."""
+    da = rioxarray.open_rasterio(path).squeeze()
+    arr = da.values.astype("float64")
+    nod = da.rio.nodata
+    if nod is not None and np.isfinite(nod):
+        arr = np.where(arr == nod, np.nan, arr)
+    arr = np.where(np.isfinite(arr), arr, np.nan)
+    left, bottom, right, top = da.rio.bounds()
+    return arr, (left, right, bottom, top)
+
+def panel(ax, path, title, cbar_label, cmap="viridis", q=(2, 98),
+          mask_neg=False, categorical=False, points=None, pcolor="#ff2d2d",
+          psize=16, plabel="occurrences"):
+    """Draw one raster on ax, optionally with occurrence points overlaid."""
+    arr, extent = _load(path)
+    if mask_neg:
+        arr = np.where(arr < 0, np.nan, arr)
+    if categorical:
+        im = ax.imshow(arr, cmap=cmap, extent=extent, origin="upper",
+                       interpolation="nearest", aspect="equal")
+    else:
+        lo, hi = np.nanpercentile(arr, q)
+        im = ax.imshow(arr, cmap=cmap, vmin=lo, vmax=hi, extent=extent,
+                       origin="upper", interpolation="nearest", aspect="equal")
+    cb = plt.colorbar(im, ax=ax, shrink=0.82)
+    cb.set_label(cbar_label, fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+    if points is not None and len(points):
+        ax.scatter(points.geometry.x, points.geometry.y, s=psize, c=pcolor,
+                   edgecolor="black", linewidth=0.35,
+                   label=f"{plabel} (N={len(points)})")
+        ax.legend(loc="upper right", fontsize=7, framealpha=0.9)
+    ax.set_title(title, fontsize=10)
+    ax.set_xlabel("Easting (m, EPSG:3338)", fontsize=8)
+    ax.set_ylabel("Northing (m)", fontsize=8)
+    ax.tick_params(labelsize=7)
+    return arr, extent
+
+def _ardf():
+    return gpd.read_file(RM / "ardf_nome.geojson").to_crs(WORKING_CRS)
+
+def _clip(g, extent):
+    if extent is None:
+        return g
+    left, right, bottom, top = extent
+    return g.cx[left:right, bottom:top]
+
+def lode_36a(extent=None):
+    """ARDF occurrences typed Cox-Singer 36a (low-sulfide Au-quartz vein)."""
+    g = _ardf()
+    g = g[g["model_code"].fillna("").str.contains("36a", case=False)]
+    return _clip(g, extent)
+
+def placer_occ(extent=None):
+    """ARDF placer occurrences (commodity names placer, or model code 39x)."""
+    g = _ardf()
+    comm = (g["comm_main"].fillna("") + " " + g["comm_other"].fillna("")).str.lower()
+    code39 = g["model_code"].fillna("").str.strip().str.startswith("39")
+    g = g[comm.str.contains("placer") | code39]
+    return _clip(g, extent)
+
+def load_json(path):
+    return json.loads(Path(path).read_text())
+```
+
+## The experiment
+
+Two deposit types share this ground. **Placer** gold is the loose gold in
+the gravels, the Nome beaches and creek bottoms that the 1899 rush was
+built on. **Lode** gold is the hard-rock source: gold-bearing quartz
+veins in the bedrock that the placer gold weathered out of and washed
+down from. The project builds a separate prospectivity surface for each,
+a map that ranks every cell in the district by how favorable it is for
+that deposit type, trained on the recorded occurrences.
+
+The ruler for both is the same. Every claim a model makes is checked
+under leak-guarded spatial cross-validation: hold out whole regions of
+the map, train on the rest, score the held-out occurrences, and pool the
+out-of-fold predictions into a single area-under-the-ROC-curve (AUC). The
+frame is presence/background: the positives are recorded occurrences, the
+negatives are a sample of the district at large rather than known-barren
+ground, so the model learns what separates occurrence sites from the
+district average. The point of the discipline is to make a number mean
+something before reporting it.
+
+```{python}
+#| label: headline
+placer = load_json(NP / "mpm_onshore" / "mpm_onshore_presence_report.json")
+gate = load_json(NP / "lode_structure_sharpen" / "lode_structure_sharpen.json")
+boot = load_json(NP / "lode_groves_bootstrap" / "lode_groves_bootstrap.json")
+
+groves = gate["datasets"][0]["arms"]["struct_groves"]["auc_gems"]
+base = gate["datasets"][0]["arms"]["base"]["auc_gems"]
+ci = boot["datasets"]["struct_groves"]["gems"]["ci95"]
+
+print("PLACER (geomorphic terrain model, presence/background):")
+print(f"  knowledge-overlay beach-line map : {placer['baseline_v31_composite_auc']:.3f}  (below chance)")
+print(f"  terrain + geomorphology, spatial CV: {placer['mpm_geomorph_terrain_spatialCV_auc']:.3f}")
+print(f"  terrain + geomorphology, buffered  : {placer['mpm_geomorph_terrain_buffered300m_auc']:.3f}")
+print()
+print("LODE (structure model on typed 36a labels, GeMS-mapped footprint):")
+print(f"  base (terrain + geology + aeromag) : {base:.3f}")
+print(f"  + Groves splay/intersection/fold   : {groves:.3f}  (gain +{groves-base:.3f})")
+print(f"  bootstrap 95% CI on the gain       : [{ci[0]:+.3f}, {ci[1]:+.3f}]")
+```
+
+## Data layers
+
+Each layer below is shown on the 100 m district grid (EPSG:3338), the
+resolution the regional models run at. The native sources are finer (the
+IfSAR elevation is 5 m, the LiDAR is 1 m); they are resampled to 100 m
+here so every covariate sits on one grid.
+
+### Terrain: IfSAR elevation, slope, and topographic position
+
+```{python}
+#| label: terrain
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+panel(axes[0], RM / "ifsar_dem_district_3338.tif",
+      "IfSAR elevation (DEM)", "m above sea level", cmap="terrain")
+panel(axes[1], RM / "ifsar_slope_district_3338.tif",
+      "Slope", "degrees", cmap="magma")
+panel(axes[2], RM / "ifsar_tpi_district_3338.tif",
+      "Topographic position index", "TPI", cmap="RdBu_r")
+plt.tight_layout()
+```
+
+**What it is.** The Interferometric Synthetic Aperture Radar (IfSAR)
+digital elevation model is Alaska's statewide 5 m radar elevation
+surface. Slope and the topographic-position index (how high a cell sits
+relative to its surroundings) are derived from it.
+
+**What it is for.** Terrain is the backbone of the placer model: the
+beaches, benches, and creek bottoms where placer gold concentrates have
+distinct elevation and slope signatures. It is also the feature that made
+the first lode model lie, because in a small box the lodes sit up in the
+schist hills and the background sits down on the coastal flat, so a model
+can separate them on elevation alone and never learn any geology. That
+trap is the subject of the lode-results section below.
+
+**How the model reads it.** Elevation, slope, and topographic position
+enter both models directly as per-cell covariates.
+
+### Geology: Nome Group units and the graphitic host
+
+```{python}
+#| label: geology
+fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+lodes = lode_36a()
+panel(axes[0], NP / "covariates_mpm" / "geology_unit_code_district_3338.tif",
+      "Surface geology unit", "unit code", cmap="tab20",
+      categorical=True, mask_neg=True)
+panel(axes[1], STRUCT / "struct_carbonaceous_host.tif",
+      "Graphitic / carbonaceous host flag", "host present", cmap="cividis",
+      points=lodes, plabel="36a lode")
+plt.tight_layout()
+```
+
+**What it is.** The surface-geology unit at each cell, and a flag for the
+graphitic (carbon-rich) schists of the Nome Group. The units come from
+the statewide compilation; the graphitic-host flag comes from the
+detailed Alaska state maps of the Seward Peninsula bedrock (DGGS SIM 3131
+for the Nome and Solomon quadrangles, RI 2024-7 for Casadepaga), which
+label the carbonaceous units explicitly.
+
+**What it is for.** The Nome Group schists are the reactive host rock for
+the gold-quartz veins. Orogenic gold of this type favors carbon-rich
+units, where the chemistry of the wall rock helps drop gold out of
+solution. The 36a lode occurrences (red) cluster on and near the
+graphitic ground.
+
+**How the model reads it.** The geology unit enters as a set of one-hot
+indicator columns; the graphitic-host flag enters as its own binary
+covariate.
+
+### Structure: the fault sets, the named faults, and the Groves features
+
+```{python}
+#| label: structure
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+ext = None
+for ax, fn, title in [
+    (axes[0], "struct_dist_splay.tif", "Distance to a second-order splay"),
+    (axes[1], "struct_dist_fault_intersection.tif", "Distance to a NE x NW fault intersection"),
+    (axes[2], "struct_dist_fold_hinge.tif", "Distance to a fold hinge"),
+]:
+    arr, ext = panel(ax, STRUCT / fn, title, "metres", cmap="viridis_r")
+lodes = lode_36a(ext)
+for ax in axes:
+    ax.scatter(lodes.geometry.x, lodes.geometry.y, s=14, c="#ff2d2d",
+               edgecolor="black", linewidth=0.35, label=f"36a lode (N={len(lodes)})")
+    ax.legend(loc="upper right", fontsize=7, framealpha=0.9)
+plt.tight_layout()
+```
+
+**What it is.** Three structural-distance fields, brighter where the
+structure is nearer. A second-order **splay** is a small fault branching
+off a main fault trunk; an **intersection** is where a northeast-trending
+fault crosses a northwest-trending one; a **fold hinge** is the axis where
+folded rock layers bend. All three are read from the most detailed public
+structural map of the district, the Alaska state GeMS geodatabase for the
+Nome mining district (DGGS PDF 94-39), which also names the district
+faults: Anvil, Penny River, Aurora Creek, Charlie Creek, Boulder Creek,
+Rodine.
+
+**What it is for.** This is the lode model's centerpiece. Distance to the
+nearest big fault, the obvious feature, is the wrong one for orogenic
+gold. Groves and coauthors showed across many districts that the gold
+does not sit on the fault trunks; it sits in the second-order splays, at
+the intersection nodes, and near fold hinges, inside the reactive host.
+Building those controls directly, rather than distance-to-any-fault, is
+what separated the rebuilt lode model from the failed first version.
+
+**How the model reads it.** Splay proximity, intersection proximity, and
+fold-hinge distance enter as three covariates. The results section shows
+that these are the three features the model leans on hardest, ahead of
+any individual named fault.
+
+### Geophysics: aeromagnetics and 1993 airborne resistivity
+
+```{python}
+#| label: geophysics
+fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+panel(axes[0], NP / "covariates_mpm" / "akmag_district_3338.tif",
+      "Aeromagnetic field", "nT (stretched)", cmap="RdBu_r")
+panel(axes[1], NG / "dighem1993" / "district_100m" / "dighem_res_log10_900hz.tif",
+      "1993 DIGHEM apparent resistivity (900 Hz)", "log10 ohm-m", cmap="Spectral_r")
+plt.tight_layout()
+```
+
+**What it is.** The regional aeromagnetic field (magnetic susceptibility
+of the rocks) and the 1993 Nome DIGHEM-V helicopter electromagnetic
+survey (DGGS GPR 2019-11, 400 m flight lines), reduced to apparent
+electrical resistivity. The resistivity covers only the flown strip, so
+much of the district is blank.
+
+**What it is for.** Geophysics is the layer that did not pay off for the
+lode, and that is worth seeing plainly. The 400 m magnetics carry no
+independent lode signal once you score them on the flown cells; their
+apparent gain on the full extent is coverage, not geology. An expected
+cross-check also failed: the graphitic units, predicted to read as
+electrical conductors, instead read as resistive, because the shallow
+airborne electromagnetics are dominated by dry permafrost and upland
+bedrock. So the host flag earns its place as a map-geology covariate, not
+as a geophysical conductor.
+
+**How the model reads it.** The aeromagnetic field enters as a covariate
+in both models; it ranks low in lode feature importance and is negative
+on placer.
+
+### Placer layers: the strandlines, the populations, and the LiDAR
+
+```{python}
+#| label: placer-layers
+fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+placers = placer_occ()
+panel(axes[0], RM / "ifsar_dem_district_3338.tif",
+      "Coastal terrain (placer setting)", "m above sea level",
+      cmap="terrain", points=placers, plabel="placer occ", pcolor="#00d0ff")
+panel(axes[1], NP / "beachline_rem" / "rem.tif",
+      "Relative elevation model (1 m LiDAR, coastal strip)",
+      "m above local base", cmap="RdYlBu_r")
+plt.tight_layout()
+```
+
+**What it is.** The coastal terrain with the placer occurrences on it
+(left), and a relative elevation model (right) built from the 2021
+NOAA/USACE 1 m bare-earth LiDAR, which detrends the regional slope to
+make low relief stand out. The Nome placers sit on a stack of raised and
+submerged paleo-shorelines: the Second Beach at about +38 ft, the Third
+Beach at +70 ft (the high-grade exemplar), the Fourth at +120 ft, and
+several submerged stands offshore.
+
+**What it is for.** These layers encode where the gold-bearing beaches and
+their reworked stream placers are. The placer model is, in effect, a
+beach-line model already: its existing features score nearness to a true
+beach-stand elevation, the abrasion platforms, and the buried beach
+lines. A round-2 test added the 1 m LiDAR strandline geometry and found
+it added nothing measurable over that existing backbone, which says the
+beach-line geometry was the model's spine all along. The 1 m LiDAR's real
+value is berm-scale targeting on a single claim, not district-scale
+ranking.
+
+**How the model reads it.** The placer model carries explicit geomorphic
+population features (beach, abrasion platform, buried beach, stream
+reworking) on top of the terrain stack.
+
+### Labels: the typed lode set and the placer occurrences
+
+```{python}
+#| label: labels
+fig, ax = plt.subplots(figsize=(9, 7))
+arr, ext = panel(ax, RM / "ifsar_dem_district_3338.tif",
+                 "Recorded occurrences over district terrain",
+                 "m above sea level", cmap="Greys")
+lo = lode_36a(ext); pl = placer_occ(ext)
+ax.scatter(pl.geometry.x, pl.geometry.y, s=18, c="#00b3ff", edgecolor="black",
+           linewidth=0.3, label=f"placer occ (N={len(pl)})")
+ax.scatter(lo.geometry.x, lo.geometry.y, s=26, c="#ff2d2d", edgecolor="black",
+           linewidth=0.3, marker="^", label=f"36a lode (N={len(lo)})")
+ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+plt.tight_layout()
+print(f"36a lode occurrences shown: {len(lo)}   placer occurrences shown: {len(pl)}")
+```
+
+**What it is.** The training labels. The lode positives are the ARDF
+occurrences the USGS classifies as Cox-Singer model `36a`, low-sulfide
+gold-quartz vein, the deposit type the Nome lodes actually are. The placer
+positives are the ARDF placer occurrences inside the area of interest.
+
+**What it is for.** The typed lode set is the other half of the lode fix.
+The first model used a keyword grab (anything tagged lode or vein), which
+piled the positives into the two or three most-prospected spots. The 36a
+type code is assigned from a deposit's own character, not its location, so
+the positives disperse across the district and take the elevation
+shortcut away. The headline label counts the models train on are 65
+placer and 54 typed lode occurrences (48 of the lode set fall on
+GeMS-mapped ground); the counts drawn here come straight from the ARDF
+file and track those.
+
+**How the model reads it.** Positives are the occurrence cells; negatives
+are a background sample of the district. No occurrence-derived feature is
+allowed to leak the label, which is the subject of the next section.
+
+## How the algorithm consumes the data
+
+The covariates above feed a random forest (300 trees, class-balanced,
+fixed seed), but the modeling choice that decides whether the numbers mean
+anything is the cross-validation, not the estimator.
+
+```{python}
+#| label: cv-scheme
+sc = boot["scheme"]
+print("Leak-guarded spatial cross-validation:")
+print(f"  fold strategy     : {sc['fold_strategy']} regions")
+print(f"  number of folds   : {sc['n_folds']}")
+print(f"  block size        : {sc['block_size_m']:.0f} m  "
+      f"(2x the {sc['variogram_range_m']:.0f} m residual-variogram range)")
+print(f"  dead-zone buffer  : {sc['dead_zone_m']:.0f} m around every held-out point")
+```
+
+**Spatial blocks, not random folds.** Occurrences cluster, and nearby
+cells share terrain, so a random train/test split lets the model score a
+test point off its own near-neighbor in training. The folds here are
+contiguous regions, sized from the range of spatial autocorrelation in
+the model's own residuals (a variogram fit), so a held-out block is large
+enough to be genuinely independent of the training ground.
+
+**A dead-zone around every test point.** On top of the block split, any
+training cell within 1 km of a held-out occurrence is dropped, which is
+wider than the few-hundred-meter proximity buffers in the structural
+features. A test point cannot be scored by a training neighbor sitting
+just across the fold line.
+
+**The leakage lesson.** An earlier experiment rasterized the knowledge
+graph's occurrence-derived features onto the grid and saw the lode AUC
+jump toward 0.97. That gain was a coverage artifact: the features and the
+labels were drawn from one occurrence inventory, so a cell's own record
+was informing its own prediction. Under a fold-aware leave-one-out, where
+each held-out cell's own record is removed from the feature set, the gain
+collapsed to roughly zero. Any feature derived from the occurrence
+inventory is treated as guilty until cleared.
+
+**Refit-on-all for the served map.** The AUC numbers are held-out
+estimates of the pipeline's skill. The surface that gets served is the
+same pipeline refit on all the labels, so it uses every occurrence to
+draw the best map it can. The reported AUC describes the method's skill,
+not a property of the all-data refit, and the two are kept distinct.
+
+## Results
+
+### The lode prospectivity surface
+
+```{python}
+#| label: lode-surface
+fig, ax = plt.subplots(figsize=(9, 7))
+arr, ext = panel(ax, LODE_SERVED,
+                 "Served central-district lode favorability (struct_groves)",
+                 "lode favorability (RF probability)", cmap="magma",
+                 mask_neg=True)
+lo = lode_36a(ext)
+ax.scatter(lo.geometry.x, lo.geometry.y, s=22, c="#39ff14", edgecolor="black",
+           linewidth=0.4, marker="^", label=f"36a lode (N={len(lo)})")
+ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+plt.tight_layout()
+
+v = arr[np.isfinite(arr)]
+print(f"served cells: {v.size:,}   value range: [{v.min():.3f}, {v.max():.3f}]")
+print(f"median: {np.median(v):.3f}   p90: {np.percentile(v,90):.3f}   "
+      f"p99: {np.percentile(v,99):.3f}")
+```
+
+The served surface is masked to the GeMS-mapped footprint, the only ground
+where the splay and intersection features are defined; outside it the
+favorability is not meaningful, so it is left blank. The typed lode
+occurrences (green) land on the high-favorability ground.
+
+### Feature importance: the Groves controls lead, ahead of the named faults
+
+```{python}
+#| label: lode-importance
+fi = gate["datasets"][0]["feature_importance_sharp_all_top12"]
+names = [f[0] for f in fi][::-1]
+imp = [f[1] for f in fi][::-1]
+groves_feats = {"dist_splay", "dist_fault_intersection", "dist_fold_hinge"}
+colors = ["#d1495b" if n in groves_feats else "#9fb1bd" for n in names]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.barh(names, imp, color=colors)
+ax.set_xlabel("random-forest feature importance")
+ax.set_title("Lode feature importance (top 12) — Groves controls in red")
+for i, (n, v) in enumerate(zip(names, imp)):
+    ax.text(v + 0.002, i, f"{v:.3f}", va="center", fontsize=7)
+plt.tight_layout()
+```
+
+The three Groves controls, splay proximity, fold-hinge distance, and
+fault-intersection proximity, rank as the top three features, ahead of
+every individually named fault and ahead of elevation. The structural law
+the first model failed to find was real; the first model had the wrong
+features for it.
+
+### The lode mirage: restriction of range, and the fix
+
+```{python}
+#| label: lode-mirage
+arms = gate["datasets"][0]["arms"]
+groups = ["base\n(terrain+geology\n+aeromag)", "struct_groves\n(+ Groves controls)"]
+inbox = [arms["base"]["auc_placer_core"], arms["struct_groves"]["auc_placer_core"]]
+district = [arms["base"]["auc_gems"], arms["struct_groves"]["auc_gems"]]
+
+x = np.arange(len(groups)); w = 0.36
+fig, ax = plt.subplots(figsize=(8, 5))
+b1 = ax.bar(x - w/2, inbox, w, label="in-box subset (placer core)", color="#e7a33e")
+b2 = ax.bar(x + w/2, district, w, label="GeMS-mapped district (the gate)", color="#2e7d6b")
+ax.axhline(0.70, color="black", ls="--", lw=1)
+ax.text(1.45, 0.71, "0.70 gate", fontsize=8, ha="right")
+ax.axhline(0.5, color="gray", ls=":", lw=1)
+ax.set_xticks(x); ax.set_xticklabels(groups, fontsize=8)
+ax.set_ylabel("out-of-fold AUC"); ax.set_ylim(0.4, 1.0)
+ax.set_title("Restriction of range: the in-box subset overstates skill")
+for bars in (b1, b2):
+    for r in bars:
+        ax.text(r.get_x()+r.get_width()/2, r.get_height()+0.01,
+                f"{r.get_height():.3f}", ha="center", fontsize=8)
+ax.legend(fontsize=8, loc="lower right")
+plt.tight_layout()
+```
+
+The in-box subset (the small box around the placer core) reads high for
+every model, because inside it the lodes are upland schist and the
+background is coastal flat. That is restriction of range: the model
+separates the classes on the box geometry, not the geology. The
+GeMS-mapped district AUC is the gate that strips the geometry out. The
+first keyword-labeled lode model scored about `0.80` in the small box and
+fell to `0.58` across the district, and for a while that collapse was the
+chapter's negative result. The rebuild, typed dispersed labels plus the
+Groves controls, brought the district number to `0.712`, a `+0.170` gain
+over the same model without the structure features, with a paired
+bootstrap 95% interval of `+0.108` to `+0.234` that clears zero.
+
+### The peninsula generalization
+
+```{python}
+#| label: peninsula
+pen = load_json(NP / "lode_peninsula_generalization" / "lode_peninsula_generalization.json")
+cen = pen["central_matched"]["arms"]["struct_groves"]
+wid = pen["wider"]["arms"]["struct_groves"]
+east_ci = wid["bootstrap_east"]["ci95"]
+
+bars = {
+    "central district\n(mapped)": cen["auc_mapped"],
+    "wider peninsula\n(mapped)": wid["auc_mapped"],
+    "held-out east\n(Solomon/Council)": wid["auc_east"],
+}
+fig, ax = plt.subplots(figsize=(8, 5))
+cols = ["#2e7d6b", "#2e7d6b", "#7b6cae"]
+b = ax.bar(list(bars), list(bars.values()), color=cols)
+ax.axhline(0.5, color="gray", ls=":", lw=1)
+ax.set_ylabel("out-of-fold AUC"); ax.set_ylim(0.4, 1.0)
+ax.set_title("The Groves control generalizes to the wider peninsula")
+for r in b:
+    ax.text(r.get_x()+r.get_width()/2, r.get_height()+0.01,
+            f"{r.get_height():.3f}", ha="center", fontsize=9)
+plt.tight_layout()
+print(f"held-out east gain over base: +{wid['d_auc_east']:.3f}  "
+      f"95% CI [{east_ci[0]:+.3f}, {east_ci[1]:+.3f}] (crosses zero)")
+```
+
+Rebuilt on regional bedrock maps and scored on lode occurrences dispersed
+across the whole Seward Peninsula, the same splay-intersection-fold-host
+signal predicts lodes at about `0.88` on the mapped ground, and at `0.82`
+on an eastern cluster around Solomon and Council that the central model
+never trained on. The control is not a central-district artifact. The one
+caution is the east: with only nine eastern occurrences, the gain over the
+base model there is not yet distinguishable from zero (the interval
+crosses it), which is why the central-district surface is the served
+result and the peninsula extension is reported as validated but
+provisional.
+
+### The placer surface and the beach-line backbone
+
+```{python}
+#| label: placer-surface
+fig, ax = plt.subplots(figsize=(9, 7))
+arr, ext = panel(ax, PLACER_SERVED,
+                 "Served placer favorability (geomorphic terrain model)",
+                 "placer favorability (RF probability)", cmap="YlGnBu",
+                 mask_neg=True)
+pl = placer_occ(ext)
+ax.scatter(pl.geometry.x, pl.geometry.y, s=18, c="#ff2d2d", edgecolor="black",
+           linewidth=0.35, label=f"placer occ (N={len(pl)})")
+ax.legend(loc="upper right", fontsize=8, framealpha=0.9)
+plt.tight_layout()
+print(f"placer spatial-CV AUC: {placer['mpm_geomorph_terrain_spatialCV_auc']:.3f}   "
+      f"buffered: {placer['mpm_geomorph_terrain_buffered300m_auc']:.3f}   "
+      f"beach-line overlay: {placer['baseline_v31_composite_auc']:.3f}")
+```
+
+The placer surface is the one result here that held up on the first
+careful try. The earlier knowledge-overlay map, a hand-built picture of
+where the beaches run, scored `0.444` against the recorded occurrences,
+below a coin flip, because it is a faithful map of the coastal beaches and
+most of the recorded gold is up the creeks. The terrain-and-geomorphology
+model that learns directly from the land scored `0.733` under spatial-block
+cross-validation and `0.741` with a 300 m buffer. The buffered number
+sitting above the unbuffered one is the reassuring direction: the result
+is not an artifact of points leaking across fold boundaries. This surface
+is the placer layer goldbug serves. (The colors here use a standard
+high-is-bright scale; the live goldbug map applies its own styling.)
+
+## Findings
+
+**The same Nome Group veins source both maps.** The lode targets are the
+fractured quartz-sulfide veins in the Nome Group schist; the placer gold
+is what weathered out of those veins and was carried down. The genesis the
+literature lays out is a three-stage system (the 1978 Alaska DGGS study of
+the Nome coastal and offshore placers): glaciers stripped the mineralized
+bedrock and dumped unsorted, low-grade till (about 70 ppb gold) across the
+coastal shelf; marine transgressions then winnowed the fine matrix out of
+that drift, leaving dense gold concentrated on a stack of raised and
+submerged beach lines; late-stage streams cut across those beaches and
+re-sorted them into the bonanza pay, Anvil Creek dissecting the Third
+Beach being the type example. That is why the placer model is a beach-line
+model and why the richest ground sits where streams cross old shorelines.
+
+**The negative results are signal too.** Several things that looked
+promising did not survive the ruler, and each one rules out a feature so
+the next round does not re-try it:
+
+- Splitting the faults out by name **hurt** the lode model (the per-named-fault
+  arm scored `0.422` against the lumped Groves arm's `0.712`). Orientation
+  and structural role beat fault identity.
+- The deposit-scale Albion fault at Rock Creek was **redundant** once the
+  splay and intersection bands were in (it moved the AUC by `-0.021`,
+  within noise).
+- The drift-on-beach feature is **data-walled**: the one staged surficial
+  map (AOF 125) does not cover the placer core, so the feature is
+  undefined where it would matter, and a central-Nome drift vector is not
+  yet in hand.
+- The 400 m **aeromagnetics carried no independent lode signal** on the
+  flown cells, and the predicted graphitic-conductor cross-check failed
+  because the shallow electromagnetics read dry permafrost as resistive.
+
+**What each layer contributed.** Terrain carries the placer model and set
+the trap for the first lode model. Geology supplies the host. Structure,
+specifically the Groves splay/intersection/fold features, is what moved
+the lode from chance to a real number. Geophysics did not pay off. The
+typed `36a` labels were half the lode fix, the Groves features the other
+half.
+
+## Files and reproduction
+
+- Served lode surface: [scripts/nome_placer/mpm_lode_score_district.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/mpm_lode_score_district.py)
+- Served placer surface: [scripts/nome_placer/mpm_onshore_score_district.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/mpm_onshore_score_district.py)
+- Lode gate (typed 36a, Groves arms): [scripts/nome_placer/lode_structure_sharpen_cv.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_structure_sharpen_cv.py)
+- Bootstrap CI on the gain: [scripts/nome_placer/lode_groves_bootstrap.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_groves_bootstrap.py)
+- Peninsula generalization: [scripts/nome_placer/lode_peninsula_generalization.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_peninsula_generalization.py)
+- Structure feature builders: [src/ai_minerals/data/nome_structure.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/nome_structure.py)
+- Aeromagnetic / DIGHEM loader: [src/ai_minerals/data/dighem.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/dighem.py)
+- Placer LiDAR / strandlines: [src/ai_minerals/data/nome_placer_rem.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/nome_placer_rem.py)
+- Leak-guarded CV harness: [src/ai_minerals/spatial_cv.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/spatial_cv.py)
+- The public chapter this sits behind: [portfolio/nome_placer.qmd](../../nome_placer.qmd)
+
+## Sources
+
+- USGS, Alaska Resource Data File (ARDF): occurrence records and Cox-Singer deposit-type codes.
+- Alaska DGGS, Geologic Materials (GeMS) database for the Nome mining district, PDF 94-39: faults, named structures, fold axes, graphitic units.
+- Alaska DGGS, SIM 3131 (Nome and Solomon quadrangle bedrock) and RI 2024-7 (Casadepaga): regional structure and graphitic host for the peninsula test.
+- Alaska DGGS, GPR 2019-11: the 1993 Nome DIGHEM-V airborne electromagnetic and magnetic survey.
+- USGS, gridded aeromagnetic data for Alaska.
+- Alaska statewide IfSAR 5 m digital elevation model.
+- NOAA / USACE, 2021 Nome 1 m topobathymetric LiDAR.
+- Alaska DGGS, Deposition Dynamics, Stratigraphy, and Economic Geology of the Nome Coastal and Offshore Placer Gold Deposits, Seward Peninsula, Alaska (1978): the placer genesis.
+- Groves et al., on the structural controls of orogenic gold (splays, intersections, fold hinges, reactive hosts).
+```
