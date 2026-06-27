@@ -221,7 +221,8 @@ label the carbonaceous units explicitly.
 
 **What it is for.** The Nome Group schists are the reactive host rock for
 the gold-quartz veins. Orogenic gold of this type favors carbon-rich
-units, where the chemistry of the wall rock helps drop gold out of
+units, the reactive-host control Groves et al. describe; the usual
+explanation is that the wall-rock chemistry helps precipitate gold from
 solution. The 36a lode occurrences (red) cluster on and near the
 graphitic ground.
 
@@ -290,19 +291,41 @@ survey (DGGS GPR 2019-11, 400 m flight lines), reduced to apparent
 electrical resistivity. The resistivity covers only the flown strip, so
 much of the district is blank.
 
-**What it is for.** Geophysics is the layer that did not pay off for the
-lode, and that is worth seeing plainly. The 400 m magnetics carry no
-independent lode signal once you score them on the flown cells; their
-apparent gain on the full extent is coverage, not geology. An expected
-cross-check also failed: the graphitic units, predicted to read as
-electrical conductors, instead read as resistive, because the shallow
-airborne electromagnetics are dominated by dry permafrost and upland
-bedrock. So the host flag earns its place as a map-geology covariate, not
-as a geophysical conductor.
+**What it is for.** The two geophysical layers part ways for the lode, so
+it is worth separating them. The magnetics carry no independent lode
+signal once you score them on the flown cells: the marginal AUC is
+negative, not zero (about -0.02 in the central box, -0.06 district-wide),
+and the apparent gain on the full extent is coverage, not geology. The
+DIGHEM apparent resistivity is the one layer that helps at all, and only
+a little: a small positive at district scale on the flown cells (marginal
+AUC about +0.03), null in the smaller central box. Tested together the
+two add about +0.06 in the central box, but the bootstrap interval grazes
+zero in every case, and neither DIGHEM layer is in the served surface.
+What carries the lode is structure, not geophysics (the Groves structural
+features add +0.11 district-wide, P(Δ>0)=0.999).
 
-**How the model reads it.** The aeromagnetic field enters as a covariate
-in both models; it ranks low in lode feature importance and is negative
-on placer.
+An expected cross-check also failed. The graphitic units, predicted to
+read as electrical conductors (a *low* apparent resistivity, the
+alteration signature the literature looks for), instead read as more
+resistive than their surroundings: median apparent resistivity about 0.3
+to 0.8 log10 ohm-m higher across the 900 Hz, 7.2 kHz, and 56 kHz channels.
+We did not test why. One untested possibility is that a 400 m airborne EM
+survey over permafrost terrain does not resolve deep graphite, but we
+cannot cite that, so it is a hypothesis, not a finding. Either way the
+host flag earns its place as a map-geology covariate, not as a
+geophysical conductor.
+
+**What we did not build.** We tested these layers one at a time. We did
+not construct the combined alteration index the literature advocates (low
+magnetic susceptibility with low apparent resistivity and a localized
+gravity low, read together as a proxy for a buried hydrothermal center),
+and gravity is not in the Nome stack at all. The geophysics result here
+is a limit of what we built, not a refutation of that index.
+
+**How the model reads it.** The statewide aeromagnetic field enters the
+served lode model as a base covariate, where it ranks low in feature
+importance; on placer it is negative. The DIGHEM survey and gravity are
+not in the served surfaces.
 
 ### Placer layers: the strandlines, the populations, and the LiDAR
 
@@ -547,12 +570,24 @@ Rebuilt on regional bedrock maps and scored on lode occurrences dispersed
 across the whole Seward Peninsula, the same splay-intersection-fold-host
 signal predicts lodes at about `0.88` on the mapped ground, and at `0.82`
 on an eastern cluster around Solomon and Council that the central model
-never trained on. The control is not a central-district artifact. The one
-caution is the east: with only nine eastern occurrences, the gain over the
-base model there is not yet distinguishable from zero (the interval
-crosses it), which is why the central-district surface is the served
-result and the peninsula extension is reported as validated but
-provisional.
+never trained on. The control is not a central-district artifact.
+
+A round-4 retest pinned down which part of that eastern signal travels.
+With the eastern label set expanded by disciplined typing (eleven 36a
+positives, up from nine) and the structure features split into two arms
+scored against the same lithology-and-fault base, the orientation arm,
+which resolves fault proximity into the northeast and northwest fault sets,
+gains `+0.119` over the base in the east (95% CI `-0.008` to `+0.269`). The
+Groves refinement arm, which instead carries splay and fault-intersection
+proximity, does not travel: in the east it moves the AUC by `-0.047` over
+the base, a 95% CI of `-0.189` to `+0.096` that spans zero. On the mapped
+ground that same refinement is strongly positive (`+0.161`, CI `+0.093` to
+`+0.227` in the central district; `+0.380`, CI `+0.302` to `+0.457` across
+the peninsula). The reading is that fault orientation is the part of the
+structural law that generalizes east, while the splay-and-intersection
+refinement is tuned to the Nome district where it was built. That is why
+the central-district surface is the served result and the peninsula
+extension is reported as validated but provisional.
 
 ### The placer surface and the beach-line backbone
 
@@ -610,20 +645,50 @@ the next round does not re-try it:
 - The deposit-scale Albion fault at Rock Creek was **redundant** once the
   splay and intersection bands were in (it moved the AUC by `-0.021`,
   within noise).
-- The drift-on-beach feature is **data-walled**: the one staged surficial
-  map (AOF 125) does not cover the placer core, so the feature is
-  undefined where it would matter, and a central-Nome drift vector is not
-  yet in hand.
+- The drift-on-beach lever is a **tested null**. The raised-beach model
+  holds that gold concentrates where a strandline crosses gold-bearing
+  glacial drift. The most precise Nome-town surficial map (USGS MF-247)
+  maps the coastal plain as one undifferentiated unit, so the one
+  digitizable line is the bedrock/Quaternary contact, a proxy for the
+  drift's inland edge. As a covariate it adds nothing over the beach-line
+  base (strandline-crossing marginal AUC `-0.030`, 95% CI `-0.072` to
+  `+0.011`), and the positives sit a median 1.6 km seaward of the contact.
+  Whatever the drift contributes is already inside the beach-line score.
+  This is a null for the proxy, not a refutation of the mechanism: a
+  discrete central-Nome drift polygon, if one is ever digitized, could
+  still carry more.
+- **Typing the placer positives by coastal population was a null, set by
+  sample size.** Only 8 of the 65 recorded placer occurrences are cleanly
+  typed as coastal beaches (5 abrasion-platform, 3 strandline, after
+  Hudson 2006 and Metcalfe & Tuck 1942); the other 57 are upland
+  stream-and-gulch placers or district-wide composites. Both coastal types
+  sit farther from the lodes than the district background, not nearer, and
+  the two are indistinguishable on every local-source covariate tested
+  (every rank `p >= 0.29` at n = 5 versus 3). The one direction matching
+  the local-source hypothesis, abrasion-platform sitting nearer the
+  lode-belt axis than strandline, does not reach significance (`p = 0.11`).
+  The real local-source structure is the upland placers sitting on their
+  own lodes (median 1.4 km), which is partly circular and already captured
+  by terrain, so the pooled model gains nothing from a distance-to-lode
+  feature (`+0.026`, CI `-0.020` to `+0.071`). A powered retest needs a
+  positive set with more typed coastal beaches: the Metcalfe & Tuck
+  paystreak inventory or the NovaGold drill database.
 - The 400 m **aeromagnetics carried no independent lode signal** on the
-  flown cells, and the predicted graphitic-conductor cross-check failed
-  because the shallow electromagnetics read dry permafrost as resistive.
+  flown cells (marginal AUC about -0.02 to -0.06). The DIGHEM **apparent
+  resistivity** helped a little at district scale (about +0.03) but not in
+  the central box, and neither DIGHEM layer is in the served surface. The
+  predicted graphitic-conductor cross-check failed the other way: the
+  graphitic units read as more resistive, not less. We did not build the
+  combined low-magnetic / low-resistivity / gravity-low alteration index
+  the literature advocates, so this is a limitation, not a refutation.
 
 **What each layer contributed.** Terrain carries the placer model and set
 the trap for the first lode model. Geology supplies the host. Structure,
 specifically the Groves splay/intersection/fold features, is what moved
-the lode from chance to a real number. Geophysics did not pay off. The
-typed `36a` labels were half the lode fix, the Groves features the other
-half.
+the lode from chance to a real number. Of the geophysics, the magnetics
+did not help and the resistivity helped only marginally; structure, not
+geophysics, carries the lode. The typed `36a` labels were half the lode
+fix, the Groves features the other half.
 
 ## Files and reproduction
 
@@ -632,6 +697,9 @@ half.
 - Lode gate (typed 36a, Groves arms): [scripts/nome_placer/lode_structure_sharpen_cv.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_structure_sharpen_cv.py)
 - Bootstrap CI on the gain: [scripts/nome_placer/lode_groves_bootstrap.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_groves_bootstrap.py)
 - Peninsula generalization: [scripts/nome_placer/lode_peninsula_generalization.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_peninsula_generalization.py)
+- Eastern-splay orientation-vs-refinement retest: [scripts/nome_placer/lode_eastern_splay_confirm.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/lode_eastern_splay_confirm.py)
+- Drift-on-beach bedrock-contact proxy: [scripts/nome_placer/placer_bedrock_contact_cv.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/placer_bedrock_contact_cv.py)
+- Placer subtype local-source test: [scripts/nome_placer/placer_subtype_local_source.py](https://github.com/00skyking00/ai-minerals/blob/main/scripts/nome_placer/placer_subtype_local_source.py)
 - Structure feature builders: [src/ai_minerals/data/nome_structure.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/nome_structure.py)
 - Aeromagnetic / DIGHEM loader: [src/ai_minerals/data/dighem.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/dighem.py)
 - Placer LiDAR / strandlines: [src/ai_minerals/data/nome_placer_rem.py](https://github.com/00skyking00/ai-minerals/blob/main/src/ai_minerals/data/nome_placer_rem.py)
@@ -644,6 +712,8 @@ half.
 - Alaska DGGS, Geologic Materials (GeMS) database for the Nome mining district, PDF 94-39: faults, named structures, fold axes, graphitic units.
 - Alaska DGGS, SIM 3131 (Nome and Solomon quadrangle bedrock) and RI 2024-7 (Casadepaga): regional structure and graphitic host for the peninsula test.
 - Alaska DGGS, GPR 2019-11: the 1993 Nome DIGHEM-V airborne electromagnetic and magnetic survey.
+- USGS, MF-247 (Hummel, 1962): surficial geology of the Nome C-1 quadrangle, the bedrock/Quaternary contact for the drift-on-beach proxy.
+- Hudson (2006) and Metcalfe & Tuck (1942): the Nome placer populations (abrasion-platform versus strandline-beach) and the paystreak inventory behind the subtype typing.
 - USGS, gridded aeromagnetic data for Alaska.
 - Alaska statewide IfSAR 5 m digital elevation model.
 - NOAA / USACE, 2021 Nome 1 m topobathymetric LiDAR.
