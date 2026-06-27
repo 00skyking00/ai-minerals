@@ -290,19 +290,41 @@ survey (DGGS GPR 2019-11, 400 m flight lines), reduced to apparent
 electrical resistivity. The resistivity covers only the flown strip, so
 much of the district is blank.
 
-**What it is for.** Geophysics is the layer that did not pay off for the
-lode, and that is worth seeing plainly. The 400 m magnetics carry no
-independent lode signal once you score them on the flown cells; their
-apparent gain on the full extent is coverage, not geology. An expected
-cross-check also failed: the graphitic units, predicted to read as
-electrical conductors, instead read as resistive, because the shallow
-airborne electromagnetics are dominated by dry permafrost and upland
-bedrock. So the host flag earns its place as a map-geology covariate, not
-as a geophysical conductor.
+**What it is for.** The two geophysical layers part ways for the lode, so
+it is worth separating them. The magnetics carry no independent lode
+signal once you score them on the flown cells: the marginal AUC is
+negative, not zero (about -0.02 in the central box, -0.06 district-wide),
+and the apparent gain on the full extent is coverage, not geology. The
+DIGHEM apparent resistivity is the one layer that helps at all, and only
+a little: a small positive at district scale on the flown cells (marginal
+AUC about +0.03), null in the smaller central box. Tested together the
+two add about +0.06 in the central box, but the bootstrap interval grazes
+zero in every case, and neither DIGHEM layer is in the served surface.
+What carries the lode is structure, not geophysics (the Groves structural
+features add +0.11 district-wide, P(Δ>0)=0.999).
 
-**How the model reads it.** The aeromagnetic field enters as a covariate
-in both models; it ranks low in lode feature importance and is negative
-on placer.
+An expected cross-check also failed. The graphitic units, predicted to
+read as electrical conductors (a *low* apparent resistivity, the
+alteration signature the literature looks for), instead read as more
+resistive than their surroundings: median apparent resistivity about 0.3
+to 0.8 log10 ohm-m higher across the 900 Hz, 7.2 kHz, and 56 kHz channels.
+We did not test why. One untested possibility is that a 400 m airborne EM
+survey over permafrost terrain does not resolve deep graphite, but we
+cannot cite that, so it is a hypothesis, not a finding. Either way the
+host flag earns its place as a map-geology covariate, not as a
+geophysical conductor.
+
+**What we did not build.** We tested these layers one at a time. We did
+not construct the combined alteration index the literature advocates (low
+magnetic susceptibility with low apparent resistivity and a localized
+gravity low, read together as a proxy for a buried hydrothermal center),
+and gravity is not in the Nome stack at all. The geophysics result here
+is a limit of what we built, not a refutation of that index.
+
+**How the model reads it.** The statewide aeromagnetic field enters the
+served lode model as a base covariate, where it ranks low in feature
+importance; on placer it is negative. The DIGHEM survey and gravity are
+not in the served surfaces.
 
 ### Placer layers: the strandlines, the populations, and the LiDAR
 
@@ -615,15 +637,21 @@ the next round does not re-try it:
   undefined where it would matter, and a central-Nome drift vector is not
   yet in hand.
 - The 400 m **aeromagnetics carried no independent lode signal** on the
-  flown cells, and the predicted graphitic-conductor cross-check failed
-  because the shallow electromagnetics read dry permafrost as resistive.
+  flown cells (marginal AUC about -0.02 to -0.06). The DIGHEM **apparent
+  resistivity** helped a little at district scale (about +0.03) but not in
+  the central box, and neither DIGHEM layer is in the served surface. The
+  predicted graphitic-conductor cross-check failed the other way: the
+  graphitic units read as more resistive, not less. We did not build the
+  combined low-magnetic / low-resistivity / gravity-low alteration index
+  the literature advocates, so this is a limitation, not a refutation.
 
 **What each layer contributed.** Terrain carries the placer model and set
 the trap for the first lode model. Geology supplies the host. Structure,
 specifically the Groves splay/intersection/fold features, is what moved
-the lode from chance to a real number. Geophysics did not pay off. The
-typed `36a` labels were half the lode fix, the Groves features the other
-half.
+the lode from chance to a real number. Of the geophysics, the magnetics
+did not help and the resistivity helped only marginally; structure, not
+geophysics, carries the lode. The typed `36a` labels were half the lode
+fix, the Groves features the other half.
 
 ## Files and reproduction
 
