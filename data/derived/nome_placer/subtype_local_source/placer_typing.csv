@@ -1,0 +1,66 @@
+name,type,basis,x,y,deposit_codes,dist_to_newton_pt_mi,dist_to_36a_lode_m,dist_to_contact_m,dist_to_newton_axis_m,dist_to_newton_pt_m
+Nome Offshore Placer deposits,abrasion_platform,Inner/Outer Submarine paystreak on the wave-cut bedrock platform,-549543.9389266425,1662921.8713034443,,6.86,7779.1,6942.8,4630.6,11037.0
+Lower Snake River (upstream of the Nome airport),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-548607.6073417724,1665295.4656668988,39a,5.76,5298.2,4439.2,2298.0,9273.7
+Russel Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-548373.5679659575,1673307.7508664897,39a,6.32,2242.7,321.7,5697.7,10164.8
+Monument Creek; Poorman Bench,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-548211.0749918374,1673653.0677572067,39a,6.35,1928.7,159.5,6035.9,10215.2
+Submarine Beach,abrasion_platform,Inner/Outer Submarine paystreak on the wave-cut bedrock platform,-547848.5612447775,1663951.0004920114,39,5.63,6061.3,5274.3,3672.8,9059.8
+Nome Coastal Plain,broad_ambiguous,district-wide / unlocatable summary record,-547237.1074968543,1666619.271565093,39a,4.74,3421.8,2588.1,1032.3,7630.3
+Lower Snake River,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-546591.937764663,1663109.1636732216,39a,5.23,6483.9,5686.6,4566.1,8409.1
+Present (First) Beach,strandline_beach,"modern marine strandline (winnowed, fine gold + black sand)",-546075.6892802026,1662294.5705555682,39,5.29,7012.0,6212.1,5401.5,8512.6
+Center Creek Beach,abrasion_platform,Hudson 2006 L50: Center 'beach' on the abrasion platform,-545277.735844887,1663718.8396081387,39,4.34,5596.5,4587.5,4011.6,6988.9
+Monroeville Beach,abrasion_platform,Hudson 2006 L50: abrasion platform on bedrock,-544693.3014853046,1665599.2082657092,,3.42,3928.6,2633.2,2157.1,5501.5
+Lindblom Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-544521.5280462416,1675874.2814133815,39a,5.75,476.5,337.4,8102.0,9249.7
+Anvil Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-544347.1719440047,1669219.4890010294,39a,2.98,1033.0,415.8,1445.7,4788.2
+Jorgensen; Mountain Creek; Mary's Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-544243.5893191859,1671579.5222877408,"36a,39a",3.6,0.0,85.5,3799.4,5785.6
+Nome placer field,broad_ambiguous,district-wide / unlocatable summary record,-544120.3887505902,1666937.9979860564,39a,2.8,2816.7,1185.6,843.3,4512.4
+Intermediate Beach; Clam Shell Beach,abrasion_platform,Hudson 2006 L50: abrasion platform on bedrock,-544045.3574161929,1664365.7796491627,39,3.49,4204.8,3428.9,3416.4,5621.9
+"Center Creek and Flat, Saturday and  Wonder Creeks",broad_ambiguous,composite of Center flat + upland creeks; not a single beach unit,-543972.6847222338,1665768.6794734297,,2.97,3716.4,2158.8,2017.7,4780.6
+Glacier Creek (includes Bonanza and Bergstrom Gulches),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543905.0176230733,1672913.5328069685,39a,4.02,676.6,182.7,5118.2,6477.1
+Rock Creek (bench placer),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543744.6533543207,1674731.4050079726,39a,4.89,140.6,828.4,6927.8,7869.9
+Rock Creek (placer),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543516.0219858846,1674510.5251670578,39a,4.7,115.3,967.2,6697.6,7563.8
+Walsh Cut (alluvial placer),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543514.1134760346,1674521.5170403821,39a,4.71,114.8,972.6,6708.5,7572.3
+Sophie Gulch (Rock Creek),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543405.2618891078,1674729.0826371883,36a,4.78,0.0,1143.5,6911.4,7700.1
+Hot Air Bench (Columbia Mine),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543323.7617642138,1673016.4621585123,39a,3.85,105.9,303.0,5196.9,6201.8
+Bourbon Creek; Holyoke Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543257.166173678,1664784.1883386087,39a,2.95,3312.7,2769.2,3031.1,4752.1
+Fourth Beach,broad_ambiguous,raised beach above Third; not typed by Hudson 2006,-543190.7028735426,1667558.2399494855,39a,2.17,2823.3,299.2,262.2,3488.2
+Nome Mining District,broad_ambiguous,district-wide / unlocatable summary record,-543091.0861029025,1670575.6106205091,"36a,27d,28a,39a",2.65,0.0,1612.3,2748.5,4259.0
+Snow Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-543044.6774312216,1672413.2299982477,39a,3.45,583.5,524.6,4582.6,5549.9
+Cooper Gulch (placer and M. Charles lode occurrence),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-542846.1751758726,1668087.4085194012,39a,1.94,2323.1,330.8,252.2,3122.3
+Ullrich (Judy and Deb Bench claims),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-542812.5848906928,1673527.9349334529,39a,3.95,650.2,1016.2,5686.7,6362.0
+Specimen Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-542434.4588903986,1670326.0313841393,39a,2.23,702.5,2265.2,2471.8,3593.1
+Third Beach,strandline_beach,"Hudson 2006 L51: strandline beach, garnet + black-sand rich",-542400.266336276,1666221.2640223287,39a,1.98,2112.5,1194.5,1630.8,3192.1
+Peluk Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-542182.7566348291,1661586.6161149608,39a,4.25,5036.6,4731.1,6270.5,6834.7
+Lower Dry Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-541713.5108882156,1663940.0650827284,39a,2.79,2717.1,2461.8,3938.6,4488.5
+Summit High Bench,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-541431.9307141668,1670390.471052651,39a,1.84,1311.8,2396.7,2494.6,2965.4
+Nekula Gulch; Nicolai Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-541337.1560616471,1671642.1667319394,39a,2.49,1027.2,2378.6,3741.2,4014.8
+Upper Dry Creek; Bear Creek (Gulch),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-541234.3123733676,1667310.7146697268,39a,1.02,1419.1,122.8,590.7,1643.7
+Caribou Bill,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-541096.6000083942,1671600.6142951099,39a,2.41,871.5,2337.4,3689.7,3885.6
+Dexter High Bench,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540952.610630623,1671224.7770968776,39a,2.16,1106.4,2059.0,3308.2,3483.1
+Grass Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540952.569722469,1670239.7752541525,39a,1.61,834.8,1928.3,2324.1,2584.6
+Mattie (lower workings),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540898.5482835408,1671509.8095606822,39a,2.32,827.2,2119.5,3590.8,3733.9
+Unnamed high-bench deposit (Dexter Creek-Dry Creek divide),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540852.4959645675,1669045.0436003245,39a,0.97,1472.0,1871.3,1126.2,1560.6
+Madeline; Mattie (upper workings),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540838.0396710307,1671635.2248019332,39a,2.38,688.3,2098.5,3713.6,3835.2
+Snowflake,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540704.484658404,1671170.6319406908,39a,2.08,1028.6,1807.2,3243.8,3351.9
+Deer Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540685.3096781474,1670408.7756696532,39a,1.63,569.9,1649.9,2481.8,2625.5
+Sugar,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540520.5957266188,1671025.693175285,39a,1.97,808.0,1586.2,3091.4,3162.4
+Newton Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540456.3437199128,1665840.6587780786,39a,1.4,445.6,217.2,2091.8,2246.0
+Gold Hill (drift mine near Dexter),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540433.8700061099,1670908.8429859502,39a,1.88,663.8,1469.2,2971.0,3028.0
+Grouse Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-540127.3580794708,1670629.5765716517,39a,1.67,306.7,1105.7,2679.3,2694.9
+Otter Creek; Florence Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-539922.4056723003,1660563.5582370355,39a,4.6,5701.4,4987.3,7386.6,7403.7
+Unnamed (placer mine west of Nome River),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-538709.0567842895,1674664.5575262618,39a,4.21,3018.1,67.3,6651.9,6776.7
+Dexter Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-538181.4390640078,1670192.972942332,39a,1.68,1944.8,317.5,2162.2,2711.5
+Extra Dry Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-538103.884037834,1668379.7710647956,39a,1.04,2801.5,500.9,347.4,1674.7
+Nome River (2 miles below Banner Creek),upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-537779.9897126971,1673859.5864096317,39a,3.86,3166.6,1078.9,5809.0,6207.9
+McDonald Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-537526.4017481081,1662066.1501585648,39a,3.91,5015.8,3318.3,5984.8,6295.4
+Tripple Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-537317.1541473527,1663830.2193998864,39a,2.97,3833.7,1651.0,4230.9,4785.1
+Dewey Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535966.5506602008,1675382.2445049884,39a,5.17,5517.4,759.9,7255.0,8316.0
+Second Beach,strandline_beach,"Hudson 2006 L51: strandline beach, garnet + black-sand rich",-535868.2750590205,1657821.33854352,,6.74,9520.0,7798.2,10294.8,10852.2
+Buster Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535801.8589608363,1670985.1257912142,39a,3.08,4370.5,1556.2,2854.9,4952.2
+Irene Creek; Topaz,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535783.7003115176,1659176.5423370071,39a,5.99,8388.6,6466.5,8944.3,9632.0
+Lillian Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535535.7389006447,1672399.704108898,39a,3.79,4964.0,818.1,4257.2,6101.7
+Laurada Creek,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535479.1047911142,1660879.0902429407,39a,5.13,7211.6,4858.7,7255.9,8261.0
+Moss Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535373.3033071728,1661528.8740277418,39a,4.83,6817.2,4266.8,6611.0,7769.7
+Washington Creek; Washington Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-535113.7858541056,1663023.9962530022,39a,4.2,6099.2,2998.3,5128.0,6759.1
+Stevens Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-534984.7165887324,1662753.0119159115,39a,4.38,6354.2,3298.0,5404.1,7045.8
+Union Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-534026.33533826,1672741.8452813814,39a,4.62,5587.0,592.0,4536.3,7437.1
+Grace Gulch,upland_residual,named creek/gulch/bench: residual/alluvial upland placer,-533429.0493231321,1672345.824705181,39a,4.77,4874.7,1033.5,4115.8,7671.4

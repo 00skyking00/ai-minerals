@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T15:41:47Z",
+  "updated": "2026-06-27T16:00:02Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 52,
+    "done": 53,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -32,6 +32,10 @@
     {
       "severity": "low",
       "text": "ROUND-4B PLACER TYPING null DONE (coordinator 2026-06-27 round4B placer-typing addendum). Typed the 65 KG placer positives into Hudson 2006's two coastal populations (abrasion-platform vs strandline-beach, after Metcalfe & Tuck 1942) from the occurrence name field: only 8 are cleanly-typed coastal beaches (5 abrasion-platform = Monroeville/Intermediate/Center + Inner/Outer Submarine; 3 strandline = Second/Third + present-First), 52 are upland residual/stream-gulch placers (Hudson's residual-placer belt), 5 broad/composite -> handoff 3-way ambiguous = 57 (88%). Tested whether the abrasion-platform subset responds to a local-source covariate the strandline subset ignores (dist to nearest 36a lode, bedrock/Quaternary contact = abrasion-platform edge, Newton Peak GNIS 1406988, lode-belt axis). VERDICT = final null set by sample size: the two coastal types are indistinguishable on all four covariates (every bootstrap CI on the median difference spans zero, every rank p>=0.29; at n=5 vs 3 no rank test or per-subset CV can resolve a difference); pooled CV reproduces the round-3 distance-to-lode null (+0.026, CI [-0.020,+0.071]); the only signal is upland placers near lodes (median 1.4km), partly tautological (placer co-located with its lode) and already captured by terrain. One non-significant nudge toward the hypothesis: abrasion-platform nearer the lode-belt axis than strandline (Cliff's d=-0.32, p=0.11). Retest needs a positive set with more typed coastal beaches (Metcalfe & Tuck paystreak inventory or the NovaGold drill DB). scripts/nome_placer/placer_subtype_local_source.py; data/derived/nome_placer/subtype_local_source/ (typing CSV, JSON, summary CSV, REPORT.md, SOURCE.md, add -f). PR #44 off origin/main; not merged, not deployed."
+    },
+    {
+      "severity": "low",
+      "text": "ROUND 4B DRIFT-ON-BEACH = FINAL NULL (coordinator 2026-06-27 nome-round4B-digitize-drift-contact handoff). The strandline-by-drift placer lever, data-walled in rounds 3 and 4 (AOF 125 and RI 2024-6 both lie east of the placer ground), reopened on the precise Nome-town source USGS MF-247 (Hummel 1962, Nome C-1, 1:63,360). MF-247 maps the coastal plain as one undifferentiated unit (no drift-vs-beach edge), so the digitizable boundary is the bedrock (Nome Group) / Quaternary-cover contact, a drift-source-proximity proxy. Georeferenced MF-247 to EPSG:3338 on its 4 graticule neatline corners (RMS ~20 m; scripts/nome_placer/mf247_georeference.py, corners visually confirmed against the printed graticule labels). Overlap gate: 58 of 65 placer positives inside the C-1 footprint (the 7 outside are south of the coastline), so unlike the eastern maps it covers the ground. Contact vector = inland edge of the SIM 3131 (1:500k) coastal-plain Qs polygon clipped to C-1; the scanned MF-247 cannot be hand-traced in an unattended run, so the clean digital GeMS line stands in and MF-247 is staged for the manual-digitize precision upgrade. Feature = distance to (raised strandline x contact), F1 leak-guarded CV: marginal AUC -0.030 (CI [-0.072,+0.011], P(d>0)=0.07), inside-C1 -0.031 (CI [-0.070,+0.009]); plain distance-to-contact -0.016. The proxy adds nothing over the beach-line base; the drift effect, if present, is already inside the strandline score. Deliverables at data/derived/nome_placer/bedrock_contact/ (vector + SOURCE.md + REPORT.md + JSON/CSV + figure); scripts/nome_placer/{mf247_georeference,placer_bedrock_contact_cv}.py. PR off origin/main (branch f1/nome-bedrock-contact-mf247-2026-06-27); not merged, not deployed. A null is the final word on the lever."
     },
     {
       "severity": "low",

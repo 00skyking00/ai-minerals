@@ -1,0 +1,85 @@
+{
+  "question": "Does a bedrock-contact drift-on-beach proxy (strandline x bedrock/Quaternary contact, and plain distance-to-contact) add over the placer base under F1 CV?",
+  "contact_source": "GeMS SIM 3131 (1:500k) inland edge of coastal-plain Qs polygon; precise source MF-247 (Hummel 1962, 1:63,360) georeferenced to EPSG:3338 (RMS ~20 m) for cross-check + manual-digitizing precision upgrade.",
+  "data_limit": "MF-247 maps the coastal plain as one undifferentiated unit (no drift-vs-beach edge); the bedrock/Quaternary contact is the digitizable boundary. The strandline crossing self-restricts to the coast, so the contact's inland convolution and the GeMS-vs-MF-247 precision gap do not affect the verdict. Feature defined inside the Nome C-1 footprint only.",
+  "build": {
+    "n_strandline_cells": 93726,
+    "n_contact_cells": 2349,
+    "n_c1_footprint_cells": 365606,
+    "n_intersection_cells": 58,
+    "stand_elevs_m_navd88": [
+      11.58,
+      21.34,
+      36.58
+    ],
+    "dem_offset_m": 1.4,
+    "half_band_m": 2.5,
+    "contact_length_km_in_c1": 188.2
+  },
+  "scheme": {
+    "block_size_m": 900.0,
+    "variogram_range_m": 449.9,
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "n_boot": 2000
+  },
+  "n": 2065,
+  "n_pos": 65,
+  "n_pos_in_c1": 58,
+  "arms": {
+    "base": {
+      "auc_full": 0.6785769230769231,
+      "auc_in_c1": 0.5934174331045597
+    },
+    "strandline_x_contact": {
+      "auc_full": 0.6482615384615386,
+      "auc_in_c1": 0.5627900191725249
+    },
+    "dist_to_contact": {
+      "auc_full": 0.6628538461538461,
+      "auc_in_c1": 0.5831851399038595
+    }
+  },
+  "marginals": {
+    "strandline_x_contact_full": {
+      "point": -0.0303,
+      "ci95": [
+        -0.0719,
+        0.0107
+      ],
+      "p_gt_0": 0.074,
+      "n_scored": 2065,
+      "n_pos": 65
+    },
+    "strandline_x_contact_in_c1": {
+      "point": -0.0306,
+      "ci95": [
+        -0.0701,
+        0.009
+      ],
+      "p_gt_0": 0.062,
+      "n_scored": 1299,
+      "n_pos": 58
+    },
+    "dist_to_contact_full": {
+      "point": -0.0157,
+      "ci95": [
+        -0.0517,
+        0.0203
+      ],
+      "p_gt_0": 0.2015,
+      "n_scored": 2065,
+      "n_pos": 65
+    },
+    "dist_to_contact_in_c1": {
+      "point": -0.0102,
+      "ci95": [
+        -0.0484,
+        0.0289
+      ],
+      "p_gt_0": 0.2895,
+      "n_scored": 1299,
+      "n_pos": 58
+    }
+  },
+  "contact_vector": "data/derived/nome_placer/bedrock_contact/nome_bedrock_quaternary_contact_3338.geojson"
+}
