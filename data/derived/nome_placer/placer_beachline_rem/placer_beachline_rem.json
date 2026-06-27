@@ -1,0 +1,148 @@
+{
+  "question": "Do the LiDAR beach-line / strandline features move the placer auc_strip over the geomorph base, under F1 leak-guarded CV?",
+  "gate": {
+    "d_auc_strip_beachline": -0.21,
+    "auc_strip_base": 0.6785714285714285,
+    "auc_strip_beachline": 0.46904761904761905,
+    "moved_positive": false,
+    "UNDERPOWERED": "only 3 of 65 placer positives fall in the 1 m LiDAR strip; the strip auc deltas are noise",
+    "powered_strand_ifsar_d_auc_full": 0.003,
+    "powered_note": "raised-strandline proximity on the full-coverage IfSAR DEM (all positives) marginal over the POP base, which already scores BL/AP/buried_BL at the documented stand elevations"
+  },
+  "caveat_n_pos_strip": 3,
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "block_sizing": "2x base-model residual-variogram range (F1), fixed across arms",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "fold_strategy": "contiguous"
+  },
+  "layers": {
+    "source": "NOAA/USACE 2021 NCMP 1 m bare-earth LiDAR, dataset 10207",
+    "native_res_m": 1,
+    "feature_res_m": 5.0,
+    "vdatum": "NAVD88 m",
+    "bands": [
+      "rem",
+      "dist_second",
+      "dist_third",
+      "dist_submerged_shallow",
+      "dist_abrasion_platform",
+      "ew_ridge"
+    ],
+    "strandline_elev_ft": {
+      "second": 38,
+      "third": 70,
+      "submerged_shallow": "-36..-45"
+    },
+    "not_in_strip": "Fourth +120ft (above +25.6m ceiling); deep submerged -55/-70/-80ft (below -13.7m floor); drift-on-beach intersection (needs surficial AOF125/RI2024-6 vector)"
+  },
+  "auc_keys": {
+    "auc_full": "whole-extent OOF AUC (mixes signal + LiDAR-coverage proxy)",
+    "auc_strip": "OOF AUC on LiDAR-covered cells (the clean test / gate)"
+  },
+  "n": 2065,
+  "n_pos": 65,
+  "n_pos_strip": 3,
+  "n_bg_strip": 70,
+  "frac_cells_lidar_covered": 0.035,
+  "arms": {
+    "base": {
+      "auc_full": 0.6785769230769231,
+      "n_features": 10,
+      "auc_strip": 0.6785714285714285,
+      "block_size_m": 900.0,
+      "variogram_range_m": 449.9
+    },
+    "rem": {
+      "auc_full": 0.6889730769230769,
+      "n_features": 11,
+      "auc_strip": 0.6523809523809523,
+      "d_auc_full": 0.01,
+      "d_auc_strip": -0.026
+    },
+    "strand": {
+      "auc_full": 0.6723153846153846,
+      "n_features": 13,
+      "auc_strip": 0.5785714285714285,
+      "d_auc_full": -0.006,
+      "d_auc_strip": -0.1
+    },
+    "abrasion": {
+      "auc_full": 0.6701269230769231,
+      "n_features": 11,
+      "auc_strip": 0.6619047619047618,
+      "d_auc_full": -0.008,
+      "d_auc_strip": -0.017
+    },
+    "ew": {
+      "auc_full": 0.6833,
+      "n_features": 11,
+      "auc_strip": 0.6476190476190475,
+      "d_auc_full": 0.005,
+      "d_auc_strip": -0.031
+    },
+    "beachline": {
+      "auc_full": 0.6438153846153846,
+      "n_features": 16,
+      "auc_strip": 0.46904761904761905,
+      "d_auc_full": -0.035,
+      "d_auc_strip": -0.21
+    },
+    "strand_ifsar_fullcover": {
+      "auc_full": 0.6816807692307691,
+      "n_features": 13,
+      "d_auc_full": 0.003
+    }
+  },
+  "feature_importance_beachline_top12": [
+    [
+      "tpi",
+      0.1983
+    ],
+    [
+      "dem",
+      0.1658
+    ],
+    [
+      "slope",
+      0.1504
+    ],
+    [
+      "ss",
+      0.0907
+    ],
+    [
+      "qm",
+      0.089
+    ],
+    [
+      "bl",
+      0.0734
+    ],
+    [
+      "tb",
+      0.0627
+    ],
+    [
+      "bc",
+      0.056
+    ],
+    [
+      "ap",
+      0.047
+    ],
+    [
+      "dist_submerged_shallow",
+      0.0131
+    ],
+    [
+      "dist_third",
+      0.0131
+    ],
+    [
+      "dist_abrasion_platform",
+      0.0121
+    ]
+  ]
+}
