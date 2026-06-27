@@ -1,0 +1,66 @@
+{
+  "question": "Is the round-2 lode gate (struct_groves auc_gems 0.712, d=+0.170 over base on typed 36a labels) distinguishable from zero under a paired bootstrap on the 48 GeMS-mapped positives?",
+  "method": "paired class-stratified bootstrap of the OOF AUC delta (arm minus base) on identical leak-guarded folds; 2000 resamples, 95% CI = 2.5/97.5 percentile, P(delta>0) = fraction of resamples with positive delta. Identical to scripts/nome_placer/newlayers_bootstrap.boot_delta.",
+  "n_boot": 2000,
+  "labels": "ARDF Cox-Singer model_code 36a (low-sulfide Au-quartz vein), typed dispersed set",
+  "headline_arm": "struct_groves",
+  "headline_subset": "gems",
+  "scheme": {
+    "block_size_m": 3800.0,
+    "variogram_range_m": 1878.8,
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "fold_strategy": "contiguous"
+  },
+  "subsets": {
+    "gems": "OOF AUC on GeMS-mapped cells (the clean structure test / gate)",
+    "placer_core": "in-box subset (restriction-of-range alarm)"
+  },
+  "datasets": {
+    "struct_groves": {
+      "gems": {
+        "point": 0.1704,
+        "ci95": [
+          0.1081,
+          0.2336
+        ],
+        "p_gt_0": 1.0,
+        "n_scored": 929,
+        "n_pos": 48
+      },
+      "placer_core": {
+        "point": 0.149,
+        "ci95": [
+          0.0672,
+          0.2387
+        ],
+        "p_gt_0": 1.0,
+        "n_scored": 224,
+        "n_pos": 27
+      }
+    },
+    "struct_generic": {
+      "gems": {
+        "point": 0.1377,
+        "ci95": [
+          0.0631,
+          0.2089
+        ],
+        "p_gt_0": 0.9995,
+        "n_scored": 929,
+        "n_pos": 48
+      },
+      "placer_core": {
+        "point": 0.1283,
+        "ci95": [
+          0.0384,
+          0.226
+        ],
+        "p_gt_0": 0.9985,
+        "n_scored": 224,
+        "n_pos": 27
+      }
+    }
+  }
+}
