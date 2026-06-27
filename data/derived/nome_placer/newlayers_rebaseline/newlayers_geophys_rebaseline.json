@@ -1,0 +1,260 @@
+{
+  "scheme": {
+    "dead_zone_m": 1000.0,
+    "n_folds": 10,
+    "block_sizing": "2x base-model residual-variogram range (F1 recipe), fixed across arms so deltas isolate the features",
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "fold_strategy": "contiguous"
+  },
+  "layers": {
+    "geophysics": {
+      "source": "1993 Nome DIGHEM-V, Alaska DGGS GPR 2019-11 (DOI 10.14509/30189)",
+      "line_spacing_m": 400,
+      "native_grid_m": 25,
+      "src_crs": "EPSG:26703",
+      "mag_bands": [
+        "mag_residual",
+        "mag_1vd",
+        "mag_analytic_signal",
+        "mag_tilt"
+      ],
+      "res_bands": [
+        "res_log10_900hz",
+        "res_log10_7200hz",
+        "res_log10_56khz"
+      ]
+    },
+    "structure": {
+      "source": "Nome mining district GeMS, Alaska DGGS PDF 94-39",
+      "bands": [
+        "dist_ne_fault",
+        "dist_nw_fault",
+        "dist_fold_hinge",
+        "carbonaceous_host"
+      ],
+      "ne_azimuth_deg": [
+        22.5,
+        67.5
+      ],
+      "nw_azimuth_deg": [
+        112.5,
+        157.5
+      ],
+      "graphitic_units": [
+        "pCPzsg",
+        "pCPzsgb",
+        "pCPzspm"
+      ],
+      "datum": "NAD27 UTM 3N -> EPSG:3338 via NADCON5 us_noaa_alaska grid"
+    }
+  },
+  "auc_keys": {
+    "auc_full": "whole-extent OOF AUC (mixes signal + coverage proxy)",
+    "auc_dighem": "OOF AUC restricted to DIGHEM-flown cells",
+    "auc_gems": "OOF AUC restricted to GeMS-mapped cells (clean structure test)",
+    "auc_both": "OOF AUC restricted to flown AND mapped cells",
+    "auc_placer_core": "lode_district only: F1 restriction-of-range alarm"
+  },
+  "skytem_2024_excluded": "Kigluaik/Seward SkyTEM block sits north of the modelled extent: 0% of the placer-core in-box, only a northern district strip; no value for these model grids. Held for a northern extension.",
+  "datasets": [
+    {
+      "name": "placer_onshore",
+      "n": 2065,
+      "n_pos": 65,
+      "frac_cells_dighem_covered": 0.733,
+      "arms": {
+        "base": {
+          "auc_full": 0.6785769230769231,
+          "n_features": 10,
+          "auc_dighem": 0.6033179286645337,
+          "block_size_m": 900.0,
+          "variogram_range_m": 449.9
+        },
+        "mag": {
+          "auc_full": 0.6183846153846154,
+          "n_features": 14,
+          "auc_dighem": 0.5173302523995734,
+          "d_auc_full": -0.06,
+          "d_auc_dighem": -0.086,
+          "d_auc_gems": null,
+          "d_auc_both": null
+        },
+        "res": {
+          "auc_full": 0.6732,
+          "n_features": 13,
+          "auc_dighem": 0.6019018841094916,
+          "d_auc_full": -0.005,
+          "d_auc_dighem": -0.001,
+          "d_auc_gems": null,
+          "d_auc_both": null
+        },
+        "geophys": {
+          "auc_full": 0.6509653846153847,
+          "n_features": 17,
+          "auc_dighem": 0.5645100130347198,
+          "d_auc_full": -0.028,
+          "d_auc_dighem": -0.039,
+          "d_auc_gems": null,
+          "d_auc_both": null
+        }
+      },
+      "n_pos_dighem_covered": 58
+    },
+    {
+      "name": "lode_inbox",
+      "n": 2030,
+      "n_pos": 30,
+      "frac_cells_dighem_covered": 0.732,
+      "arms": {
+        "base": {
+          "auc_full": 0.805925,
+          "n_features": 10,
+          "auc_dighem": 0.7599541809851089,
+          "auc_gems": 0.7671124157425526,
+          "auc_both": 0.7579044969865554,
+          "block_size_m": 900.0,
+          "variogram_range_m": 449.9
+        },
+        "mag": {
+          "auc_full": 0.7916833333333334,
+          "n_features": 14,
+          "auc_dighem": 0.7414776632302407,
+          "auc_gems": 0.7491519895629485,
+          "auc_both": 0.7396267964765879,
+          "d_auc_full": -0.014,
+          "d_auc_dighem": -0.018,
+          "d_auc_gems": -0.018,
+          "d_auc_both": -0.018
+        },
+        "res": {
+          "auc_full": 0.8087333333333333,
+          "n_features": 13,
+          "auc_dighem": 0.759770904925544,
+          "auc_gems": 0.7656990650141335,
+          "auc_both": 0.7575220213259155,
+          "d_auc_full": 0.003,
+          "d_auc_dighem": -0.0,
+          "d_auc_gems": -0.001,
+          "d_auc_both": -0.0
+        },
+        "geophys": {
+          "auc_full": 0.8575999999999999,
+          "n_features": 17,
+          "auc_dighem": 0.8180183276059565,
+          "auc_gems": 0.824635790389215,
+          "auc_both": 0.8164696337505796,
+          "d_auc_full": 0.052,
+          "d_auc_dighem": 0.058,
+          "d_auc_gems": 0.058,
+          "d_auc_both": 0.059
+        },
+        "struct": {
+          "auc_full": 0.7504416666666667,
+          "n_features": 14,
+          "auc_dighem": 0.7077777777777778,
+          "auc_gems": 0.7110784953250706,
+          "auc_both": 0.7057023643949931,
+          "d_auc_full": -0.055,
+          "d_auc_dighem": -0.052,
+          "d_auc_gems": -0.056,
+          "d_auc_both": -0.052
+        },
+        "geophys_struct": {
+          "auc_full": 0.836325,
+          "n_features": 21,
+          "auc_dighem": 0.7884536082474227,
+          "auc_gems": 0.7971732985431617,
+          "auc_both": 0.7868103847936949,
+          "d_auc_full": 0.03,
+          "d_auc_dighem": 0.028,
+          "d_auc_gems": 0.03,
+          "d_auc_both": 0.029
+        }
+      },
+      "frac_cells_gems_mapped": 0.77,
+      "n_pos_gems_mapped": 30,
+      "n_pos_dighem_covered": 30
+    },
+    {
+      "name": "lode_district",
+      "n": 3093,
+      "n_pos": 93,
+      "frac_cells_dighem_covered": 0.322,
+      "arms": {
+        "base": {
+          "auc_full": 0.6330591397849462,
+          "n_features": 15,
+          "auc_dighem": 0.5471436677707544,
+          "auc_gems": 0.5398798482876996,
+          "auc_both": 0.5356710833544321,
+          "auc_placer_core": 0.7370558375634519,
+          "block_size_m": 3800.0,
+          "variogram_range_m": 1878.8
+        },
+        "mag": {
+          "auc_full": 0.7395394265232975,
+          "n_features": 19,
+          "auc_dighem": 0.4895881444727431,
+          "auc_gems": 0.4907325378588633,
+          "auc_both": 0.4835921456100374,
+          "auc_placer_core": 0.6561759729272421,
+          "d_auc_full": 0.106,
+          "d_auc_dighem": -0.058,
+          "d_auc_gems": -0.049,
+          "d_auc_both": -0.052
+        },
+        "res": {
+          "auc_full": 0.8083530465949821,
+          "n_features": 18,
+          "auc_dighem": 0.5738529143958089,
+          "auc_gems": 0.5726170371805874,
+          "auc_both": 0.5668059189242411,
+          "auc_placer_core": 0.7420473773265652,
+          "d_auc_full": 0.175,
+          "d_auc_dighem": 0.027,
+          "d_auc_gems": 0.033,
+          "d_auc_both": 0.031
+        },
+        "geophys": {
+          "auc_full": 0.8134050179211469,
+          "n_features": 22,
+          "auc_dighem": 0.5779371593713298,
+          "auc_gems": 0.5812685141607374,
+          "auc_both": 0.5756674262244352,
+          "auc_placer_core": 0.7428087986463621,
+          "d_auc_full": 0.18,
+          "d_auc_dighem": 0.031,
+          "d_auc_gems": 0.041,
+          "d_auc_both": 0.04
+        },
+        "struct": {
+          "auc_full": 0.8478010752688173,
+          "n_features": 19,
+          "auc_dighem": 0.6592723577772206,
+          "auc_gems": 0.6457323994352315,
+          "auc_both": 0.6405814836695078,
+          "auc_placer_core": 0.7670050761421321,
+          "d_auc_full": 0.215,
+          "d_auc_dighem": 0.112,
+          "d_auc_gems": 0.106,
+          "d_auc_both": 0.105
+        },
+        "geophys_struct": {
+          "auc_full": 0.8178799283154122,
+          "n_features": 26,
+          "auc_dighem": 0.6442286121484844,
+          "auc_gems": 0.6338487306552976,
+          "auc_both": 0.6292092159675922,
+          "auc_placer_core": 0.7539763113367175,
+          "d_auc_full": 0.185,
+          "d_auc_dighem": 0.097,
+          "d_auc_gems": 0.094,
+          "d_auc_both": 0.094
+        }
+      },
+      "frac_cells_gems_mapped": 0.311,
+      "n_pos_gems_mapped": 82,
+      "n_pos_dighem_covered": 83
+    }
+  ]
+}

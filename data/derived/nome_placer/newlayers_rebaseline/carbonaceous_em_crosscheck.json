@@ -1,0 +1,23 @@
+{
+  "900hz": {
+    "median_host": 2.996,
+    "median_nonhost": 2.699,
+    "delta_log10": 0.297,
+    "n_host": 12195,
+    "p_host_lt_bg": 1.0
+  },
+  "7200hz": {
+    "median_host": 3.468,
+    "median_nonhost": 2.65,
+    "delta_log10": 0.818,
+    "n_host": 12195,
+    "p_host_lt_bg": 1.0
+  },
+  "56khz": {
+    "median_host": 3.666,
+    "median_nonhost": 2.849,
+    "delta_log10": 0.817,
+    "n_host": 2341,
+    "p_host_lt_bg": 1.0
+  }
+}
