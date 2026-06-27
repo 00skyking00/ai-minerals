@@ -1,0 +1,34 @@
+{
+  "type": "FeatureCollection",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:3338"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Albion fault (documented)"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -545343.3421058047,
+            1673574.3970339175
+          ],
+          [
+            -542901.9999999994,
+            1675320.0000000042
+          ],
+          [
+            -526623.6458500113,
+            1686953.4712467464
+          ]
+        ]
+      }
+    }
+  ]
+}

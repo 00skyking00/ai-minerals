@@ -1,0 +1,67 @@
+{
+  "question": "Does a drift-on-beach intersection feature (strandline x AOF 125 drift proxy) add over the placer base under F1 leak-guarded CV?",
+  "data_limit": "AOF 125 maps no discrete glacial-drift unit; Qu/Qud undifferentiated deposits are a proxy, and the coastal strip largely excludes the inland drift sheet. The feature is defined only inside the AOF 125 footprint.",
+  "build": {
+    "n_strandline_cells": 93726,
+    "n_drift_cells": 0,
+    "n_aof125_cover_cells": 0,
+    "n_intersection_cells": 0,
+    "drift_units": [
+      "Qu",
+      "Qud"
+    ],
+    "stand_elevs_m_navd88": [
+      11.58,
+      21.34,
+      36.58
+    ],
+    "dem_offset_m": 1.4,
+    "half_band_m": 2.5,
+    "aof125_bounds_3338": [
+      -527199,
+      1530424,
+      -316579,
+      1684643
+    ],
+    "placer_grid_bounds_3338": [
+      -550400,
+      1655025,
+      -532975,
+      1676175
+    ],
+    "aof125_overlaps_placer_grid": false,
+    "coverage_finding": "AOF 125 (Tolstoi Pt -> Cape Nome) lies EAST of the placer in-box; zero overlap with the grid, so the drift-on-beach feature is undefined across the whole placer model"
+  },
+  "scheme": {
+    "block_size_m": 900.0,
+    "variogram_range_m": 449.9,
+    "estimator": "RandomForest(300, balanced, seed=42)",
+    "n_boot": 2000
+  },
+  "n": 2065,
+  "n_pos": 65,
+  "n_pos_in_aof125_cover": 0,
+  "arms": {
+    "base": {
+      "auc_full": 0.6785769230769231,
+      "auc_in_cover": null
+    },
+    "drift_on_beach": {
+      "auc_full": 0.6733615384615386,
+      "auc_in_cover": null
+    }
+  },
+  "marginal_full": {
+    "point": -0.0052,
+    "ci95": [
+      -0.0371,
+      0.025
+    ],
+    "p_gt_0": 0.3455,
+    "n_scored": 2065,
+    "n_pos": 65
+  },
+  "marginal_in_cover": {
+    "point": null
+  }
+}
