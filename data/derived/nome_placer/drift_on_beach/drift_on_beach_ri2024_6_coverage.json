@@ -1,0 +1,60 @@
+{
+  "question": "Does RI 2024-6 supply a discrete-drift overlay covering the central Nome placer grid, enabling the strandline x drift intersection feature?",
+  "premise_checked": "brief stated RI 2024-6 'covers central Nome and maps the Nome River drift as discrete polygons'",
+  "placer_model_grid": {
+    "dem": "data/raw/nome_mpm/ifsar_dem_3338.tif",
+    "bounds_3338": [
+      -550400,
+      1655025,
+      -532975,
+      1676175
+    ],
+    "res_m": 25.0
+  },
+  "ri2024_6": {
+    "vector": "data/raw/dggs_ri2024_6/extracted/shp/casadepaga_surficial_gems_db-open/GM_MapUnitPolys.shp",
+    "extent_3338": [
+      -500004,
+      1656148,
+      -450930,
+      1716190
+    ],
+    "n_polys": 1455,
+    "n_discrete_drift_polys": 49,
+    "drift_units_present": [
+      "Qdn",
+      "Qds",
+      "Qds-os",
+      "Qds-ow",
+      "Qds-v",
+      "Qds-w",
+      "Qdu"
+    ],
+    "n_nome_river_drift_Qdn_polys": 3,
+    "x_overlaps_placer_grid": false,
+    "y_overlaps_placer_grid": true,
+    "overlaps_placer_grid": false,
+    "min_dist_grid_to_any_drift_m": 32971,
+    "min_dist_grid_to_Qdn_m": 71460
+  },
+  "aof125_for_context": {
+    "vector": "data/raw/nome_surficial_aof125/shp/tolstoi_point_cape_nome_surficial-open/GM_MapUnitPolys.shp",
+    "extent_3338": [
+      -527199,
+      1530424,
+      -316579,
+      1684643
+    ],
+    "n_polys": 524,
+    "n_discrete_drift_polys": 0,
+    "drift_units_present": [],
+    "n_nome_river_drift_Qdn_polys": 0,
+    "x_overlaps_placer_grid": false,
+    "y_overlaps_placer_grid": true,
+    "overlaps_placer_grid": false,
+    "min_dist_grid_to_any_drift_m": null,
+    "min_dist_grid_to_Qdn_m": null
+  },
+  "finding": "RI 2024-6 is the Casadepaga / Big Hurrah-Council Bluff surficial map (DGGS RI 2024-6, Stevens 2024), the eastern companion to RI 2024-7 bedrock. Its mapped extent [-500004, 1656148, -450930, 1716190] sits east of the placer grid [-550400, 1655025, -532975, 1676175] with NO overlap (nearest discrete-drift polygon ~32971 m, nearest Qdn Nome-River-drift polygon ~71460 m from the grid). It has 3 Qdn polygons, but they are the type-area lobes on the eastern map, not on the Cape Nome beachline. RI 2024-6 therefore cannot supply the strandline x drift intersection for the central placer model. This is the AOF 125 wall (round 3) repeated further east.",
+  "decision": "ESCALATE to coordinator. No drift-on-beach model built on RI 2024-6: it would be all-NODATA over the placer grid, identical to the round-3 AOF 125 null. The round-3 result (the beach-line backbone already carries the placer signal; no central-Nome discrete-drift vector exists) stands until a surficial drift map covering the Cape Nome beach is found."
+}
