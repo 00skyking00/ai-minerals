@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T14:09:02Z",
+  "updated": "2026-06-27T14:48:43Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 50,
+    "done": 51,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "ROUND 4B DRIFT-ON-BEACH = FINAL NULL (coordinator 2026-06-27 nome-round4B-digitize-drift-contact handoff). The strandline-by-drift placer lever, data-walled in rounds 3 and 4 (AOF 125 and RI 2024-6 both lie east of the placer ground), reopened on the precise Nome-town source USGS MF-247 (Hummel 1962, Nome C-1, 1:63,360). MF-247 maps the coastal plain as one undifferentiated unit (no drift-vs-beach edge), so the digitizable boundary is the bedrock (Nome Group) / Quaternary-cover contact, a drift-source-proximity proxy. Georeferenced MF-247 to EPSG:3338 on its 4 graticule neatline corners (RMS ~20 m; scripts/nome_placer/mf247_georeference.py, corners visually confirmed against the printed graticule labels). Overlap gate: 58 of 65 placer positives inside the C-1 footprint (the 7 outside are south of the coastline), so unlike the eastern maps it covers the ground. Contact vector = inland edge of the SIM 3131 (1:500k) coastal-plain Qs polygon clipped to C-1; the scanned MF-247 cannot be hand-traced in an unattended run, so the clean digital GeMS line stands in and MF-247 is staged for the manual-digitize precision upgrade. Feature = distance to (raised strandline x contact), F1 leak-guarded CV: marginal AUC -0.030 (CI [-0.072,+0.011], P(d>0)=0.07), inside-C1 -0.031 (CI [-0.070,+0.009]); plain distance-to-contact -0.016. The proxy adds nothing over the beach-line base; the drift effect, if present, is already inside the strandline score. Deliverables at data/derived/nome_placer/bedrock_contact/ (vector + SOURCE.md + REPORT.md + JSON/CSV + figure); scripts/nome_placer/{mf247_georeference,placer_bedrock_contact_cv}.py. PR off origin/main (branch f1/nome-bedrock-contact-mf247-2026-06-27); not merged, not deployed. A null is the final word on the lever."
+    },
     {
       "severity": "low",
       "text": "NOME DATA-WALKTHROUGH NOTEBOOK DONE (coordinator 2026-06-27 nome-data-walkthrough-notebook handoff; Sky wants the Tanacross/BCGT-style layer-by-layer walkthrough for Nome). Built portfolio/notebooks/nome_walkthrough/nome_walkthrough.qmd as a PRIVATE notebook (NOT in _quarto.yml render list -> unlinked + not deployed), mirroring tanacross.qmd section structure on bcgt data_exploration.qmd executable-figure idioms. Sections: the experiment (two deposit types + the leak-guarded ruler) -> data layers (terrain IfSAR DEM/slope/TPI; geology Nome Group units + graphitic host; structure Groves splay/intersection/fold; geophysics aeromag + 1993 DIGHEM resistivity; placer strandlines + 1m-LiDAR REM; labels typed 36a + placer) each with a rendered map + what-it-is / what-for / how-the-model-reads-it -> how the algorithm consumes the data (F1 leak-guarded spatial CV contiguous folds + 1km dead-zone, the F3 occurrence-feature leakage lesson, refit-on-all vs held-out) -> results (served lode surface + feature importance with dist_splay/dist_fold_hinge/dist_fault_intersection top-3 ahead of every named fault; restriction-of-range mirage in-box vs GeMS-district, first keyword version 0.80->0.58, rebuild 0.712 CI [+0.108,+0.234]; peninsula 0.883 mapped / 0.818 east with the eastern CI crossing zero; served placer 0.733/0.741 vs 0.444 beach-line) -> findings (3-stage glacial->marine-winnowing->fluvial genesis per the 1978 Alaska DGGS Nome placer study; the negative results: per-named-fault split -0.119, Albion redundant, drift-on-beach data-walled, magnetics no help) -> files + sources. 11 executable figures built from the small 100m district rasters + committed JSON reports (deliberately avoids loading the full IfSAR DEM = the known WSL OOM trap). Rendered to a self-contained themed HTML (nome_walkthrough.html, 11 embedded figures) via the nbconvert-execute -> quarto --no-execute safe path; voice-clean (0 banned, 0 dash). NOTE: no separate Nome deep lode notebook pre-existed (only the public chapter nome_placer.qmd, which is PR #38), so the coordinator's 'finish the deep lode notebook' ask is satisfied by this walkthrough, which carries the round-3 lode numbers (gate/CI/peninsula/feature-importance/diagnosis); I did NOT touch nome_placer.qmd from this branch. PR off origin/main; not merged, not deployed."

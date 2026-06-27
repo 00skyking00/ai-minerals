@@ -1,0 +1,10 @@
+arm,auc_full,auc_in_c1
+base,0.6786,0.5934
+strandline_x_contact,0.6483,0.5628
+dist_to_contact,0.6629,0.5832
+
+marginal,point,ci95_lo,ci95_hi,P(d>0),n_pos
+strandline_x_contact_full,-0.0303,-0.0719,0.0107,0.074,65
+strandline_x_contact_in_c1,-0.0306,-0.0701,0.009,0.062,58
+dist_to_contact_full,-0.0157,-0.0517,0.0203,0.2015,65
+dist_to_contact_in_c1,-0.0102,-0.0484,0.0289,0.2895,58
