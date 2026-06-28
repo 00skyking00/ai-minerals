@@ -63,11 +63,12 @@ Underneath all of it is the dark-data corpus and the knowledge graph
 that consolidates it, which is where most of the actual work went and
 where the project is headed next.
 
-So this chapter has four things to report: a placer model that survives
+So this chapter has five things to report: a placer model that survives
 the Chapter 5 wringer, a lode model that failed that wringer and then
-survived a rebuilt one, a knowledge graph assembled from the district's
-dark data, and a candid account of what is working now versus what is
-still to come.
+survived a rebuilt one, what I could and could not learn about where the
+placer gold itself comes from, a knowledge graph assembled from the
+district's dark data, and a candid account of what is working now versus
+what is still to come.
 
 ## Testing the two headline numbers
 
@@ -262,6 +263,115 @@ The placer model held up on the first careful try. The lode model held
 up only after I broke the mirage the first version was riding, and the
 favorability surface it now produces is the lode layer goldbug serves
 alongside the placer surface.
+
+## Is the placer gold even local?
+
+The lode section opened with a premise I had been treating as given:
+that the placer gold weathered out of those hard-rock veins nearby and
+washed a short way downstream. At Nome that is not the only possibility.
+The district sat under ice, and glaciers can carry gold tens of
+kilometers from its source before dropping it. Whether the gold is
+locally sourced or far-traveled is the question underneath the whole
+placer story, and it took several wrong tests to find one that could
+answer it.
+
+Hudson (2006) sorts the Nome marine placers into two populations,
+abrasion-platform beaches and strandline beaches. My first attempt
+reasoned that if the gold were local, distance to the nearest lode
+should separate the two. It does not. Only `8` of the `65` recorded
+occurrences type cleanly as coastal beaches, the two types are
+interleaved along the same shoreline, and on every distance-to-lode
+measure they are indistinguishable, with every rank test above
+`p = 0.29` at that sample size. The marine beaches are source-blind:
+the sea built them by winnowing glacial drift across a stack of raised
+and submerged shorelines, which scrambles whatever local-source signal
+the gold once carried. Distance-to-lode is the wrong instrument for
+them.
+
+That failure pointed at a split I had been stepping over.
+Distance-to-lode is wrong for the coastal marine beaches, but it should
+be right for the inland alluvial placers, the creek and gulch deposits
+up in the schist hills, where gold erodes from a vein at the head of a
+drainage and is carried down the channel by water alone. Those are the
+placers where a local-source signal can survive, so I moved the
+question off the beaches and up the creeks.
+
+The obvious test up the creeks is whether distance-to-lode predicts
+where the alluvial placers sit. Raw, it looks like it does, but under
+the same leak-guarded spatial cross-validation that the placer model
+passed, the signal falls to chance. For a while I read that as a
+negative. It is not, or at least it does not mean what it appears to.
+Holding out whole regions tests whether a rule learned in one part of
+the district carries to a far part; local sourcing is about what
+happens inside a single drainage. The gold-bearing schist underlies the
+entire district, so there is no region without a nearby source for the
+regional test to contrast against. A cross-region occurrence test is the
+wrong instrument for a within-drainage mechanism, and the chance-level
+score is not evidence against local sourcing.
+
+The right instrument is older than any model. Gold gets finer as it
+travels, coarse and nuggety near its lode source and fine and flaky far
+from it, so if the alluvial gold is locally sourced its coarseness
+should decline with distance down-channel from the lode. I read a
+coarseness rank off the century-old occurrence narratives, fine to
+coarse to rough, and tested it against distance to the nearest mapped
+lode. At Nome the gradient is there: coarseness falls with distance, a
+rank correlation of `-0.40` (`p = 0.042`). Coarse gold sits near the
+lodes and fine gold sits away from them. That is the downstream-fining
+signature of local sourcing, and unlike the occurrence test it needs no
+cross-region contrast to show up.
+
+## The source is the schist, not the marble
+
+Nome itself cannot push that test further, because its one carbonate
+unit is a mixed package with no clean internal contact to measure
+against. So I moved to the southern Seward Peninsula, the Big
+Hurrah-Council-Bluff area, where the state's 2024 bedrock map[^h2-ri]
+resolves the package into clean marble, clean schist, and a mappable
+contact between them. That let me ask a sharper question: is the gold
+organized around the schist-limestone contact, the boundary one might
+expect to trap it, or around the gold-quartz veins inside the schist
+itself, the Big Hurrah type the lode model is built on? The two make
+opposite predictions about where the coarse gold should sit.
+
+![Southern Seward Peninsula, the Big Hurrah-Council-Bluff map area. Each placer occurrence is colored by how coarse its recorded gold is, red for rough and nuggety down to yellow for fine and flaky; the black triangles are the schist-hosted gold-quartz lodes and the blue bodies are the marble belts. The coarse gold clusters on the lodes and steers clear of the marble, the downstream-fining pattern that points at the schist veins as the source rather than the carbonate contact. The distances and the rank correlations behind the figure are in the report linked below.](data/derived/nome_placer/h2_confined_reach/h2_confined_reach_map.png)
+
+The data are one-sided. Against the schist-hosted lodes the Nome
+gradient reproduces and comes back stronger: coarseness falls with
+distance to the lode at a rank correlation of `-0.53` (`p = 0.016`),
+the roughest gold a median `4.1` km from a lode, the merely coarse gold
+`9.9` km, and the single fine occurrence `13.5` km out. Against the
+marble contact there is nothing: down-channel distance to the contact
+is flat (`-0.04`), and measured against the largest marble belts the
+trend runs backwards, with coarser gold sitting farther from the
+marble, not nearer. The source is the schist-hosted gold-quartz vein
+system, the Big Hurrah type in graphitic schist. The marble is passive.
+The boundary that looked like the obvious trap is not where the gold
+comes from.
+
+The limits are real and worth stating plainly. The test only works in
+confined upland valleys, where the modern streams still run where the
+gold traveled; that clip throws out the wide valleys and the coastal
+plain, which is where the fine, far-traveled gold ends up, so the sample
+is small, about two dozen tagged occurrences, and the fine end of the
+gradient is nearly empty, a single reach. The coarseness rank itself is
+read from old reports that play up nuggets and under-count fine gold.
+And the lode correlation, at `20` points, is a straight-line association
+I have not yet put through the leak-guarded spatial cross-validation the
+placer model passed, so part of it could be gold and lodes sharing the
+same sub-basins rather than the one sourcing the other. A spatially
+cross-validated version of the coarseness gradient is the next step.
+
+The shape of this is the part worth pointing a skeptic at. A vague
+question, is the gold local, became answerable only after several rounds
+of catching myself testing the wrong thing: the wrong variable,
+occurrence, when the answer was in coarseness; at the wrong place, Nome,
+when the clean contact only exists out on the peninsula; with the wrong
+source in mind, the marble contact, when it is the schist-hosted vein.
+Each round was a test built to break the conclusion of the one before
+it. The refinement is the result. I did not come out of it with a
+treasure map. I came out knowing which question the data can answer and
+which feature carries the gold.
 
 ## Dark data, turned into structured evidence
 
@@ -473,3 +583,5 @@ numbers are reproducible run to run.
 [^lode-ci]: `data/derived/nome_placer/lode_groves_bootstrap/lode_groves_bootstrap.json`, produced by `scripts/nome_placer/lode_groves_bootstrap.py`: a paired bootstrap (2,000 resamples) of the out-of-fold AUC gain on the 48 GeMS-mapped 36a occurrences, 95% interval `[+0.108, +0.234]`, P(gain>0)=1.00.
 
 [^lode-peninsula]: `data/derived/nome_placer/lode_peninsula_generalization/lode_peninsula_generalization.json`, produced by `scripts/nome_placer/lode_peninsula_generalization.py`: the Groves structure rebuilt on regional bedrock maps (Alaska DGGS SIM 3131 + RI 2024-7), 36a labels dispersed peninsula-wide, scoring `0.883` on the mapped ground and `0.818` on the held-out eastern cluster (9 occurrences).
+
+[^h2-ri]: DGGS Report of Investigation 2024-7 (Werdon and others, 2024), "Bedrock geologic map of the Big Hurrah-Council-Bluff area," 1:50,000, DOI [10.14509/31308](https://doi.org/10.14509/31308). The coarseness-gradient numbers are read from `data/derived/nome_placer/h2_confined_reach/h2_results.json` and `data/derived/nome_placer/h2_confined_reach/lode_control.json`, produced by the pipeline under `scripts/nome_placer/h2_confined_reach/`; the full method, the four data-quality caveats, and the sensitivity tests are in `data/derived/nome_placer/h2_confined_reach/REPORT.md`.
