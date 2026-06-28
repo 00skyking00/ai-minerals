@@ -1,0 +1,33 @@
+{
+  "source": "USGS ARDF full Alaska shapefile (data/raw/ardf/ardf/ardf.shp), EPSG:4267",
+  "quads": [
+    "NM",
+    "SO",
+    "BN",
+    "TE"
+  ],
+  "n_total_in_quads": 744,
+  "n_placer_lode_staged": 480,
+  "n_placer": 402,
+  "n_lode": 78,
+  "n_au_main": 421,
+  "by_quad_class": {
+    "BN": {
+      "lode": 3,
+      "placer": 74
+    },
+    "NM": {
+      "lode": 52,
+      "placer": 150
+    },
+    "SO": {
+      "lode": 14,
+      "placer": 113
+    },
+    "TE": {
+      "lode": 9,
+      "placer": 65
+    }
+  },
+  "note": "geol_desc is the 255-char shapefile stub; full narratives are at mrdata's per-record JSON service if Phase-2 typing needs them."
+}

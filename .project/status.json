@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-27T20:52:00Z",
+  "updated": "2026-06-28T02:49:03Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 54,
+    "done": 55,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "PHASE-2 PENINSULA ACQUISITION + STAGING DONE (coordinator 2026-06-27 phase2-peninsula-acquire handoff; Sky greenlit). Acquisition/staging only, no modeling; queued behind the round-5 Nome test (also done this run). (1) Peninsula ARDF: the full Alaska ARDF shapefile was already on disk (data/raw/ardf/ardf/ardf.shp, EPSG:4267), so no fetch needed. Extracted the 4 Seward Peninsula gold quads and kept placer (39a) + lode (36a), reprojected to WGS84 + 3338: 480 occurrences (402 placer / 78 lode; 421 Au-main) -> NM 150/52, SO 113/14 (Council/Casadepaga/Bluff/Big Hurrah are all in Solomon), BN 74/3, TE 65/9. geol_desc is the 255-char shapefile stub; full narratives are at mrdata per-record JSON (reachable) if Phase-2 typing needs them. (2) Schist-limestone contact feasibility: peninsula geology is NOT on disk (only the Nome quad, Bundtzen 1994 nmgeol_dd). On the Nome quad the units ARE cleanly separable (53 schist polys PzZh/Ocs/Zn/Zo/Dcs vs 25 carbonate DOx/Oim/Pzmm) and the schist-carbonate contact is derivable via shared dissolved boundaries. KEY CAVEAT: the contact length is 154.8 km WITH the DOx unit but only 10.3 km without it (DOx is the largest non-schist unit, ~144 of 155 km), so the result hinges on the DOx assignment -- classed carbonate by map-code + D-O age, must be confirmed against the unit legend before peninsula scale-up. NOTE FOR ROUND 5: the prebuilt dist_to_contact.tif round 5 used is NOT this schist-carbonate contact (Spearman 0.53; median 1389 m vs 4214 m), so round 5's contact-null is about that denser prebuilt layer; re-running round-5's contact feature against this derived contact is a cheap follow-up. GAP: Solomon/Bendeleben/Teller bedrock geology must be pulled (USGS SIM 3131 if peninsula-wide, else AK DGGS / Till 2011 compilation) for the full Phase-2. PR off origin/main (branch phase2/peninsula-acquire-2026-06-27); deliverables force-added under data/derived/nome_placer/peninsula_phase2/; pipeline under scripts/nome_placer/peninsula_phase2/. No prod promotion. Voice-clean. (status.json also edited by the round-5 PR off origin/main; coordinator to union on merge.)"
+    },
     {
       "severity": "low",
       "text": "TUCK GEOREF v2 QUANTIFY DONE / WARP BLOCKED (coordinator 2026-06-27 tuck-georef-v2 handoff). Settled the real-vs-synthetic GCP question objectively (scripts/nome_placer/tuck_georef_quantify.py, affine-residual test): the real per-sheet hand-pick set is v1p5_v2_refined_gcps (map_b 12pts/2.4m, map_b1 10pts/2.1m central block; map_a/c/d/e sparse 4-7pts, map_e 1080m residual); everything in v2_gcp_candidates / v4_hammon_synthetic / v5_corrected is affine-synthetic (residual 0, re-encodes the current georef, fixes nothing); diagnostic_manual is real but atlas-frame (228pts). BLOCKED on offset + warp: the 229 true corners are world-only; the served georef is confirmed (ai-minerals overlays_v1p5 == goldbug data/historical/tuck1942_v1p5 map_b transform identical); but applying the served affine to the only real corner-paired picks (map_b/b1) lands 5.6km off (SE) vs the observed tens-of-m N-NE -> those picks are in a non-served working frame, so the offset is NOT measurable and a TPS warp cannot be fit. Real picks also cover only the central block, not full sheets. UNBLOCK: Sky-in-the-loop QGIS pass picking the 229 corners on the SERVED rasters (12-20/sheet corner-to-corner), then gdalwarp -tps, RMS vs held-out corners (the v2_next_step the v1p5 metadata already records). Did NOT warp with synthetic GCPs; did NOT ship the km reconciliation as an offset. PR off origin/main; artifacts in data/derived/tuck1942/georef_v2_quantify/. No prod promotion."
