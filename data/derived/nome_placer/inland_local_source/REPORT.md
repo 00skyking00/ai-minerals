@@ -193,3 +193,119 @@ nothing beyond confirming the feature is too sparse to use here.
 Pipeline (run in order, from the repo root):
 `type_placers.py` -> `build_terrain.py` -> `build_distance_features.py` -> `run_h1_h2.py`
 (all under `scripts/nome_placer/inland_local_source/`).
+
+---
+
+# Addendum (follow-up): dispersed areal source + the proper contact, DOx settled
+
+Round 5 left two threads open. The discrete 36a down-channel feature was not
+testable, and the contact it used was the prebuilt `dist_to_contact.tif`, not the
+schist-carbonate contact derived later in PR #49. Both are picked up here: the
+dispersed-source feature round 5 named as the next instrument, and the proper
+contact, after settling the one map unit the contact length depends on.
+
+## The DOx unit, settled against the published legend
+
+The derived schist-carbonate contact is 154.8 km if map unit DOx is carbonate and
+10.3 km if it is not, and DOx carries about 144 of those 155 km, so the contact
+rests on that one call. USGS SIM 3131 (Till and others, 2011), which uses the same
+DOx label, describes it as "Mixed marble, graphitic metasiliceous rock, and schist
+(Devonian to Ordovician)": interlayered pure and impure marble, graphitic
+metasiliceous rock, and pelitic, calc, and mafic schist, dominated locally by one
+or the other, sitting structurally below the Casadepaga Schist (unit Ocs) inside
+the Nome Complex. DOx is not a carbonate platform; it is a mixed metasedimentary
+unit, and roughly half of it is non-carbonate schist and metasiliceous rock that
+belongs with the gold-hosting country rock, not against it.
+
+The two clean carbonate units in the Nome quad, Oim (impure chlorite marble) and
+Pzmm (Paleozoic marble), sit 11 and 33 km outside the district DEM. The
+lithologically clean schist-carbonate contact is therefore a regional feature that
+does not enter the placer district at all: every district cell is at least 11 km
+from it (median 25 km). Within the district the only carbonate-bearing unit is the
+mixed DOx, so any "schist-carbonate contact" there is the outline of that mixed
+unit, not a schist-against-limestone lithologic break. This is the answer to the
+DOx question: the clean contact is real but belongs to the peninsula scale-up,
+where the marbles are.
+
+The contact is tested both ways: `contact_dox` (DOx counted as carbonate, 154.8 km,
+inside the AOI) and `contact_clean` (Oim+Pzmm only, 10.3 km, a regional ramp here).
+
+## The dispersed-source feature
+
+`areal` is the per-cell distance to the nearest Nome Group schist polygon (PzZh,
+Ocs, Dcs, Zn, Zo): zero inside, Euclidean outside, the
+`hydrology.py:distance_to_lode_areal_m` semantics realized on the 25 m grid. Per
+Tuck (1942) the gold is "disseminated over a wide area," so the areal schist host,
+not the sparse mapped 36a veins, is the source geometry the geology calls for. The
+schist covers 15.5% of the district land and the placers sit in valleys cut into
+and below it, so the feature has real spread (median distance-to-schist 3.1 km, max
+14.5 km) rather than being zero everywhere.
+
+## Result: neither survives the leak-guarded CV
+
+### H1a, full AOI (51 alluvial vs 2000 background)
+
+| feature | rank AUC (95% CI) | RF spatial-CV (95% CI) | survives |
+|---|---|---|---|
+| areal (dispersed source) | 0.682 (0.618-0.740) | 0.553 (0.489-0.619) | no |
+| contact, DOx-incl (the derived "proper" contact) | 0.705 (0.644-0.768) | 0.554 (0.493-0.617) | no |
+| contact, clean Oim+Pzmm | 0.681 (0.630-0.730) | 0.555 (0.502-0.619) | boundary |
+| straight-line to lode (round 5) | 0.742 (0.674-0.808) | 0.575 (0.514-0.645) | boundary |
+| prebuilt contact (round 5) | 0.649 (0.586-0.710) | 0.344 (0.298-0.392) | no, inverts |
+| spatial null: distance to random points | mean 0.527 | p95 0.640 | - |
+| spatial null: torus-shifted schist mask | mean 0.505 | p95 0.665 | - |
+
+### H1b, upland-matched (29 alluvial-in-upland vs 1000 random upland)
+
+| feature | rank AUC (95% CI) | RF spatial-CV (95% CI) | survives |
+|---|---|---|---|
+| areal (dispersed source) | 0.449 (0.355-0.540) | 0.381 (0.300-0.472) | no, inverts |
+| contact, DOx-incl | 0.563 (0.461-0.658) | 0.423 (0.377-0.481) | no |
+| contact, clean Oim+Pzmm | 0.463 (0.382-0.547) | 0.498 (0.443-0.560) | no |
+| straight-line to lode | 0.712 (0.618-0.800) | 0.558 (0.481-0.652) | no |
+| prebuilt contact | 0.514 (0.410-0.619) | 0.497 (0.438-0.571) | no |
+
+Reading, and it is the same one round 5 reached. In the full-AOI design every
+distance feature clears the random-point and torus nulls on rank AUC, because all
+of them track the upland-versus-coastal-plain split that already separates inland
+placers from coastal background. The strict bar (the single-feature RF spatial-CV
+95% CI sitting above 0.5) is met only at the margin, by `straight` (CI low 0.514)
+and by `contact_clean` (CI low 0.502), and the second of those is a 25 km regional
+ramp toward off-map marble: the same upland gradient wearing a contact label, not a
+contact signal.
+
+The upland-matched design is the control that settles it. Drawing the background
+from the same relief >= 45 m terrain as the positives removes the upland-coastal
+confound, and there nothing survives: areal 0.381, contact-DOx 0.423,
+contact-clean 0.498, straight 0.558 (CI 0.481-0.652, spanning 0.5), prebuilt 0.497.
+The areal feature inverts (rank AUC 0.449): inside the uplands the schist source is
+everywhere, so proximity to it carries no occurrence signal, and random upland
+cells sit on schist outcrop at least as often as the valley placers do.
+
+Two smaller results. The derived contact is a better in-sample feature than the
+prebuilt one round 5 used (rank AUC 0.705 versus 0.649) and, unlike the prebuilt,
+it does not invert under the RF (0.554 versus 0.344). The prebuilt raster's
+sign-inversion that round 5 flagged was an artifact of it being a different, denser
+contact set; the proper contact turns that into a clean null. And the marine
+negative control stays null on the areal feature (rank AUC 0.444, CI 0.332-0.568).
+
+## What this settles
+
+The dispersed-source areal feature was the best remaining instrument for the
+occurrence hypothesis at Nome, and it collapses under spatial CV the same way the
+discrete down-channel, straight-line, and prebuilt-contact features did. The
+local-source signal at Nome lives in gold coarseness against distance (the round-5
+H2 result, Spearman rho = -0.40), not in occurrence against distance. The clean
+schist-carbonate contact is not a district feature; it belongs to the peninsula
+scale-up, where the carbonate actually sits. Reported as the result, not worked
+around.
+
+## Files (follow-up)
+
+- `dist_to_schist_areal_3338.tif`: areal distance-to-schist feature (this run)
+- `dist_to_schist_carbonate_contact_clean_3338.tif`: clean (Oim+Pzmm) contact
+  distance; the DOx-included contact is
+  `peninsula_phase2/dist_to_schist_carbonate_contact_3338.tif`
+- `areal_contact_followup_results.json`: all H1a/H1b numbers + the DOx resolution
+- `areal_contact_followup_points.csv`: per-occurrence feature table
+- Pipeline: `run_areal_contact_followup.py` (run after `run_h1_h2.py`).
