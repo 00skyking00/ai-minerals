@@ -175,4 +175,49 @@ Pipeline (run in order, from the repo root, under
 `scripts/nome_placer/h2_confined_reach/`):
 `fetch_dem.py` -> `build_contact.py` -> `build_terrain.py` (run_capped) ->
 `enrich_and_type.py` -> `build_distance_and_reaches.py` -> `run_test.py` ->
-`sensitivity_major_contact.py` -> `test_lode_control.py` -> `make_figure.py`.
+`sensitivity_major_contact.py` -> `test_lode_control.py` -> `make_figure.py` ->
+`firmup_spatial_cv.py` (the spatial firm-up addendum below).
+
+## Addendum: does the lode-distance gradient hold up under spatial structure?
+
+The positive control above (coarseness declines with distance to the schist-
+hosted 36a lode, Spearman rho -0.53, p 0.016, n=20) is a straight-line
+association that treats all 20 placers as independent. Placers in one drainage
+share a source area and one downstream-fining gold population, so they are
+pseudo-replicates and the naive p over-states significance. This addendum re-
+tests the gradient with the drainage, not the placer, as the unit of
+independence (`firmup_spatial_cv.py`, deterministic, output
+`lode_gradient_spatial_firmup.json`).
+
+**Effective independence.** Each placer is traced downstream on the H2 D8
+network (`recv_row`/`recv_col`); placers whose downstream paths merge share a
+drainage. The 20 placers fall in **2 major river systems** (full trace to
+outlet), **8 tributary sub-basins** (paths merging within 5 km), and 11
+localities (3 km single-linkage). The effective n is therefore about 8, not 20.
+
+**Tests.**
+
+| test | unit (n) | rho | p / 95% CI |
+|---|---|---:|---|
+| naive straight-line (headline) | placer (20) | -0.53 | p 0.016 |
+| between sub-basins (sub-basin medians) | sub-basin (8) | -0.62 | p 0.10 |
+| within major drainage 0 | placer (13) | -0.54 | reproduces internally |
+| within major drainage 1 | placer (7) | -0.72 | reproduces internally |
+| cluster bootstrap, resampled by sub-basin | sub-basin (8) | median -0.50 | CI [-0.74, +0.03]; 97% negative |
+| within-sub-basin permutation | placer (17 movable) | | one-sided p 0.29 |
+| within-major-drainage permutation | placer (20 movable) | | one-sided p 0.007 |
+
+**Verdict: direction holds, significance marginal.** The coarseness-vs-
+distance gradient is negative at every scale and reproduces independently inside
+both major river systems, and 97 percent of the sub-basin bootstrap resamples
+are negative. But once the roughly 8 sub-basins are the unit of independence,
+the n=20 straight-line p was inflated by pseudo-replication: the cluster
+bootstrap 95 percent interval grazes zero (+0.03 upper bound) and the within-
+sub-basin permutation is not significant (p 0.29). The signal that holds is the
+between-drainage one, sub-basins nearer the schist-hosted lode carry coarser
+gold; the strict within-drainage downstream-fining gradient is underpowered,
+mostly because the confined-upland clip removes the distal/fine end and class 1
+is nearly empty (n=1). The local-source reading stands in direction and is
+corroborated at the drainage scale, but it is not conclusively significant at
+this sample size after the spatial correction. A larger tagged set, reaching the
+distal/fine end the clip now removes, is what would settle it.
