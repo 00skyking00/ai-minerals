@@ -349,6 +349,24 @@ system, the Big Hurrah type in graphitic schist. The marble is passive.
 The boundary that looked like the obvious trap is not where the gold
 comes from.
 
+The published record agrees, the map I measured against included. The
+DGGS 2024 bedrock map states it plainly in its own summary: "Widespread
+low-sulfide, gold-bearing quartz veins of Cretaceous age were the
+primary lode source for the placer gold."[^h2-ri] Those are the
+schist-hosted Big Hurrah veins; the same summary lists the silicified
+marble separately, as occurrences of uncertain origin rather than a
+source. The older literature explains why the marble should not track
+the gold even where the two share the same ground. Moffit (1913),
+summarizing Brooks, describes schist-limestone contacts as "loci of
+weakness ... where there is greater opportunity for the circulation of
+mineral-bearing waters and consequently for the formation of veins":
+the contact is plumbing for the veins that sit in the schist, not a
+reservoir of gold itself. Moffit also gives the reason coarseness is the
+right ruler: "Fine gold is readily carried by currents of water, and its
+presence at a distance from its source is more easily explained than is
+that of coarse gold." The coarseness gradient I measured is the
+relationship those early surveys already described.
+
 The limits are real and worth stating plainly. The test only works in
 confined upland valleys, where the modern streams still run where the
 gold traveled; that clip throws out the wide valleys and the coastal
