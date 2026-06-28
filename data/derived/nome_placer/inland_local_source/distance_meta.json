@@ -1,0 +1,9 @@
+{
+  "n_lode_total": 55,
+  "n_lode_in_grid": 26,
+  "n_seeds_snapped": 19,
+  "snap_tol_m": 300.0,
+  "n_downchannel_valid_cells": 453,
+  "max_downchannel_m": 30000.0,
+  "max_straight_m": 25000.0
+}

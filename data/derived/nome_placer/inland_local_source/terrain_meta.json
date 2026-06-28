@@ -1,0 +1,10 @@
+{
+  "cellsize_m": 25.0,
+  "stream_thresh_cells": 200,
+  "relief_win_cells": 10,
+  "confine_relief_m": 45.0,
+  "coastal_relief_m": 25.0,
+  "n_stream_cells": 33845,
+  "n_confined_cells": 3150,
+  "pointer_downhill_frac": 1.0
+}
