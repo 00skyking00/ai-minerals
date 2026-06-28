@@ -337,11 +337,11 @@ opposite predictions about where the coarse gold should sit.
 ![Southern Seward Peninsula, the Big Hurrah-Council-Bluff map area. Each placer occurrence is colored by how coarse its recorded gold is, red for rough and nuggety down to yellow for fine and flaky; the black triangles are the schist-hosted gold-quartz lodes and the blue bodies are the marble belts. The coarse gold clusters on the lodes and steers clear of the marble, the downstream-fining pattern that points at the schist veins as the source rather than the carbonate contact. The distances and the rank correlations behind the figure are in the report linked below.](data/derived/nome_placer/h2_confined_reach/h2_confined_reach_map.png)
 
 The data are one-sided. Against the schist-hosted lodes the Nome
-gradient reproduces and comes back stronger: coarseness falls with
-distance to the lode at a rank correlation of `-0.53` (`p = 0.016`),
-the roughest gold a median `4.1` km from a lode, the merely coarse gold
-`9.9` km, and the single fine occurrence `13.5` km out. Against the
-marble contact there is nothing: down-channel distance to the contact
+gradient reproduces, and as a straight-line rank correlation it comes
+back stronger, `-0.53`: the roughest gold a median `4.1` km from a
+lode, the merely coarse gold `9.9` km, and the single fine occurrence
+`13.5` km out. Against the marble contact there is nothing:
+down-channel distance to the contact
 is flat (`-0.04`), and measured against the largest marble belts the
 trend runs backwards, with coarser gold sitting farther from the
 marble, not nearer. The source is the schist-hosted gold-quartz vein
@@ -374,11 +374,33 @@ plain, which is where the fine, far-traveled gold ends up, so the sample
 is small, about two dozen tagged occurrences, and the fine end of the
 gradient is nearly empty, a single reach. The coarseness rank itself is
 read from old reports that play up nuggets and under-count fine gold.
-And the lode correlation, at `20` points, is a straight-line association
-I have not yet put through the leak-guarded spatial cross-validation the
-placer model passed, so part of it could be gold and lodes sharing the
-same sub-basins rather than the one sourcing the other. A spatially
-cross-validated version of the coarseness gradient is the next step.
+
+The lode correlation called for one more test, the leak-guarded spatial
+cross-validation the placer model had to pass, and holding the gradient
+to that standard partly downgrades it. The `-0.53` is a straight-line
+association over `20` placers, and placers that share a drainage share a
+source area and one gold population, so the `20` are not `20`
+independent points. Traced downstream on the same flow network the
+model uses, they collapse to about `8` sub-basins, and at that scale the
+gradient holds in direction but stops short of significance. It stays
+negative everywhere I cut it and reproduces inside both major river
+systems (`-0.54` and `-0.72`), and `97%` of the sub-basin bootstrap
+resamples are negative; but the cluster-bootstrap interval grazes zero
+(`-0.74` to `+0.03`) and the within-sub-basin permutation is not
+significant (`p = 0.29`). The strict within-drainage fining is
+underpowered, mostly because the confined-upland clip removes the
+distal, fine end the test most needs.
+
+That downgrade does not move the conclusion, because the conclusion
+never rested on the gradient alone. The published map and the older
+surveys already place the source in the schist-hosted veins and cast the
+marble as passive plumbing, and the marble side of my own test shows
+nothing where the lode side shows a clear direction. The
+between-drainage signal that does survive points the same way, with
+sub-basins nearer the lode carrying coarser gold. So the coarseness
+gradient corroborates the schist-source reading in direction; at this
+sample size it does not settle it on its own, and a larger tagged set
+reaching the fine end would.
 
 The shape of this is the part worth pointing a skeptic at. A vague
 question, is the gold local, became answerable only after several rounds
@@ -602,4 +624,4 @@ numbers are reproducible run to run.
 
 [^lode-peninsula]: `data/derived/nome_placer/lode_peninsula_generalization/lode_peninsula_generalization.json`, produced by `scripts/nome_placer/lode_peninsula_generalization.py`: the Groves structure rebuilt on regional bedrock maps (Alaska DGGS SIM 3131 + RI 2024-7), 36a labels dispersed peninsula-wide, scoring `0.883` on the mapped ground and `0.818` on the held-out eastern cluster (9 occurrences).
 
-[^h2-ri]: DGGS Report of Investigation 2024-7 (Werdon and others, 2024), "Bedrock geologic map of the Big Hurrah-Council-Bluff area," 1:50,000, DOI [10.14509/31308](https://doi.org/10.14509/31308). The coarseness-gradient numbers are read from `data/derived/nome_placer/h2_confined_reach/h2_results.json` and `data/derived/nome_placer/h2_confined_reach/lode_control.json`, produced by the pipeline under `scripts/nome_placer/h2_confined_reach/`; the full method, the four data-quality caveats, and the sensitivity tests are in `data/derived/nome_placer/h2_confined_reach/REPORT.md`.
+[^h2-ri]: DGGS Report of Investigation 2024-7 (Werdon and others, 2024), "Bedrock geologic map of the Big Hurrah-Council-Bluff area," 1:50,000, DOI [10.14509/31308](https://doi.org/10.14509/31308). The coarseness-gradient numbers are read from `data/derived/nome_placer/h2_confined_reach/h2_results.json` and `data/derived/nome_placer/h2_confined_reach/lode_control.json`, produced by the pipeline under `scripts/nome_placer/h2_confined_reach/`; the full method, the four data-quality caveats, and the sensitivity tests are in `data/derived/nome_placer/h2_confined_reach/REPORT.md`. The spatial firm-up of the lode gradient (the effective sub-basin count, the cluster bootstrap, and the within-drainage and within-sub-basin permutations) is in `data/derived/nome_placer/h2_confined_reach/lode_gradient_spatial_firmup.json`, produced by `scripts/nome_placer/h2_confined_reach/firmup_spatial_cv.py`, with its method and verdict in the addendum to the same `REPORT.md`.
