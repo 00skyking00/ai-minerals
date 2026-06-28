@@ -1,0 +1,25 @@
+{
+  "contact_km": 439.0,
+  "n_major_bodies": 58,
+  "straight_major_m": {
+    "n": 24,
+    "median_by_class_m": {
+      "1": 5,
+      "2": 513,
+      "3": 1484
+    },
+    "spearman_rho": 0.422,
+    "spearman_p": 0.0401,
+    "kruskal_p": 0.0833
+  },
+  "snap_dch_major_m": {
+    "n": 8,
+    "median_by_class_m": {
+      "2": 1026,
+      "3": 1864
+    },
+    "spearman_rho": -0.109,
+    "spearman_p": 0.797,
+    "kruskal_p": 0.7728
+  }
+}

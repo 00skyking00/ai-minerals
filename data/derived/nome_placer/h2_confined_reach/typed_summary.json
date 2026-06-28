@@ -1,0 +1,19 @@
+{
+  "n_inmap_placers": 75,
+  "fetch_failures": [],
+  "type_counts": {
+    "alluvial-stream": 75
+  },
+  "coarseness_counts_all": {
+    "nan": 51,
+    "3.0": 13,
+    "2.0": 10,
+    "1.0": 1
+  },
+  "alluvial_coarseness": {
+    "nan": 51,
+    "3.0": 13,
+    "2.0": 10,
+    "1.0": 1
+  }
+}
