@@ -1,0 +1,11 @@
+{
+  "n_contact_crossings": 6458,
+  "snap_tol_m": 250.0,
+  "reach_trace_half_m": 1500.0,
+  "n_alluvial": 75,
+  "n_snapped": 54,
+  "n_coarseness_tagged": 24,
+  "n_tagged_with_reach_distance": 7,
+  "confined_dch_median_m": 456.3,
+  "confined_dch_p90_m": 3284.4
+}

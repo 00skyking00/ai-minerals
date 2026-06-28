@@ -1,0 +1,58 @@
+{
+  "reach_head_dch_m": {
+    "n": 7,
+    "class_counts": {
+      "2": 3,
+      "3": 4
+    },
+    "median_dist_by_class_m": {
+      "2": 360.0,
+      "3": 1576.0
+    },
+    "spearman_rho_cls_vs_dist": 0.289,
+    "spearman_p": 0.5301,
+    "kruskal_p": 0.4795,
+    "interpretation": "negative rho = coarser gold (higher class) sits at SHORTER distance = downstream fining / local sourcing supported"
+  },
+  "snap_dch_m": {
+    "n": 10,
+    "class_counts": {
+      "2": 5,
+      "3": 5
+    },
+    "median_dist_by_class_m": {
+      "2": 576.0,
+      "3": 289.0
+    },
+    "spearman_rho_cls_vs_dist": -0.035,
+    "spearman_p": 0.9237,
+    "kruskal_p": 0.9166,
+    "interpretation": "negative rho = coarser gold (higher class) sits at SHORTER distance = downstream fining / local sourcing supported"
+  },
+  "straight_contact_m": {
+    "n": 24,
+    "class_counts": {
+      "1": 1,
+      "2": 10,
+      "3": 13
+    },
+    "median_dist_by_class_m": {
+      "1": 5.0,
+      "2": 283.0,
+      "3": 613.0
+    },
+    "spearman_rho_cls_vs_dist": 0.285,
+    "spearman_p": 0.1772,
+    "kruskal_p": 0.1866,
+    "interpretation": "negative rho = coarser gold (higher class) sits at SHORTER distance = downstream fining / local sourcing supported"
+  },
+  "_summary": {
+    "n_alluvial_in_map": 75,
+    "n_coarseness_tagged": 24,
+    "coarseness_class_counts": {
+      "3": 13,
+      "2": 10,
+      "1": 1
+    }
+  }
+}

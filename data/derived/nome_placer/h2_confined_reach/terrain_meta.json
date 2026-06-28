@@ -1,0 +1,13 @@
+{
+  "dem": "data/raw/ifsar_dggs/ifsar_dtm_5m_bighurrah_council_bluff_3338.tif",
+  "cellsize_m": 10.0,
+  "stream_thresh_cells": 500,
+  "stream_thresh_km2": 0.05,
+  "relief_win_cells": 26,
+  "relief_win_m": 530.0,
+  "confine_relief_m": 45.0,
+  "coastal_relief_m": 25.0,
+  "n_stream_cells": 1309920,
+  "n_confined_cells": 306091,
+  "pointer_downhill_frac": 1.0
+}

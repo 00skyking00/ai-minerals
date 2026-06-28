@@ -1,0 +1,76 @@
+ardf_num,site,coarseness_rank,snapped,snap_off_m,straight_contact_m,snap_dch_m,reach_head_dch_m,reach_len_m
+BN099,Ophir Creek,,True,41.2,292.1,1223.0,729.4,620.0
+BN101,Balm Of Gilead Gulch,,True,84.9,323.1,784.6,,1110.0
+BN102,Crooked Creek,3.0,True,230.2,5.4,,,130.0
+BN103,Albion Creek,,True,80.6,105.8,34.1,0.0,1270.0
+BN105,Goldbottom Creek,3.0,True,10.0,197.3,,,1540.0
+BN106,Upper Ophir Creek,,True,170.0,132.5,,,10.0
+BN107,Oxide Creek,,True,80.6,88.2,38.3,2598.4,1420.0
+SO004,Koyana Creek,,True,125.3,102.4,578.4,691.5,1530.0
+SO005,Swede Creek,,True,94.9,539.1,748.0,266.6,1920.0
+SO006,Daniels Creek,,False,301.5,120.8,,,
+SO007,Eldorado Creek,,False,1095.9,1186.1,,,
+SO009,Silverbow Creek (Little Anvil Creek),,True,78.1,374.5,,,390.0
+SO010,California Creek,,False,487.5,1326.6,,,
+SO016,Mystery Creek,2.0,True,111.8,477.3,,,420.0
+SO017,Shovel Creek,,False,401.1,13.6,,,
+SO018,Penny Creek,3.0,True,14.1,253.3,289.0,240.7,120.0
+SO022,Big Hurrah Creek,3.0,True,40.0,21.5,0.0,215.6,1790.0
+SO024,Solomon River,,True,20.0,720.7,,,240.0
+SO025,Sapphire Gulch,,True,20.0,7.6,,,850.0
+SO026,Bear Gulch,,True,0.0,311.8,441.1,0.0,2450.0
+SO027,Meddler Gulch,2.0,True,30.0,57.5,54.1,,940.0
+SO028,Kasson Creek,2.0,True,0.0,42.7,575.6,,2690.0
+SO029,West Creek,3.0,True,10.0,8.2,0.0,,1560.0
+SO031,Adams Creek,,True,10.0,237.5,,,1450.0
+SO032,Butte Creek,,True,28.3,73.6,255.6,,1640.0
+SO033,Fox Creek,,True,30.0,280.6,,,2070.0
+SO048,Melsing Creek; Basin Creek; Benson Gulch,,True,22.4,1527.0,,,1480.0
+SO049,Niukluk River,,False,644.7,3642.2,,,
+SO050,Niukluk River,,False,448.2,614.1,,,
+SO051,Richter Creek,,False,1048.9,2211.8,,,
+SO052,Sweetcake Creek,,True,72.8,381.7,528.7,0.0,1320.0
+SO053,Ophir Creek,,True,70.7,1375.2,,,140.0
+SO054,Warm Creek,3.0,True,22.4,959.9,,,90.0
+SO056,Elkhorn Creek,3.0,False,331.4,2637.1,,,
+SO057,Camp Creek,,False,417.6,1363.0,,,
+SO058,Goldbottom Creek,2.0,True,89.4,1711.5,,,50.0
+SO060,Fox River; IXL Gulch,,True,89.4,159.3,,,260.0
+SO062,Birch Creek,,True,86.0,3.8,283.1,182.4,1420.0
+SO064,Dawson Creek,,False,350.6,473.2,,,
+SO065,No Man Creek,,True,72.8,128.4,1110.5,564.3,1260.0
+SO066,Big Four Creek,,True,10.0,26.4,2053.8,,1130.0
+SO067,Casadepaga River,2.0,True,199.2,117.4,,,200.0
+SO069,Dixon Creek,2.0,False,814.9,510.9,,,
+SO072,Goose Creek,1.0,False,737.4,4.9,,,
+SO073,Dry Creek (Gulch),3.0,False,803.2,612.8,,,
+SO074,Thorpe Creek,2.0,False,264.0,246.5,,,
+SO075,Casadepaga River,,False,513.5,127.7,,,
+SO076,Spruce Creek,2.0,True,22.4,495.9,1475.8,2003.7,1210.0
+SO078,Lightning Creek,,True,40.0,515.5,1786.8,282.1,1350.0
+SO079,Penelope Creek,,True,20.0,383.8,3291.8,2460.7,1210.0
+SO080,Casadepaga River,,False,312.4,131.0,,,
+SO081,Casadepaga River,,False,670.7,161.6,,,
+SO082,Sunshine Creek,,True,147.6,1136.5,3423.1,3336.5,100.0
+SO083,Canyon Creek,,True,153.0,1499.2,2725.4,2203.3,790.0
+SO084,Boulder Creek,3.0,False,372.2,1466.1,,,
+SO085,Upper Goose Creek,,True,108.2,30.3,0.0,,1390.0
+SO088,Allgold Creek,,True,144.2,479.9,,,70.0
+SO089,Wilson Creek,,True,240.8,805.2,1239.1,,1520.0
+SO090,Cahill Creek,,True,20.0,792.8,,,1330.0
+SO091,Lower Willow Creek,3.0,True,120.4,1484.1,,,340.0
+SO092,Ridgeway Creek,3.0,True,14.1,1041.1,,,1630.0
+SO093,Casadepaga River,,False,320.0,1199.8,,,
+SO094,Banner Creek,2.0,True,63.2,319.9,1301.5,359.7,1350.0
+SO095,Upper Banner Creek,2.0,True,42.4,236.0,281.4,110.7,170.0
+SO096,Ruby Creek,3.0,True,76.2,1649.5,3439.8,3339.1,820.0
+SO097,Nugget Gulch,,True,58.3,122.4,153.1,,1460.0
+SO098,Casadepaga River,,True,50.0,1041.4,,,1240.0
+SO099,Moonlight Creek,,True,76.2,40.9,68.3,1299.8,960.0
+SO137,Solomon River,,True,10.0,630.4,1655.4,1306.7,290.0
+SO142,Dutch Creek,,True,148.7,1244.2,,,50.0
+SO165,Ryan Creek,,False,837.3,860.9,,,
+SO168,Quartz Creek (tributary to lower Solomon River),,False,432.9,241.6,,,
+SO169,Puzzle Creek (Gulch),3.0,True,64.0,382.8,3817.5,2910.8,770.0
+SO170,Problem Creek (Gulch),,True,36.1,1069.3,,,1030.0
+SO171,Lion Creek,,True,56.6,61.1,28.3,644.3,1620.0

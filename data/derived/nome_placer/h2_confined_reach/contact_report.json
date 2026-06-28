@@ -1,0 +1,58 @@
+{
+  "source": "DGGS RI 2024-7 (Werdon et al. 2024), GM_MapUnitPolys, DOI 10.14509/31308; reprojected EPSG:26703 -> EPSG:3338",
+  "n_polys": 1066,
+  "units_present": [
+    "DOg",
+    "DOi",
+    "DOm",
+    "DOms",
+    "DOq",
+    "DOqs",
+    "DOs",
+    "DOsq",
+    "DOu",
+    "DOx",
+    "Dm",
+    "Ds",
+    "Oi",
+    "Omg",
+    "Osg",
+    "PzPa",
+    "PzPh",
+    "Qb"
+  ],
+  "classification": {
+    "marble_pure": [
+      "DOm",
+      "Dm"
+    ],
+    "marble_impure": [
+      "DOi",
+      "Oi"
+    ],
+    "schist_package": [
+      "DOg",
+      "DOms",
+      "DOq",
+      "DOqs",
+      "DOs",
+      "DOsq",
+      "DOu",
+      "Ds",
+      "Omg",
+      "Osg",
+      "PzPa",
+      "PzPh"
+    ],
+    "excluded_mixed_other": [
+      "DOx",
+      "Qb"
+    ]
+  },
+  "contact_length_km": {
+    "primary": 942.2,
+    "literal": 836.7,
+    "inclusive": 1045.6
+  },
+  "primary_used_for_distance": "primary (marble DOm/Dm vs full schist package)"
+}

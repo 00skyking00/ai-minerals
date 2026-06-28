@@ -1,0 +1,24 @@
+{
+  "n_lodes_used": 15,
+  "lode_straight_line": {
+    "n": 20,
+    "median_by_class_m": {
+      "1": 13459,
+      "2": 9932,
+      "3": 4094
+    },
+    "spearman_rho": -0.529,
+    "spearman_p": 0.0164,
+    "kruskal_p": 0.0657,
+    "note": "negative rho = coarser gold nearer a lode = round-5 gradient reproduced"
+  },
+  "major_marble_drop_class1": {
+    "n": 23,
+    "median_class2_m": 516,
+    "median_class3_m": 1489,
+    "spearman_rho": 0.331,
+    "spearman_p": 0.1234,
+    "mannwhitney_p_c3_vs_c2": 0.1287,
+    "note": "still positive rho (coarser farther) without the lone class-1 point => not driven by it"
+  }
+}
