@@ -1,0 +1,32 @@
+{
+  "geology_source": "Nome quadrangle only (Bundtzen et al. 1994, nmgeol_dd); peninsula sheets NOT on disk",
+  "n_polygons": 105,
+  "n_schist_polygons": 53,
+  "n_carbonate_polygons": 25,
+  "polygons_by_class_label": {
+    "carbonate/DOx": 21,
+    "carbonate/Oim": 3,
+    "carbonate/Pzmm": 1,
+    "other/Kdi": 1,
+    "other/Kg": 4,
+    "other/Kgu": 1,
+    "other/Qs": 6,
+    "other/water": 15,
+    "schist/Dcs": 3,
+    "schist/Ocs": 19,
+    "schist/PzZh": 15,
+    "schist/Zn": 9,
+    "schist/Zo": 7
+  },
+  "schist_carbonate_contact_km": 154.8,
+  "contact_km_without_DOx": 10.3,
+  "separable_at_nome_quad": true,
+  "compare_to_prebuilt_dist_to_contact": {
+    "spearman_vs_existing": 0.533,
+    "median_existing_m": 1389.0,
+    "median_mine_m": 4214.0,
+    "interpretation": "high rho => the prebuilt raster is this same schist-carbonate contact; low rho => it is a different contact set (explains the round-5 null)"
+  },
+  "DOx_caveat": "DOx (21 polygons, the largest non-schist unit) is classed as carbonate by map-code + Devonian-Ordovician age; confirm against the SIM/Bundtzen unit legend before peninsula scale-up",
+  "peninsula_gap": "only the Nome quad geology is on disk. Phase-2 at peninsula scale needs the Solomon/Bendeleben/Teller bedrock geology (USGS SIM 3131 if peninsula-wide, else AK DGGS / Till 2011 Seward Peninsula compilation) with comparable schist/marble units"
+}

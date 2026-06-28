@@ -1,0 +1,259 @@
+{
+  "dox_resolution": "USGS SIM 3131 (Till 2011) DOx = 'Mixed marble, graphitic metasiliceous rock, and schist (Devonian-Ordovician)', NOT a clean carbonate platform; clean marbles Oim+Pzmm are 11-33 km outside the district DEM AOI, so the clean schist-carbonate contact is regional (Phase-2), and within the district the only carbonate-bearing unit is the mixed DOx.",
+  "contact_lengths_km": {
+    "with_DOx": 154.8,
+    "clean_Oim_Pzmm": 10.3
+  },
+  "params": {
+    "n_bg": 2000,
+    "n_bg_upland": 1000,
+    "buffer_m": 300,
+    "k_null": 300
+  },
+  "H1a_full_aoi": {
+    "n_pos": 51,
+    "n_bg": 2000,
+    "features": {
+      "areal": {
+        "rank_auc": 0.682,
+        "rank_ci95": [
+          0.618,
+          0.74
+        ],
+        "rf_spatial_cv_auc": 0.553,
+        "rf_spatial_cv_ci95": [
+          0.489,
+          0.619
+        ],
+        "survives_spatial_cv": false
+      },
+      "contact_dox": {
+        "rank_auc": 0.705,
+        "rank_ci95": [
+          0.644,
+          0.768
+        ],
+        "rf_spatial_cv_auc": 0.554,
+        "rf_spatial_cv_ci95": [
+          0.493,
+          0.617
+        ],
+        "survives_spatial_cv": false
+      },
+      "contact_clean": {
+        "rank_auc": 0.681,
+        "rank_ci95": [
+          0.63,
+          0.73
+        ],
+        "rf_spatial_cv_auc": 0.555,
+        "rf_spatial_cv_ci95": [
+          0.502,
+          0.619
+        ],
+        "survives_spatial_cv": true
+      },
+      "straight": {
+        "rank_auc": 0.742,
+        "rank_ci95": [
+          0.674,
+          0.808
+        ],
+        "rf_spatial_cv_auc": 0.575,
+        "rf_spatial_cv_ci95": [
+          0.514,
+          0.645
+        ],
+        "survives_spatial_cv": true
+      },
+      "contact_pre": {
+        "rank_auc": 0.649,
+        "rank_ci95": [
+          0.586,
+          0.71
+        ],
+        "rf_spatial_cv_auc": 0.344,
+        "rf_spatial_cv_ci95": [
+          0.298,
+          0.392
+        ],
+        "survives_spatial_cv": false
+      }
+    },
+    "models": {
+      "areal_only": {
+        "features": [
+          "areal"
+        ],
+        "auc": 0.553,
+        "ci95": [
+          0.489,
+          0.619
+        ]
+      },
+      "areal+contact_dox": {
+        "features": [
+          "areal",
+          "contact_dox"
+        ],
+        "auc": 0.551,
+        "ci95": [
+          0.479,
+          0.625
+        ]
+      },
+      "areal+terrain": {
+        "features": [
+          "areal",
+          "dem",
+          "slope",
+          "tpi"
+        ],
+        "auc": 0.727,
+        "ci95": [
+          0.654,
+          0.799
+        ]
+      }
+    },
+    "spatial_null_random_points": {
+      "mean_auc": 0.527,
+      "p95_auc": 0.64,
+      "note": "distance to N random points (N = lode count); line/point features must beat this"
+    },
+    "spatial_null_areal_torus": {
+      "mean_auc": 0.505,
+      "p95_auc": 0.665,
+      "note": "distance to the schist mask shifted to a random position (area/shape preserved)"
+    }
+  },
+  "H1b_upland_matched": {
+    "n_pos": 29,
+    "n_bg": 1000,
+    "n_blocks": 8,
+    "design": "alluvial-in-upland vs random-upland background",
+    "features": {
+      "areal": {
+        "rank_auc": 0.449,
+        "rank_ci95": [
+          0.355,
+          0.54
+        ],
+        "rf_spatial_cv_auc": 0.381,
+        "rf_spatial_cv_ci95": [
+          0.3,
+          0.472
+        ],
+        "survives_spatial_cv": false
+      },
+      "contact_dox": {
+        "rank_auc": 0.563,
+        "rank_ci95": [
+          0.461,
+          0.658
+        ],
+        "rf_spatial_cv_auc": 0.423,
+        "rf_spatial_cv_ci95": [
+          0.377,
+          0.481
+        ],
+        "survives_spatial_cv": false
+      },
+      "contact_clean": {
+        "rank_auc": 0.463,
+        "rank_ci95": [
+          0.382,
+          0.547
+        ],
+        "rf_spatial_cv_auc": 0.498,
+        "rf_spatial_cv_ci95": [
+          0.443,
+          0.56
+        ],
+        "survives_spatial_cv": false
+      },
+      "straight": {
+        "rank_auc": 0.712,
+        "rank_ci95": [
+          0.618,
+          0.8
+        ],
+        "rf_spatial_cv_auc": 0.558,
+        "rf_spatial_cv_ci95": [
+          0.481,
+          0.652
+        ],
+        "survives_spatial_cv": false
+      },
+      "contact_pre": {
+        "rank_auc": 0.514,
+        "rank_ci95": [
+          0.41,
+          0.619
+        ],
+        "rf_spatial_cv_auc": 0.497,
+        "rf_spatial_cv_ci95": [
+          0.438,
+          0.571
+        ],
+        "survives_spatial_cv": false
+      }
+    }
+  },
+  "negative_control_marine": {
+    "n_pos": 6,
+    "features": {
+      "areal": {
+        "rank_auc": 0.444,
+        "rank_ci95": [
+          0.332,
+          0.568
+        ]
+      },
+      "contact_dox": {
+        "rank_auc": 0.522,
+        "rank_ci95": [
+          0.36,
+          0.694
+        ]
+      }
+    }
+  },
+  "verdict_survives_spatial_cv": {
+    "areal": {
+      "full_aoi_survives": false,
+      "upland_matched_survives": false,
+      "full_aoi_rank_auc": 0.682,
+      "full_aoi_rf_cv_auc": 0.553,
+      "upland_rf_cv_auc": 0.381
+    },
+    "contact_dox": {
+      "full_aoi_survives": false,
+      "upland_matched_survives": false,
+      "full_aoi_rank_auc": 0.705,
+      "full_aoi_rf_cv_auc": 0.554,
+      "upland_rf_cv_auc": 0.423
+    },
+    "contact_clean": {
+      "full_aoi_survives": true,
+      "upland_matched_survives": false,
+      "full_aoi_rank_auc": 0.681,
+      "full_aoi_rf_cv_auc": 0.555,
+      "upland_rf_cv_auc": 0.498
+    },
+    "straight": {
+      "full_aoi_survives": true,
+      "upland_matched_survives": false,
+      "full_aoi_rank_auc": 0.742,
+      "full_aoi_rf_cv_auc": 0.575,
+      "upland_rf_cv_auc": 0.558
+    },
+    "contact_pre": {
+      "full_aoi_survives": false,
+      "upland_matched_survives": false,
+      "full_aoi_rank_auc": 0.649,
+      "full_aoi_rf_cv_auc": 0.344,
+      "upland_rf_cv_auc": 0.497
+    }
+  }
+}
