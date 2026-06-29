@@ -1,0 +1,75 @@
+{
+  "set": {
+    "n_placers": 20,
+    "n_lodes_used": 15,
+    "class_counts": {
+      "1": 1,
+      "2": 10,
+      "3": 9
+    }
+  },
+  "naive": {
+    "spearman_rho": -0.529,
+    "spearman_p": 0.0164,
+    "note": "treats all 20 placers as independent (the headline number)"
+  },
+  "effective_independence": {
+    "n_major_river_systems_full_trace": 2,
+    "n_subbasins_5km_merge": 8,
+    "n_localities_3km_proximity": 11,
+    "placers_per_subbasin_desc": [
+      6,
+      4,
+      3,
+      2,
+      2,
+      1,
+      1,
+      1
+    ],
+    "largest_subbasin_n": 6,
+    "note": "sub-basin = downstream D8 paths merge within 5000 m; major = full trace to outlet (coarse: the filled DEM routes river systems to a shared coastal sink); 3 km = single-linkage proximity sanity check"
+  },
+  "within_major_drainage": [
+    {
+      "drainage": 0,
+      "n": 13,
+      "rho": -0.544
+    },
+    {
+      "drainage": 1,
+      "n": 7,
+      "rho": -0.722
+    }
+  ],
+  "cluster_bootstrap_by_subbasin": {
+    "n_subbasins": 8,
+    "n_resamples": 4995,
+    "median_rho": -0.497,
+    "ci95": [
+      -0.745,
+      0.025
+    ],
+    "frac_rho_negative": 0.968,
+    "excludes_zero": false
+  },
+  "permutation_one_sided": {
+    "p_within_major_drainage": 0.0066,
+    "movable_major": 20,
+    "p_within_subbasin": 0.289,
+    "movable_subbasin": 17,
+    "p_free_naive": 0.0086,
+    "note": "within-X permutation shuffles coarseness inside each X and recomputes the pooled rho; significant => the gradient is a within-X (downstream-fining) effect, not a between-X artifact"
+  },
+  "between_subbasin": {
+    "spearman_rho_subbasin_medians": -0.617,
+    "spearman_p": 0.103,
+    "n_subbasins": 8
+  },
+  "verdict": "Direction holds, significance is marginal. The coarseness-vs-distance gradient is negative at every scale: naive rho -0.53, between sub-basins rho -0.62 (n=8, p 0.10), and it reproduces independently inside both major river systems (rho -0.54, -0.72); 97% of sub-basin bootstrap resamples are negative. But once the ~8 sub-basins are the unit of independence the n=20 straight-line p (0.016) was inflated by pseudo-replication: the cluster bootstrap 95% CI grazes zero (-0.74 to +0.03) and the within-sub-basin permutation is not significant (p 0.29). The local-source signal is real at the drainage scale (sub-basins nearer the schist-hosted lode carry coarser gold), but the strict within-drainage downstream-fining gradient is underpowered, mostly because the confined-upland clip removes the distal/fine end and class 1 is nearly empty. Corroborated in direction, not conclusively significant after the spatial correction.",
+  "standing_limits": [
+    "Confined-upland clip removes the wide valleys and coastal plain where the distal/fine gold ends up, so class 1 (fine) is nearly empty (n=1).",
+    "Coarseness is an ordinal mined from century-old narratives that favour nuggets over fines.",
+    "n=20 before any spatial correction; the effective number of independent drainages is smaller still."
+  ]
+}
