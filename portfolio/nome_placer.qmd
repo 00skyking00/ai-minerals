@@ -334,7 +334,7 @@ expect to trap it, or around the gold-quartz veins inside the schist
 itself, the Big Hurrah type the lode model is built on? The two make
 opposite predictions about where the coarse gold should sit.
 
-![Southern Seward Peninsula, the Big Hurrah-Council-Bluff map area. Each placer occurrence is colored by how coarse its recorded gold is, red for rough and nuggety down to yellow for fine and flaky; the black triangles are the schist-hosted gold-quartz lodes and the blue bodies are the marble belts. The coarse gold clusters on the lodes and steers clear of the marble, the downstream-fining pattern that points at the schist veins as the source rather than the carbonate contact. The distances and the rank correlations behind the figure are in the report linked below.](data/derived/nome_placer/h2_confined_reach/h2_confined_reach_map.png)
+![Southern Seward Peninsula, the Big Hurrah-Council-Bluff map area. Each placer occurrence is colored by how coarse its recorded gold is, red for rough and nuggety down to yellow for fine and flaky; the black triangles are the schist-hosted gold-quartz lodes and the blue bodies are the marble belts. The coarse gold clusters on the lodes and steers clear of the marble, the downstream-fining pattern that points at the schist veins as the source rather than the carbonate contact. The distances and the rank correlations behind the figure are in the report linked below.](data/derived/portfolio_charts/thumbs/ch1_nome_h2_confined_reach.png)
 
 The data are one-sided. Against the schist-hosted lodes the Nome
 gradient reproduces, and as a straight-line rank correlation it comes
