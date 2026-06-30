@@ -1,0 +1,175 @@
+{
+  "question": "Does the +0.106 structure screen survive a proper lode rebuild from dispersed/typed labels under leak-guarded spatial CV, and does it promote from screen to usable lode layer?",
+  "method": "Consolidation of committed, seeded (random_state=42), deterministic outputs from four merged PRs. No model is re-run here; this reads the recorded leak-guarded-CV AUCs and paired-bootstrap CIs and states the verdict.",
+  "cv_scheme": "F1 leak-guarded spatial CV: RandomForest(300, balanced, seed=42), contiguous blocks at 2x the base-model residual-variogram range, 1 km dead-zone, fold geometry fixed per dataset so each delta isolates the features; clean delta on the GeMS/regional-mapped subset (auc_gems / auc_mapped); 2000-resample paired bootstrap (2.5/97.5 percentile, P(delta>0)).",
+  "provenance": {
+    "round1_rebaseline": "data/derived/nome_placer/newlayers_rebaseline/newlayers_geophys_rebaseline.json",
+    "round1_bootstrap": "data/derived/nome_placer/newlayers_rebaseline/newlayers_bootstrap.json",
+    "round2_sharpen": "data/derived/nome_placer/lode_structure_sharpen/lode_structure_sharpen.json",
+    "round2_bootstrap": "data/derived/nome_placer/lode_groves_bootstrap/lode_groves_bootstrap.json",
+    "round3_peninsula": "data/derived/nome_placer/lode_peninsula_generalization/lode_peninsula_generalization.json",
+    "round4a_eastern": "data/derived/nome_placer/lode_eastern_splay_confirm/lode_eastern_splay_confirm.json"
+  },
+  "gate_auc_gems": 0.7,
+  "anchor_round1_broadnet": {
+    "target": "broad net (ARDF model 36/27/22 OR lode|vein|skarn|greisen keyword), Nome clip",
+    "features": "struct_generic = dist_ne_fault, dist_nw_fault, dist_fold_hinge, carbonaceous_host",
+    "base_terms": "geology one-hot + akmag (~1 km statewide) + dist-to-fault + terrain",
+    "n_pos_gems_mapped": 82,
+    "auc_gems_base": 0.54,
+    "auc_gems_struct": 0.646,
+    "d_auc_gems": 0.106,
+    "ci95": [
+      0.0501,
+      0.1639
+    ],
+    "p_gt_0": 0.999,
+    "caveat": "a screen on clustered positives + single RF fit, per the round-1 report"
+  },
+  "rebuild_round2_typed_district": {
+    "target": "typed: ARDF Cox-Singer model_code 36a (low-sulfide Au-quartz vein), dispersed within the district grid",
+    "n_pos": 54,
+    "n_pos_gems_mapped": 48,
+    "base_auc_gems": 0.541,
+    "struct_generic": {
+      "auc_gems": 0.679,
+      "d_auc_gems": 0.138,
+      "ci95": [
+        0.0631,
+        0.2089
+      ],
+      "p_gt_0": 0.9995
+    },
+    "struct_groves": {
+      "auc_gems": 0.712,
+      "d_auc_gems": 0.17,
+      "ci95": [
+        0.1081,
+        0.2336
+      ],
+      "p_gt_0": 1.0,
+      "note": "adds NExNW fault-intersection + second-order-splay proximity (Groves et al. 2018)"
+    },
+    "gate_0p70_passes": true
+  },
+  "dispersal_round3_peninsula": {
+    "target": "dispersed: statewide-ARDF 36a, regional structure build",
+    "wider": {
+      "n_pos": 65,
+      "n_pos_mapped": 64,
+      "struct_generic": {
+        "auc_mapped": 0.813,
+        "d_auc_mapped": 0.3,
+        "ci95": [
+          0.2372,
+          0.3668
+        ],
+        "p_gt_0": 1.0
+      },
+      "struct_groves": {
+        "auc_mapped": 0.883,
+        "d_auc_mapped": 0.37,
+        "ci95": [
+          0.3063,
+          0.436
+        ],
+        "p_gt_0": 1.0
+      }
+    },
+    "central_matched": {
+      "n_pos": 54,
+      "n_pos_mapped": 54,
+      "struct_generic": {
+        "auc_mapped": 0.814,
+        "d_auc_mapped": 0.216,
+        "ci95": [
+          0.1346,
+          0.295
+        ],
+        "p_gt_0": 1.0
+      },
+      "struct_groves": {
+        "auc_mapped": 0.837,
+        "d_auc_mapped": 0.239,
+        "ci95": [
+          0.1542,
+          0.3201
+        ],
+        "p_gt_0": 1.0
+      }
+    }
+  },
+  "dispersal_round4a_typed_disciplined": {
+    "target": "dispersed + disciplined typing: 36a + guarded Au-quartz recovery",
+    "wider": {
+      "n_pos": 68,
+      "n_pos_mapped": 67,
+      "struct_generic": {
+        "auc_mapped": 0.828,
+        "d_auc_mapped": 0.334,
+        "ci95": [
+          0.2685,
+          0.399
+        ],
+        "p_gt_0": 1.0
+      },
+      "struct_groves": {
+        "auc_mapped": 0.874,
+        "d_auc_mapped": 0.38,
+        "ci95": [
+          0.3022,
+          0.4571
+        ],
+        "p_gt_0": 1.0
+      }
+    },
+    "central_matched": {
+      "n_pos": 55,
+      "n_pos_mapped": 55,
+      "struct_generic": {
+        "auc_mapped": 0.824,
+        "d_auc_mapped": 0.129,
+        "ci95": [
+          0.0643,
+          0.1919
+        ],
+        "p_gt_0": 1.0
+      },
+      "struct_groves": {
+        "auc_mapped": 0.856,
+        "d_auc_mapped": 0.161,
+        "ci95": [
+          0.0927,
+          0.2266
+        ],
+        "p_gt_0": 1.0
+      }
+    }
+  },
+  "verdict": {
+    "structure_signal_survives_typed_rebuild": true,
+    "named_generic_features_clear_zero_on_typed_target": true,
+    "named_generic_auc_gems": 0.679,
+    "named_generic_d_and_ci": {
+      "d": 0.138,
+      "ci95": [
+        0.0631,
+        0.2089
+      ],
+      "p_gt_0": 0.9995
+    },
+    "named_generic_alone_reaches_usable_gate": false,
+    "with_groves_intersection_splay_auc_gems": 0.712,
+    "with_groves_reaches_usable_gate": true,
+    "with_groves_d_and_ci": {
+      "d": 0.17,
+      "ci95": [
+        0.1081,
+        0.2336
+      ],
+      "p_gt_0": 1.0
+    },
+    "generalizes_peninsula_wide": true,
+    "summary": "Survives. On the typed 36a target (same terrain+aeromag base, same auc_gems clean subset as the +0.106 anchor), the named generic features go 0.541 -> 0.679 = +0.138 (95% CI [0.0631, 0.2089], P>0 0.9995): the interval clears zero, so it is no longer just a screen. The four named features alone land at 0.679, just under the 0.7 usable gate; adding the documented NExNW intersection/splay control clears it at 0.712 (+0.17, CI [0.1081, 0.2336]). The signal also generalizes to dispersed statewide and disciplined-typed labels (round 3/4a struct_generic +0.13 to +0.33, every mapped-cell CI above zero), over a deliberately crippled regional base whose larger deltas are not comparable to the matched-base numbers."
+  }
+}
