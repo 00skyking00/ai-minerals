@@ -275,8 +275,11 @@ locally sourced or far-traveled is the question underneath the whole
 placer story, and it took several wrong tests to find one that could
 answer it.
 
-Hudson (2006) sorts the Nome marine placers into two populations,
-abrasion-platform beaches and strandline beaches. My first attempt
+Hudson (2006) sorts the Nome marine placers into two populations:
+abrasion-platform beaches, where the surf planed a flat bench into
+bedrock and the gold settled onto that hard floor, and strandline
+beaches, where the gold gathered in the sand of a shoreline that stayed
+put long enough to build a beach ridge. My first attempt
 reasoned that if the gold were local, distance to the nearest lode
 should separate the two. It does not. Only `8` of the `65` recorded
 occurrences type cleanly as coastal beaches, the two types are
@@ -349,10 +352,10 @@ system, the Big Hurrah type in graphitic schist. The marble is passive.
 The boundary that looked like the obvious trap is not where the gold
 comes from.
 
-The published record agrees, the map I measured against included. The
-DGGS 2024 bedrock map states it plainly in its own summary: "Widespread
-low-sulfide, gold-bearing quartz veins of Cretaceous age were the
-primary lode source for the placer gold."[^h2-ri] Those are the
+The 2024 DGGS bedrock map reaches the same conclusion in its own
+summary: "Widespread low-sulfide, gold-bearing quartz veins of
+Cretaceous age were the primary lode source for the placer
+gold."[^h2-ri] Those are the
 schist-hosted Big Hurrah veins; the same summary lists the silicified
 marble separately, as occurrences of uncertain origin rather than a
 source. The older literature explains why the marble should not track
