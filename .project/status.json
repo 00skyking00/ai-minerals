@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-06-28T09:50:53Z",
+  "updated": "2026-06-30T04:12:51Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 57,
+    "done": 59,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "low",
+      "text": "CAPE NOME CHAPTER REFINE + TYPED-LABEL LODE REBUILD DONE (coordinator 2026-06-29, two handoffs; the 2026-06-28 merge-and-deploy was overtaken by events). (1) Merge-and-deploy: PR #51 + #52 were already merged to main at 074fc56 in the required order (#52 first so the [^h2-ri] firm-up artifacts resolve, then #51). Verified the merged chapter is deploy-ready: both new sections present ('Is the placer gold even local?' + 'The source is the schist, not the marble'), the H2 figure sits in the deploy-tracked data/derived/portfolio_charts/thumbs/ so it will not 404, and the firm-up reads with no bare p=0.016 in the lead (the -0.40/p=0.042 is the Nome gradient; -0.53 is labelled the straight-line point estimate). Did NOT deploy: outside this lane's hard limits, and the newer 06-29 handoff says 'No prod promotion (I deploy)'. (2) Chapter refine (PR #53, branch review/nome-chapter-refine-defs-2026-06-29): Sky's two PR #51 review comments on portfolio/nome_placer.qmd -- defined abrasion-platform vs strandline beaches inline at ~L279 (a clause each, professor-to-layman), and replaced the self-referential corroboration idiom ('The published record agrees, the map I measured against included.') with a direct lead ('The 2024 DGGS bedrock map reaches the same conclusion in its own summary') at ~L353. Renders clean to _site/nome_placer.html (quarto 1.9.37, exit 0); 0 banned/0 dash. Deploy #53 BEFORE promoting the chapter so the refinements ship with it. (3) Typed-label lode rebuild (PR #54, branch lode/typed-label-rebuild-consolidation-2026-06-29): the rebuild was already executed, seeded + deterministic, across merged PRs #32/#34/#35/#40, so this consolidates their committed leak-guarded-CV outputs rather than re-running identical jobs. VERDICT: survives + promotes. On the typed 36a target (same terrain+aeromag base + auc_gems clean subset as the +0.106 anchor) the four named features go 0.541->0.679 = +0.138, 95% CI [+0.063,+0.209], P>0 0.9995 (clears zero, no longer just a screen); the four alone sit at 0.679 just under the 0.70 usable gate, and adding the documented NExNW intersection/splay control clears it at 0.712 (+0.170, CI [+0.108,+0.234]); direction generalizes to dispersed statewide + disciplined-typed labels (round 3/4a struct_generic +0.13 to +0.33, every mapped CI above zero, over a deliberately crippled regional base whose magnitudes are not comparable). Deliverables: scripts/nome_placer/typed_label_lode_rebuild_consolidate.py + data/derived/nome_placer/typed_label_lode_rebuild/typed_label_lode_rebuild.json + docs/typed_label_lode_rebuild.md. No prod promotion. Reply: portfolio/handoff/inbox/2026-06-29-from-ai-minerals-chapter-refine-and-lode-rebuild.md."
+    },
     {
       "severity": "low",
       "text": "H2 FIRM-UP FOLDED INTO THE CAPE NOME CHAPTER (coordinator 2026-06-28 fold-firmup-outcome-into-chapter). PR #52's spatial-CV firm-up downgraded the lode-distance coarseness gradient, and this folds the honest outcome into the public chapter before it ships. Traced downstream the 20 placers collapse to ~8 sub-basins, so the n=20 straight-line p 0.016 was inflated by pseudo-replication. At that effective n the gradient holds in DIRECTION (negative at every scale; reproduces inside both major river systems -0.54/-0.72; 97% of sub-basin bootstrap resamples negative) but is NOT conclusively significant (cluster-bootstrap 95% CI [-0.74,+0.03] grazes zero; within-sub-basin permutation p 0.29; underpowered because the confined-upland clip strips the distal/fine end, class 1 n=1). Updated the H2 paragraph in portfolio/nome_placer.qmd on the PR #51 branch (review/nome-local-source-arc-2026-06-27): dropped the inflated straight-line p 0.016 from the lead (kept -0.53 labelled as the straight-line point estimate), folded in the verdict (corroborated in direction, not conclusively significant at this n; a larger tagged set reaching the fine end would settle it), and reframed so the schist-source conclusion rests on the literature (RI 2024-7 names the veins as the placer source; Moffit/Brooks make the marble passive) plus the marble-null vs lode-positive direction contrast, NOT on the gradient's significance. Footnote now cites lode_gradient_spatial_firmup.json + firmup_spatial_cv.py, which land with PR #52, so #51 and #52 must merge together before render. Confirmed no 'Cobb 1973' line (only Cobb 1978 is cited). Voice-clean (0 hard / 0 dash). No prod promotion; coordinator renders + deploys after merge."
