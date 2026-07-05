@@ -6,7 +6,7 @@ attempt (a raw Spearman of point grade against the smoothed block-support MPM in
 one creek) could not answer the question and produced a near-zero number that was a
 statistical artifact. The corrected harness samples the MPM in its native CRS,
 upscales grade to the grid support, converts grade to a binary economic-presence
-response at a proposed cutoff, and scores the MPM as an economic-presence
+response at the headline cutoff, and scores the MPM as an economic-presence
 classifier by capture efficiency, with range-restriction disattenuation as a
 secondary check and statistical power counted in independent drainages. One
 committed, seeded script regenerates every number:
@@ -22,10 +22,11 @@ committed, seeded script regenerates every number:
 ## The result in one line
 
 At one drainage the placer MPM does not separate economic from sub-economic gravel
-inside Little Creek (area under the ROC curve 0.47 at the proposed 10 cents-per-yard
+inside Little Creek (area under the ROC curve 0.47 at the headline 10 cents-per-yard
 cutoff, cluster-bootstrap 95% interval 0.19 to 0.75), and this null survives the
 range-restriction correction, so it is a power-and-support limit, not the
-attenuation artifact the raw correlation was. The served lode MPM shows a
+attenuation artifact the raw correlation was. A cutoff-free median rich/lean split
+agrees: the placer MPM orders the blocks by grade at AUC 0.45, no better than chance. The served lode MPM shows a
 directional signal at low cutoffs (AUC 0.74 to 0.81) that is consistent with a
 local-source reading but rests on 20 blocks with two to five negatives and a range
 so compressed that its disattenuated correlation is uninterpretable. Both are hints
@@ -53,9 +54,10 @@ the six design points:
    point-support variogram, which one hole per cell in one creek cannot estimate, so
    the block mean is used and that assumption is flagged in the output.
 3. **Binary economic-presence response.** The block grade is thresholded to
-   economic-presence versus sub-economic at a proposed cutoff in cents of gold per
-   cubic yard on the $20.67 per ounce basis. The cutoff is flagged for Sky; a ladder
-   is reported so its sensitivity is visible.
+   economic-presence versus sub-economic at the headline cutoff of 10 cents of gold
+   per cubic yard on the $20.67 per ounce basis (Sky's 2026-07-05 decision). The
+   full 5/10/20/40 ladder is reported alongside so the sensitivity stays visible,
+   and a median rich/lean split is reported as an ordering-only secondary check.
 4. **Capture efficiency, not raw correlation.** The MPM is scored as an
    economic-presence classifier: the area under its ROC curve, and the share of
    economic blocks captured in its top-ranked blocks, with a
@@ -70,22 +72,29 @@ the six design points:
    of drainages. Little Creek is one, so the power is stated plainly as insufficient
    for a conclusion.
 
-## The economic-presence cutoff (proposed, flagged for Sky)
+## The economic-presence cutoff: 10 cents per cubic yard (headline)
 
 Converting grade to a binary presence needs a cutoff, and the cutoff is a
-geological-economic choice, not a statistical one. The proposed primary is **10
-cents of gold per cubic yard** at the $20.67 per ounce basis (about 0.0048 ounces
-per cubic yard), the order of magnitude of workable dredge-era placer ground on the
-Seward Peninsula. Little Creek was drift-mined for much richer bench gravel, so at
-Little Creek 10 cents per yard separates workable from lean rather than pay from
-barren. The rationale should be anchored to Moffit 1913 (USGS Bulletin 533) on Nome
-placer economics; Tuck 1942 normalizes the pre-1934 gold price.
+geological-economic choice, not a statistical one. Sky set it on 2026-07-05: the
+headline economic-presence threshold is **10 cents of gold per cubic yard** at the
+$20.67 per ounce basis (about 0.0048 ounces per cubic yard), the Moffit 1913 (USGS
+Bulletin 533) dredge-workable anchor for Seward Peninsula placer ground; Tuck 1942
+normalizes the pre-1934 gold price.
 
-**Flag for Sky:** confirm the intended cutoff. Three choices each answer a
-different question: a dredge-workable threshold near 10 cents per yard, a
-drift-mine pay threshold in dollars per yard, or a relative rich-versus-lean split
-at the sample median. The harness reports a ladder at 5, 10, 20, and 40 cents per
-yard so the answer's dependence on the choice is on the table rather than buried.
+Little Creek is a drift mine on rich bench gravel, not a dredge field, so the
+caveat has to be stated plainly: at Little Creek 10 cents per yard separates
+workable ground from lean ground, not pay from barren. The drilled set runs richer
+than a dredge cutoff gates on (median block grade 15.7 cents per yard), which makes
+the threshold an ordering question here more than a presence question.
+
+The full ladder at 5, 10, 20, and 40 cents per yard stays reported alongside the
+headline, so the answer's dependence on the cutoff is on the table rather than
+buried, and the result does not move with it: the placer null holds at every rung.
+As a secondary check that depends on no cutoff at all, the harness also reports a
+**median rich/lean split**, thresholding each surface at its own sample-median block
+grade and scoring the MPM as a pure rank-orderer of grade. That split agrees with
+the ladder: the placer MPM orders the blocks by grade at AUC 0.45 (cluster-bootstrap
+0.21 to 0.71), no better than chance, and the lode MPM at 0.52 (0.29 to 0.75).
 
 ## The Little Creek result
 
@@ -99,7 +108,7 @@ data and no negatives are fabricated. They fall in 23 distinct 25 m placer cells
 | cutoff (c/yd) | economic blocks | sub-economic | AUC | cluster-bootstrap 95% |
 |---|--:|--:|--:|:--:|
 | 5 | 19 | 4 | 0.48 | 0.15 to 0.91 |
-| **10 (proposed)** | 17 | 6 | **0.47** | **0.19 to 0.75** |
+| **10 (headline)** | 17 | 6 | **0.47** | **0.19 to 0.75** |
 | 20 | 11 | 12 | 0.44 | 0.20 to 0.70 |
 | 40 | 8 | 15 | 0.59 | 0.33 to 0.83 |
 
@@ -122,7 +131,7 @@ not order the grade. The limit is power and support at one drainage, not attenua
 | cutoff (c/yd) | economic | sub-economic | AUC | cluster-bootstrap 95% |
 |---|--:|--:|--:|:--:|
 | 5 | 18 | 2 | 0.81 | 0.69 to 0.92 |
-| **10 (proposed)** | 15 | 5 | **0.74** | **0.50 to 0.92** |
+| **10 (headline)** | 15 | 5 | **0.74** | **0.50 to 0.92** |
 | 20 | 10 | 10 | 0.52 | 0.29 to 0.75 |
 | 40 | 7 | 13 | 0.60 | 0.36 to 0.82 |
 
@@ -189,8 +198,10 @@ grade even with nearly its full dynamic range present. It shows a directional lo
 hint worth keeping.
 
 It does not show that the placer MPM lacks grade information across the district. One
-drainage cannot show that. It does not settle the economic cutoff, which is Sky's
-call. And it does not replace the presence result: the 0.733 spatial-CV presence AUC
+drainage cannot show that. The economic cutoff is now set at 10 cents per yard
+(Sky, 2026-07-05), and the null is invariant to it: the placer MPM fails to order
+the blocks at every rung of the ladder and on the cutoff-free median split alike.
+And it does not replace the presence result: the 0.733 spatial-CV presence AUC
 stands, and presence prospectivity and within-deposit grade remain different
 questions. The value of this run is the harness and the baseline, waiting on the
 drill data that turns one drainage into several.
@@ -204,4 +215,4 @@ drill data that turns one drainage into several.
 Writes `data/derived/nome_placer/drillgold_capture/`:
 `drillgold_capture_validation.json` (all numbers, all cutoffs, both surfaces),
 `drillgold_capture_blocks.csv` (per-block audit), `capture_curve.png` (the placer
-capture-efficiency curve at the proposed cutoff).
+capture-efficiency curve at the headline cutoff).

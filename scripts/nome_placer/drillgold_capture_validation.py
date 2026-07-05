@@ -20,9 +20,11 @@ This harness rebuilds the test on the corrected design:
    one creek the point-support variogram is not estimable, so the block mean is
    used and that assumption is flagged (design-review instruction).
 3. Binary economic-presence response. The block grade is thresholded to
-   economic-presence (1) vs sub-economic (0) at a proposed cutoff (cents-gold per
-   cubic yard at the $20.67/oz basis). The cutoff is FLAGGED for Sky; a ladder is
-   reported so the answer's cutoff-sensitivity is visible.
+   economic-presence (1) vs sub-economic (0) at the headline cutoff (10 cents-gold
+   per cubic yard at the $20.67/oz basis, the Moffit-1913 dredge-workable anchor;
+   Sky's 2026-07-05 decision). The full 5/10/20/40 ladder is reported alongside so
+   the cutoff-sensitivity stays visible, and a median rich/lean split gives an
+   ordering-only secondary check that is agnostic to the absolute economic cutoff.
 4. Capture-efficiency / prediction-rate, led over correlation. Do the top
    prospectivity ranks capture a disproportionate share of the economic blocks?
    Reported two ways: within the drilled set (MPM as an economic-presence
@@ -73,11 +75,12 @@ N_BOOT = 10000
 PRICE_C_PER_OZ = 2067.0  # $20.67/oz gold, pre-1934 basis (matches value_c_cuyd/grade_oz)
 
 # Economic-presence cutoff ladder, cents-gold per cubic yard at the $20.67 basis.
-# PROPOSED primary is 10 c/yd (order-of-magnitude workable dredge-era pay). This is
-# FLAGGED for Sky, not settled; see the report's cutoff rationale. The ladder shows
-# how the answer moves with the threshold so no single cutoff choice carries it.
+# HEADLINE is 10 c/yd (the Moffit-1913 dredge-workable anchor, ~0.0048 oz/yd), set
+# by Sky on 2026-07-05. The full ladder is reported alongside so the answer's
+# cutoff-sensitivity stays on the table, and a median rich/lean split gives an
+# ordering-only secondary check independent of where the economic line is drawn.
 CUTOFFS_C = [5.0, 10.0, 20.0, 40.0]
-PRIMARY_CUTOFF_C = 10.0
+HEADLINE_CUTOFF_C = 10.0
 
 # Two holes farther apart than this are treated as separate drainages (single-
 # linkage). At Little Creek all holes are one cluster -> n_drainages = 1.
@@ -327,6 +330,23 @@ def analyze(name: str, raster: Path, holes: gpd.GeoDataFrame,
             "loo_drainage": _loo_drainage_auc(blocks, y),
         }
 
+    # Median rich/lean split: an ordering-only secondary check, agnostic to the
+    # economic cutoff. AUC of the MPM as a classifier of above- vs below-median
+    # block grade is a pure rank-discrimination measure (does the MPM order the
+    # blocks by grade at all?), independent of where the economic line is drawn.
+    med = float(np.median(bg))
+    y_med = (bg >= med).astype(int)
+    median_split = {
+        "median_block_grade_c": med,
+        "n_rich_ge_median": int(y_med.sum()),
+        "n_lean_lt_median": int((y_med == 0).sum()),
+        "auc_mpm_orders_grade": _auc(mpm, y_med),
+        "auc_bootstrap": _bootstrap_auc(mpm, y_med, blocks["drainage"], rng),
+        "note": ("ordering-only, agnostic to the economic cutoff: rich = block grade "
+                 "at or above the sample median. Tests rank discrimination (does the "
+                 "MPM order the blocks by grade), not economic presence."),
+    }
+
     return {
         "raster": raster.name, "resolution_m": res_m,
         "n_holes": int(len(holes)), "n_distinct_blocks": int(len(mpm)),
@@ -341,7 +361,8 @@ def analyze(name: str, raster: Path, holes: gpd.GeoDataFrame,
             "reason": "one hole per cell in one creek; point-support variogram not estimable"},
         "correlation_secondary": corr,
         "capture_by_cutoff": by_cutoff,
-        "primary_cutoff_c": PRIMARY_CUTOFF_C,
+        "median_split_ordering_check": median_split,
+        "headline_cutoff_c": HEADLINE_CUTOFF_C,
     }
 
 
@@ -352,7 +373,7 @@ def _figure(placer: dict, blocks_placer: dict) -> None:
 
     mpm = blocks_placer["mpm"]
     bg = blocks_placer["block_grade_c"]
-    y = (bg >= PRIMARY_CUTOFF_C).astype(int)
+    y = (bg >= HEADLINE_CUTOFF_C).astype(int)
     order = np.argsort(-mpm)
     ys = y[order]
     npos = max(int(y.sum()), 1)
@@ -364,8 +385,8 @@ def _figure(placer: dict, blocks_placer: dict) -> None:
     ax.step(np.r_[0, frac_ground], np.r_[0, frac_captured], where="post",
             color="#1f4e79", lw=2, label="served placer MPM")
     ax.set_xlabel("Top fraction of drilled blocks by MPM rank")
-    ax.set_ylabel(f"Fraction of economic blocks captured\n(cutoff {int(PRIMARY_CUTOFF_C)} c/yd)")
-    auc = placer["capture_by_cutoff"][f"cutoff_{int(PRIMARY_CUTOFF_C)}c"]["auc_mpm_as_econ_classifier"]
+    ax.set_ylabel(f"Fraction of economic blocks captured\n(cutoff {int(HEADLINE_CUTOFF_C)} c/yd)")
+    auc = placer["capture_by_cutoff"][f"cutoff_{int(HEADLINE_CUTOFF_C)}c"]["auc_mpm_as_econ_classifier"]
     auc_s = "n/a" if auc is None else f"{auc:.2f}"
     ax.set_title(f"Drill-gold capture efficiency, Little Creek (1 drainage, underpowered)\n"
                  f"MPM as economic-presence classifier: AUC={auc_s}, "
@@ -399,17 +420,21 @@ def main() -> None:
             "grade_field": "value_c_cuyd (cents-gold per cubic yard, $20.67/oz basis)",
         },
         "economic_cutoff": {
-            "primary_proposed_c_per_cuyd": PRIMARY_CUTOFF_C,
-            "primary_proposed_oz_per_cuyd": round(PRIMARY_CUTOFF_C / PRICE_C_PER_OZ, 5),
+            "headline_c_per_cuyd": HEADLINE_CUTOFF_C,
+            "headline_oz_per_cuyd": round(HEADLINE_CUTOFF_C / PRICE_C_PER_OZ, 5),
             "ladder_c_per_cuyd": CUTOFFS_C,
-            "rationale": ("order-of-magnitude workable dredge-era placer pay at the "
-                          "$20.67/oz basis; Little Creek was drift-mined for much richer "
-                          "bench gravel, so 10 c/yd separates workable from lean rather "
-                          "than pay from barren. Anchor to Moffit 1913 (USGS Bull. 533) "
-                          "Nome placer economics; Tuck 1942 normalizes the gold price."),
-            "FLAG_FOR_SKY": ("confirm the intended cutoff: dredge workable (~10 c/yd), "
-                             "drift-mine pay (dollars/yd), or a relative rich/lean split "
-                             "at the sample median. The ladder shows the sensitivity."),
+            "decision": ("Sky 2026-07-05: the headline economic-presence threshold is "
+                         "10 c/yd, the Moffit-1913 dredge-workable anchor (~0.0048 oz/yd "
+                         "at the $20.67/oz basis). The full 5/10/20/40 ladder stays "
+                         "reported alongside; the median rich/lean split "
+                         "(median_split_ordering_check) is the ordering-only secondary "
+                         "check."),
+            "rationale": ("10 c/yd is the order of magnitude of workable dredge-era "
+                          "placer ground on the Seward Peninsula (Moffit 1913, USGS Bull. "
+                          "533; Tuck 1942 normalizes the pre-1934 gold price). Little Creek "
+                          "was drift-mined for much richer bench gravel, so here 10 c/yd "
+                          "separates workable from lean, not pay from barren; the null "
+                          "holds at every cutoff regardless."),
         },
         "barren_domain": {
             "problem": ("historic placer records report successes, so true barren-ground "
@@ -446,7 +471,7 @@ def main() -> None:
                     "economic_at_primary_cutoff"])
         for i in range(len(blocks["mpm"])):
             w.writerow([blocks["mpm"][i], blocks["block_grade_c"][i], blocks["n_holes"][i],
-                        blocks["drainage"][i], int(blocks["block_grade_c"][i] >= PRIMARY_CUTOFF_C)])
+                        blocks["drainage"][i], int(blocks["block_grade_c"][i] >= HEADLINE_CUTOFF_C)])
 
     _figure(report["placer_mpm"], blocks)
     print(json.dumps(report, indent=2))

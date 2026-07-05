@@ -10,16 +10,16 @@
     "grade_field": "value_c_cuyd (cents-gold per cubic yard, $20.67/oz basis)"
   },
   "economic_cutoff": {
-    "primary_proposed_c_per_cuyd": 10.0,
-    "primary_proposed_oz_per_cuyd": 0.00484,
+    "headline_c_per_cuyd": 10.0,
+    "headline_oz_per_cuyd": 0.00484,
     "ladder_c_per_cuyd": [
       5.0,
       10.0,
       20.0,
       40.0
     ],
-    "rationale": "order-of-magnitude workable dredge-era placer pay at the $20.67/oz basis; Little Creek was drift-mined for much richer bench gravel, so 10 c/yd separates workable from lean rather than pay from barren. Anchor to Moffit 1913 (USGS Bull. 533) Nome placer economics; Tuck 1942 normalizes the gold price.",
-    "FLAG_FOR_SKY": "confirm the intended cutoff: dredge workable (~10 c/yd), drift-mine pay (dollars/yd), or a relative rich/lean split at the sample median. The ladder shows the sensitivity."
+    "decision": "Sky 2026-07-05: the headline economic-presence threshold is 10 c/yd, the Moffit-1913 dredge-workable anchor (~0.0048 oz/yd at the $20.67/oz basis). The full 5/10/20/40 ladder stays reported alongside; the median rich/lean split (median_split_ordering_check) is the ordering-only secondary check.",
+    "rationale": "10 c/yd is the order of magnitude of workable dredge-era placer ground on the Seward Peninsula (Moffit 1913, USGS Bull. 533; Tuck 1942 normalizes the pre-1934 gold price). Little Creek was drift-mined for much richer bench gravel, so here 10 c/yd separates workable from lean, not pay from barren; the null holds at every cutoff regardless."
   },
   "barren_domain": {
     "problem": "historic placer records report successes, so true barren-ground negatives are scarce. This run avoids fabricated negatives by taking the sub-economic class from real low-grade drill blocks (the lean tail of the same holes), so both classes are measured.",
@@ -338,7 +338,24 @@
         }
       }
     },
-    "primary_cutoff_c": 10.0
+    "median_split_ordering_check": {
+      "median_block_grade_c": 15.687449565217392,
+      "n_rich_ge_median": 12,
+      "n_lean_lt_median": 11,
+      "auc_mpm_orders_grade": 0.4507575757575758,
+      "auc_bootstrap": {
+        "ci95": [
+          0.20769230769230768,
+          0.7076923076923077
+        ],
+        "median": 0.446969696969697,
+        "frac_gt_0_5": 0.3418,
+        "n_valid_resamples": 10000,
+        "cluster_unit": "block (within one drainage)"
+      },
+      "note": "ordering-only, agnostic to the economic cutoff: rich = block grade at or above the sample median. Tests rank discrimination (does the MPM order the blocks by grade), not economic presence."
+    },
+    "headline_cutoff_c": 10.0
   },
   "lode_mpm": {
     "raster": "mpm_lode_served_district_3338.tif",
@@ -390,12 +407,12 @@
         "auc_mpm_as_econ_classifier": 0.8055555555555556,
         "auc_bootstrap": {
           "ci95": [
-            0.6875,
+            0.6939636752136752,
             0.9166666666666667
           ],
           "median": 0.8055555555555556,
           "frac_gt_0_5": 1.0,
-          "n_valid_resamples": 8794,
+          "n_valid_resamples": 8752,
           "cluster_unit": "block (within one drainage)"
         },
         "within_set_capture": {
@@ -457,12 +474,12 @@
         "auc_mpm_as_econ_classifier": 0.74,
         "auc_bootstrap": {
           "ci95": [
-            0.5,
-            0.9166666666666667
+            0.4861111111111111,
+            0.9230769230769231
           ],
           "median": 0.75,
-          "frac_gt_0_5": 0.9703904446451872,
-          "n_valid_resamples": 9963,
+          "frac_gt_0_5": 0.9655967903711133,
+          "n_valid_resamples": 9970,
           "cluster_unit": "block (within one drainage)"
         },
         "within_set_capture": {
@@ -524,11 +541,11 @@
         "auc_mpm_as_econ_classifier": 0.52,
         "auc_bootstrap": {
           "ci95": [
-            0.28787878787878785,
-            0.7500000000000001
+            0.29166666666666663,
+            0.7525252525252525
           ],
           "median": 0.5202020202020201,
-          "frac_gt_0_5": 0.5494,
+          "frac_gt_0_5": 0.5527,
           "n_valid_resamples": 10000,
           "cluster_unit": "block (within one drainage)"
         },
@@ -591,12 +608,12 @@
         "auc_mpm_as_econ_classifier": 0.598901098901099,
         "auc_bootstrap": {
           "ci95": [
-            0.36273971126912297,
-            0.8181818181818181
+            0.3666666666666667,
+            0.8214285714285714
           ],
-          "median": 0.6000000000000001,
-          "frac_gt_0_5": 0.7907790779077908,
-          "n_valid_resamples": 9999,
+          "median": 0.6,
+          "frac_gt_0_5": 0.7918167266906763,
+          "n_valid_resamples": 9996,
           "cluster_unit": "block (within one drainage)"
         },
         "within_set_capture": {
@@ -651,6 +668,23 @@
         }
       }
     },
-    "primary_cutoff_c": 10.0
+    "median_split_ordering_check": {
+      "median_block_grade_c": 22.924816141645987,
+      "n_rich_ge_median": 10,
+      "n_lean_lt_median": 10,
+      "auc_mpm_orders_grade": 0.52,
+      "auc_bootstrap": {
+        "ci95": [
+          0.29166666666666663,
+          0.75
+        ],
+        "median": 0.5202020202020202,
+        "frac_gt_0_5": 0.5501,
+        "n_valid_resamples": 10000,
+        "cluster_unit": "block (within one drainage)"
+      },
+      "note": "ordering-only, agnostic to the economic cutoff: rich = block grade at or above the sample median. Tests rank discrimination (does the MPM order the blocks by grade), not economic presence."
+    },
+    "headline_cutoff_c": 10.0
   }
 }
