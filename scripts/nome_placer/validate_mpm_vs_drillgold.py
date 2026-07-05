@@ -12,7 +12,7 @@ Two things this script is careful about, per lane discipline:
 
 1. Effective sample size, not nominal. All 47 holes sit in one ~1.4 km Little
    Creek cluster. The MPM is a 25 m grid, so many holes fall in the SAME pixel
-   and share ONE MPM value. The honest correlation is at the distinct-pixel
+   and share ONE MPM value. The correlation that respects the sample size is at the distinct-pixel
    level (grade averaged per pixel), with a cluster bootstrap CI resampling
    whole pixels. The naive hole-level Spearman is reported too, but flagged as
    pseudo-replicated.
@@ -194,7 +194,7 @@ def _analyze(name: str, raster: Path, gdf: gpd.GeoDataFrame, rng) -> dict:
             "n_holes": int(mask.sum()),
             "n_distinct_pixels": int(len(pm)),
             "hole_level_spearman": {"rho": rho, "p": p, "n": n,
-                                    "caveat": "pseudo-replicated; not the honest n"},
+                                    "caveat": "pseudo-replicated; not the effective n"},
             "pixel_level_spearman": {"rho": prho, "p": pp, "n_pixels": pnn},
             "cluster_bootstrap": boot,
             "mpm_value_range_at_holes": [float(np.nanmin(v)), float(np.nanmax(v))],
@@ -224,7 +224,7 @@ def main() -> None:
         "lode_mpm": _analyze("lode", LODE_MPM, gdf, rng),
     }
 
-    # ---- CRS robustness cross-check: the coordinator named the 4326 delivery
+    # ---- CRS stability cross-check: the coordinator named the 4326 delivery
     # raster; it is a bilinear warp of the native 3338 grid we sample as primary.
     # A real signal survives reprojection; noise flips sign. ----
     r4326 = PLACER_MPM.parent / "mpm_onshore_score_district_4326.tif"
@@ -283,7 +283,7 @@ def main() -> None:
         "positive_offset_note": "training positives carry a systematic ~155 m "
         "NAD27->WGS84 offset (kg adapter docstring); distances are approximate at "
         "that scale but the cluster is ~1.4 km wide.",
-        "interpretation": "At the honest pixel level, drill grade DOES track "
+        "interpretation": "At the pixel level, drill grade DOES track "
         "proximity to the nearest ARDF occurrence (rho~0.52, p~0.01) -- real "
         "within-creek grade structure exists and the occurrences sit on the "
         "richer ground -- but the MPM score does NOT (rho~0.12, ns). So the "

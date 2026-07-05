@@ -1,5 +1,21 @@
 # Does the placer MPM predict drill grade? A ground-truth test against the 1912 Janin Little Creek holes
 
+> **Superseded (2026-07-05).** Sky's NotebookLM adversarial design review found that
+> this single-creek test cannot answer whether the MPM predicts grade. Correlating
+> raw point-support drill grade against the smoothed 25 m block-support MPM, on 47
+> holes that collapse to about 23 spatially-autocorrelated pixels in one 1.4 km
+> creek at the 77th prospectivity percentile, is driven toward zero by
+> change-of-support and regression dilution, the placer nugget effect, restricted
+> predictor range, near-zero effective independent n, and testing a continuous grade
+> against a presence/background classifier. The 3338-to-4326 sign flip is the tell
+> that the evaluated signal sits below resampling noise. So the pixel Spearman near
+> zero reported below is most likely a statistical artifact, not a verdict on the
+> model, and the proximity result is reinterpreted as observation bias (see the
+> guard section). The test is rebuilt on the corrected design (capture-efficiency,
+> native CRS, block-upscaled economic-presence, drainage-level power) in
+> [drillgold_capture_validation.md](drillgold_capture_validation.md); read that page
+> as the current result. This page is kept as the record of the superseded baseline.
+
 *Self-contained report. The served onshore placer MPM is a presence/background
 RandomForest over geomorph and terrain features. It was trained on 65 ARDF/KG
 placer occurrence points versus 2000 background cells and never saw a gold grade.
@@ -98,10 +114,18 @@ The proximity check turns up something worth stating plainly. At the pixel level
 drill grade *does* increase toward the nearest ARDF occurrence (rho = +0.52, p =
 0.011): the occurrences sit on the richer part of the creek, which is what one
 would expect of records made where gold was found. The MPM score does *not* track
-that same proximity (rho = +0.12, p = 0.59). So a real within-creek grade
-gradient exists, the occurrence locations themselves point at it, and the
-presence-MPM does not resolve it. The null is a real miss, not an absence of
-structure to find, and it is not an artifact of proximity to a training label.
+that same proximity (rho = +0.12, p = 0.59).
+
+The earlier reading of this contrast, that a real within-creek grade gradient
+exists and the presence-MPM fails to resolve it, does not survive the design
+review. Grade tracking occurrence-proximity is observation bias: the ARDF
+occurrences were logged where the old miners found pay, so distance-to-occurrence
+encodes historical sampling effort, not an independent grade structure the MPM was
+obliged to capture. The 0.52 is therefore not evidence that the MPM missed real
+signal. The correct reading is weaker and is the one the corrected harness carries:
+at one drainage this test cannot say whether the MPM resolves within-deposit grade.
+The zero training positives in the drill hull still hold, so the surface's elevated
+level over Little Creek is not label memorization; that part of the guard stands.
 
 ## The lode MPM
 
