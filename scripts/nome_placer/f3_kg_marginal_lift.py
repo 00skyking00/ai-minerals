@@ -51,12 +51,11 @@ from scripts.nome_placer.f1_leak_guarded_rebaseline import (
     load_lode_inbox,
     load_placer,
 )
+from scripts.nome_placer.f3_paths import KG_FEATURES_DIR as FEAT, KG_JSONLD
 
 RNG = 42
 N_FOLDS = 10
 DEAD_ZONE_M = 1000.0
-FEAT = Path("/home/sky/src/learning/fossick-f2/exports/features")
-KG_JSONLD = Path("data/raw/fossick_kg/kg_nome.jsonld")
 IN_BOX_TPL = Path("data/derived/nome_placer/prospectivity_v1p5/"
                   "nome_placer_prospectivity_v1p5_v3p1_3338.tif")
 DISTRICT_TPL = Path("data/derived/nome_placer/covariates_mpm/_district_grid_template_3338.tif")
