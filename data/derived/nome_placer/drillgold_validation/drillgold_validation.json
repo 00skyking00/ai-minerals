@@ -1,0 +1,179 @@
+{
+  "task": "coordinator 2026-07-06 validate-placer-mpm-vs-drillgold (Phase 4 B1)",
+  "ground_truth": {
+    "source": "fossick/exports/phase4/drill_gold_points.geojson",
+    "subset": "Janin 1912 Little Creek holes with grade",
+    "n_precise_collar": 47,
+    "n_block_centroid": 3,
+    "grade_field": "value_c_cuyd (cents-gold per cubic yard)",
+    "note": "value_c_cuyd and grade_oz_cuyd are perfectly collinear (value = grade * price), so Spearman is identical for both."
+  },
+  "leak_guard": {
+    "direct_target_leak": "none: grade/value are neither a label nor a feature of the MPM (trained on presence/background over geomorph+terrain).",
+    "n_training_positives": 65,
+    "n_positives_in_drill_hull": 0,
+    "dist_cluster_centroid_to_nearest_positive_m": 692.653834822005,
+    "dist_hole_to_nearest_positive_m": {
+      "min": 457.4718749599442,
+      "median": 681.2387202047045,
+      "max": 1210.3222361372727
+    },
+    "spearman_score_vs_proximity_to_positive": {
+      "rho_hole": 0.48686691199461424,
+      "p_hole_pseudorep": 0.0005198079600745336,
+      "rho_pixel": 0.11995105625593631,
+      "p_pixel": 0.5856438791186429
+    },
+    "spearman_grade_vs_proximity_to_positive": {
+      "rho_hole": 0.3992720924555325,
+      "p_hole_pseudorep": 0.005432102443838413,
+      "rho_pixel": 0.5217391304347826,
+      "p_pixel": 0.010667373110931088
+    },
+    "positive_offset_note": "training positives carry a systematic ~155 m NAD27->WGS84 offset (kg adapter docstring); distances are approximate at that scale but the cluster is ~1.4 km wide.",
+    "interpretation": "At the honest pixel level, drill grade DOES track proximity to the nearest ARDF occurrence (rho~0.52, p~0.01) -- real within-creek grade structure exists and the occurrences sit on the richer ground -- but the MPM score does NOT (rho~0.12, ns). So the presence-MPM fails to resolve a grade gradient that genuinely exists; the null is a real miss, not an absence of signal, and it is not inflated by any proximity-to-label confound (0 positives in the drill hull; nearest 457 m away)."
+  },
+  "placer_mpm": {
+    "raster": "mpm_onshore_score_district_3338.tif",
+    "resolution_m": 25,
+    "n_holes_total": 50,
+    "n_nodata": 0,
+    "precise47": {
+      "n_holes": 47,
+      "n_distinct_pixels": 23,
+      "hole_level_spearman": {
+        "rho": 0.04672647164744011,
+        "p": 0.7551279638356055,
+        "n": 47,
+        "caveat": "pseudo-replicated; not the honest n"
+      },
+      "pixel_level_spearman": {
+        "rho": -0.10656808716953019,
+        "p": 0.6284118218797478,
+        "n_pixels": 23
+      },
+      "cluster_bootstrap": {
+        "n_pixels": 23,
+        "ci95": [
+          -0.5104729351293655,
+          0.31846734050775494
+        ],
+        "frac_gt_0": 0.312,
+        "median": -0.11453144677892924,
+        "n_valid_resamples": 10000
+      },
+      "mpm_value_range_at_holes": [
+        0.006666666828095913,
+        0.1966666728258133
+      ]
+    },
+    "all50": {
+      "n_holes": 50,
+      "n_distinct_pixels": 24,
+      "hole_level_spearman": {
+        "rho": 0.024432230243990855,
+        "p": 0.8662549427178282,
+        "n": 50,
+        "caveat": "pseudo-replicated; not the honest n"
+      },
+      "pixel_level_spearman": {
+        "rho": -0.11990455828240765,
+        "p": 0.5767953737535024,
+        "n_pixels": 24
+      },
+      "cluster_bootstrap": {
+        "n_pixels": 24,
+        "ci95": [
+          -0.5025482483252842,
+          0.2994839751131087
+        ],
+        "frac_gt_0": 0.2759,
+        "median": -0.12513724963019707,
+        "n_valid_resamples": 10000
+      },
+      "mpm_value_range_at_holes": [
+        0.006666666828095913,
+        0.1966666728258133
+      ]
+    },
+    "crs_crosscheck_4326": {
+      "raster": "mpm_onshore_score_district_4326.tif",
+      "pixel_level_spearman": {
+        "rho": 0.18675889328063244,
+        "p": 0.3935150100784956,
+        "n_pixels": 23
+      },
+      "note": "delivery-CRS warp of the native 3338 surface; near-zero and sign-unstable vs 3338, which confirms the signal is within resampling noise (a genuine correlation would survive bilinear reprojection)."
+    },
+    "hole_score_percentile_in_district": {
+      "min": 54.49111337260102,
+      "median": 76.71693341968113,
+      "max": 97.51201844827527,
+      "note": "percentile of each hole's MPM value within the served surface"
+    }
+  },
+  "lode_mpm": {
+    "raster": "mpm_lode_served_district_3338.tif",
+    "resolution_m": 100,
+    "n_holes_total": 50,
+    "n_nodata": 0,
+    "precise47": {
+      "n_holes": 47,
+      "n_distinct_pixels": 20,
+      "hole_level_spearman": {
+        "rho": 0.07561663209070826,
+        "p": 0.6134419333349286,
+        "n": 47,
+        "caveat": "pseudo-replicated; not the honest n"
+      },
+      "pixel_level_spearman": {
+        "rho": 0.35795504296706365,
+        "p": 0.12123389214618945,
+        "n_pixels": 20
+      },
+      "cluster_bootstrap": {
+        "n_pixels": 20,
+        "ci95": [
+          -0.10547315375327677,
+          0.6498977265863423
+        ],
+        "frac_gt_0": 0.939043451078462,
+        "median": 0.3306082002187536,
+        "n_valid_resamples": 6398
+      },
+      "mpm_value_range_at_holes": [
+        0.0,
+        0.009999999776482582
+      ]
+    },
+    "all50": {
+      "n_holes": 50,
+      "n_distinct_pixels": 21,
+      "hole_level_spearman": {
+        "rho": 0.0521223928882136,
+        "p": 0.7192333973609462,
+        "n": 50,
+        "caveat": "pseudo-replicated; not the honest n"
+      },
+      "pixel_level_spearman": {
+        "rho": 0.33838168464348733,
+        "p": 0.13351663024258367,
+        "n_pixels": 21
+      },
+      "cluster_bootstrap": {
+        "n_pixels": 21,
+        "ci95": [
+          -0.1142156870337746,
+          0.6415288367861663
+        ],
+        "frac_gt_0": 0.9247801507537688,
+        "median": 0.3191401296042934,
+        "n_valid_resamples": 6368
+      },
+      "mpm_value_range_at_holes": [
+        0.0,
+        0.009999999776482582
+      ]
+    }
+  }
+}
