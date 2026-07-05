@@ -87,20 +87,20 @@
           "auc_delta": 0.292
         },
         "kg_spatial": {
-          "auc_district": 0.9548923076923077,
+          "auc_district": 0.9228000000000001,
           "auc_in_box": null,
-          "variogram_range_m": 449.9,
-          "block_size_m": 900.0,
+          "variogram_range_m": 4105.8,
+          "block_size_m": 4300.0,
           "n_features": 13,
-          "auc_delta": 0.276
+          "auc_delta": 0.244
         },
         "kg": {
-          "auc_district": 0.9889230769230769,
+          "auc_district": 0.9878692307692307,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 37,
-          "auc_delta": 0.31
+          "auc_delta": 0.309
         },
         "prose": {
           "auc_district": 0.9814653846153845,
@@ -111,20 +111,20 @@
           "auc_delta": 0.303
         },
         "kg_prose": {
-          "auc_district": 0.9881076923076924,
+          "auc_district": 0.9857230769230769,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 133,
-          "auc_delta": 0.31
+          "auc_delta": 0.307
         },
         "kg_label": {
-          "auc_district": 0.9880192307692307,
+          "auc_district": 0.9881461538461538,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 46,
-          "auc_delta": 0.309
+          "auc_delta": 0.31
         },
         "_scatter": {
           "base": {
@@ -132,18 +132,18 @@
             "auc_in_box": null
           },
           "kg": {
-            "auc_district": 0.9883615384615385,
+            "auc_district": 0.9876384615384616,
             "auc_in_box": null
           }
         },
         "_weight_sensitivity": {
           "arm": "kg",
           "unweighted": {
-            "auc_district": 0.9889230769230769,
+            "auc_district": 0.9878692307692307,
             "auc_in_box": null
           },
           "weighted": {
-            "auc_district": 0.9864653846153847,
+            "auc_district": 0.9827076923076923,
             "auc_in_box": null
           }
         }
@@ -183,15 +183,15 @@
           "auc_delta": 0.181
         },
         "kg_spatial": {
-          "auc_district": 0.8848416666666667,
+          "auc_district": 0.8826750000000001,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 13,
-          "auc_delta": 0.079
+          "auc_delta": 0.077
         },
         "kg": {
-          "auc_district": 0.9973083333333334,
+          "auc_district": 0.9966833333333334,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
@@ -207,20 +207,20 @@
           "auc_delta": 0.178
         },
         "kg_prose": {
-          "auc_district": 0.9919,
+          "auc_district": 0.9905333333333333,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 133,
-          "auc_delta": 0.186
+          "auc_delta": 0.185
         },
         "kg_label": {
-          "auc_district": 0.9984416666666667,
+          "auc_district": 0.9983333333333334,
           "auc_in_box": null,
           "variogram_range_m": 449.9,
           "block_size_m": 900.0,
           "n_features": 46,
-          "auc_delta": 0.193
+          "auc_delta": 0.192
         },
         "_scatter": {
           "base": {
@@ -228,18 +228,18 @@
             "auc_in_box": null
           },
           "kg": {
-            "auc_district": 0.9954666666666667,
+            "auc_district": 0.9944500000000001,
             "auc_in_box": null
           }
         },
         "_weight_sensitivity": {
           "arm": "kg",
           "unweighted": {
-            "auc_district": 0.9973083333333334,
+            "auc_district": 0.9966833333333334,
             "auc_in_box": null
           },
           "weighted": {
-            "auc_district": 0.9973500000000001,
+            "auc_district": 0.9961833333333334,
             "auc_in_box": null
           }
         }
@@ -284,20 +284,20 @@
           "auc_delta": 0.33
         },
         "kg_spatial": {
-          "auc_district": 0.9632598566308244,
-          "auc_in_box": 0.9364636209813876,
+          "auc_district": 0.9739802867383512,
+          "auc_in_box": 0.9353637901861253,
           "variogram_range_m": 1878.8,
           "block_size_m": 3800.0,
           "n_features": 18,
-          "auc_delta": 0.33
+          "auc_delta": 0.341
         },
         "kg": {
-          "auc_district": 0.9715985663082438,
-          "auc_in_box": 0.9951776649746193,
+          "auc_district": 0.9700340501792114,
+          "auc_in_box": 0.9949238578680203,
           "variogram_range_m": 1878.8,
           "block_size_m": 3800.0,
           "n_features": 42,
-          "auc_delta": 0.339
+          "auc_delta": 0.337
         },
         "prose": {
           "auc_district": 0.9677455197132617,
@@ -308,16 +308,16 @@
           "auc_delta": 0.335
         },
         "kg_prose": {
-          "auc_district": 0.9664605734767024,
-          "auc_in_box": 0.9901015228426395,
+          "auc_district": 0.9663835125448029,
+          "auc_in_box": 0.9895939086294416,
           "variogram_range_m": 1878.8,
           "block_size_m": 3800.0,
           "n_features": 138,
           "auc_delta": 0.333
         },
         "kg_label": {
-          "auc_district": 0.9663136200716846,
-          "auc_in_box": 0.9931472081218274,
+          "auc_district": 0.9662616487455197,
+          "auc_in_box": 0.9930626057529611,
           "variogram_range_m": 1878.8,
           "block_size_m": 3800.0,
           "n_features": 51,
@@ -329,19 +329,19 @@
             "auc_in_box": 0.7890016920473774
           },
           "kg": {
-            "auc_district": 0.9812598566308244,
-            "auc_in_box": 0.9916243654822335
+            "auc_district": 0.9798243727598566,
+            "auc_in_box": 0.9912859560067682
           }
         },
         "_weight_sensitivity": {
           "arm": "kg",
           "unweighted": {
-            "auc_district": 0.9715985663082438,
-            "auc_in_box": 0.9951776649746193
+            "auc_district": 0.9700340501792114,
+            "auc_in_box": 0.9949238578680203
           },
           "weighted": {
-            "auc_district": 0.9701756272401434,
-            "auc_in_box": 0.9947546531302878
+            "auc_district": 0.970331541218638,
+            "auc_in_box": 0.994585448392555
           }
         }
       }

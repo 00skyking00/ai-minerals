@@ -1,7 +1,7 @@
 dataset,scope,arm,auc_district,auc_in_box,auc_delta_vs_base,delta_ci95_lo,delta_ci95_hi,n_pos_scored
 placer_onshore,in_box,base,0.6785769230769231,,,,,65
-placer_onshore,in_box,kg_loo,0.6603807692307693,,-0.018,-0.0693,0.0349,65
+placer_onshore,in_box,kg_loo,0.6423500000000001,,-0.036,-0.0904,0.0155,65
 lode_inbox,in_box,base,0.805925,,,,,30
-lode_inbox,in_box,kg_loo,0.8024333333333333,,-0.003,-0.0629,0.0562,30
+lode_inbox,in_box,kg_loo,0.7774416666666667,,-0.028,-0.0771,0.0156,30
 lode_district,district,base,0.6330591397849462,0.7370558375634519,,,,93
-lode_district,district,kg_loo,0.5497867383512546,0.5320642978003385,-0.083,-0.1417,-0.0265,93
+lode_district,district,kg_loo,0.5616344086021505,0.5399323181049069,-0.071,-0.1333,-0.0132,93

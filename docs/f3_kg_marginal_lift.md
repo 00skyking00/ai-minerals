@@ -1,5 +1,19 @@
 # Does a document-derived knowledge graph improve the Nome gold models? (F3)
 
+> **Status: pre-validation BASELINE, held (2026-07-05).** The stale-path bug is
+> fixed and committed: both F3 drivers now read the fossick KG exports from
+> `fossick/exports/features` (factored to `scripts/nome_placer/f3_paths.py`), not
+> the deleted `fossick-f2`. The numbers in this report have been reproduced against
+> the current fossick export (40,099 KG entities, 133 bands): the base AUCs are
+> identical, the headline full-KG arm and the leave-one-out deltas move by less than
+> 0.02, and no arm moves by more than 0.03, so the leakage reading is unchanged. They are a
+> pre-validation baseline, not a settled G2 finding. The F3 design is under the same
+> NotebookLM adversarial review that the drill-gold validation received, and the
+> authoritative F3 rerun is on hold pending Sky's design corrections. The precise
+> fresh baseline (the seven-arm table and the leave-one-out delta with its bootstrap
+> interval) lives in the 2026-07-05 coordinator baseline report; it is deliberately
+> not wired into any chapter, notebook, or model card.
+
 *Self-contained report. We rasterized a knowledge graph built from historical
 mining records onto the Nome prospectivity grids, added it to the placer and lode
 models as covariates, and measured the cross-validated AUC change under the

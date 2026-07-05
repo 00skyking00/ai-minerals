@@ -39,8 +39,8 @@
       "n": 2065,
       "n_pos": 65,
       "block_size_m": 900.0,
-      "n_occ_grounds": 233,
-      "n_claim_grounds": 181,
+      "n_occ_grounds": 223,
+      "n_claim_grounds": 191,
       "n_scored": 2065,
       "n_pos_scored": 65,
       "base": {
@@ -48,25 +48,25 @@
         "auc_in_box": null
       },
       "kg_loo": {
-        "auc_district": 0.6603807692307693,
+        "auc_district": 0.6423500000000001,
         "auc_in_box": null
       },
-      "auc_delta": -0.018,
+      "auc_delta": -0.036,
       "bootstrap": {
         "base_auc_ci95": [
           0.6068,
           0.7453
         ],
         "loo_auc_ci95": [
-          0.5963,
-          0.7193
+          0.5752,
+          0.7032
         ],
         "delta_ci95": [
-          -0.0693,
-          0.0349
+          -0.0904,
+          0.0155
         ],
-        "delta_mean": -0.0178,
-        "delta_p_gt_0": 0.264
+        "delta_mean": -0.0361,
+        "delta_p_gt_0": 0.094
       }
     },
     {
@@ -75,8 +75,8 @@
       "n": 2030,
       "n_pos": 30,
       "block_size_m": 900.0,
-      "n_occ_grounds": 233,
-      "n_claim_grounds": 181,
+      "n_occ_grounds": 223,
+      "n_claim_grounds": 191,
       "n_scored": 2030,
       "n_pos_scored": 30,
       "base": {
@@ -84,25 +84,25 @@
         "auc_in_box": null
       },
       "kg_loo": {
-        "auc_district": 0.8024333333333333,
+        "auc_district": 0.7774416666666667,
         "auc_in_box": null
       },
-      "auc_delta": -0.003,
+      "auc_delta": -0.028,
       "bootstrap": {
         "base_auc_ci95": [
           0.7305,
           0.8675
         ],
         "loo_auc_ci95": [
-          0.7359,
-          0.8619
+          0.7024,
+          0.8468
         ],
         "delta_ci95": [
-          -0.0629,
-          0.0562
+          -0.0771,
+          0.0156
         ],
-        "delta_mean": -0.0028,
-        "delta_p_gt_0": 0.4555
+        "delta_mean": -0.0281,
+        "delta_p_gt_0": 0.109
       }
     },
     {
@@ -111,8 +111,8 @@
       "n": 3093,
       "n_pos": 93,
       "block_size_m": 3800.0,
-      "n_occ_grounds": 233,
-      "n_claim_grounds": 181,
+      "n_occ_grounds": 223,
+      "n_claim_grounds": 191,
       "n_scored": 3093,
       "n_pos_scored": 93,
       "base": {
@@ -120,25 +120,25 @@
         "auc_in_box": 0.7370558375634519
       },
       "kg_loo": {
-        "auc_district": 0.5497867383512546,
-        "auc_in_box": 0.5320642978003385
+        "auc_district": 0.5616344086021505,
+        "auc_in_box": 0.5399323181049069
       },
-      "auc_delta": -0.083,
+      "auc_delta": -0.071,
       "bootstrap": {
         "base_auc_ci95": [
           0.5857,
           0.6786
         ],
         "loo_auc_ci95": [
-          0.4952,
-          0.6036
+          0.5074,
+          0.6136
         ],
         "delta_ci95": [
-          -0.1417,
-          -0.0265
+          -0.1333,
+          -0.0132
         ],
-        "delta_mean": -0.0835,
-        "delta_p_gt_0": 0.0055
+        "delta_mean": -0.0715,
+        "delta_p_gt_0": 0.0075
       }
     }
   ]
