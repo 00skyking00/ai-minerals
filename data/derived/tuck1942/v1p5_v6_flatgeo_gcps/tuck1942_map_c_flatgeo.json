@@ -1,0 +1,72 @@
+{
+  "map": "c",
+  "purpose": "Correct flat<->geo for Tuck-1942 Map C (fixes fossick georef_blocker: v2 GCPs were 2 km off in town-of-Nome).",
+  "method": "SIFT+RANSAC image registration v3<->rotated-scan (affine) composed with the exact 90-deg rotated->flat map.",
+  "control_points": 38,
+  "residual_rot_px": {
+    "median": 3.447012950306534,
+    "max": 5.43840974984462
+  },
+  "residual_ground_m_approx": {
+    "median": 2.757610360245227,
+    "max": 4.350727799875696,
+    "note": "300-dpi scan of a 1in=800ft sheet -> ~0.8 m per rotated pixel."
+  },
+  "affine_v3_to_rot_2x3": [
+    [
+      0.6754013022818979,
+      0.573607074584771,
+      -3220.4009005094686
+    ],
+    [
+      -0.2046117664535131,
+      1.6394698297585226,
+      576.4962302085587
+    ]
+  ],
+  "affine_v3_to_flat_2x3": [
+    [
+      -0.2046117664535131,
+      1.6394698297585226,
+      576.4962302085587
+    ],
+    [
+      -0.6754013022818979,
+      -0.573607074584771,
+      19014.40090050947
+    ]
+  ],
+  "v3_to_rot_decomposition": {
+    "scale_x": 0.7057144564874029,
+    "scale_y": 1.7369186505712173,
+    "rotation_deg": -16.854102401760866
+  },
+  "v3_geotransform_origin_px": [
+    -165.278724478741,
+    64.5351081259838,
+    1.2286388897572629e-05,
+    -1.2286388897572629e-05
+  ],
+  "flat_scan": "data/derived/tuck1942/georef_source/tuck1942_map_c.tif",
+  "flat_scan_size_wh": [
+    9692,
+    15795
+  ],
+  "rotated_size_wh": [
+    15795,
+    9692
+  ],
+  "validated_v3_envelope": {
+    "col": [
+      6912.4,
+      23125.81
+    ],
+    "row": [
+      3651.81,
+      7677.92
+    ]
+  },
+  "points_convention": "mapX=lon, mapY=lat, sourceX=col_rot, sourceY=Hr-row_rot (fossick FlatPositioner drop-in).",
+  "fossick_usage": "set FlatPositioner GCP_DIR to this dir (V3_GT['c'] already exact), or use affine_v3_to_flat_2x3 directly.",
+  "provenance_note": "Supersedes the earlier analytic 4-corner map, which wrongly assumed v3 was an axis-aligned corner warp; v3 actually carries a ~-17deg rotation (60% valid, tilted parallelogram)."
+}
