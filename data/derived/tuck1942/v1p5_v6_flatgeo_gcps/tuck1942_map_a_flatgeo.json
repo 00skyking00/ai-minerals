@@ -1,0 +1,76 @@
+{
+  "map": "a",
+  "method": "SIFT+RANSAC image registration v3<->rotated-scan (affine) composed with exact 90-deg rotated->flat.",
+  "control_points": 112,
+  "residual_rot_px": {
+    "median": 3.2205064714134455,
+    "max": 6.9289897745827425
+  },
+  "residual_ground_m_approx": {
+    "median": 2.5764051771307566,
+    "max": 5.543191819666195
+  },
+  "within_position_bar_50px": true,
+  "affine_v3_to_rot_2x3": [
+    [
+      0.6667029366079412,
+      0.5378338021203298,
+      -3057.179942126862
+    ],
+    [
+      -0.22614709736844893,
+      1.5668127561793994,
+      1022.5658285514124
+    ]
+  ],
+  "affine_v3_to_flat_2x3": [
+    [
+      -0.22614709736844893,
+      1.5668127561793994,
+      1022.5658285514124
+    ],
+    [
+      -0.6667029366079412,
+      -0.5378338021203298,
+      18441.179942126862
+    ]
+  ],
+  "v3_to_rot_decomposition": {
+    "scale_x": 0.7040137181403692,
+    "scale_y": 1.6565528701582983,
+    "rotation_deg": -18.737048861692585
+  },
+  "fossick_V3_GT_tuple": [
+    -165.74256579560225,
+    64.60266748229274,
+    1.2104001036646824e-05,
+    -1.2104001036646824e-05,
+    25212,
+    8657
+  ],
+  "flat_scan_size_wh": [
+    9900,
+    15385
+  ],
+  "rotated_size_wh": [
+    15385,
+    9900
+  ],
+  "v3_center_to_flat": [
+    4953.704534247276,
+    7708.709110769307
+  ],
+  "v3_center_in_flat_bounds": true,
+  "validated_v3_envelope": {
+    "col": [
+      3441.43,
+      17699.72
+    ],
+    "row": [
+      1593.1,
+      7828.55
+    ]
+  },
+  "points_convention": "mapX=lon, mapY=lat, sourceX=col_rot, sourceY=Hr-row_rot (fossick FlatPositioner drop-in).",
+  "fossick_usage": "GCP_DIR = this dir; add fossick_V3_GT_tuple to V3_GT['a']."
+}
