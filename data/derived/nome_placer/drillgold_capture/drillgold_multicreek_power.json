@@ -1,0 +1,244 @@
+{
+  "task": "coordinator 2026-07-08 ML-step-3 (a): drill-gold on newly-consolidated multi-creek Tuck grades",
+  "headline": "The Part-2 consolidation added ZERO positioned drill collars. The new multi-creek Tuck grades were folded at occurrence / area / claim-stub extent (grade ranges + valued/trace counts at one point or hull), which the per-hole capture-efficiency harness cannot consume. So the capture test's power is unchanged: one positioned drainage (Little Creek).",
+  "capture_harness_state": {
+    "script": "scripts/nome_placer/drillgold_capture_validation.py",
+    "n_positioned_holes": 47,
+    "n_positioned_drainages": 1,
+    "placer_auc_at_10c_cutoff": 0.47058823529411764,
+    "verdict": "unchanged vs the committed 2026-07-05 run: one drainage, underpowered, AUC ~ chance with a CI spanning 0.19-0.75; a LABELED methods-validation baseline, not a G-result"
+  },
+  "power_accounting": {
+    "positioned_collar_drainages_capture_ready": 1,
+    "occurrence_or_area_drainages_with_grade_read": 6,
+    "occurrence_or_area_drainages_production_only": 1,
+    "total_independent_drainages_with_any_gold_grade": 7,
+    "interpretation": "positioned power stays at 1. The consolidation raises the CEILING for a future positioned multi-creek capture run to ~7 drainages, but only once fossick positions the Fig-10/11 drill lines (Otter 7 lines, Nome River Line 1) and the Map A Bay/Odin lines as collar points. Until then these are ranges at a point/hull, not test power."
+  },
+  "barren_domain_negatives": {
+    "note": "real sub-economic / barren reads from the Tuck corpus (not fabricated pseudo-absences); usable for the negative class in a future positioned run",
+    "total_barren_or_trace_reads": 52,
+    "by_drainage": [
+      {
+        "drainage": "Little Creek",
+        "extent": "positioned_collars",
+        "n_barren_or_trace": 6,
+        "n_valued": 17,
+        "provenance": "Janin 1912 Pioneer Mining Co. drill logs (bearcub); 47 collars"
+      },
+      {
+        "drainage": "Otter Creek",
+        "extent": "occurrence_point",
+        "n_barren_or_trace": 38,
+        "n_valued": 63,
+        "provenance": "Fig 11 Lines 67/50/62/45/43/55/50A; 832.5 excluded as decimal misprint"
+      },
+      {
+        "drainage": "Nome River",
+        "extent": "occurrence_point",
+        "n_barren_or_trace": 2,
+        "n_valued": 6,
+        "provenance": "Fig 11 Line 1 (Nome River bedrock channel)"
+      },
+      {
+        "drainage": "Second Beach belt",
+        "extent": "area_hull",
+        "n_barren_or_trace": 6,
+        "n_valued": 3,
+        "provenance": "Map C Sheet 8; 9 panning ticks, 6 barren"
+      }
+    ]
+  },
+  "placer_mpm_consistency_read": {
+    "caveat": "known, already-explored occurrences the served placer MPM was fit over; a high percentile is restriction of range, NOT out-of-sample validation. Descriptive consistency only.",
+    "by_drainage": [
+      {
+        "drainage": "Little Creek",
+        "extent": "positioned_collars",
+        "placer_mpm_percentile": null
+      },
+      {
+        "drainage": "Otter Creek",
+        "extent": "occurrence_point",
+        "placer_mpm_percentile": 100.0
+      },
+      {
+        "drainage": "Nome River",
+        "extent": "occurrence_point",
+        "placer_mpm_percentile": 46.3
+      },
+      {
+        "drainage": "Anvil Creek",
+        "extent": "occurrence_point",
+        "placer_mpm_percentile": 79.6
+      },
+      {
+        "drainage": "Osborn Creek",
+        "extent": "occurrence_point",
+        "placer_mpm_percentile": null
+      },
+      {
+        "drainage": "Second Beach belt",
+        "extent": "area_hull",
+        "placer_mpm_percentile": 38.2
+      },
+      {
+        "drainage": "B1 Nome dredge field",
+        "extent": "area_hull",
+        "placer_mpm_percentile": 64.5
+      },
+      {
+        "drainage": "Anvil-Dexter dredge valley",
+        "extent": "area_hull",
+        "placer_mpm_percentile": 98.3
+      }
+    ]
+  },
+  "drainages": [
+    {
+      "drainage": "Little Creek",
+      "entity": null,
+      "extent": "positioned_collars",
+      "positioned": true,
+      "grade_read": "block grade 1.4-200 c/yd across 23 MPM blocks",
+      "grade_median_c": 14.4,
+      "n_valued": 17,
+      "n_barren": 6,
+      "basis": "$20.67",
+      "provenance": "Janin 1912 Pioneer Mining Co. drill logs (bearcub); 47 collars",
+      "repr_lon_lat": null,
+      "placer_mpm_value": null,
+      "placer_mpm_percentile": null
+    },
+    {
+      "drainage": "Otter Creek",
+      "entity": "ardf-NM296",
+      "extent": "occurrence_point",
+      "positioned": false,
+      "grade_read": "Fig 11 drill-section tenor 2.9-117.7 c/yd",
+      "grade_median_c": 14.4,
+      "n_valued": 63,
+      "n_barren": 38,
+      "basis": "$20",
+      "provenance": "Fig 11 Lines 67/50/62/45/43/55/50A; 832.5 excluded as decimal misprint",
+      "repr_lon_lat": [
+        -165.29654,
+        64.49324
+      ],
+      "placer_mpm_value": 0.6439,
+      "placer_mpm_percentile": 100.0
+    },
+    {
+      "drainage": "Nome River",
+      "entity": "ardf-NM101",
+      "extent": "occurrence_point",
+      "positioned": false,
+      "grade_read": "Fig 11 Line 1 bedrock-channel tenor 1.0-13.4 c/yd",
+      "grade_median_c": null,
+      "n_valued": 6,
+      "n_barren": 2,
+      "basis": "$20",
+      "provenance": "Fig 11 Line 1 (Nome River bedrock channel)",
+      "repr_lon_lat": [
+        -165.29299,
+        64.6326
+      ],
+      "placer_mpm_value": 0.0033,
+      "placer_mpm_percentile": 46.3
+    },
+    {
+      "drainage": "Anvil Creek",
+      "entity": "ardf-NM236",
+      "extent": "occurrence_point",
+      "positioned": false,
+      "grade_read": "Channel 4 grade 87 c/yd; Plein dredge 32 c/yd",
+      "grade_median_c": null,
+      "n_valued": null,
+      "n_barren": null,
+      "basis": "$20.67/mixed",
+      "provenance": "Tuck 1942 p.159 (TUCK-005); Fig 10 dredge annotation; production-level",
+      "repr_lon_lat": [
+        -165.40793,
+        64.56973
+      ],
+      "placer_mpm_value": 0.0367,
+      "placer_mpm_percentile": 79.6
+    },
+    {
+      "drainage": "Osborn Creek",
+      "entity": "ardf-NM305",
+      "extent": "occurrence_point",
+      "positioned": false,
+      "grade_read": "production ~$4.96M (no c/yd tenor)",
+      "grade_median_c": null,
+      "n_valued": null,
+      "n_barren": null,
+      "basis": "mixed",
+      "provenance": "Map E Osborn + Julien-dredge notes; production $ only, no grade tenor",
+      "repr_lon_lat": [
+        -165.12394,
+        64.58759
+      ],
+      "placer_mpm_value": null,
+      "placer_mpm_percentile": null
+    },
+    {
+      "drainage": "Second Beach belt",
+      "entity": "tuck_nome_second_beach_belt",
+      "extent": "area_hull",
+      "positioned": false,
+      "grade_read": "panning 0-13 c/yd (favorability gradient)",
+      "grade_median_c": null,
+      "n_valued": 3,
+      "n_barren": 6,
+      "basis": "panning",
+      "provenance": "Map C Sheet 8; 9 panning ticks, 6 barren",
+      "repr_lon_lat": [
+        -165.17321,
+        64.49266
+      ],
+      "placer_mpm_value": 0.0007,
+      "placer_mpm_percentile": 38.2
+    },
+    {
+      "drainage": "B1 Nome dredge field",
+      "entity": "tuck_b1_nome_dredge_field",
+      "extent": "area_hull",
+      "positioned": false,
+      "grade_read": "dredge recovery 3-71 c/yd (~383 cells, bulk 17-34)",
+      "grade_median_c": null,
+      "n_valued": null,
+      "n_barren": null,
+      "basis": "dredge recovery",
+      "provenance": "Map B1 flat-scan Layer-2 (FlatPositioner georef)",
+      "repr_lon_lat": [
+        -165.40691,
+        64.53994
+      ],
+      "placer_mpm_value": 0.0133,
+      "placer_mpm_percentile": 64.5
+    },
+    {
+      "drainage": "Anvil-Dexter dredge valley",
+      "entity": "tuck_anvil_dexter_dredge_valley",
+      "extent": "area_hull",
+      "positioned": false,
+      "grade_read": "dredge recovery 16-68 c/yd (median, N=18)",
+      "grade_median_c": null,
+      "n_valued": null,
+      "n_barren": null,
+      "basis": "dredge recovery",
+      "provenance": "Map D recovery cells",
+      "repr_lon_lat": [
+        -165.39064,
+        64.57377
+      ],
+      "placer_mpm_value": 0.23,
+      "placer_mpm_percentile": 98.3
+    }
+  ],
+  "provenance": {
+    "grade_facts": "fossick/docs/consolidation-part2-foldin-2026-07-08.md (Part-2 fold-in table)",
+    "geometries": "kg_nome_consolidated.jsonld (@graph wkt), read live"
+  }
+}
