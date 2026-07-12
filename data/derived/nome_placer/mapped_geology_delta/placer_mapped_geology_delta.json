@@ -1,0 +1,342 @@
+{
+  "question": "Does independently-mapped geology/structure improve the leak-guarded PLACER PRESENCE model beyond the pure-geomorph baseline (AUC 0.679)?",
+  "contract": "portfolio ml_step3_g1_validation_plan_2026-07-12 (sections 1 + 2)",
+  "sources": {
+    "ofr_2009_1254": "USGS OFR 2009-1254 / SIM 3131 Seward Peninsula bedrock (1:500,000); regional compilation, sparse over the placer core, low confound risk",
+    "gems_pdf_94_39": "Alaska DGGS PDF 94-39 Nome mining district geodatabase; dense structure + graphitic host; mining-district footprint tracks occurrences"
+  },
+  "fields_built_or_reused": {
+    "dist_to_contact": {
+      "path": "data/derived/nome_placer/covariates_mpm/dist_to_contact_nome_3338.tif",
+      "status": "NEW",
+      "n_contact_arcs_total": 152,
+      "dist_m_min_mean_max": [
+        0.0,
+        3771.5,
+        14515.9
+      ]
+    },
+    "dist_to_fault": {
+      "path": "data/derived/nome_placer/covariates_mpm/dist_to_fault_nome_3338.tif",
+      "status": "reused (mpm_build_geology_covariates)"
+    },
+    "geology_unit_code": {
+      "path": "data/derived/nome_placer/covariates_mpm/geology_unit_code_nome_3338.tif",
+      "status": "reused; one-hot host domains"
+    },
+    "akmag": {
+      "path": "data/derived/nome_placer/covariates_mpm/akmag_nome_3338.tif",
+      "status": "reused (cross-check reference only)"
+    },
+    "gems_structure": {
+      "paths": {
+        "dist_ne_fault": "data/derived/nome_geophys/nome_structure/inbox_25m/struct_dist_ne_fault.tif",
+        "dist_nw_fault": "data/derived/nome_geophys/nome_structure/inbox_25m/struct_dist_nw_fault.tif",
+        "dist_fold_hinge": "data/derived/nome_geophys/nome_structure/inbox_25m/struct_dist_fold_hinge.tif",
+        "carbonaceous_host": "data/derived/nome_geophys/nome_structure/inbox_25m/struct_carbonaceous_host.tif"
+      },
+      "status": "reused (nome_structure PDF 94-39)"
+    }
+  },
+  "independence_checks": {
+    "occurrence_density_confound": {
+      "buffer_m": 1500.0,
+      "n_occurrences": 65,
+      "n_onland_in_buffer": 314482,
+      "n_onland_out_buffer": 269204,
+      "ofr_contacts": {
+        "density_in_buffer": 0.00717,
+        "density_out_buffer": 0.0035,
+        "ratio_in_over_out": 2.05
+      },
+      "ofr_faults": {
+        "density_in_buffer": 0.0019,
+        "density_out_buffer": 0.00016,
+        "ratio_in_over_out": 11.6
+      },
+      "gems_ne_faults": {
+        "density_in_buffer": 0.00455,
+        "density_out_buffer": 0.00152,
+        "ratio_in_over_out": 3.0
+      },
+      "gems_nw_faults": {
+        "density_in_buffer": 0.00158,
+        "density_out_buffer": 0.00066,
+        "ratio_in_over_out": 2.4
+      },
+      "gems_mapped_footprint": {
+        "density_in_buffer": 0.94864,
+        "density_out_buffer": 0.56511,
+        "ratio_in_over_out": 1.68
+      },
+      "note": "ratio >> 1 = linework/footprint denser inside the occurrence buffer = sampling-effort confound; ~1 = coverage-uniform."
+    },
+    "fault_vs_akmag": {
+      "spearman_distfault_vs_akmag_intensity": 0.02,
+      "spearman_distfault_vs_akmag_gradient": -0.214,
+      "akmag_gradient_at_fault_cells_nT_per_m": 0.0331,
+      "akmag_gradient_at_random_cells_nT_per_m": 0.0396,
+      "gradient_ratio_fault_over_random": 0.84,
+      "n_mapped_fault_cells_onland": 1922,
+      "note": "ratio ~1 (and near-zero spearman) = mapped faults do NOT track the aeromag field: independent lines, but also no geophysical corroboration at 1 km resolution over a 17 km AOI."
+    },
+    "field_distributions": {
+      "dist_to_contact": {
+        "name": "dist_to_contact",
+        "n": 583686,
+        "nodata_frac_onland": 0.0,
+        "min": 0.0,
+        "mean": 3714.82,
+        "max": 14515.9,
+        "std": 3508.49,
+        "cv_std_over_mean": 0.944,
+        "q05_25_50_75_95": [
+          134.6,
+          806.2,
+          2153.6,
+          6384.6,
+          10494.4
+        ],
+        "near_constant": false
+      },
+      "dist_to_fault": {
+        "name": "dist_to_fault",
+        "n": 583686,
+        "nodata_frac_onland": 0.0,
+        "min": 0.0,
+        "mean": 6844.45,
+        "max": 18082.12,
+        "std": 4313.85,
+        "cv_std_over_mean": 0.63,
+        "q05_25_50_75_95": [
+          745.8,
+          3315.3,
+          6042.0,
+          10354.3,
+          14243.0
+        ],
+        "near_constant": false
+      },
+      "akmag": {
+        "name": "akmag",
+        "n": 519339,
+        "nodata_frac_onland": 0.11,
+        "min": -89.57,
+        "mean": 51.94,
+        "max": 460.69,
+        "std": 79.28,
+        "cv_std_over_mean": 1.526,
+        "q05_25_50_75_95": [
+          -31.2,
+          -3.7,
+          27.1,
+          88.3,
+          219.9
+        ],
+        "near_constant": false
+      },
+      "gems_dist_ne_fault": {
+        "name": "gems_dist_ne_fault",
+        "n": 583686,
+        "nodata_frac_onland": 0.0,
+        "min": 0.0,
+        "mean": 4465.27,
+        "max": 14478.0,
+        "std": 3680.86,
+        "cv_std_over_mean": 0.824,
+        "q05_25_50_75_95": [
+          265.8,
+          1320.0,
+          3287.2,
+          7267.6,
+          11325.4
+        ],
+        "near_constant": false
+      },
+      "gems_dist_nw_fault": {
+        "name": "gems_dist_nw_fault",
+        "n": 583686,
+        "nodata_frac_onland": 0.0,
+        "min": 0.0,
+        "mean": 5130.72,
+        "max": 15673.07,
+        "std": 3925.24,
+        "cv_std_over_mean": 0.765,
+        "q05_25_50_75_95": [
+          548.3,
+          1900.2,
+          3813.9,
+          8161.8,
+          12418.2
+        ],
+        "near_constant": false
+      },
+      "gems_dist_fold_hinge": {
+        "name": "gems_dist_fold_hinge",
+        "n": 583686,
+        "nodata_frac_onland": 0.0,
+        "min": 0.0,
+        "mean": 10821.26,
+        "max": 23081.95,
+        "std": 5250.91,
+        "cv_std_over_mean": 0.485,
+        "q05_25_50_75_95": [
+          1855.4,
+          7020.3,
+          10826.8,
+          15031.5,
+          19074.3
+        ],
+        "near_constant": false
+      },
+      "geology_unit_code": {
+        "name": "geology_unit_code",
+        "class_fraction": {
+          "DOx": 0.0807,
+          "Dcs": 0.1103,
+          "Ocs": 0.0445,
+          "Qs": 0.5376,
+          "water": 0.2269
+        },
+        "n_classes_gt_0.5pct": 5,
+        "near_constant": false
+      },
+      "gems_carbonaceous_host": {
+        "name": "gems_carbonaceous_host",
+        "class_fraction": {
+          "not_host": 0.9791,
+          "graphitic_host": 0.0209
+        },
+        "n_classes_gt_0.5pct": 2,
+        "near_constant": false
+      }
+    }
+  },
+  "presence_cv_delta_placer": {
+    "base_auc_0.679_check": 0.6786,
+    "n": 2065,
+    "n_pos": 65,
+    "gems_mapped_frac_all": 0.773,
+    "gems_mapped_frac_pos": 0.969,
+    "scheme": {
+      "block_size_m": 900.0,
+      "variogram_range_m": 449.9,
+      "estimator": "RandomForest(300, balanced, seed=42)",
+      "dead_zone_m": 1000.0,
+      "fold_strategy": "contiguous",
+      "n_boot": 2000
+    },
+    "arms": {
+      "dist_to_contact": {
+        "auc_full": 0.7131,
+        "marginal_full": {
+          "point": 0.0345,
+          "ci95": [
+            0.0066,
+            0.065
+          ],
+          "p_gt_0": 0.989,
+          "n_scored": 2065,
+          "n_pos": 65
+        }
+      },
+      "dist_to_fault": {
+        "auc_full": 0.7487,
+        "marginal_full": {
+          "point": 0.0701,
+          "ci95": [
+            0.018,
+            0.1268
+          ],
+          "p_gt_0": 0.9965,
+          "n_scored": 2065,
+          "n_pos": 65
+        }
+      },
+      "host_rock_onehot": {
+        "auc_full": 0.6691,
+        "marginal_full": {
+          "point": -0.0095,
+          "ci95": [
+            -0.0517,
+            0.0297
+          ],
+          "p_gt_0": 0.3245,
+          "n_scored": 2065,
+          "n_pos": 65
+        }
+      },
+      "gems_structure": {
+        "auc_full": 0.6904,
+        "marginal_full": {
+          "point": 0.0118,
+          "ci95": [
+            -0.0263,
+            0.0505
+          ],
+          "p_gt_0": 0.722,
+          "n_scored": 2065,
+          "n_pos": 65
+        },
+        "marginal_gems_mapped_only": {
+          "point": -0.0014,
+          "ci95": [
+            -0.0465,
+            0.0424
+          ],
+          "p_gt_0": 0.4845,
+          "n_scored": 1596,
+          "n_pos": 63
+        }
+      },
+      "all_ofr_geology": {
+        "auc_full": 0.7349,
+        "marginal_full": {
+          "point": 0.0563,
+          "ci95": [
+            0.0099,
+            0.1029
+          ],
+          "p_gt_0": 0.9935,
+          "n_scored": 2065,
+          "n_pos": 65
+        }
+      }
+    }
+  },
+  "presence_cv_delta_lode_ablation": {
+    "n": 2030,
+    "n_pos": 30,
+    "dropped_geology_cols": [
+      "geol_DOx",
+      "geol_Dcs",
+      "geol_Ocs",
+      "geol_Qs",
+      "geol_water",
+      "akmag",
+      "dist_fault"
+    ],
+    "kept_terrain_cols": [
+      "dem",
+      "slope",
+      "tpi"
+    ],
+    "auc_terrain_only": 0.5734,
+    "auc_with_mapped_geology": 0.8059,
+    "marginal_geology_over_terrain": {
+      "point": 0.2325,
+      "ci95": [
+        0.1261,
+        0.3298
+      ],
+      "p_gt_0": 1.0,
+      "n_scored": 2030,
+      "n_pos": 30
+    },
+    "scheme": {
+      "block_size_m": 900.0,
+      "variogram_range_m": 449.9,
+      "note": "arm=with-geology, base=terrain-only; d>0 => geology helps lode"
+    }
+  }
+}
