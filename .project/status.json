@@ -1,7 +1,7 @@
 {
   "module": "ai-minerals",
   "display_name": "District Prospectivity + Regional MPM",
-  "updated": "2026-07-12T09:00:00Z",
+  "updated": "2026-07-12T15:42:25Z",
   "health": "yellow",
   "phase": {
     "current": "Phase 2: regional MPM (placer ratified + lode v0) + claim coverage",
@@ -13,7 +13,7 @@
   "tasks": {
     "todo": 8,
     "in_progress": 1,
-    "done": 61,
+    "done": 62,
     "blocked": 2
   },
   "open_bugs_local": 0,
@@ -25,6 +25,10 @@
     "grade-regression decision (recommend skip continuous on 104 holes; ordinal-band optional)"
   ],
   "top_issues": [
+    {
+      "severity": "med",
+      "text": "ML STEP-3 PART A DONE (coordinator 2026-07-12 dggs-presence-delta). Question: does independently-mapped geology/structure improve the leak-guarded PLACER PRESENCE model beyond the pure-geomorph baseline (AUC 0.679)? ANSWER: no, not once the sampling-effort confound is removed. INVENTORY: the 0.679 base (POP bands + dem/slope/tpi) contains NO mapped geology; geology_unit_code / dist_to_fault / akmag feed the LODE model only, so the question was genuinely open. Built ONE new field (covariates_mpm/dist_to_contact_nome_3338.tif, OFR 2009-1254 ARC_CODE 1, EDT); reused dist_to_fault + geology_unit_code + akmag + the GeMS PDF 94-39 structure bands (nome_structure). INDEPENDENCE CHECKS (contract sec.2 i/ii): (1) occurrence-density confound: OFR faults 11.6x denser inside the 1.5km occurrence buffer than outside, OFR contacts 2.05x, GeMS NE/NW 3.0/2.4x, GeMS footprint covers 96.9% of positives vs 77% of cells; (2) fault vs coverage-uniform akmag: spearman(dist_to_fault,akmag)=0.02, aeromag-gradient ratio at fault cells vs random 0.84 -> no geophysical corroboration; (3) variance: all distance fields have real spread, carbonaceous_host is 2.1% of cells (no-variance for placer), Qs unit already encoded by terrain. PLACER DELTA (F1 recipe, base reproduces 0.6786, paired bootstrap 2000): dist_to_fault +0.070 CI[0.018,0.127] but fails both checks -> DROP (distance-to-mining proxy in a geology costume); dist_to_contact +0.035 CI[0.007,0.065], 2.05x confound -> SUSPECT not banked; host_rock_onehot -0.010 clean no-signal -> DROP; gems_structure +0.012 full / -0.001 on mapped-only subset -> DROP. VERDICT: presence skill stays at 0.679, no trustworthy mapped-geology delta (the expected fallback one rung down: the fields that raise AUC are the ones leaking). LODE CONTRAST: terrain-only 0.573 -> +mapped-geology 0.806, +0.233 CI[0.126,0.330]; structure is where lode signal lives, but the same dist_to_fault confound means the clean-separable share is smaller than the point estimate. Tuck favorability OUT of scope (gated behind sec.4 hindsight audit). Deliverables: scripts/nome_placer/placer_mapped_geology_delta.py + force-added data/derived/nome_placer/mapped_geology_delta/{REPORT.md, placer_mapped_geology_delta.json}; the new raster stays gitignored like the other covariates (regenerable). Committed + pushed main 445a924, no deploy, 0 banned/0 dash. Reply: portfolio/handoff/inbox/2026-07-12-from-ai-minerals-dggs-presence-delta.md."
+    },
     {
       "severity": "med",
       "text": "ML STEP-3 PART C DONE (coordinator 2026-07-12 ml-step3-harness-rewrite; build-now, data-independent). Rewrote scripts/nome_placer/drillgold_capture_validation.py to the binding leak-free evaluation contract (plan \u00a71). Replaced fixed-served-surface scoring with LEAVE-ONE-WATERSHED-OUT REFIT of the GEOMORPH placer presence RF (served-identical features, zero Tuck features -> no labels-on-both-sides); replaced the no-op _loo_drainage_auc (preds==mpm) with a real per-watershed refit + within-watershed AUC, equal-weight primary / pooled labelled SECONDARY; replaced the 1.5 km point-cluster with DEM CATCHMENT basins (new src module ai_minerals/watersheds.py, D8 whole-basins via pyflwdir; Little Creek = one 42 km2 catchment, knob-free); added the LINE-RESTRICTED PERMUTATION-NULL falsification test; kept the Moffit-1913 5/10/20/40 cutoff ladder + cutoff-agnostic median split; added \u00a76 support-shrink label-flip counts; DROPPED the lode grade number (\u00a71). DRY-RUN on the current single drainage HONESTLY UNDERPOWERED, not leaked: within-watershed AUC 0.475 at 10 c/yd (chance), sits INSIDE the line-permutation band [0.24,0.64] p=0.50 at every cutoff -> 'grade untested, too few independent drainages' (\u00a77). All three paths exercised at k=1 (LODO dropped 18 basin-37 positives + 1 km dead zone, refit, scored 23 blocks; 7-line permutation null; pyflwdir basins). \u00a75 LEAK CHECKS all pass (grade model consumes none of feature_table.csv's nearest_occurrence/ms_claim/n_ms_claims leak cols; geomorph bands are occurrence-free; nothing Janin-derived is a feature). FLAG for coordinator: the currently-served lode surface (struct_groves-v1, 2026-06-27) lists NO pen_* feature, so \u00a71's stated pen_* reason is STALE for that surface; exclusion still holds (wrong model for placer grade + placer geomorph is the sole \u00a71 headline). Added pyflwdir>=0.5.12 to pyproject (uv.lock is gitignored; regenerate needs --index-strategy unsafe-best-match due to a PRE-EXISTING torch_cpu-index/requests conflict, not from this change). In-tree, no deploy, commit main. Reply: portfolio/handoff/inbox/2026-07-12-from-ai-minerals-ml-step3-harness-rewrite.md."
