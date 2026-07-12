@@ -1,5 +1,24 @@
 # Does the placer MPM predict drill grade? The corrected capture-efficiency test
 
+> **Superseded design note (2026-07-12).** The harness
+> `scripts/nome_placer/drillgold_capture_validation.py` was rewritten to the binding
+> leak-free evaluation contract (ML step 3 Part C; plan
+> `portfolio/docs/reports/ml_step3_g1_validation_plan_2026-07-12.md` §1). A Fable-5
+> adversarial review found the design the prose below describes would report a
+> leaked-optimistic number: it scored a fixed served surface already fit over the
+> drilled ground, its leave-one-drainage-out step was a no-op, and it clustered
+> "drainages" by a 1.5 km point threshold that lets one creek fake several. The
+> rewritten harness instead refits the geomorph presence model leave-one-**watershed**-out
+> (a held-out surface per DEM catchment, no Tuck feature on either side), reads the
+> capture within each watershed and averages equal-weight, defines watersheds as DEM
+> catchment polygons, and adds a drill-line permutation-null falsification test. On
+> the one positioned drainage available today (Little Creek) the corrected dry run
+> reports the underpowered state, not a grade result: within-watershed AUC 0.475 at
+> the 10 c/yd cutoff, sitting inside the line-permutation null band at every cutoff,
+> so grade skill stays untested until more drainages position. The narrative below
+> still describes the earlier fixed-surface numbers; it will be rewritten when the
+> multi-creek run lands.
+
 *Self-contained report. This rebuilds the drill-gold validation on the design that
 Sky's NotebookLM adversarial review prescribed, after that review found the first
 attempt (a raw Spearman of point grade against the smoothed block-support MPM in

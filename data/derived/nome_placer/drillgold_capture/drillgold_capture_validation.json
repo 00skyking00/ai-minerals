@@ -1,13 +1,49 @@
 {
-  "task": "coordinator 2026-07-05 drillgold-validation-corrected-design",
-  "status": "LABELED methods-validation / underpowered baseline. One drainage (Little Creek), so this cannot be conclusive and is NOT a G-result. The authoritative multi-creek run follows the positioned Tuck drill facts (fossick Map B Track 2).",
-  "design_review": "supersedes validate_mpm_vs_drillgold.py; the single-creek raw Spearman near zero is a change-of-support / range-restriction / low-n artifact, not a model verdict",
+  "task": "coordinator 2026-07-12 ML-step-3 Part C: leak-free grade-capture harness",
+  "contract": "portfolio/docs/reports/ml_step3_g1_validation_plan_2026-07-12.md \u00a71",
+  "status": {
+    "n_independent_watersheds": 1,
+    "claim_rung": "underpowered: k<3, grade untested; a null here means 'cannot distinguish'",
+    "presence_baseline": "placer_onshore AUC 0.679 under leak-guarded spatial CV (65 positives), the validated presence number",
+    "grade_statement": "Grade-level skill remains UNTESTED: the historic drilling spans too few independent drainages to distinguish a grade-predictive model from a presence-only one. The corrected capture harness (watershed-LODO refit, line-permutation null, DEM catchments, real-negatives-only) is in place and strengthens as more drainages position."
+  },
+  "dry_run": "k=1 positioned drainage (Little Creek, Janin 1912, 47 collars). The LODO-refit / permutation-null / DEM-catchment paths are all exercised here and generalise unchanged to multi-creek data.",
+  "design_change_vs_prior": [
+    "REPLACED fixed-served-surface scoring with leave-one-WATERSHED-out REFIT of the GEOMORPH presence RF (held-out surface per watershed).",
+    "REPLACED the no-op _loo_drainage_auc (preds == mpm) with real per-watershed refit + within-watershed AUC.",
+    "REPLACED the 1.5 km point-cluster 'drainages' with DEM catchment basins.",
+    "ADDED the line-restricted permutation-null falsification test.",
+    "ADDED \u00a75 leak verifications, \u00a76 support-shrink label-flip counts.",
+    "DROPPED the lode grade-capture number (contract \u00a71)."
+  ],
   "ground_truth": {
     "source": "fossick/exports/phase4/drill_gold_points.geojson",
     "subset": "collar-positioned, grade-bearing drill holes",
     "n_holes": 47,
+    "n_blocks": 23,
     "n_drainages": 1,
-    "grade_field": "value_c_cuyd (cents-gold per cubic yard, $20.67/oz basis)"
+    "grade_field": "value_c_cuyd (cents-gold/cu-yd, $20.67/oz basis)"
+  },
+  "watersheds": {
+    "definition": "DEM catchment polygons (D8 whole-basins, pyflwdir) on ifsar_dem_3338.tif",
+    "n_basins_total": 56,
+    "n_drilled_basins": 1,
+    "drilled_basin_area_km2": {
+      "37": 42.43
+    },
+    "engine": "pyflwdir 0.5.12",
+    "note": "knob-free: no channel-initiation threshold or pour point. Little Creek's 47 collars fall in ONE catchment -> 1 independent drainage, which is exactly why grade is underpowered",
+    "drainage_map": {
+      "n_drilled_basins": 1,
+      "basin_ids": [
+        37
+      ],
+      "basin_area_km2": {
+        "37": 42.43
+      },
+      "geojson": "drainage_map.geojson",
+      "png": "drainage_map.png"
+    }
   },
   "economic_cutoff": {
     "headline_c_per_cuyd": 10.0,
@@ -18,673 +54,776 @@
       20.0,
       40.0
     ],
-    "decision": "Sky 2026-07-05: the headline economic-presence threshold is 10 c/yd, the Moffit-1913 dredge-workable anchor (~0.0048 oz/yd at the $20.67/oz basis). The full 5/10/20/40 ladder stays reported alongside; the median rich/lean split (median_split_ordering_check) is the ordering-only secondary check.",
-    "rationale": "10 c/yd is the order of magnitude of workable dredge-era placer ground on the Seward Peninsula (Moffit 1913, USGS Bull. 533; Tuck 1942 normalizes the pre-1934 gold price). Little Creek was drift-mined for much richer bench gravel, so here 10 c/yd separates workable from lean, not pay from barren; the null holds at every cutoff regardless."
+    "basis": "Moffit-1913 dredge-workable anchor at $20.67/oz; historic terms kept, not converted to modern price (contract \u00a76). Headline is drill-measured c/yd; panning ticks are labelled secondary"
   },
-  "barren_domain": {
-    "problem": "historic placer records report successes, so true barren-ground negatives are scarce. This run avoids fabricated negatives by taking the sub-economic class from real low-grade drill blocks (the lean tail of the same holes), so both classes are measured.",
-    "for_district_capture": "the district-percentile capture needs a background; proposed pseudo-absences = low-prospectivity non-drilled cells, but that is circular (drawing negatives from low-MPM ground guarantees the MPM wins), so it is reported only with that caveat",
-    "data_hunt": "genuine barren negatives would come from drill/pit logs that hit no pay: Janin's Dry Creek sub-pay holes and Tuck 1942 barren property assessments are candidates; not yet positioned"
+  "negatives_policy": {
+    "rule": "real drilled/panned sub-economic reads ONLY; never low-MPM cells",
+    "current": "sub-economic class = the lean tail of the Little Creek drilled blocks (real reads). The 52 Tuck barren/sub-economic reads add more real negatives when fossick positions them"
   },
-  "data_dependency": "authoritative run gated on fossick Map B Track 2 positioning ~45 Tuck drill facts across additional creeks; current export has only 10 Tuck claim-centroid points with no grade",
-  "placer_mpm": {
-    "raster": "mpm_onshore_score_district_3338.tif",
-    "resolution_m": 25,
-    "n_holes": 47,
-    "n_distinct_blocks": 23,
-    "n_drainages": 1,
-    "block_grade_c_range": [
-      1.3649861538461538,
-      200.47421642857142
-    ],
-    "block_mpm_range": [
-      0.006666666828095913,
-      0.1966666728258133
-    ],
-    "block_mpm_district_percentile": {
+  "lodo_refit": {
+    "dead_zone_m": 1000.0,
+    "model": "GEOMORPH RandomForest(300, balanced, seed=42), served-identical, zero Tuck features",
+    "per_watershed_refit": {
+      "37": {
+        "n_train_kept": 1819,
+        "n_train_pos_dropped": 18,
+        "n_blocks_scored": 23
+      }
+    },
+    "note": "each drilled watershed's blocks are scored by a model refit with that watershed's occurrences + a 1 km dead zone removed"
+  },
+  "capture_by_cutoff": {
+    "cutoff_5c": {
+      "cutoff_c_per_cuyd": 5.0,
+      "cutoff_oz_per_cuyd": 0.00242,
+      "per_watershed": {
+        "37": {
+          "n_blocks": 23,
+          "n_economic": 19,
+          "n_subeconomic": 4,
+          "within_watershed_auc": 0.5394736842105263,
+          "within_set_capture": {
+            "top_10pct": {
+              "k_blocks": 2,
+              "captured": 2,
+              "of_economic": 19,
+              "frac_captured": 0.10526315789473684,
+              "lift_vs_random": 1.0526315789473684
+            },
+            "top_20pct": {
+              "k_blocks": 5,
+              "captured": 4,
+              "of_economic": 19,
+              "frac_captured": 0.21052631578947367,
+              "lift_vs_random": 1.0526315789473684
+            },
+            "top_50pct": {
+              "k_blocks": 12,
+              "captured": 9,
+              "of_economic": 19,
+              "frac_captured": 0.47368421052631576,
+              "lift_vs_random": 0.9473684210526315
+            }
+          },
+          "bootstrap": {
+            "ci95": [
+              0.2236842105263158,
+              0.9047619047619048
+            ],
+            "median": 0.5394736842105263,
+            "frac_gt_0_5": 0.571689312512675,
+            "n_valid_resamples": 4931,
+            "cluster_unit": "block (within one drainage)"
+          },
+          "permutation_null": {
+            "observed_auc": 0.5394736842105263,
+            "n_lines": 7,
+            "null_defined": true,
+            "null_mean": 0.47601902274067526,
+            "null_ci90": [
+              0.15000000000000002,
+              0.7166666666666668
+            ],
+            "p_value_upper": 0.437,
+            "inside_null_band": true,
+            "n_perm_valid": 2000
+          }
+        }
+      },
+      "n_watersheds_with_auc": 1,
+      "equal_weight_within_watershed_auc": 0.5394736842105263,
+      "pooled_cross_watershed_auc_SECONDARY": 0.5394736842105263,
+      "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+      "auc_mpm_as_econ_classifier": 0.5394736842105263
+    },
+    "cutoff_10c": {
+      "cutoff_c_per_cuyd": 10.0,
+      "cutoff_oz_per_cuyd": 0.00484,
+      "per_watershed": {
+        "37": {
+          "n_blocks": 23,
+          "n_economic": 17,
+          "n_subeconomic": 6,
+          "within_watershed_auc": 0.47549019607843135,
+          "within_set_capture": {
+            "top_10pct": {
+              "k_blocks": 2,
+              "captured": 2,
+              "of_economic": 17,
+              "frac_captured": 0.11764705882352941,
+              "lift_vs_random": 1.176470588235294
+            },
+            "top_20pct": {
+              "k_blocks": 5,
+              "captured": 4,
+              "of_economic": 17,
+              "frac_captured": 0.23529411764705882,
+              "lift_vs_random": 1.176470588235294
+            },
+            "top_50pct": {
+              "k_blocks": 12,
+              "captured": 8,
+              "of_economic": 17,
+              "frac_captured": 0.47058823529411764,
+              "lift_vs_random": 0.9411764705882353
+            }
+          },
+          "bootstrap": {
+            "ci95": [
+              0.21540616246498603,
+              0.7368421052631579
+            ],
+            "median": 0.4722222222222222,
+            "frac_gt_0_5": 0.4077708792309233,
+            "n_valid_resamples": 4993,
+            "cluster_unit": "block (within one drainage)"
+          },
+          "permutation_null": {
+            "observed_auc": 0.47549019607843135,
+            "n_lines": 7,
+            "null_defined": true,
+            "null_mean": 0.4609266797508477,
+            "null_ci90": [
+              0.23666666666666666,
+              0.6444444444444445
+            ],
+            "p_value_upper": 0.5025,
+            "inside_null_band": true,
+            "n_perm_valid": 2000
+          }
+        }
+      },
+      "n_watersheds_with_auc": 1,
+      "equal_weight_within_watershed_auc": 0.47549019607843135,
+      "pooled_cross_watershed_auc_SECONDARY": 0.47549019607843135,
+      "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+      "auc_mpm_as_econ_classifier": 0.47549019607843135
+    },
+    "cutoff_20c": {
+      "cutoff_c_per_cuyd": 20.0,
+      "cutoff_oz_per_cuyd": 0.00968,
+      "per_watershed": {
+        "37": {
+          "n_blocks": 23,
+          "n_economic": 11,
+          "n_subeconomic": 12,
+          "within_watershed_auc": 0.36742424242424243,
+          "within_set_capture": {
+            "top_10pct": {
+              "k_blocks": 2,
+              "captured": 1,
+              "of_economic": 11,
+              "frac_captured": 0.09090909090909091,
+              "lift_vs_random": 0.9090909090909091
+            },
+            "top_20pct": {
+              "k_blocks": 5,
+              "captured": 3,
+              "of_economic": 11,
+              "frac_captured": 0.2727272727272727,
+              "lift_vs_random": 1.3636363636363635
+            },
+            "top_50pct": {
+              "k_blocks": 12,
+              "captured": 4,
+              "of_economic": 11,
+              "frac_captured": 0.36363636363636365,
+              "lift_vs_random": 0.7272727272727273
+            }
+          },
+          "bootstrap": {
+            "ci95": [
+              0.11363636363636362,
+              0.6323585115864526
+            ],
+            "median": 0.36607142857142855,
+            "frac_gt_0_5": 0.1538,
+            "n_valid_resamples": 5000,
+            "cluster_unit": "block (within one drainage)"
+          },
+          "permutation_null": {
+            "observed_auc": 0.36742424242424243,
+            "n_lines": 7,
+            "null_defined": true,
+            "null_mean": 0.5054276069722761,
+            "null_ci90": [
+              0.3214285714285714,
+              0.6916666666666667
+            ],
+            "p_value_upper": 0.8695,
+            "inside_null_band": true,
+            "n_perm_valid": 2000
+          }
+        }
+      },
+      "n_watersheds_with_auc": 1,
+      "equal_weight_within_watershed_auc": 0.36742424242424243,
+      "pooled_cross_watershed_auc_SECONDARY": 0.36742424242424243,
+      "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+      "auc_mpm_as_econ_classifier": 0.36742424242424243
+    },
+    "cutoff_40c": {
+      "cutoff_c_per_cuyd": 40.0,
+      "cutoff_oz_per_cuyd": 0.01935,
+      "per_watershed": {
+        "37": {
+          "n_blocks": 23,
+          "n_economic": 8,
+          "n_subeconomic": 15,
+          "within_watershed_auc": 0.4833333333333333,
+          "within_set_capture": {
+            "top_10pct": {
+              "k_blocks": 2,
+              "captured": 1,
+              "of_economic": 8,
+              "frac_captured": 0.125,
+              "lift_vs_random": 1.25
+            },
+            "top_20pct": {
+              "k_blocks": 5,
+              "captured": 3,
+              "of_economic": 8,
+              "frac_captured": 0.375,
+              "lift_vs_random": 1.875
+            },
+            "top_50pct": {
+              "k_blocks": 12,
+              "captured": 4,
+              "of_economic": 8,
+              "frac_captured": 0.5,
+              "lift_vs_random": 1.0
+            }
+          },
+          "bootstrap": {
+            "ci95": [
+              0.16666666666666666,
+              0.803921568627451
+            ],
+            "median": 0.4846153846153846,
+            "frac_gt_0_5": 0.4518903780756151,
+            "n_valid_resamples": 4999,
+            "cluster_unit": "block (within one drainage)"
+          },
+          "permutation_null": {
+            "observed_auc": 0.4833333333333333,
+            "n_lines": 7,
+            "null_defined": true,
+            "null_mean": 0.5307366550589074,
+            "null_ci90": [
+              0.33333333333333337,
+              0.7678571428571428
+            ],
+            "p_value_upper": 0.606,
+            "inside_null_band": true,
+            "n_perm_valid": 2000
+          }
+        }
+      },
+      "n_watersheds_with_auc": 1,
+      "equal_weight_within_watershed_auc": 0.4833333333333333,
+      "pooled_cross_watershed_auc_SECONDARY": 0.4833333333333333,
+      "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+      "auc_mpm_as_econ_classifier": 0.4833333333333333
+    }
+  },
+  "median_split_ordering_check": {
+    "median_block_grade_c": 15.687449565217392,
+    "n_rich_ge_median": 12,
+    "n_lean_lt_median": 11,
+    "auc_held_out_orders_grade": 0.4090909090909091,
+    "bootstrap": {
+      "ci95": [
+        0.16666666666666669,
+        0.6666666666666666
+      ],
+      "median": 0.4083333333333333,
+      "frac_gt_0_5": 0.242,
+      "n_valid_resamples": 5000,
+      "cluster_unit": "block (within one drainage)"
+    },
+    "note": "held-out refit surface; rank discrimination, cutoff-agnostic"
+  },
+  "change_of_support_label_flips": {
+    "mean_block_grade_c": 42.319436595068794,
+    "by_cutoff": {
+      "cutoff_5c": {
+        "f_1.0": {
+          "variance_ratio": 1.0,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.85": {
+          "variance_ratio": 0.85,
+          "n_label_flips": 2,
+          "of_blocks": 23
+        },
+        "f_0.7": {
+          "variance_ratio": 0.7,
+          "n_label_flips": 4,
+          "of_blocks": 23
+        },
+        "f_0.5": {
+          "variance_ratio": 0.5,
+          "n_label_flips": 4,
+          "of_blocks": 23
+        }
+      },
+      "cutoff_10c": {
+        "f_1.0": {
+          "variance_ratio": 1.0,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.85": {
+          "variance_ratio": 0.85,
+          "n_label_flips": 2,
+          "of_blocks": 23
+        },
+        "f_0.7": {
+          "variance_ratio": 0.7,
+          "n_label_flips": 3,
+          "of_blocks": 23
+        },
+        "f_0.5": {
+          "variance_ratio": 0.5,
+          "n_label_flips": 6,
+          "of_blocks": 23
+        }
+      },
+      "cutoff_20c": {
+        "f_1.0": {
+          "variance_ratio": 1.0,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.85": {
+          "variance_ratio": 0.85,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.7": {
+          "variance_ratio": 0.7,
+          "n_label_flips": 1,
+          "of_blocks": 23
+        },
+        "f_0.5": {
+          "variance_ratio": 0.5,
+          "n_label_flips": 5,
+          "of_blocks": 23
+        }
+      },
+      "cutoff_40c": {
+        "f_1.0": {
+          "variance_ratio": 1.0,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.85": {
+          "variance_ratio": 0.85,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.7": {
+          "variance_ratio": 0.7,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        },
+        "f_0.5": {
+          "variance_ratio": 0.5,
+          "n_label_flips": 0,
+          "of_blocks": 23
+        }
+      }
+    },
+    "note": "shrunk grade = mean + sqrt(f)*(grade-mean); f<1 shrinks toward the mean (block > point support). Flips flag cutoff-adjacent instability under an unestimated point-support variogram."
+  },
+  "feature_space_independence": {
+    "n_drilled_watersheds": 1,
+    "pairwise_overlap": null,
+    "note": "single drilled watershed: feature-space independence is n/a"
+  },
+  "served_surface_secondary": {
+    "caveat": "fixed served surface, fit over Little Creek -> in-sample / restriction-of-range. Descriptive consistency, never the headline.",
+    "spearman_observed": {
+      "rho": -0.10656808716953019,
+      "p": 0.6284118218797478
+    },
+    "pearson_observed": {
+      "r": -0.10201059874707992,
+      "p": 0.6432534690150356
+    },
+    "restriction_ratio_u": 1.1739024820930444,
+    "pearson_disattenuated_thorndike": -0.11951563744280112,
+    "disattenuation_stable": true,
+    "disattenuation_note": "u<=10: mild restriction, interpretable",
+    "district_percentile_capture": {
+      "district_top_1pct": {
+        "percentile_threshold": 99.0,
+        "frac_economic_here": 0.0,
+        "lift_vs_random": 0.0
+      },
+      "district_top_5pct": {
+        "percentile_threshold": 95.0,
+        "frac_economic_here": 0.11764705882352941,
+        "lift_vs_random": 2.352941176470588
+      },
+      "district_top_10pct": {
+        "percentile_threshold": 90.0,
+        "frac_economic_here": 0.17647058823529413,
+        "lift_vs_random": 1.7647058823529411
+      },
+      "district_top_20pct": {
+        "percentile_threshold": 80.0,
+        "frac_economic_here": 0.4117647058823529,
+        "lift_vs_random": 2.0588235294117645
+      }
+    },
+    "served_mpm_percentile_at_blocks": {
       "min": 54.49111337260102,
       "median": 76.71693341968113,
       "max": 97.51201844827527
-    },
-    "support_correction": {
-      "applied": "block mean only (point->block aggregation)",
-      "affine_variance_shrink": "not applied; f=1",
-      "reason": "one hole per cell in one creek; point-support variogram not estimable"
-    },
-    "correlation_secondary": {
-      "pearson_observed": {
-        "r": -0.10201059874707992,
-        "p": 0.6432534690150356
-      },
-      "spearman_observed": {
-        "rho": -0.10656808716953019,
-        "p": 0.6284118218797478
-      },
-      "mpm_sd_restricted": 0.04776562262086892,
-      "mpm_sd_unrestricted": 0.0560721829533577,
-      "restriction_ratio_u": 1.1739024820930444,
-      "pearson_disattenuated_thorndike_case2": -0.11951563744280112,
-      "disattenuation_stable": true,
-      "disattenuation_note": "u<=10: mild restriction, the disattenuated r is interpretable",
-      "reliability_note": "not further corrected for assay unreliability: single churn-drill assays with no duplicates cannot estimate reliability, so the disattenuated r is an upper-ish bound on the range-restriction correction alone"
-    },
-    "capture_by_cutoff": {
-      "cutoff_5c": {
-        "cutoff_c_per_cuyd": 5.0,
-        "cutoff_oz_per_cuyd": 0.00242,
-        "n_economic_blocks": 19,
-        "n_subeconomic_blocks": 4,
-        "auc_mpm_as_econ_classifier": 0.48026315789473684,
-        "auc_bootstrap": {
-          "ci95": [
-            0.15,
-            0.9090909090909092
-          ],
-          "median": 0.4743421052631579,
-          "frac_gt_0_5": 0.4350162206001622,
-          "n_valid_resamples": 9864,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 2,
-            "of_economic": 19,
-            "frac_captured": 0.10526315789473684,
-            "lift_vs_random": 1.0526315789473684
-          },
-          "top_20pct": {
-            "k_blocks": 5,
-            "captured": 4,
-            "of_economic": 19,
-            "frac_captured": 0.21052631578947367,
-            "lift_vs_random": 1.0526315789473684
-          },
-          "top_50pct": {
-            "k_blocks": 12,
-            "captured": 9,
-            "of_economic": 19,
-            "frac_captured": 0.47368421052631576,
-            "lift_vs_random": 0.9473684210526315
-          }
-        },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.10526315789473684,
-            "lift_vs_random": 2.1052631578947367
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.15789473684210525,
-            "lift_vs_random": 1.5789473684210524
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.42105263157894735,
-            "lift_vs_random": 2.1052631578947367
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
-      },
-      "cutoff_10c": {
-        "cutoff_c_per_cuyd": 10.0,
-        "cutoff_oz_per_cuyd": 0.00484,
-        "n_economic_blocks": 17,
-        "n_subeconomic_blocks": 6,
-        "auc_mpm_as_econ_classifier": 0.47058823529411764,
-        "auc_bootstrap": {
-          "ci95": [
-            0.19196428571428573,
-            0.75
-          ],
-          "median": 0.47058823529411764,
-          "frac_gt_0_5": 0.40758910692831396,
-          "n_valid_resamples": 9988,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 2,
-            "of_economic": 17,
-            "frac_captured": 0.11764705882352941,
-            "lift_vs_random": 1.176470588235294
-          },
-          "top_20pct": {
-            "k_blocks": 5,
-            "captured": 4,
-            "of_economic": 17,
-            "frac_captured": 0.23529411764705882,
-            "lift_vs_random": 1.176470588235294
-          },
-          "top_50pct": {
-            "k_blocks": 12,
-            "captured": 8,
-            "of_economic": 17,
-            "frac_captured": 0.47058823529411764,
-            "lift_vs_random": 0.9411764705882353
-          }
-        },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.11764705882352941,
-            "lift_vs_random": 2.352941176470588
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.17647058823529413,
-            "lift_vs_random": 1.7647058823529411
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.4117647058823529,
-            "lift_vs_random": 2.0588235294117645
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
-      },
-      "cutoff_20c": {
-        "cutoff_c_per_cuyd": 20.0,
-        "cutoff_oz_per_cuyd": 0.00968,
-        "n_economic_blocks": 11,
-        "n_subeconomic_blocks": 12,
-        "auc_mpm_as_econ_classifier": 0.44318181818181823,
-        "auc_bootstrap": {
-          "ci95": [
-            0.20453598484848484,
-            0.6964420995670993
-          ],
-          "median": 0.44230769230769224,
-          "frac_gt_0_5": 0.3159,
-          "n_valid_resamples": 10000,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 1,
-            "of_economic": 11,
-            "frac_captured": 0.09090909090909091,
-            "lift_vs_random": 0.9090909090909091
-          },
-          "top_20pct": {
-            "k_blocks": 5,
-            "captured": 2,
-            "of_economic": 11,
-            "frac_captured": 0.18181818181818182,
-            "lift_vs_random": 0.9090909090909091
-          },
-          "top_50pct": {
-            "k_blocks": 12,
-            "captured": 5,
-            "of_economic": 11,
-            "frac_captured": 0.45454545454545453,
-            "lift_vs_random": 0.9090909090909091
-          }
-        },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.09090909090909091,
-            "lift_vs_random": 1.8181818181818181
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.09090909090909091,
-            "lift_vs_random": 0.9090909090909091
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.45454545454545453,
-            "lift_vs_random": 2.2727272727272725
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
-      },
-      "cutoff_40c": {
-        "cutoff_c_per_cuyd": 40.0,
-        "cutoff_oz_per_cuyd": 0.01935,
-        "n_economic_blocks": 8,
-        "n_subeconomic_blocks": 15,
-        "auc_mpm_as_econ_classifier": 0.5875,
-        "auc_bootstrap": {
-          "ci95": [
-            0.3277777777777778,
-            0.8295454545454545
-          ],
-          "median": 0.5909090909090908,
-          "frac_gt_0_5": 0.7416224867460238,
-          "n_valid_resamples": 9997,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 1,
-            "of_economic": 8,
-            "frac_captured": 0.125,
-            "lift_vs_random": 1.25
-          },
-          "top_20pct": {
-            "k_blocks": 5,
-            "captured": 2,
-            "of_economic": 8,
-            "frac_captured": 0.25,
-            "lift_vs_random": 1.25
-          },
-          "top_50pct": {
-            "k_blocks": 12,
-            "captured": 5,
-            "of_economic": 8,
-            "frac_captured": 0.625,
-            "lift_vs_random": 1.25
-          }
-        },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.125,
-            "lift_vs_random": 2.5
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.125,
-            "lift_vs_random": 1.25
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.625,
-            "lift_vs_random": 3.125
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
-      }
-    },
-    "median_split_ordering_check": {
-      "median_block_grade_c": 15.687449565217392,
-      "n_rich_ge_median": 12,
-      "n_lean_lt_median": 11,
-      "auc_mpm_orders_grade": 0.4507575757575758,
-      "auc_bootstrap": {
-        "ci95": [
-          0.20769230769230768,
-          0.7076923076923077
-        ],
-        "median": 0.446969696969697,
-        "frac_gt_0_5": 0.3418,
-        "n_valid_resamples": 10000,
-        "cluster_unit": "block (within one drainage)"
-      },
-      "note": "ordering-only, agnostic to the economic cutoff: rich = block grade at or above the sample median. Tests rank discrimination (does the MPM order the blocks by grade), not economic presence."
-    },
-    "headline_cutoff_c": 10.0
+    }
   },
-  "lode_mpm": {
-    "raster": "mpm_lode_served_district_3338.tif",
-    "resolution_m": 100,
-    "n_holes": 47,
-    "n_distinct_blocks": 20,
-    "n_drainages": 1,
-    "block_grade_c_range": [
-      1.3649861538461538,
-      200.47421642857142
-    ],
-    "block_mpm_range": [
-      0.0,
-      0.009999999776482582
-    ],
-    "block_mpm_district_percentile": {
-      "min": 36.6550645149949,
-      "median": 49.15655873149809,
-      "max": 63.0439827022466
+  "leak_verifications": {
+    "sampling_effort_leak_columns": {
+      "columns": [
+        "nearest_occurrence_distance_m",
+        "nearest_ms_claim_distance_m",
+        "n_ms_claims_within_400m"
+      ],
+      "present_in_feature_table": [
+        "nearest_occurrence_distance_m",
+        "nearest_ms_claim_distance_m",
+        "n_ms_claims_within_400m"
+      ],
+      "consumed_by_grade_model": [],
+      "pass": true,
+      "note": "feature_table.csv is the fossick Part-A export; the grade model reads only v3.1 geomorph bands + DEM/slope/TPI and never touches it"
     },
-    "support_correction": {
-      "applied": "block mean only (point->block aggregation)",
-      "affine_variance_shrink": "not applied; f=1",
-      "reason": "one hole per cell in one creek; point-support variogram not estimable"
+    "geomorph_population_bands": {
+      "bands": [
+        "True beach (BL)",
+        "Abrasion platform / sloughover (AP)",
+        "Tertiary buried high-bench (TB)",
+        "Marine sea-stand (SS)",
+        "Beach-stream confluence (BC)",
+        "Off-beach modern creek (QM)",
+        "Buried true beach (Phase 1.5)"
+      ],
+      "model_features": [
+        "bl",
+        "ap",
+        "tb",
+        "ss",
+        "bc",
+        "qm",
+        "buried_bl",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "pass": true,
+      "note": "7 v3.1 population bands are geomorphic domains (beach / abrasion platform / buried bench / sea-stand / confluence / off-beach creek), not occurrence-weighted layers; composite band 8 is NOT a feature"
     },
-    "correlation_secondary": {
-      "pearson_observed": {
-        "r": 0.18117019345568897,
-        "p": 0.44462454830183673
-      },
-      "spearman_observed": {
-        "rho": 0.35795504296706365,
-        "p": 0.12123389214618945
-      },
-      "mpm_sd_restricted": 0.002483866050755202,
-      "mpm_sd_unrestricted": 0.07807281613349915,
-      "restriction_ratio_u": 31.431975210483532,
-      "pearson_disattenuated_thorndike_case2": 0.9854127039540106,
-      "disattenuation_stable": false,
-      "disattenuation_note": "u>10: the MPM range at the drill blocks is a tiny slice of the district range, so Thorndike amplifies a non-significant r toward +-1; the disattenuated value is an artifact of extreme restriction, do not cite",
-      "reliability_note": "not further corrected for assay unreliability: single churn-drill assays with no duplicates cannot estimate reliability, so the disattenuated r is an upper-ish bound on the range-restriction correction alone"
+    "no_janin_feature": {
+      "model_features": [
+        "bl",
+        "ap",
+        "tb",
+        "ss",
+        "bc",
+        "qm",
+        "buried_bl",
+        "dem",
+        "slope",
+        "tpi"
+      ],
+      "pass": true,
+      "note": "Janin supplies the Little Creek grade LABELS only; no feature is derived from Janin. Features are v3.1 geomorph + IFSAR terrain"
     },
+    "lode_surface_excluded": {
+      "served_lode_features": [
+        "geol_Cd",
+        "geol_DOx",
+        "geol_Dcs",
+        "geol_Ds",
+        "geol_Ocs",
+        "geol_Oim",
+        "geol_Pzm",
+        "geol_Qs",
+        "geol_Zn",
+        "geol_water",
+        "akmag",
+        "dist_fault",
+        "dem",
+        "slope",
+        "tpi",
+        "dist_fault_intersection",
+        "dist_splay",
+        "dist_fold_hinge",
+        "carbonaceous_host"
+      ],
+      "pen_star_features_found": [],
+      "action": "lode grade-capture NOT computed (contract \u00a71)",
+      "note": "Contract \u00a71 directs exclusion citing pen_* Tuck favorability. The CURRENTLY served lode surface (struct_groves-v1, 2026-06-27) lists no pen_* feature, so the cited reason is stale for this surface; the exclusion still holds: a lode presence surface is the wrong model for placer grade labels, and \u00a71 designates the placer geomorph surface as the sole headline model. Flagged for the coordinator."
+    }
+  },
+  "placer_mpm": {
     "capture_by_cutoff": {
       "cutoff_5c": {
         "cutoff_c_per_cuyd": 5.0,
         "cutoff_oz_per_cuyd": 0.00242,
-        "n_economic_blocks": 18,
-        "n_subeconomic_blocks": 2,
-        "auc_mpm_as_econ_classifier": 0.8055555555555556,
-        "auc_bootstrap": {
-          "ci95": [
-            0.6939636752136752,
-            0.9166666666666667
-          ],
-          "median": 0.8055555555555556,
-          "frac_gt_0_5": 1.0,
-          "n_valid_resamples": 8752,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 2,
-            "of_economic": 18,
-            "frac_captured": 0.1111111111111111,
-            "lift_vs_random": 1.111111111111111
-          },
-          "top_20pct": {
-            "k_blocks": 4,
-            "captured": 4,
-            "of_economic": 18,
-            "frac_captured": 0.2222222222222222,
-            "lift_vs_random": 1.111111111111111
-          },
-          "top_50pct": {
-            "k_blocks": 10,
-            "captured": 10,
-            "of_economic": 18,
-            "frac_captured": 0.5555555555555556,
-            "lift_vs_random": 1.1111111111111112
+        "per_watershed": {
+          "37": {
+            "n_blocks": 23,
+            "n_economic": 19,
+            "n_subeconomic": 4,
+            "within_watershed_auc": 0.5394736842105263,
+            "within_set_capture": {
+              "top_10pct": {
+                "k_blocks": 2,
+                "captured": 2,
+                "of_economic": 19,
+                "frac_captured": 0.10526315789473684,
+                "lift_vs_random": 1.0526315789473684
+              },
+              "top_20pct": {
+                "k_blocks": 5,
+                "captured": 4,
+                "of_economic": 19,
+                "frac_captured": 0.21052631578947367,
+                "lift_vs_random": 1.0526315789473684
+              },
+              "top_50pct": {
+                "k_blocks": 12,
+                "captured": 9,
+                "of_economic": 19,
+                "frac_captured": 0.47368421052631576,
+                "lift_vs_random": 0.9473684210526315
+              }
+            },
+            "bootstrap": {
+              "ci95": [
+                0.2236842105263158,
+                0.9047619047619048
+              ],
+              "median": 0.5394736842105263,
+              "frac_gt_0_5": 0.571689312512675,
+              "n_valid_resamples": 4931,
+              "cluster_unit": "block (within one drainage)"
+            },
+            "permutation_null": {
+              "observed_auc": 0.5394736842105263,
+              "n_lines": 7,
+              "null_defined": true,
+              "null_mean": 0.47601902274067526,
+              "null_ci90": [
+                0.15000000000000002,
+                0.7166666666666668
+              ],
+              "p_value_upper": 0.437,
+              "inside_null_band": true,
+              "n_perm_valid": 2000
+            }
           }
         },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
+        "n_watersheds_with_auc": 1,
+        "equal_weight_within_watershed_auc": 0.5394736842105263,
+        "pooled_cross_watershed_auc_SECONDARY": 0.5394736842105263,
+        "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+        "auc_mpm_as_econ_classifier": 0.5394736842105263
       },
       "cutoff_10c": {
         "cutoff_c_per_cuyd": 10.0,
         "cutoff_oz_per_cuyd": 0.00484,
-        "n_economic_blocks": 15,
-        "n_subeconomic_blocks": 5,
-        "auc_mpm_as_econ_classifier": 0.74,
-        "auc_bootstrap": {
-          "ci95": [
-            0.4861111111111111,
-            0.9230769230769231
-          ],
-          "median": 0.75,
-          "frac_gt_0_5": 0.9655967903711133,
-          "n_valid_resamples": 9970,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 2,
-            "of_economic": 15,
-            "frac_captured": 0.13333333333333333,
-            "lift_vs_random": 1.3333333333333333
-          },
-          "top_20pct": {
-            "k_blocks": 4,
-            "captured": 4,
-            "of_economic": 15,
-            "frac_captured": 0.26666666666666666,
-            "lift_vs_random": 1.3333333333333333
-          },
-          "top_50pct": {
-            "k_blocks": 10,
-            "captured": 9,
-            "of_economic": 15,
-            "frac_captured": 0.6,
-            "lift_vs_random": 1.2
+        "per_watershed": {
+          "37": {
+            "n_blocks": 23,
+            "n_economic": 17,
+            "n_subeconomic": 6,
+            "within_watershed_auc": 0.47549019607843135,
+            "within_set_capture": {
+              "top_10pct": {
+                "k_blocks": 2,
+                "captured": 2,
+                "of_economic": 17,
+                "frac_captured": 0.11764705882352941,
+                "lift_vs_random": 1.176470588235294
+              },
+              "top_20pct": {
+                "k_blocks": 5,
+                "captured": 4,
+                "of_economic": 17,
+                "frac_captured": 0.23529411764705882,
+                "lift_vs_random": 1.176470588235294
+              },
+              "top_50pct": {
+                "k_blocks": 12,
+                "captured": 8,
+                "of_economic": 17,
+                "frac_captured": 0.47058823529411764,
+                "lift_vs_random": 0.9411764705882353
+              }
+            },
+            "bootstrap": {
+              "ci95": [
+                0.21540616246498603,
+                0.7368421052631579
+              ],
+              "median": 0.4722222222222222,
+              "frac_gt_0_5": 0.4077708792309233,
+              "n_valid_resamples": 4993,
+              "cluster_unit": "block (within one drainage)"
+            },
+            "permutation_null": {
+              "observed_auc": 0.47549019607843135,
+              "n_lines": 7,
+              "null_defined": true,
+              "null_mean": 0.4609266797508477,
+              "null_ci90": [
+                0.23666666666666666,
+                0.6444444444444445
+              ],
+              "p_value_upper": 0.5025,
+              "inside_null_band": true,
+              "n_perm_valid": 2000
+            }
           }
         },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
+        "n_watersheds_with_auc": 1,
+        "equal_weight_within_watershed_auc": 0.47549019607843135,
+        "pooled_cross_watershed_auc_SECONDARY": 0.47549019607843135,
+        "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+        "auc_mpm_as_econ_classifier": 0.47549019607843135
       },
       "cutoff_20c": {
         "cutoff_c_per_cuyd": 20.0,
         "cutoff_oz_per_cuyd": 0.00968,
-        "n_economic_blocks": 10,
-        "n_subeconomic_blocks": 10,
-        "auc_mpm_as_econ_classifier": 0.52,
-        "auc_bootstrap": {
-          "ci95": [
-            0.29166666666666663,
-            0.7525252525252525
-          ],
-          "median": 0.5202020202020201,
-          "frac_gt_0_5": 0.5527,
-          "n_valid_resamples": 10000,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 1,
-            "of_economic": 10,
-            "frac_captured": 0.1,
-            "lift_vs_random": 1.0
-          },
-          "top_20pct": {
-            "k_blocks": 4,
-            "captured": 1,
-            "of_economic": 10,
-            "frac_captured": 0.1,
-            "lift_vs_random": 0.5
-          },
-          "top_50pct": {
-            "k_blocks": 10,
-            "captured": 5,
-            "of_economic": 10,
-            "frac_captured": 0.5,
-            "lift_vs_random": 1.0
+        "per_watershed": {
+          "37": {
+            "n_blocks": 23,
+            "n_economic": 11,
+            "n_subeconomic": 12,
+            "within_watershed_auc": 0.36742424242424243,
+            "within_set_capture": {
+              "top_10pct": {
+                "k_blocks": 2,
+                "captured": 1,
+                "of_economic": 11,
+                "frac_captured": 0.09090909090909091,
+                "lift_vs_random": 0.9090909090909091
+              },
+              "top_20pct": {
+                "k_blocks": 5,
+                "captured": 3,
+                "of_economic": 11,
+                "frac_captured": 0.2727272727272727,
+                "lift_vs_random": 1.3636363636363635
+              },
+              "top_50pct": {
+                "k_blocks": 12,
+                "captured": 4,
+                "of_economic": 11,
+                "frac_captured": 0.36363636363636365,
+                "lift_vs_random": 0.7272727272727273
+              }
+            },
+            "bootstrap": {
+              "ci95": [
+                0.11363636363636362,
+                0.6323585115864526
+              ],
+              "median": 0.36607142857142855,
+              "frac_gt_0_5": 0.1538,
+              "n_valid_resamples": 5000,
+              "cluster_unit": "block (within one drainage)"
+            },
+            "permutation_null": {
+              "observed_auc": 0.36742424242424243,
+              "n_lines": 7,
+              "null_defined": true,
+              "null_mean": 0.5054276069722761,
+              "null_ci90": [
+                0.3214285714285714,
+                0.6916666666666667
+              ],
+              "p_value_upper": 0.8695,
+              "inside_null_band": true,
+              "n_perm_valid": 2000
+            }
           }
         },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
+        "n_watersheds_with_auc": 1,
+        "equal_weight_within_watershed_auc": 0.36742424242424243,
+        "pooled_cross_watershed_auc_SECONDARY": 0.36742424242424243,
+        "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+        "auc_mpm_as_econ_classifier": 0.36742424242424243
       },
       "cutoff_40c": {
         "cutoff_c_per_cuyd": 40.0,
         "cutoff_oz_per_cuyd": 0.01935,
-        "n_economic_blocks": 7,
-        "n_subeconomic_blocks": 13,
-        "auc_mpm_as_econ_classifier": 0.598901098901099,
-        "auc_bootstrap": {
-          "ci95": [
-            0.3666666666666667,
-            0.8214285714285714
-          ],
-          "median": 0.6,
-          "frac_gt_0_5": 0.7918167266906763,
-          "n_valid_resamples": 9996,
-          "cluster_unit": "block (within one drainage)"
-        },
-        "within_set_capture": {
-          "top_10pct": {
-            "k_blocks": 2,
-            "captured": 1,
-            "of_economic": 7,
-            "frac_captured": 0.14285714285714285,
-            "lift_vs_random": 1.4285714285714284
-          },
-          "top_20pct": {
-            "k_blocks": 4,
-            "captured": 1,
-            "of_economic": 7,
-            "frac_captured": 0.14285714285714285,
-            "lift_vs_random": 0.7142857142857142
-          },
-          "top_50pct": {
-            "k_blocks": 10,
-            "captured": 5,
-            "of_economic": 7,
-            "frac_captured": 0.7142857142857143,
-            "lift_vs_random": 1.4285714285714286
+        "per_watershed": {
+          "37": {
+            "n_blocks": 23,
+            "n_economic": 8,
+            "n_subeconomic": 15,
+            "within_watershed_auc": 0.4833333333333333,
+            "within_set_capture": {
+              "top_10pct": {
+                "k_blocks": 2,
+                "captured": 1,
+                "of_economic": 8,
+                "frac_captured": 0.125,
+                "lift_vs_random": 1.25
+              },
+              "top_20pct": {
+                "k_blocks": 5,
+                "captured": 3,
+                "of_economic": 8,
+                "frac_captured": 0.375,
+                "lift_vs_random": 1.875
+              },
+              "top_50pct": {
+                "k_blocks": 12,
+                "captured": 4,
+                "of_economic": 8,
+                "frac_captured": 0.5,
+                "lift_vs_random": 1.0
+              }
+            },
+            "bootstrap": {
+              "ci95": [
+                0.16666666666666666,
+                0.803921568627451
+              ],
+              "median": 0.4846153846153846,
+              "frac_gt_0_5": 0.4518903780756151,
+              "n_valid_resamples": 4999,
+              "cluster_unit": "block (within one drainage)"
+            },
+            "permutation_null": {
+              "observed_auc": 0.4833333333333333,
+              "n_lines": 7,
+              "null_defined": true,
+              "null_mean": 0.5307366550589074,
+              "null_ci90": [
+                0.33333333333333337,
+                0.7678571428571428
+              ],
+              "p_value_upper": 0.606,
+              "inside_null_band": true,
+              "n_perm_valid": 2000
+            }
           }
         },
-        "district_percentile_capture": {
-          "district_top_1pct": {
-            "percentile_threshold": 99.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_5pct": {
-            "percentile_threshold": 95.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_10pct": {
-            "percentile_threshold": 90.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          },
-          "district_top_20pct": {
-            "percentile_threshold": 80.0,
-            "frac_economic_blocks_here": 0.0,
-            "lift_vs_random": 0.0
-          }
-        },
-        "loo_drainage": {
-          "n_drainages": 1,
-          "auc": null,
-          "note": "one drainage: no spatially-independent hold-out is possible"
-        }
+        "n_watersheds_with_auc": 1,
+        "equal_weight_within_watershed_auc": 0.4833333333333333,
+        "pooled_cross_watershed_auc_SECONDARY": 0.4833333333333333,
+        "pooled_note": "pooled AUC mixes rich vs lean drainages (Simpson) and is dominated by the largest read set; not the headline",
+        "auc_mpm_as_econ_classifier": 0.4833333333333333
       }
     },
-    "median_split_ordering_check": {
-      "median_block_grade_c": 22.924816141645987,
-      "n_rich_ge_median": 10,
-      "n_lean_lt_median": 10,
-      "auc_mpm_orders_grade": 0.52,
-      "auc_bootstrap": {
-        "ci95": [
-          0.29166666666666663,
-          0.75
-        ],
-        "median": 0.5202020202020202,
-        "frac_gt_0_5": 0.5501,
-        "n_valid_resamples": 10000,
-        "cluster_unit": "block (within one drainage)"
-      },
-      "note": "ordering-only, agnostic to the economic cutoff: rich = block grade at or above the sample median. Tests rank discrimination (does the MPM order the blocks by grade), not economic presence."
-    },
-    "headline_cutoff_c": 10.0
+    "n_holes": 47,
+    "n_drainages": 1
   }
 }

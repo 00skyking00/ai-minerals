@@ -5,7 +5,7 @@
     "script": "scripts/nome_placer/drillgold_capture_validation.py",
     "n_positioned_holes": 47,
     "n_positioned_drainages": 1,
-    "placer_auc_at_10c_cutoff": 0.47058823529411764,
+    "placer_auc_at_10c_cutoff": 0.47549019607843135,
     "verdict": "unchanged vs the committed 2026-07-05 run: one drainage, underpowered, AUC ~ chance with a CI spanning 0.19-0.75; a LABELED methods-validation baseline, not a G-result"
   },
   "power_accounting": {
@@ -85,7 +85,7 @@
       {
         "drainage": "B1 Nome dredge field",
         "extent": "area_hull",
-        "placer_mpm_percentile": 64.5
+        "placer_mpm_percentile": null
       },
       {
         "drainage": "Anvil-Dexter dredge valley",
@@ -211,12 +211,9 @@
       "n_barren": null,
       "basis": "dredge recovery",
       "provenance": "Map B1 flat-scan Layer-2 (FlatPositioner georef)",
-      "repr_lon_lat": [
-        -165.40691,
-        64.53994
-      ],
-      "placer_mpm_value": 0.0133,
-      "placer_mpm_percentile": 64.5
+      "repr_lon_lat": null,
+      "placer_mpm_value": null,
+      "placer_mpm_percentile": null
     },
     {
       "drainage": "Anvil-Dexter dredge valley",
